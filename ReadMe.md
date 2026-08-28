@@ -1,357 +1,285 @@
-# 🌿 Git 협업 규칙
+# 🌰 도토리
 
-## 1. 브랜치 전략
+> 부모가 만든 안전한 가정 내 경제 시스템에서 아이가 도토리 포인트를 벌고, 모으고, 쓰고, 투자하며 금융 개념을 경험하는 Android 서비스
 
-우리 프로젝트는 다음과 같이 브랜치를 운영합니다.
+<p align="center">
+  <strong>설명으로 배우는 금융이 아니라, 우리 집 안에서 직접 경험하는 금융</strong>
+</p>
 
-```text
-master
-  ↑
- dev
-  ↑
-feature / fix / refactor / docs / chore
+<!--
+대표 이미지가 준비되면 아래 경로에 추가합니다.
+- 권장 경로: docs/images/readme/hero.png
+- 권장 내용: 도토리 로고와 부모·아이 주요 화면
+
+<p align="center">
+  <img src="docs/images/readme/hero.png" width="100%" alt="도토리 서비스 소개" />
+</p>
+-->
+
+## 프로젝트 개요
+
+| 구분 | 내용 |
+| --- | --- |
+| 프로젝트명 | 도토리 |
+| 개발 상태 | 개발 진행 중 |
+| 대상 플랫폼 | Android 우선 지원 |
+| 핵심 사용자 | 초등학교 4~6학년 자녀와 보호자 |
+| 팀 구성 | 총 6명 |
+
+초등학생은 돈을 직접 벌고 저축하거나 소비하는 경험이 적어 금융 개념을 설명으로만 접하는 경우가 많습니다. 부모 역시 용돈과 보상을 통해 올바른 경제 습관을 알려주고 싶지만, 일관된 기준과 지속 가능한 방법을 만들기 어렵습니다.
+
+**도토리**는 부모가 가정 안의 경제 규칙을 만들고 아이가 그 안에서 소득, 저축, 소비, 투자 과정을 직접 경험하도록 돕습니다. 모든 활동은 가족 단위의 안전한 환경에서 이루어지며, 아이는 자신의 선택이 포인트 변화와 결과로 이어지는 과정을 자연스럽게 학습합니다.
+
+## 핵심 사용자
+
+### 부모
+
+- 자녀의 경제 습관을 지도하고 싶은 보호자
+- 가족 그룹과 가정 내 경제 환경을 관리하는 사용자
+- 아이의 활동과 환전 요청, 경제활동 결과를 확인하는 사용자
+- 아이가 구매할 수 있는 상점 상품을 등록하는 사용자
+
+### 아이
+
+- 금융 경험이 부족한 초등학교 4~6학년
+- 미션과 보상 방식에 익숙한 사용자
+- 행동과 선택의 결과를 포인트 변화로 경험하는 사용자
+
+## 핵심 가치
+
+1. **경험형 금융교육**
+   설명을 읽는 데서 그치지 않고 소득 → 저축 → 소비 → 투자의 흐름을 직접 경험합니다.
+
+2. **가족 맞춤형 경제**
+   가족마다 생활 방식에 맞는 미션과 상점 상품을 구성해 우리 집만의 경제 환경을 만듭니다.
+
+3. **안전한 금융 경험**
+   가족 그룹 안에서 부모와 아이의 역할을 분리하고, 보호자가 아이의 경제활동을 함께 살펴봅니다.
+
+4. **지속적인 참여 동기**
+   다람쥐와 도토리 세계관, 성장과 보상을 통해 금융 활동을 친숙하고 재미있는 경험으로 만듭니다.
+
+## 도토리 세계관
+
+도토리는 다람쥐가 도토리를 모으고 활용하는 모습을 아이의 경제활동과 연결합니다. 아이는 미션을 수행해 도토리 포인트를 벌고, 필요한 곳에 쓰거나 미래를 위해 모으며, 선택에 따른 결과를 경험합니다.
+
+- **도토리 포인트**: 아이의 소득과 경제활동을 표현하는 서비스 내 재화
+- **모으기**: 예금과 적금을 통한 저축 경험
+- **사용하기**: 부모가 만든 상점에서의 소비 경험
+- **불리기**: 가상 투자를 통한 수익과 위험 경험
+- **성장하기**: 퀴즈, 단어장, 리포트를 통한 금융 지식 축적
+
+> `10원 = 1P`의 고정 비율을 사용합니다. 아이는 부모에게 포인트 환전을 요청하고, 부모는 실제 용돈 지급을 처리합니다.
+
+## 서비스 진입 흐름
+
+```mermaid
+flowchart TD
+    START([시작]) --> ONBOARDING[온보딩]
+    ONBOARDING --> AUTH[회원가입 / 로그인]
+    AUTH --> ROLE{역할 선택}
+
+    ROLE -->|부모| PARENT[가족 생성]
+    PARENT --> INVITE[자녀 초대 코드 발급]
+
+    ROLE -->|아이| CHILD[초대 코드 입력]
+    INVITE --> CONNECT[가족 연결]
+    CHILD --> CONNECT
+
+    CONNECT --> HOME[우리 집 경제 시작]
 ```
 
-### `master`
+## 주요 기능
 
-* **배포용 브랜치**
-* 실제 운영 환경에 배포할 코드만 존재합니다.
-* 누구도 직접 push하지 않습니다.
-* `dev` 브랜치에서 충분히 검증된 코드만 MR을 통해 merge합니다.
+### 1. 가족 연결과 역할 분리
 
-### `dev`
+- 회원가입 및 로그인
+- 부모와 아이 역할 선택
+- 부모의 가족 그룹 생성과 초대 코드 발급
+- 아이의 초대 코드 입력을 통한 가족 연결
+- 가족 단위 권한과 데이터 분리
 
-* **개발 통합 브랜치**
-* 각 기능 브랜치에서 개발한 내용을 모으는 브랜치입니다.
-* 기능 개발이 완료되면 `feature`, `fix` 등의 브랜치에서 `dev`로 MR을 생성합니다.
-* 여러 기능이 통합된 뒤 테스트와 QA를 진행합니다.
-* 배포 가능한 상태가 되면 `dev`에서 `master`로 MR을 생성합니다.
+### 2. 실계좌 연동과 도토리 지갑
 
-### 작업 브랜치
+- SSAFY 금융망 API를 활용한 계좌 연동
+- 연결 계좌와 거래 내역 조회
+- 도토리 포인트 잔액과 거래 내역 확인
+- 가족 구성원 간 포인트 이전
+- 아이의 환전 요청과 부모의 용돈 지급 처리
 
-* 실제 기능 개발과 수정 작업을 진행하는 브랜치입니다.
-* 항상 최신 `dev` 브랜치를 기준으로 생성합니다.
-* 작업 완료 후 `dev` 브랜치로 MR을 생성합니다.
+### 3. 소득과 소비
 
----
+- 집안일과 활동을 통한 도토리 포인트 획득
+- 소득·소비 내역 기록과 확인
+- 행동의 결과를 포인트 변화로 즉시 경험
 
-## 2. 브랜치 이름 규칙
+### 4. 포인트 기반 예금·적금
 
-```text
-<타입>/<이름이니셜>/<작업내용>
+- 실제 금융상품이 아닌 도토리 포인트 기반의 가상 예·적금
+- 포인트를 일정 기간 모으고 이자를 받는 저축 경험
+- 만기와 결과를 통해 저축의 개념 학습
+
+### 5. 우리 집 상점
+
+- 부모가 아이를 위한 상품과 가격 등록
+- 아이가 보유 포인트로 상품 구매
+- 별도의 구매 후 승인 없이 구매와 함께 포인트 차감
+- 소비 선택과 잔액 변화를 직접 확인
+
+### 6. 투자와 금융 학습
+
+- 포인트 기반 가상 투자 경험
+- 금융 퀴즈를 통한 개념 확인
+- 금융 단어장을 통한 용어 학습
+- AI 학습 도우미를 활용한 쉬운 설명과 학습 지원
+
+### 7. AI 경제 설계와 리포트
+
+- 가족 상황을 바탕으로 우리 집 경제 시스템 구성 지원
+- 주간 경제활동 정산
+- 소득, 소비, 저축, 투자 활동 요약
+- 부모를 위한 자녀 경제활동 리포트
+
+## 개발 단계별 범위
+
+| 단계 | 목표 | 포함 기능 |
+| --- | --- | --- |
+| **1차 — 기반 시스템** | 가족 경제활동의 기반 마련 | 회원가입·로그인, 가족 그룹, 실계좌 연동, 포인트 지갑, 환전 요청 |
+| **2차 — 주요 경제활동** | 돈을 벌고 모으고 쓰는 과정 구현 | 소득, 소비, 예·적금, 상점 |
+| **2.5차 — 금융 경험 확장** | 선택과 학습 영역 확장 | 가상 투자, 금융 퀴즈, 금융 단어장 |
+| **3차 — 서비스 고도화** | 활동 결과를 이해하고 지속하도록 지원 | AI 경제 설계, 주간 정산, 부모 리포트, 알림, 사용성 개선 및 이슈 해결 |
+
+<!--
+실제 화면이 준비되면 아래와 같은 구성을 추가합니다.
+
+## 서비스 화면
+
+| 부모 홈 | 아이 홈 | 도토리 지갑 |
+| --- | --- | --- |
+| 이미지 | 이미지 | 이미지 |
+
+| 예·적금 | 우리 집 상점 | 투자·퀴즈 |
+| --- | --- | --- |
+| 이미지 | 이미지 | 이미지 |
+
+권장 경로:
+- docs/images/readme/screen-parent-home.png
+- docs/images/readme/screen-child-home.png
+- docs/images/readme/screen-wallet.png
+- docs/images/readme/screen-saving.png
+- docs/images/readme/screen-store.png
+- docs/images/readme/screen-learning.png
+-->
+
+## 시스템 구성
+
+```mermaid
+flowchart LR
+    P[부모] --> APP[Android 앱<br/>Expo · React Native]
+    C[아이] --> APP
+
+    APP -->|HTTPS API| SERVER[Spring Boot 서버]
+    SERVER --> DB[(PostgreSQL)]
+    SERVER --> CACHE[(Redis)]
+    SERVER --> FINANCE[SSAFY 금융망 API]
+    SERVER --> AI[AI 기능]
 ```
 
-예시:
+> 현재 저장소에 마련된 기반 구성을 나타냅니다. 인증, AI 연동, 배포 구조가 확정되면 실제 운영 아키텍처로 갱신할 예정입니다.
+
+## 기술 스택
+
+| 영역 | 기술 |
+| --- | --- |
+| **Mobile** | React Native 0.86, React 19, TypeScript 6, Expo 57, Expo Router |
+| **Client State & Data** | TanStack Query, Zustand, Axios |
+| **Backend** | Java 21, Spring Boot 4.1, Spring Security, Spring Data JPA, Spring Batch |
+| **Database** | PostgreSQL 16, Redis 7 |
+| **External API** | SSAFY 금융망 API |
+| **Infrastructure** | Docker, Docker Compose |
+| **Test** | Jest, React Native Testing Library, JUnit 5 |
+
+## 디렉터리 구조
 
 ```text
-feature/kts/login
-fix/kts/login-error
-refactor/kts/api-service
-docs/kts/readme
-chore/kts/docker-setup
+S15P21A505/
+├── frontend/                  # Expo·React Native Android 앱
+│   ├── src/app/               # 화면과 라우팅
+│   ├── src/features/          # 사용자 기능
+│   ├── src/widgets/           # 화면 단위 조합 UI
+│   └── src/shared/            # 공통 UI, API, 설정
+├── backend/                   # Spring Boot API 서버
+│   └── src/
+├── docs/                      # 기획, 설계, API 및 협업 문서
+├── docker-compose.local.yml   # PostgreSQL·Redis 로컬 환경
+└── .env.example              # 로컬 환경변수 예시
 ```
 
-* 이니셜은 본인 영문 이니셜을 사용합니다.
+## 로컬 실행
 
-  * 예: 김태수 → `kts`
-* 작업 내용은 **영어 소문자와 하이픈(-)** 으로 작성합니다.
-* 하나의 브랜치에는 하나의 기능 또는 하나의 목적만 포함합니다.
+### 사전 요구 사항
 
-| 타입          | 용도             | 예시                         |
-| ----------- | -------------- | -------------------------- |
-| `feature/`  | 새로운 기능 개발      | `feature/kts/login`        |
-| `fix/`      | 버그 수정          | `fix/kts/login-error`      |
-| `refactor/` | 기능 변화 없는 코드 개선 | `refactor/kts/api-service` |
-| `docs/`     | README, 문서 수정  | `docs/kts/readme`          |
-| `chore/`    | 빌드, 설정, 환경 구성  | `chore/kts/docker-setup`   |
+- Node.js 및 npm
+- JDK 21
+- Docker Engine 및 Docker Compose
 
----
-
-## 3. 작업 흐름
-
-모든 기능 개발은 최신 `dev` 브랜치에서 시작합니다.
+### 1. PostgreSQL·Redis 실행
 
 ```bash
-# 1. dev 브랜치로 이동
-git switch dev
-
-# 2. 최신 dev 반영
-git pull origin dev
-
-# 3. 작업 브랜치 생성
-git switch -c feature/kts/login
-
-# 4. 작업 후 변경사항 확인
-git status
-
-# 5. 커밋
-git add .
-git commit -m "feat(login): 로그인 기능 구현"
-
-# 6. 원격 브랜치에 push
-git push -u origin feature/kts/login
+docker compose -f docker-compose.local.yml up -d
 ```
 
-이후 GitLab에서 다음 방향으로 MR을 생성합니다.
-
-```text
-feature/kts/login
-        ↓
-       dev
-```
-
-팀원 리뷰 후 `dev` 브랜치에 merge합니다.
-
-merge가 완료된 작업 브랜치는 삭제합니다.
-
-다음 기능을 개발할 때는 다시 최신 `dev`를 기준으로 새로운 브랜치를 생성합니다.
+### 2. Backend 실행
 
 ```bash
-git switch dev
-git pull origin dev
-git switch -c feature/kts/signup
+cd backend
+./gradlew bootRun
 ```
 
----
+Windows에서는 다음 명령을 사용할 수 있습니다.
 
-## 4. 배포 흐름
-
-기능 개발이 완료되고 `dev` 브랜치에서 테스트와 QA가 끝나면 배포를 위해 `master`로 merge합니다.
-
-```text
-feature/login ─┐
-feature/signup ├──→ dev ──→ master ──→ 배포
-fix/api-error ─┘
+```powershell
+cd backend
+.\gradlew.bat bootRun
 ```
 
-배포 순서는 다음과 같습니다.
-
-1. 각 기능 브랜치에서 개발
-2. 기능 브랜치 → `dev` MR 생성
-3. 코드 리뷰 후 `dev`에 merge
-4. `dev`에서 통합 테스트 및 QA
-5. 배포 가능한 상태가 되면 `dev` → `master` MR 생성
-6. 최종 확인 후 `master`에 merge
-7. `master` 기준으로 배포
-
-`master`와 `dev` 모두 직접 push하지 않고 MR을 통해서만 변경합니다.
-
----
-
-## 5. 커밋 메시지 규칙
-
-커밋 메시지는 다음 형식을 사용합니다.
-
-```text
-<타입>(<스코프>): <제목>
-```
-
-예시:
-
-```text
-feat(login): 로그인 기능 구현
-fix(auth): 토큰 재발급 오류 수정
-refactor(api): API 응답 구조 정리
-docs(readme): Git 협업 규칙 추가
-chore(docker): Docker 환경 설정
-```
-
-| 타입         | 용도                |
-| ---------- | ----------------- |
-| `feat`     | 새로운 기능 추가         |
-| `fix`      | 버그 수정             |
-| `refactor` | 기능 변화 없는 코드 개선    |
-| `style`    | 코드 포맷팅, 세미콜론 등    |
-| `docs`     | 문서 수정             |
-| `test`     | 테스트 코드 추가 또는 수정   |
-| `chore`    | 빌드, 환경 설정 등 기타 작업 |
-
-### 스코프
-
-스코프에는 작업한 기능이나 영역을 작성합니다.
-
-예시:
-
-```text
-login
-signup
-family
-account
-saving
-investment
-quiz
-api
-auth
-infra
-```
-
-스코프가 명확하지 않은 경우 생략할 수 있습니다.
-
-```text
-docs: README 수정
-chore: 프로젝트 초기 설정
-```
-
-### 커밋 작성 규칙
-
-* 제목은 한글로 작성해도 됩니다.
-* 무엇을 변경했는지 명확하게 작성합니다.
-* 커밋 메시지에 작성자 이름을 작성하지 않습니다.
-* 하나의 커밋에는 가능한 한 하나의 목적만 담습니다.
-
----
-
-## 6. Merge Request 규칙
-
-### 기능 개발 MR
-
-```text
-feature / fix / refactor
-        ↓
-       dev
-```
-
-예시:
-
-```text
-feature/kts/login → dev
-```
-
-### 배포 MR
-
-```text
-dev
- ↓
-master
-```
-
-### MR 제목
-
-커밋 메시지와 동일한 형식을 사용합니다.
-
-```text
-feat(login): 로그인 기능 구현
-fix(account): 계좌 조회 오류 수정
-```
-
-### MR 설명
-
-MR에는 다음 내용을 간단히 작성합니다.
-
-```text
-## 작업 내용
-- 로그인 API 구현
-- JWT Access Token 발급 처리
-
-## 변경 이유
-- 사용자 인증 기능 구현을 위해 추가
-
-## 확인 사항
-- 로그인 성공/실패 테스트 완료
-```
-
-### MR 규칙
-
-* 본인의 MR은 본인이 merge하지 않습니다.
-* 팀원 1명 이상 리뷰 후 merge합니다.
-* 충돌이 발생하면 본인의 작업 브랜치에서 해결합니다.
-* 하나의 MR에 서로 다른 여러 기능을 넣지 않습니다.
-
----
-
-## 7. Conflict 해결
-
-MR 과정에서 `dev`와 충돌이 발생하면 작업 브랜치에서 최신 `dev`를 받아 해결합니다.
+### 3. Frontend 실행
 
 ```bash
-# 현재 작업 브랜치에서
-git fetch origin
-
-git merge origin/dev
+cd frontend
+npm ci
+npm start
 ```
 
-충돌을 해결한 뒤:
+환경변수는 루트와 `frontend/`의 `.env.example`을 참고해 별도의 `.env` 파일에 작성합니다. 비밀값은 저장소에 커밋하지 않습니다.
 
-```bash
-git add .
-git commit
-git push
-```
+## 팀
 
-MR에 변경 내용이 자동으로 반영됩니다.
+| 이름 | 역할 |
+| --- | --- |
+| 서진주 | 팀장, AI |
+| 김상현 | 인프라, 백엔드 |
+| 이영주 | 풀스택 |
+| 김인송 | 풀스택 |
+| 김태수 | 백엔드 |
+| 천명석 | 백엔드 |
 
----
+개인별 세부 담당 기능과 기여 내용은 개발 진행에 맞춰 갱신할 예정입니다.
 
-## 8. 브랜치 보호 규칙
+## 협업 규칙
 
-### `master`
+- 작업 브랜치 → `dev` → `master` 순서로 병합합니다.
+- `dev`와 `master`에는 직접 push하지 않고 Merge Request를 사용합니다.
+- 브랜치 및 커밋 규칙은 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)를 따릅니다.
 
-* 직접 push 금지
-* MR을 통해서만 merge
-* 배포 가능한 코드만 유지
+<!--
+아래 자료가 확정되면 README에 추가합니다.
 
-### `dev`
-
-* 직접 push 금지
-* 기능 브랜치에서 MR을 통해서만 merge
-* 여러 기능이 통합되는 개발 기준 브랜치
-
----
-
-## 9. 금지 사항 🚫
-
-* `master` 직접 push ❌
-* `dev` 직접 push ❌
-* 리뷰 없이 merge ❌
-* 하나의 브랜치에서 여러 기능 개발 ❌
-* 하나의 MR에 서로 관련 없는 기능 포함 ❌
-* 다른 사람의 작업 브랜치에 임의로 push ❌
-
----
-
-## 10. 시작 전 체크리스트 ✅
-
-* [ ] `git config user.name` 확인
-* [ ] `git config user.email` 확인
-* [ ] GitLab 계정 정보와 Git 설정 확인
-* [ ] `master`, `dev` 보호 브랜치 설정
-* [ ] 팀 공통 스코프 목록 확정
-
-확인 방법:
-
-```bash
-git config user.name
-git config user.email
-```
-
----
-
-## 11. 전체 Git Flow
-
-```text
-            feature/login ─────┐
-                               │
-            feature/signup ────┤
-                               ↓
-                            ┌─────┐
-                            │ dev │
-                            └─────┘
-                               │
-                         통합 테스트 / QA
-                               │
-                               ↓
-                          ┌────────┐
-                          │ master │
-                          └────────┘
-                               │
-                               ↓
-                              배포
-```
-
-핵심 원칙은 다음과 같습니다.
-
-```text
-작업 브랜치 → dev → master → 배포
-```
-
-`master`는 항상 배포 가능한 상태를 유지하고, 개발 중인 기능은 `dev`를 기준으로 관리합니다.
+- 실제 서비스 화면과 시연 GIF
+- 시스템 아키텍처 이미지
+- ERD
+- API 문서 또는 Swagger 링크
+- APK 또는 배포 링크
+- 발표 영상과 서비스 소개 자료
+- 팀원 GitHub/GitLab 링크와 개인별 기여 내용
+-->
