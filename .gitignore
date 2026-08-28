@@ -1,1 +1,30 @@
+# === 환경변수 (모든 하위 디렉토리 포함) ===
+# .env, .env.dev, .env.prod 등 전부 무시하되 *.example 템플릿은 커밋
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === IDE ===
+# frontend/.vscode 는 팀 공유 설정이므로 전역 무시하지 않음
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# === 로그 ===
+*.log
+logs/
+
+# === Docker 로컬 데이터/오버라이드 ===
+docker-compose.override.yml
+.docker-data/
+
+# === Claude Code 로컬 설정 ===
+.claude/settings.local.json
+.claude/*.local.json
