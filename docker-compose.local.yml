@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dotori-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dotori_town}
+      POSTGRES_USER: ${POSTGRES_USER:-dotori}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dotori1234}
+      TZ: Asia/Seoul
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - dotori-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dotori} -d ${POSTGRES_DB:-dotori_town}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dotori-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-dotori1234}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - dotori-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dotori1234}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
+volumes:
+  dotori-postgres-data:
+  dotori-redis-data:
+
+networks:
+  dotori-network:
+    driver: bridge
