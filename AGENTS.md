@@ -1,47 +1,35 @@
 # AGENTS.md
 
-이 저장소에서 작업하는 에이전트(Claude Code 등)를 위한 최상위 지침 문서입니다.
-프론트엔드/백엔드별 세부 지침은 각 디렉토리의 `AGENTS.md`를 따르세요.
+프로젝트 개요·기획은 docs/Idea.md, 아키텍처는 docs/ARCHITECTURE.md 참고.
+하위 폴더 규칙은 frontend/AGENTS.md, backend/AGENTS.md 우선 적용.
 
-## 프로젝트 구조
+## Jira 워크플로우
 
-```
-project/
-├── AGENTS.md
-├── CLAUDE.md               ← See @AGENTS.md
-├── frontend/
-│   ├── AGENTS.md
-│   └── CLAUDE.md            ← See @AGENTS.md
-├── backend/
-│   ├── AGENTS.md
-│   └── CLAUDE.md            ← See @AGENTS.md
-├── docs/
-│   ├── Idea.md            ← 기획 원문 (프로젝트 개요, 핵심가치, MVP 범위)
-│   ├── ARCHITECTURE.md     ← 시스템 아키텍처, 인프라 구조, DB ERD 요약, API 설계 원칙
-│   ├── DESIGN.md           ← 디자인 시스템 (컬러 팔레트, 마스코트 가이드, 타이포)
-│   ├── TODO.md             ← 현재 작업 목록 (세션 시작 시 자동 갱신)
-│   ├── DECISIONS.md        ← 주요 기술/설계 결정과 이유 (ADR 스타일)
-│   ├── API.md              ← 엔드포인트 명세 (요청/응답 예시)
-│   └── CONVENTIONS.md      ← 커밋/브랜치/네이밍 컨벤션
-├── docker-compose.local.yml
-└── .env.example
-```
+- 이슈 관리: Jira 사용 (별도 TODO.md 파일 관리 안 함)
+- 하위작업(Subtask) 생성은 Jira UI에서 직접 (Story 밑에 Subtask 단위로 생성)
+- Subtask 제목은 영어로 작성: [be]/[fe] + 영문 기능명 (예: [be] signup API)
+- Jira MCP는 이슈 조회·상태 변경·댓글에 사용 (하위작업/브랜치 생성은 위임하지 않음)
+  - 예외: Notion에 정리된 API 명세를 하위작업으로 옮기는 반복 작업은 MCP로 자동화 가능
 
-## 세션 시작 시 해야 할 일
+## 브랜치 규칙
 
-1. `docs/TODO.md`를 읽고 진행 중/다음 작업을 파악한다.
-2. 작업이 완료되면 `docs/TODO.md`를 최신 상태로 갱신한다.
-3. 새로운 기술/설계 결정이 있으면 `docs/DECISIONS.md`에 기록한다.
+- 브랜치명: {type}/{이슈키} (예: feat/S15P21A505-6)
+- type: feat, fix, refactor, docs, test, chore
+- 브랜치명만으로 작업 내용 파악 불가 → 작업 전 Jira MCP로 해당 이슈 조회 먼저
 
-## 문서 우선순위
+## 커밋 메시지
 
-- 기획/범위가 궁금하면 → `docs/Idea.md`
-- 구조/인프라/DB가 궁금하면 → `docs/ARCHITECTURE.md`
-- 커밋/브랜치/네이밍 규칙이 궁금하면 → `docs/CONVENTIONS.md`
-- API 스펙이 궁금하면 → `docs/API.md`
+형식: {type}: {설명} ({이슈키})
+예시: feat: 회원가입 API 구현 (S15P21A505-6)
 
-## 공통 규칙
+## 경계 (Boundaries)
 
-- 커밋/브랜치/네이밍 컨벤션은 `docs/CONVENTIONS.md`를 따른다.
-- 백엔드 작업은 `backend/AGENTS.md`, 프론트엔드 작업은 `frontend/AGENTS.md`를 우선 확인한다.
-- 비밀값(.env 등)은 커밋하지 않는다. `.env.example`만 갱신한다.
+- 항상 가능: 기존 코드 스타일 따라 기능 추가, 테스트 작성
+- 먼저 물어보기: DB 스키마 변경, 새 외부 라이브러리 추가
+- 절대 금지: .env / 시크릿 파일 수정, main 브랜치 직접 push
+
+## 유지보수
+
+- 이 파일이 실제와 달라지면 그 자리에서 바로 수정
+- 프로젝트 트리 전체를 여기 박제하지 않는다 (docs/ARCHITECTURE.md 참고)
+- 코드에 이미 일관되게 반영된 패턴(예: 패키지 구조)은 굳이 여기 중복해서 안 남긴다
