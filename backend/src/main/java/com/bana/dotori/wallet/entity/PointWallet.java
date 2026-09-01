@@ -14,9 +14,8 @@ import jakarta.persistence.UniqueConstraint;
 
 import org.hibernate.annotations.Check;
 
-import com.bana.dotori.wallet.exception.InsufficientPointException;
-import com.bana.dotori.wallet.exception.InvalidPointAmountException;
-import com.bana.dotori.wallet.exception.PointBalanceExceededException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -83,14 +82,16 @@ public class PointWallet {
 	/**
 	 * 포인트를 더하고 변경된 잔액을 돌려준다.
 	 *
-	 * @throws InvalidPointAmountException    금액이 0 이하인 경우
-	 * @throws PointBalanceExceededException 잔액이 INTEGER 상한을 넘는 경우
+	 * @throws com.bana.dotori.global.error.BusinessException INVALID_POINT_AMOUNT 금액이 0 이하인 경우
+	 *         또는 POINT_BALANCE_EXCEEDED 잔액이 INTEGER 상한을 넘는 경우
 	 */
 	public int deposit(int amount) {
 		validateAmount(amount);
 		long next = (long)this.balance + amount;
 		if (next > Integer.MAX_VALUE) {
-			throw new PointBalanceExceededException(this.balance, amount);
+			throw new BusinessException(ErrorCode.POINT_BALANCE_EXCEEDED,
+					"보유 가능한 최대 포인트를 초과했습니다. 잔액=" + this.balance + ", 지급 요청=" + amount
+							+ ", 상한=" + Integer.MAX_VALUE);
 		}
 		this.balance = (int)next;
 		return this.balance;
@@ -99,13 +100,14 @@ public class PointWallet {
 	/**
 	 * 포인트를 빼고 변경된 잔액을 돌려준다.
 	 *
-	 * @throws InvalidPointAmountException 금액이 0 이하인 경우
-	 * @throws InsufficientPointException  잔액이 부족한 경우
+	 * @throws com.bana.dotori.global.error.BusinessException INVALID_POINT_AMOUNT 금액이 0 이하인 경우
+	 *         또는 INSUFFICIENT_POINT 잔액이 부족한 경우
 	 */
 	public int withdraw(int amount) {
 		validateAmount(amount);
 		if (this.balance < amount) {
-			throw new InsufficientPointException(this.balance, amount);
+			throw new BusinessException(ErrorCode.INSUFFICIENT_POINT,
+					"보유 포인트가 부족합니다. 잔액=" + this.balance + ", 차감 요청=" + amount);
 		}
 		this.balance -= amount;
 		return this.balance;
@@ -113,7 +115,8 @@ public class PointWallet {
 
 	private void validateAmount(int amount) {
 		if (amount <= 0) {
-			throw new InvalidPointAmountException(amount);
+			throw new BusinessException(ErrorCode.INVALID_POINT_AMOUNT,
+					"포인트 금액은 1 이상이어야 합니다. 요청 금액=" + amount);
 		}
 	}
 

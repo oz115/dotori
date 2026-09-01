@@ -17,11 +17,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
@@ -88,7 +89,8 @@ class PointWalletServiceTransactionTest {
 	void 차감_거부시_아무것도_바뀌지_않는다() {
 		assertThatThrownBy(() -> pointWalletService.withdraw(
 				PointChangeCommand.of(childId, 1_001, PointTransactionReason.PURCHASE, "구매", "purchase-fail")))
-				.isInstanceOf(InsufficientPointException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(1_000);
 		assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isZero();

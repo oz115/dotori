@@ -1,4 +1,4 @@
-package com.bana.dotori.wallet.client;
+package com.bana.dotori.mock.bank;
 
 import java.time.OffsetDateTime;
 

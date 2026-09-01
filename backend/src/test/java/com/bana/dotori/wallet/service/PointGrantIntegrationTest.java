@@ -12,9 +12,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
@@ -77,7 +78,8 @@ class PointGrantIntegrationTest {
 		pointWalletRepository.save(PointWallet.openWithBalance(otherChildId, 0));
 
 		assertThatThrownBy(() -> pointGrantService.grant(familyId, otherChildId, 5_000, "용돈", "grant-other"))
-				.isInstanceOf(NotFamilyChildException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, otherChildId))
 				.as("남의 집 아이 지갑에 포인트가 들어가면 안 된다")
@@ -91,7 +93,8 @@ class PointGrantIntegrationTest {
 		Integer strangerId = WalletTestFixture.insertChild(jdbcTemplate, "child-stranger");
 
 		assertThatThrownBy(() -> pointGrantService.grant(familyId, strangerId, 5_000, "용돈", "grant-stranger"))
-				.isInstanceOf(NotFamilyChildException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 	}
 
 	@Test
@@ -102,7 +105,8 @@ class PointGrantIntegrationTest {
 
 		assertThatThrownBy(() -> pointGrantService.grant(familyId, parentId, 5_000, "용돈", "grant-parent"))
 				.as("가족 구성원이지만 자녀가 아니므로 거부돼야 한다")
-				.isInstanceOf(NotFamilyChildException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 	}
 
 	@Test

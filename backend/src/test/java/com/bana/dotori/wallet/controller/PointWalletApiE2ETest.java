@@ -18,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.bana.dotori.wallet.client.MockBankTransferClient;
+import com.bana.dotori.mock.bank.MockBankTransferClient;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;

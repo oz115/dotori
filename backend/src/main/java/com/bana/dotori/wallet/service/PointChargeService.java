@@ -3,13 +3,13 @@ package com.bana.dotori.wallet.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bana.dotori.wallet.client.BankTransferClient;
-import com.bana.dotori.wallet.client.BankTransferResult;
+import com.bana.dotori.mock.bank.BankTransferClient;
+import com.bana.dotori.mock.bank.BankTransferResult;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.exception.BankTransferFailedException;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,8 @@ public class PointChargeService {
 		// familyId 는 돈을 받을 부모 계좌를 결정한다. 소속을 확인하지 않으면 아이 계좌에서
 		// 남의 가족 부모 계좌로 송금될 수 있으므로, 잔액을 건드리기 전에 먼저 막는다.
 		if (!familyMembershipReader.isChildOfFamily(familyId, childId)) {
-			throw new NotFamilyChildException(familyId, childId);
+			throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD,
+					"해당 가족의 자녀가 아닙니다. familyId=" + familyId + ", childId=" + childId);
 		}
 
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
@@ -62,8 +63,9 @@ public class PointChargeService {
 		BankTransferResult transfer = bankTransferClient.transferFromChildToParent(familyId, childId, amount);
 		if (transfer.transferredAmount() != amount) {
 			// 부분 송금은 발행한 포인트와 금액이 어긋나므로 성공으로 볼 수 없다. 롤백시킨다.
-			throw new BankTransferFailedException(childId, amount,
-					"요청 금액과 이체 금액이 다르다. transferred=" + transfer.transferredAmount());
+			throw new BusinessException(ErrorCode.BANK_TRANSFER_FAILED,
+					"요청 금액과 이체 금액이 다릅니다. childId=" + childId + ", 요청=" + amount
+							+ ", 이체=" + transfer.transferredAmount());
 		}
 
 		log.info("포인트 충전 완료. childId={}, amount={}, balanceAfter={}, externalTransactionId={}",

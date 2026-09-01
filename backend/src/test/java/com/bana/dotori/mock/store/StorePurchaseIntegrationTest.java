@@ -1,4 +1,4 @@
-package com.bana.dotori.store;
+package com.bana.dotori.mock.store;
 
 import com.bana.dotori.global.error.ErrorCode;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,7 +15,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
@@ -101,7 +100,8 @@ class StorePurchaseIntegrationTest {
 
 		assertThatThrownBy(() -> storePurchaseService.purchase(
 				FAMILY_ID, childId, product.storeProductId(), 1))
-				.isInstanceOf(InsufficientPointException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);
 		assertThat(WalletTestFixture.countTransactions(jdbcTemplate))
@@ -162,7 +162,8 @@ class StorePurchaseIntegrationTest {
 
 		assertThatThrownBy(() -> storePurchaseService.purchase(
 				FAMILY_ID, childId, product.storeProductId(), 1))
-				.isInstanceOf(InsufficientPointException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 		// 실패한 구매가 하루 1회 제한을 소진해 버리면, 부모가 포인트를 채워 줘도
 		// 그날은 그 상품을 살 수 없게 된다.

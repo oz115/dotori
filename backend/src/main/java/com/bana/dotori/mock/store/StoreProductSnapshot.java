@@ -1,4 +1,4 @@
-package com.bana.dotori.store;
+package com.bana.dotori.mock.store;
 
 /**
  * 상점 물품 한 건. API 명세 SHOP-02(상품 상세 조회)와 store_products 테이블의

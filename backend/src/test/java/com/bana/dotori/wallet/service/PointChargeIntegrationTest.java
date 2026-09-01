@@ -12,10 +12,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.bana.dotori.wallet.client.MockBankTransferClient;
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.mock.bank.MockBankTransferClient;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
@@ -83,7 +84,8 @@ class PointChargeIntegrationTest {
 		mockBankTransferClient.registerAccount(childId, "김도토", 5_000);
 
 		assertThatThrownBy(() -> pointChargeService.charge(familyId, childId, 10_000, "charge-poor"))
-				.isInstanceOf(InsufficientAccountBalanceException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId))
 				.as("송금이 실패했으면 포인트는 그대로여야 한다")
@@ -98,7 +100,8 @@ class PointChargeIntegrationTest {
 	void 실패한_요청은_재시도할_수_있다() {
 		mockBankTransferClient.registerAccount(childId, "김도토", 5_000);
 		assertThatThrownBy(() -> pointChargeService.charge(familyId, childId, 10_000, "charge-retry"))
-				.isInstanceOf(InsufficientAccountBalanceException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE);
 
 		// 롤백으로 멱등키 행도 사라졌으므로 같은 키를 다시 쓸 수 있어야 한다.
 		mockBankTransferClient.registerAccount(childId, "김도토", 500_000);

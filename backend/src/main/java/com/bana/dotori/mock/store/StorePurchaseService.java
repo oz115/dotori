@@ -1,4 +1,4 @@
-package com.bana.dotori.store;
+package com.bana.dotori.mock.store;
 
 import com.bana.dotori.global.error.ErrorCode;
 import java.time.LocalDate;

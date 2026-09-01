@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.bana.dotori.wallet.exception.InsufficientPointException;
-import com.bana.dotori.wallet.exception.InvalidPointAmountException;
-import com.bana.dotori.wallet.exception.PointBalanceExceededException;
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 
 /**
@@ -47,7 +45,7 @@ class PointWalletTest {
 			PointWallet wallet = PointWallet.openWithBalance(USER_ID, 1_000);
 
 			assertThatThrownBy(() -> wallet.deposit(invalidAmount))
-					.isInstanceOf(InvalidPointAmountException.class)
+					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 			assertThat(wallet.getBalance()).as("거부됐으므로 잔액은 그대로여야 한다").isEqualTo(1_000);
@@ -59,7 +57,7 @@ class PointWalletTest {
 			PointWallet wallet = PointWallet.openWithBalance(USER_ID, Integer.MAX_VALUE - 10);
 
 			assertThatThrownBy(() -> wallet.deposit(11))
-					.isInstanceOf(PointBalanceExceededException.class)
+					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.POINT_BALANCE_EXCEEDED);
 
 			assertThat(wallet.getBalance())
@@ -107,7 +105,7 @@ class PointWalletTest {
 			PointWallet wallet = PointWallet.openWithBalance(USER_ID, 1_000);
 
 			assertThatThrownBy(() -> wallet.withdraw(1_001))
-					.isInstanceOf(InsufficientPointException.class)
+					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 			assertThat(wallet.getBalance()).as("거부됐으므로 잔액은 그대로여야 한다").isEqualTo(1_000);
@@ -121,7 +119,8 @@ class PointWalletTest {
 
 			assertThatThrownBy(() -> wallet.withdraw(invalidAmount))
 					.as("음수 금액을 차감하면 잔액이 늘어나는 버그가 되므로 반드시 금액 검증이 먼저다")
-					.isInstanceOf(InvalidPointAmountException.class);
+					.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 			assertThat(wallet.getBalance()).isEqualTo(1_000);
 		}

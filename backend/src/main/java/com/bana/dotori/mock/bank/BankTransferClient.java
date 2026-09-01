@@ -1,4 +1,4 @@
-package com.bana.dotori.wallet.client;
+package com.bana.dotori.mock.bank;
 
 /**
  * 아이 계좌에서 부모 계좌로 실제 금액을 옮기는 외부 금융 API 경계.
@@ -19,12 +19,10 @@ public interface BankTransferClient {
 	 * @param childId  송금하는 아이
 	 * @param amount   송금액(원). 항상 양수
 	 * @return 송금 결과
-	 * @throws com.bana.dotori.wallet.exception.AccountNotLinkedException
-	 *         아이 또는 부모의 연동 계좌가 없는 경우 (명세상 404)
-	 * @throws com.bana.dotori.wallet.exception.InsufficientAccountBalanceException
-	 *         아이 계좌 잔액이 부족한 경우 (명세상 400)
-	 * @throws com.bana.dotori.wallet.exception.BankTransferFailedException
-	 *         그 밖의 이유로 송금이 실패한 경우
+	 * @throws com.bana.dotori.global.error.BusinessException
+	 *         ACCOUNT_NOT_LINKED 아이 또는 부모의 연동 계좌가 없는 경우(명세상 404),
+	 *         INSUFFICIENT_ACCOUNT_BALANCE 아이 계좌 잔액이 부족한 경우(명세상 400),
+	 *         BANK_TRANSFER_FAILED 그 밖의 이유로 송금이 실패한 경우
 	 */
 	BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount);
 }

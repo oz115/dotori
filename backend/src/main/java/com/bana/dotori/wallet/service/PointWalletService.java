@@ -11,8 +11,8 @@ import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.DuplicatePointRequestException;
-import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 
@@ -69,7 +69,7 @@ public class PointWalletService {
 	@Transactional(readOnly = true)
 	public int getBalance(Integer userId) {
 		return pointWalletRepository.findByUserId(userId)
-				.orElseThrow(() -> new PointWalletNotFoundException(userId))
+				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. userId=" + userId))
 				.getBalance();
 	}
 
@@ -78,7 +78,7 @@ public class PointWalletService {
 		//    같은 지갑에 대한 모든 잔액 변경이 이 지점에서 직렬화되므로,
 		//    잔액 검사와 차감 사이에 다른 트랜잭션이 끼어들 수 없다.
 		PointWallet wallet = pointWalletRepository.findByUserIdForUpdate(command.userId())
-				.orElseThrow(() -> new PointWalletNotFoundException(command.userId()));
+				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. userId=" + command.userId()));
 
 		// 2. 멱등성 확인은 반드시 락을 잡은 뒤에 한다.
 		//    락 이전에 확인하면 동시에 들어온 같은 요청이 둘 다 "없음"으로 판정해 중복 반영된다.
@@ -111,7 +111,8 @@ public class PointWalletService {
 			// 멱등키 유니크 위반만 잡는다. CHECK·외래키 위반까지 여기서 삼키면
 			// 전혀 다른 문제가 "이미 처리된 요청"으로 둔갑해 원인을 못 찾는다.
 			// 같은 멱등키를 서로 다른 지갑에 쓴 경우가 여기 해당한다.
-			throw new DuplicatePointRequestException(command.idempotencyKey(), e);
+			throw new BusinessException(ErrorCode.DUPLICATE_POINT_REQUEST,
+					"이미 다른 거래에 사용된 요청 키입니다. idempotencyKey=" + command.idempotencyKey(), e);
 		}
 
 		return PointChangeResult.applied(transaction);

@@ -6,7 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,8 @@ public class PointGrantService {
 			String idempotencyKey) {
 
 		if (!familyMembershipReader.isChildOfFamily(familyId, childId)) {
-			throw new NotFamilyChildException(familyId, childId);
+			throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD,
+					"해당 가족의 자녀가 아닙니다. familyId=" + familyId + ", childId=" + childId);
 		}
 
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(

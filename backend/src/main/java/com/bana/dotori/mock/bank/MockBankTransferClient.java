@@ -1,4 +1,4 @@
-package com.bana.dotori.wallet.client;
+package com.bana.dotori.mock.bank;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.stereotype.Component;
 
-import com.bana.dotori.wallet.exception.AccountNotLinkedException;
-import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +49,9 @@ public class MockBankTransferClient implements BankTransferClient {
 		LinkedAccountSnapshot parentAccount = requireAccount("parent", parentId);
 
 		if (childAccount.balance() < amount) {
-			throw new InsufficientAccountBalanceException(childId, childAccount.balance(), amount);
+			throw new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE,
+					"계좌 잔액이 부족합니다. childId=" + childId + ", 계좌 잔액=" + childAccount.balance()
+							+ ", 송금 요청=" + amount);
 		}
 
 		OffsetDateTime now = OffsetDateTime.now(KST);
@@ -95,7 +97,8 @@ public class MockBankTransferClient implements BankTransferClient {
 
 	private LinkedAccountSnapshot requireAccount(String owner, Integer userId) {
 		if (userId == null) {
-			throw new AccountNotLinkedException(owner, null);
+			throw new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED,
+					"연동된 계좌가 없습니다. owner=" + owner);
 		}
 		return accountsByUserId.computeIfAbsent(userId,
 				id -> {

@@ -1,4 +1,4 @@
-package com.bana.dotori.store;
+package com.bana.dotori.mock.store;
 
 import java.time.LocalDate;
 import java.util.Optional;

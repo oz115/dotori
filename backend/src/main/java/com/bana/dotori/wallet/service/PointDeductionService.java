@@ -6,7 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.exception.InvalidTransactionReasonException;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,15 +46,17 @@ public class PointDeductionService {
 	 * @param description    거래내역에 노출될 설명
 	 * @param idempotencyKey 중복 차감 방지 키. 호출 도메인의 식별자를 넣는 것을 권장한다
 	 *                       (예: purchase-123). 그래야 재시도해도 두 번 빠지지 않는다
-	 * @throws InvalidTransactionReasonException 차감이 허용되지 않은 사유인 경우
-	 * @throws com.bana.dotori.wallet.exception.InsufficientPointException 잔액이 부족한 경우
+	 * @throws com.bana.dotori.global.error.BusinessException
+	 *         INVALID_TRANSACTION_REASON 차감이 허용되지 않은 사유인 경우,
+	 *         INSUFFICIENT_POINT 잔액이 부족한 경우
 	 */
 	@Transactional
 	public PointChangeResult deduct(Integer childId, int amount, PointTransactionReason reason,
 			String description, String idempotencyKey) {
 
 		if (!reason.isWithdrawalAllowed()) {
-			throw new InvalidTransactionReasonException(reason, "WITHDRAWAL");
+			throw new BusinessException(ErrorCode.INVALID_TRANSACTION_REASON,
+					"차감할 수 없는 사유입니다. reason=" + reason);
 		}
 
 		PointChangeResult result = pointWalletService.withdraw(

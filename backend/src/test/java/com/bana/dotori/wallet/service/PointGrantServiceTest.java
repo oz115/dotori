@@ -23,12 +23,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
-import com.bana.dotori.wallet.exception.PointBalanceExceededException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
@@ -79,7 +78,7 @@ class PointGrantServiceTest {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(false);
 
 		assertThatThrownBy(() -> pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
-				.isInstanceOf(NotFamilyChildException.class)
+				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
 		verify(pointWalletService, never()).deposit(any());
@@ -120,11 +119,12 @@ class PointGrantServiceTest {
 	@DisplayName("공통 서비스가 던진 예외는 그대로 전파된다")
 	void 공통_서비스_예외가_전파된다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		willThrow(new PointBalanceExceededException(Integer.MAX_VALUE - 1, 5_000))
+		willThrow(new BusinessException(ErrorCode.POINT_BALANCE_EXCEEDED, "상한 초과"))
 				.given(pointWalletService).deposit(any());
 
 		assertThatThrownBy(() -> pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
-				.isInstanceOf(PointBalanceExceededException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.POINT_BALANCE_EXCEEDED);
 	}
 
 	private PointChangeResult result(int amount, int balanceAfter) {

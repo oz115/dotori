@@ -20,12 +20,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
-import com.bana.dotori.wallet.exception.InsufficientPointException;
-import com.bana.dotori.wallet.exception.InvalidTransactionReasonException;
 
 /**
  * 서비스 계층 - 차감 파사드가 사유와 방향을 제대로 지키는지 본다.
@@ -69,7 +69,8 @@ class PointDeductionServiceTest {
 		assertThatThrownBy(() -> pointDeductionService.deduct(
 				CHILD_ID, 3_000, depositOnlyReason, "잘못된 호출", "wrong-1"))
 				.as("이걸 통과시키면 원장에 '지급인데 잔액이 줄어든' 줄이 남는다")
-				.isInstanceOf(InvalidTransactionReasonException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TRANSACTION_REASON);
 
 		verify(pointWalletService, never()).withdraw(any());
 	}
@@ -77,11 +78,12 @@ class PointDeductionServiceTest {
 	@Test
 	@DisplayName("잔액이 부족하면 공통 서비스의 예외가 그대로 전파된다")
 	void 잔액_부족은_전파된다() {
-		willThrow(new InsufficientPointException(1_000, 3_000)).given(pointWalletService).withdraw(any());
+		willThrow(new BusinessException(ErrorCode.INSUFFICIENT_POINT, "잔액 부족")).given(pointWalletService).withdraw(any());
 
 		assertThatThrownBy(() -> pointDeductionService.deduct(
 				CHILD_ID, 3_000, PointTransactionReason.PURCHASE, "구매", "purchase-1"))
-				.isInstanceOf(InsufficientPointException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 	}
 
 	@Test

@@ -24,15 +24,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
-import com.bana.dotori.wallet.exception.AccountNotLinkedException;
-import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
-import com.bana.dotori.wallet.exception.InvalidPointAmountException;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
-import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
 
@@ -119,7 +116,7 @@ class PointWalletControllerTest {
 	@Test
 	@DisplayName("계좌 잔액이 부족하면 400 INSUFFICIENT_ACCOUNT_BALANCE 로 매핑한다")
 	void 계좌_잔액_부족은_400이다() throws Exception {
-		willThrow(new InsufficientAccountBalanceException(2, 5_000, 10_000))
+		willThrow(new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE, "계좌 잔액 부족"))
 				.given(pointChargeService).charge(any(), any(), any(Integer.class), any());
 
 		mockMvc.perform(post(CHARGE_URL, 1, 2)
@@ -133,7 +130,7 @@ class PointWalletControllerTest {
 	@Test
 	@DisplayName("연동 계좌가 없으면 404 ACCOUNT_NOT_LINKED 로 매핑한다")
 	void 계좌_미연동은_404다() throws Exception {
-		willThrow(new AccountNotLinkedException("child", 2))
+		willThrow(new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED, "연동 계좌 없음"))
 				.given(pointChargeService).charge(any(), any(), any(Integer.class), any());
 
 		mockMvc.perform(post(CHARGE_URL, 1, 2)
@@ -146,7 +143,7 @@ class PointWalletControllerTest {
 	@Test
 	@DisplayName("지갑이 없으면 404 WALLET_NOT_FOUND 로 매핑한다")
 	void 지갑_없음은_404다() throws Exception {
-		willThrow(new PointWalletNotFoundException(2))
+		willThrow(new BusinessException(ErrorCode.WALLET_NOT_FOUND, "지갑 없음"))
 				.given(pointChargeService).charge(any(), any(), any(Integer.class), any());
 
 		mockMvc.perform(post(CHARGE_URL, 1, 2)
@@ -159,7 +156,7 @@ class PointWalletControllerTest {
 	@Test
 	@DisplayName("서비스가 던진 도메인 예외도 각자의 코드로 매핑된다")
 	void 도메인_예외가_코드로_매핑된다() throws Exception {
-		willThrow(new InvalidPointAmountException(-1))
+		willThrow(new BusinessException(ErrorCode.INVALID_POINT_AMOUNT, "금액 오류"))
 				.given(pointChargeService).charge(any(), any(), any(Integer.class), any());
 
 		mockMvc.perform(post(CHARGE_URL, 1, 2)
@@ -219,7 +216,7 @@ class PointWalletControllerTest {
 		@Test
 		@DisplayName("가족 자녀가 아니면 403 NOT_FAMILY_CHILD 로 매핑한다")
 		void 가족_자녀가_아니면_403이다() throws Exception {
-			willThrow(new NotFamilyChildException(1, 2))
+			willThrow(new BusinessException(ErrorCode.NOT_FAMILY_CHILD, "가족 자녀 아님"))
 					.given(pointGrantService).grant(any(), any(), any(Integer.class), any(), any());
 
 			mockMvc.perform(post(GRANT_URL, 1, 2)

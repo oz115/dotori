@@ -20,11 +20,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
@@ -84,7 +85,12 @@ class PointWalletServiceConcurrencyTest {
 				pointWalletService.withdraw(PointChangeCommand.of(childId, amountPerRequest,
 						PointTransactionReason.PURCHASE, "동시 구매 " + index, "concurrent-purchase-" + index));
 				succeeded.incrementAndGet();
-			} catch (InsufficientPointException e) {
+			} catch (BusinessException e) {
+				// 잔액 부족만 예상한 실패다. 다른 코드까지 여기서 삼키면
+				// 진짜 버그가 "거부 건수"에 섞여 들어가 드러나지 않는다.
+				if (e.getErrorCode() != ErrorCode.INSUFFICIENT_POINT) {
+					throw e;
+				}
 				rejected.incrementAndGet();
 			}
 		});

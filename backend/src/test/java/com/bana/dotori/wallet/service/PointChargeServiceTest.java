@@ -21,16 +21,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.bana.dotori.wallet.client.BankTransferClient;
-import com.bana.dotori.wallet.client.BankTransferResult;
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.mock.bank.BankTransferClient;
+import com.bana.dotori.mock.bank.BankTransferResult;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
-import com.bana.dotori.wallet.exception.BankTransferFailedException;
-import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
-import com.bana.dotori.wallet.exception.NotFamilyChildException;
-import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 /**
@@ -86,10 +84,11 @@ class PointChargeServiceTest {
 	@DisplayName("포인트 발행이 실패하면 송금을 시도조차 하지 않는다")
 	void 포인트_발행_실패시_송금하지_않는다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		willThrow(new PointWalletNotFoundException(CHILD_ID)).given(pointWalletService).deposit(any());
+		willThrow(new BusinessException(ErrorCode.WALLET_NOT_FOUND, "지갑 없음")).given(pointWalletService).deposit(any());
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
-				.isInstanceOf(PointWalletNotFoundException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_NOT_FOUND);
 
 		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
 	}
@@ -99,12 +98,13 @@ class PointChargeServiceTest {
 	void 송금_실패는_전파된다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
-		willThrow(new InsufficientAccountBalanceException(CHILD_ID, 5_000, 10_000))
+		willThrow(new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE, "계좌 잔액 부족"))
 				.given(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
 				.as("여기서 예외를 삼키면 포인트만 발행되고 돈은 안 옮겨진다")
-				.isInstanceOf(InsufficientAccountBalanceException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE);
 	}
 
 	@Test
@@ -129,7 +129,8 @@ class PointChargeServiceTest {
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
 				.as("발행한 포인트와 옮겨진 돈이 다르면 성공이 아니다")
-				.isInstanceOf(BankTransferFailedException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.BANK_TRANSFER_FAILED);
 	}
 
 	private PointChangeResult applied(int amount, int balanceAfter) {
@@ -152,7 +153,8 @@ class PointChargeServiceTest {
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
 				.as("familyId 가 송금 받을 부모 계좌를 정하므로, 소속을 확인하지 않으면 남의 집으로 돈이 간다")
-				.isInstanceOf(NotFamilyChildException.class);
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
 		verify(pointWalletService, never()).deposit(any());
 		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());

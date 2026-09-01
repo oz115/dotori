@@ -21,15 +21,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.entity.PointWallet;
-import com.bana.dotori.wallet.exception.InsufficientPointException;
-import com.bana.dotori.wallet.exception.InvalidPointAmountException;
-import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
@@ -150,7 +148,7 @@ class PointWalletServiceTest {
 			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 			assertThatThrownBy(() -> pointWalletService.withdraw(command(1_001)))
-					.isInstanceOf(InsufficientPointException.class)
+					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 			verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
@@ -163,7 +161,7 @@ class PointWalletServiceTest {
 		given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(500)))
-				.isInstanceOf(PointWalletNotFoundException.class)
+				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_NOT_FOUND);
 
 		verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
@@ -176,7 +174,7 @@ class PointWalletServiceTest {
 		given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(0)))
-				.isInstanceOf(InvalidPointAmountException.class)
+				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 		verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
