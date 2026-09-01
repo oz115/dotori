@@ -36,6 +36,14 @@ backend/
     └── test/java/com/bana/dotori/
 ```
 
+## 테스트 규칙
+
+- 테스트는 레이어별로 분리해서 작성한다 (main과 동일한 패키지 구조 아래에 배치):
+  - **dto**: Bean Validation 검증 테스트 — `jakarta.validation.Validator`로 필드 제약(@NotBlank, @Email 등)을 단위 검증
+  - **service**: Mockito 단위 테스트 — `@ExtendWith(MockitoExtension.class)`, repository/encoder는 `@Mock`, mapper는 `@Spy`
+  - **controller**: `@WebMvcTest` 슬라이스 테스트 — service는 `@MockitoBean`, `SecurityConfig`를 `@Import`해서 시큐리티 규칙 포함, MockMvc로 상태 코드·응답 JSON·에러 형식 검증
+- 테스트 클래스명은 `{대상 클래스}Test`, 메서드명은 `{기능}_{시나리오}` 형식으로 작성한다.
+
 ## 규칙
 
 - 네이밍/커밋 컨벤션은 [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md)를 따른다.
