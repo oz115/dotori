@@ -24,6 +24,9 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+      # schema.sql 의 DO 블록 안에 세미콜론이 들어 있다.
+      # 기본 구분자(;)를 쓰면 스프링이 블록 중간에서 문장을 잘라 버린다.
+      separator: ";;"
 
 logging:
   level:
