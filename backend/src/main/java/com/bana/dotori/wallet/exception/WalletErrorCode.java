@@ -30,7 +30,17 @@ public enum WalletErrorCode implements ErrorCode {
 			"포인트 지갑을 찾을 수 없습니다"),
 
 	DUPLICATE_POINT_REQUEST(HttpStatus.CONFLICT, "DUPLICATE_POINT_REQUEST",
-			"이미 처리된 요청입니다");
+			"이미 처리된 요청입니다"),
+
+	BANK_TRANSFER_FAILED(HttpStatus.BAD_GATEWAY, "BANK_TRANSFER_FAILED",
+			"계좌 송금에 실패했습니다"),
+
+	// 아래 둘은 API 명세(WLT-01)에 정의된 코드다. 계좌 도메인(ACC)이 생기면 그쪽으로 옮긴다.
+	INSUFFICIENT_ACCOUNT_BALANCE(HttpStatus.BAD_REQUEST, "INSUFFICIENT_ACCOUNT_BALANCE",
+			"계좌 잔액이 부족합니다"),
+
+	ACCOUNT_NOT_LINKED(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_LINKED",
+			"연동된 계좌가 없습니다");
 
 	private final HttpStatus httpStatus;
 	private final String code;
