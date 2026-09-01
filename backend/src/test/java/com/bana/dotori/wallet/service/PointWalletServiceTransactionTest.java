@@ -16,10 +16,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
-import com.bana.dotori.wallet.domain.PointTransaction;
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointWallet;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
+import com.bana.dotori.wallet.entity.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;

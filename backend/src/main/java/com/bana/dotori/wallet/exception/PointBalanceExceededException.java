@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 잔액이 컬럼 상한(INTEGER)을 넘어서는 경우.

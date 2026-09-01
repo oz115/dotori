@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 충전에 필요한 연동 계좌가 없는 경우. 아이 쪽일 수도 부모 쪽일 수도 있다.

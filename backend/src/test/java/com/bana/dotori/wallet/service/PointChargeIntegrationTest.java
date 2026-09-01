@@ -13,8 +13,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.wallet.client.MockBankTransferClient;
-import com.bana.dotori.wallet.domain.PointWallet;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;

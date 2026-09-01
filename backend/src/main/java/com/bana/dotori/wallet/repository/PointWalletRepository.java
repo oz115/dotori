@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.bana.dotori.wallet.domain.PointWallet;
+import com.bana.dotori.wallet.entity.PointWallet;
 
 public interface PointWalletRepository extends JpaRepository<PointWallet, Integer> {
 

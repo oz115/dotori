@@ -23,9 +23,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.exception.AccountNotLinkedException;
 import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;

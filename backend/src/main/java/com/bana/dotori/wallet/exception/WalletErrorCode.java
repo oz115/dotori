@@ -2,7 +2,7 @@ package com.bana.dotori.wallet.exception;
 
 import org.springframework.http.HttpStatus;
 
-import com.bana.dotori.common.exception.ErrorCode;
+import com.bana.dotori.global.error.ErrorCode;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,8 @@ public enum WalletErrorCode implements ErrorCode {
 	INVALID_POINT_AMOUNT(HttpStatus.BAD_REQUEST, "INVALID_POINT_AMOUNT",
 			"포인트 금액은 1 이상이어야 합니다"),
 
-	INSUFFICIENT_POINT(HttpStatus.CONFLICT, "INSUFFICIENT_POINT",
+	// 명세(SHOP-06)가 400 으로 정의하고 있다. 처음에 409 로 잡았던 것을 바로잡았다.
+	INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "INSUFFICIENT_POINT",
 			"보유 포인트가 부족합니다"),
 
 	POINT_BALANCE_EXCEEDED(HttpStatus.CONFLICT, "POINT_BALANCE_EXCEEDED",
@@ -43,7 +44,10 @@ public enum WalletErrorCode implements ErrorCode {
 			"연동된 계좌가 없습니다"),
 
 	NOT_FAMILY_CHILD(HttpStatus.FORBIDDEN, "NOT_FAMILY_CHILD",
-			"해당 가족의 자녀가 아닙니다");
+			"해당 가족의 자녀가 아닙니다"),
+
+	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "INVALID_TRANSACTION_REASON",
+			"거래 사유와 방향이 맞지 않습니다");
 
 	private final HttpStatus httpStatus;
 	private final String code;

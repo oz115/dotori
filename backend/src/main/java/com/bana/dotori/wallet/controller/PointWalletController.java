@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bana.dotori.common.exception.BusinessException;
-import com.bana.dotori.common.exception.CommonErrorCode;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.CommonErrorCode;
 import com.bana.dotori.wallet.dto.request.PointChargeRequest;
 import com.bana.dotori.wallet.dto.request.PointGrantRequest;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;

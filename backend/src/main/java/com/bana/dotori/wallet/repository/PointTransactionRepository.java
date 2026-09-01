@@ -5,7 +5,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.bana.dotori.wallet.domain.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransaction;
 
 public interface PointTransactionRepository extends JpaRepository<PointTransaction, Integer> {
 

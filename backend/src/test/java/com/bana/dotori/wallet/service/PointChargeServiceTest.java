@@ -23,10 +23,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.wallet.client.BankTransferClient;
 import com.bana.dotori.wallet.client.BankTransferResult;
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.exception.BankTransferFailedException;
 import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
 import com.bana.dotori.wallet.exception.PointWalletNotFoundException;

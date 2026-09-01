@@ -2,7 +2,7 @@ package com.bana.dotori.wallet.dto.response;
 
 import java.time.OffsetDateTime;
 
-import com.bana.dotori.wallet.domain.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
