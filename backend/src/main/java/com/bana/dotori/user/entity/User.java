@@ -13,13 +13,17 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+	@UniqueConstraint(name = "uk_users_login_id", columnNames = "login_id"),
+	@UniqueConstraint(name = "uk_users_email", columnNames = "email")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
@@ -29,7 +33,7 @@ public class User {
 	@Column(name = "user_id")
 	private Integer id;
 
-	@Column(name = "login_id", length = 50, nullable = false, unique = true)
+	@Column(name = "login_id", length = 50, nullable = false)
 	private String loginId;
 
 	@Column(name = "password", nullable = false)
@@ -38,7 +42,7 @@ public class User {
 	@Column(name = "name", length = 50, nullable = false)
 	private String name;
 
-	@Column(name = "email", nullable = false, unique = true)
+	@Column(name = "email", nullable = false)
 	private String email;
 
 	// ERD상 role은 PG 네이티브 enum(users_role)이지만, ddl-auto:update가 재기동 시 enum 타입을

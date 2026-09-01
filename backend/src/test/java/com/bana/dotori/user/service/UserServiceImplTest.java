@@ -23,7 +23,7 @@ import com.bana.dotori.user.mapper.UserMapper;
 import com.bana.dotori.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceTest {
+class UserServiceImplTest {
 
 	@Mock
 	private UserRepository userRepository;
@@ -35,7 +35,7 @@ class UserServiceTest {
 	private UserMapper userMapper;
 
 	@InjectMocks
-	private UserService userService;
+	private UserServiceImpl userService;
 
 	private SignupRequest signupRequest() {
 		return new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com", UserRole.PARENT);
