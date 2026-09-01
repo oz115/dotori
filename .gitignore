@@ -28,3 +28,6 @@ docker-compose.override.yml
 # === Claude Code 로컬 설정 ===
 .claude/settings.local.json
 .claude/*.local.json
+
+# === AI 기획/설계 ===
+AI/
