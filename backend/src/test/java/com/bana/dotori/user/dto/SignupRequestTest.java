@@ -1,6 +1,6 @@
 package com.bana.dotori.user.dto;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +50,15 @@ class SignupRequestTest {
 	}
 
 	@Test
+	@DisplayName("loginId가 50자를 초과하면 위반이 발생한다")
+	void validate_tooLongLoginId() {
+		SignupRequest request = new SignupRequest("a".repeat(51), "P@ssw0rd!", "김도토", "dotori@example.com",
+			UserRole.PARENT);
+
+		assertThat(violatedFields(request)).contains("loginId");
+	}
+
+	@Test
 	@DisplayName("password가 비어 있으면 위반이 발생한다")
 	void validate_blankPassword() {
 		SignupRequest request = new SignupRequest("dotori123", "", "김도토", "dotori@example.com", UserRole.PARENT);
@@ -58,9 +67,27 @@ class SignupRequestTest {
 	}
 
 	@Test
+	@DisplayName("password가 8자 미만이면 위반이 발생한다")
+	void validate_tooShortPassword() {
+		SignupRequest request = new SignupRequest("dotori123", "P@ss1", "김도토", "dotori@example.com",
+			UserRole.PARENT);
+
+		assertThat(violatedFields(request)).contains("password");
+	}
+
+	@Test
 	@DisplayName("name이 비어 있으면 위반이 발생한다")
 	void validate_blankName() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "", "dotori@example.com", UserRole.PARENT);
+
+		assertThat(violatedFields(request)).contains("name");
+	}
+
+	@Test
+	@DisplayName("name이 50자를 초과하면 위반이 발생한다")
+	void validate_tooLongName() {
+		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "가".repeat(51), "dotori@example.com",
+			UserRole.PARENT);
 
 		assertThat(violatedFields(request)).contains("name");
 	}
