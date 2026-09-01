@@ -3,6 +3,8 @@ package com.bana.dotori.wallet.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -130,19 +132,29 @@ class PointWalletServiceConcurrencyTest {
 	@DisplayName("동시에 지급과 차감이 섞여 들어와도 원장 합계와 최종 잔액이 일치한다")
 	void 지급과_차감이_섞여도_원장과_잔액이_일치한다() throws InterruptedException {
 		int pairCount = 10;
+		int depositAmount = 300;
+		int withdrawAmount = 200;
+
+		// 실행 순서는 보장되지 않는다. 차감이 지급보다 먼저 몰리면 잔액이 부족해
+		// 일부 차감이 정당하게 실패하고, 그러면 이 테스트는 갱신 손실이 아닌 이유로 깨진다.
+		// 검증하려는 것은 "동시 실행 중 갱신 손실이 없는가"뿐이므로,
+		// 차감 총액을 미리 채워 두어 순서와 무관하게 모든 요청이 성공하도록 만든다.
+		int topUp = pairCount * withdrawAmount;
+		pointWalletService.deposit(PointChangeCommand.withoutIdempotency(
+				childId, topUp, PointTransactionReason.GRANT, "동시성 테스트 준비"));
 
 		runConcurrently(pairCount * 2, index -> {
 			if (index % 2 == 0) {
-				pointWalletService.deposit(PointChangeCommand.of(childId, 300,
+				pointWalletService.deposit(PointChangeCommand.of(childId, depositAmount,
 						PointTransactionReason.GRANT, "지급 " + index, "mixed-grant-" + index));
 			} else {
-				pointWalletService.withdraw(PointChangeCommand.of(childId, 200,
+				pointWalletService.withdraw(PointChangeCommand.of(childId, withdrawAmount,
 						PointTransactionReason.PURCHASE, "구매 " + index, "mixed-purchase-" + index));
 			}
 		});
 
 		int finalBalance = WalletTestFixture.selectBalance(jdbcTemplate, childId);
-		int expected = INITIAL_BALANCE + (pairCount * 300) - (pairCount * 200);
+		int expected = INITIAL_BALANCE + topUp + (pairCount * depositAmount) - (pairCount * withdrawAmount);
 		assertThat(finalBalance).as("갱신 손실이 있으면 이 값이 어긋난다").isEqualTo(expected);
 
 		// 원장을 순서대로 재생한 잔액이 실제 잔액과 같아야 한다.
@@ -156,17 +168,23 @@ class PointWalletServiceConcurrencyTest {
 					.isEqualTo(replayed);
 		}
 		assertThat(replayed).as("원장 재생 결과와 실제 잔액이 일치해야 한다").isEqualTo(finalBalance);
-		assertThat(ledger).hasSize(pairCount * 2);
+		assertThat(ledger).as("준비용 지급 1건 + 동시 요청 건수").hasSize(pairCount * 2 + 1);
 	}
 
 	/**
 	 * 모든 스레드를 같은 순간에 출발시켜 경합을 최대한 만든다.
+	 *
+	 * <p>작업 스레드에서 터진 예외는 반드시 모아서 다시 던진다.
+	 * ExecutorService.submit 은 예외를 Future 안에 가둬 버리기 때문에,
+	 * 그냥 두면 실패가 "최종 잔액이 이상하다" 정도로만 드러나 원인을 찾기 어렵다.
+	 * 테스트가 예외를 예상하는 경우(잔액 부족 등)는 task 안에서 직접 잡는다.
 	 */
 	private void runConcurrently(int threadCount, java.util.function.IntConsumer task) throws InterruptedException {
 		ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 		CountDownLatch ready = new CountDownLatch(threadCount);
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch done = new CountDownLatch(threadCount);
+		Queue<Throwable> unexpected = new ConcurrentLinkedQueue<>();
 
 		for (int i = 0; i < threadCount; i++) {
 			int index = i;
@@ -177,6 +195,8 @@ class PointWalletServiceConcurrencyTest {
 					task.accept(index);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
+				} catch (RuntimeException | Error e) {
+					unexpected.add(e);
 				} finally {
 					done.countDown();
 				}
@@ -188,5 +208,11 @@ class PointWalletServiceConcurrencyTest {
 		boolean finished = done.await(60, TimeUnit.SECONDS);
 		executor.shutdownNow();
 		assertThat(finished).as("동시 요청이 60초 안에 끝나지 않았다. 데드락이나 락 대기를 의심해야 한다").isTrue();
+
+		if (!unexpected.isEmpty()) {
+			throw new AssertionError(
+					"작업 스레드 " + unexpected.size() + "개에서 예상치 못한 예외가 발생했다 (원인은 cause 참고)",
+					unexpected.peek());
+		}
 	}
 }
