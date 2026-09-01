@@ -7,22 +7,22 @@ import com.bana.dotori.wallet.domain.PointTransactionReason;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
- * WLT-01 충전 응답. API 명세의 형식을 그대로 따른다.
+ * 포인트 거래 한 건의 응답. 충전(WLT-01)과 지급(WLT-02)이 같은 형식을 쓴다.
  *
  * <pre>
  * {
- *   "pointTransactionId": 100,
- *   "transactionType": "CHARGE",
- *   "amount": 10000,
- *   "balanceAfter": 15000,
+ *   "pointTransactionId": 101,
+ *   "transactionType": "GRANT",
+ *   "amount": 5000,
+ *   "balanceAfter": 20000,
  *   "createdAt": "2026-08-28T12:00:00+09:00"
  * }
  * </pre>
  *
- * <p>명세의 {@code transactionType} 이 "CHARGE" 인 점에 주의한다.
- * DB 의 transaction_type(DEPOSIT/WITHDRAWAL)이 아니라 거래 사유를 노출하는 필드다.
+ * <p>명세의 {@code transactionType} 은 DB 의 transaction_type(DEPOSIT/WITHDRAWAL)이 아니라
+ * 거래 사유(CHARGE/GRANT/...)를 노출하는 필드다.
  */
-public record PointChargeResponse(
+public record PointTransactionResponse(
 		Integer pointTransactionId,
 		PointTransactionReason transactionType,
 		int amount,
@@ -30,8 +30,8 @@ public record PointChargeResponse(
 		@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
 		OffsetDateTime createdAt) {
 
-	public static PointChargeResponse from(PointChangeResult result) {
-		return new PointChargeResponse(
+	public static PointTransactionResponse from(PointChangeResult result) {
+		return new PointTransactionResponse(
 				result.pointTransactionId(),
 				result.reason(),
 				result.amount(),
