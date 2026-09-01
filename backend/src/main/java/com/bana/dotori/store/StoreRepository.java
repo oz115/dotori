@@ -28,6 +28,10 @@ public interface StoreRepository {
 
 	/**
 	 * 구매 이력을 남기고 구매 ID 를 돌려준다.
+	 *
+	 * <p>날짜를 호출자에게서 받는 이유는 하루 1회 제한 판정과 기록이 같은 기준을 써야 하기 때문이다.
+	 * 저장소가 제 나름의 시각을 쓰면 서버 타임존에 따라 두 날짜가 어긋나 제한이 뚫린다.
 	 */
-	Integer savePurchase(Integer familyId, Integer childId, Integer storeProductId, int quantity, int unitPrice);
+	Integer savePurchase(Integer familyId, Integer childId, Integer storeProductId, int quantity, int unitPrice,
+			LocalDate purchaseDate);
 }

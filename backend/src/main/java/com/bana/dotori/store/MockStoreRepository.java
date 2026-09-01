@@ -54,11 +54,11 @@ public class MockStoreRepository implements StoreRepository {
 
 	@Override
 	public Integer savePurchase(Integer familyId, Integer childId, Integer storeProductId,
-			int quantity, int unitPrice) {
+			int quantity, int unitPrice, LocalDate purchaseDate) {
 		Integer purchaseId = purchaseIdSequence.getAndIncrement();
 		purchasesById.put(purchaseId,
 				new PurchaseRecord(purchaseId, familyId, childId, storeProductId, quantity, unitPrice));
-		purchasedDays.add(dailyKey(childId, storeProductId, LocalDate.now()));
+		purchasedDays.add(dailyKey(childId, storeProductId, purchaseDate));
 		log.warn("목업 상점에 구매 이력을 남겼다. 실제 DB 에는 저장되지 않는다. purchaseId={}", purchaseId);
 		return purchaseId;
 	}

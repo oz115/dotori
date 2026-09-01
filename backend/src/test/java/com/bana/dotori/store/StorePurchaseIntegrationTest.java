@@ -153,4 +153,27 @@ class StorePurchaseIntegrationTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
 	}
+
+	@Test
+	@DisplayName("구매_재시도_포인트_부족으로_실패해도_충전_후_다시_살_수_있다")
+	void 구매_재시도_포인트_부족으로_실패해도_충전_후_다시_살_수_있다() {
+		StoreProductSnapshot product =
+				mockStoreRepository.registerProduct(FAMILY_ID, "게임 30분 이용권", 30_000, 5);
+
+		assertThatThrownBy(() -> storePurchaseService.purchase(
+				FAMILY_ID, childId, product.storeProductId(), 1))
+				.isInstanceOf(InsufficientPointException.class);
+
+		// 실패한 구매가 하루 1회 제한을 소진해 버리면, 부모가 포인트를 채워 줘도
+		// 그날은 그 상품을 살 수 없게 된다.
+		pointWalletRepository.save(PointWallet.openWithBalance(
+				WalletTestFixture.insertChild(jdbcTemplate, "child-unused"), 0));
+		jdbcTemplate.update("UPDATE point_wallets SET balance = 50000 WHERE user_id = ?", childId);
+
+		StorePurchaseResult retried = storePurchaseService.purchase(
+				FAMILY_ID, childId, product.storeProductId(), 1);
+
+		assertThat(retried.totalPrice()).isEqualTo(30_000);
+		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);
+	}
 }

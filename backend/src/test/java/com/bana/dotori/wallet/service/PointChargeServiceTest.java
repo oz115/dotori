@@ -29,7 +29,9 @@ import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.exception.BankTransferFailedException;
 import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
+import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
+import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 /**
  * 서비스 계층 - 충전의 조립 순서를 검증한다.
@@ -51,12 +53,16 @@ class PointChargeServiceTest {
 	@Mock
 	private BankTransferClient bankTransferClient;
 
+	@Mock
+	private FamilyMembershipReader familyMembershipReader;
+
 	@InjectMocks
 	private PointChargeService pointChargeService;
 
 	@Test
 	@DisplayName("포인트를 CHARGE 사유로 발행한 뒤 송금한다")
 	void 포인트_발행_후_송금한다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
 		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
 				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
@@ -79,6 +85,7 @@ class PointChargeServiceTest {
 	@Test
 	@DisplayName("포인트 발행이 실패하면 송금을 시도조차 하지 않는다")
 	void 포인트_발행_실패시_송금하지_않는다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		willThrow(new PointWalletNotFoundException(CHILD_ID)).given(pointWalletService).deposit(any());
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
@@ -90,6 +97,7 @@ class PointChargeServiceTest {
 	@Test
 	@DisplayName("송금이 실패하면 예외가 그대로 전파돼 트랜잭션이 롤백된다")
 	void 송금_실패는_전파된다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
 		willThrow(new InsufficientAccountBalanceException(CHILD_ID, 5_000, 10_000))
 				.given(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
@@ -102,6 +110,7 @@ class PointChargeServiceTest {
 	@Test
 	@DisplayName("이미 처리된 요청이면 송금을 다시 보내지 않는다")
 	void 중복_요청은_송금하지_않는다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(replayed(10_000, 15_000));
 
 		PointChangeResult result = pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
@@ -113,6 +122,7 @@ class PointChargeServiceTest {
 	@Test
 	@DisplayName("이체 금액이 요청 금액과 다르면 실패로 처리한다")
 	void 부분_송금은_실패다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
 		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
 				.willReturn(new BankTransferResult("MOCK-1", 9_000, null, null));
@@ -133,5 +143,34 @@ class PointChargeServiceTest {
 	private PointChangeResult result(int amount, int balanceAfter, boolean replayed) {
 		return new PointChangeResult(100, 10, PointTransactionType.DEPOSIT, PointTransactionReason.CHARGE,
 				amount, balanceAfter, OffsetDateTime.now(), replayed);
+	}
+
+	@Test
+	@DisplayName("충전_실패_가족_자녀가_아니면_송금도_발행도_하지_않는다")
+	void 충전_실패_가족_자녀가_아니면_송금도_발행도_하지_않는다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.as("familyId 가 송금 받을 부모 계좌를 정하므로, 소속을 확인하지 않으면 남의 집으로 돈이 간다")
+				.isInstanceOf(NotFamilyChildException.class);
+
+		verify(pointWalletService, never()).deposit(any());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+	}
+
+	@Test
+	@DisplayName("충전_순서_가족_확인을_포인트_발행보다_먼저_한다")
+	void 충전_순서_가족_확인을_포인트_발행보다_먼저_한다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
+				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
+
+		pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
+
+		InOrder inOrder = inOrder(familyMembershipReader, pointWalletService, bankTransferClient);
+		inOrder.verify(familyMembershipReader).isChildOfFamily(FAMILY_ID, CHILD_ID);
+		inOrder.verify(pointWalletService).deposit(any());
+		inOrder.verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
 	}
 }

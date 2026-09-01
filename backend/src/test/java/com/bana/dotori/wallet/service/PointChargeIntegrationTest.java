@@ -30,7 +30,6 @@ import com.bana.dotori.wallet.support.WalletTestFixture;
 @DisplayName("포인트 충전 통합")
 class PointChargeIntegrationTest {
 
-	private static final Integer FAMILY_ID = 1;
 
 	@Autowired
 	private PointChargeService pointChargeService;
@@ -44,13 +43,16 @@ class PointChargeIntegrationTest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	private Integer familyId;
 	private Integer childId;
 
 	@BeforeEach
 	void setUp() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
 		mockBankTransferClient.clear();
+		Integer parentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-charge");
 		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-charge");
+		familyId = WalletTestFixture.insertFamilyWithChild(jdbcTemplate, parentId, childId);
 		pointWalletRepository.save(PointWallet.openWithBalance(childId, 5_000));
 	}
 
@@ -65,7 +67,7 @@ class PointChargeIntegrationTest {
 	void 충전_성공() {
 		mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
 
-		PointChangeResult result = pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-success");
+		PointChangeResult result = pointChargeService.charge(familyId, childId, 10_000, "charge-success");
 
 		assertThat(result.balanceAfter()).isEqualTo(15_000);
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(15_000);
@@ -80,7 +82,7 @@ class PointChargeIntegrationTest {
 	void 계좌_잔액_부족시_포인트가_발행되지_않는다() {
 		mockBankTransferClient.registerAccount(childId, "김도토", 5_000);
 
-		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-poor"))
+		assertThatThrownBy(() -> pointChargeService.charge(familyId, childId, 10_000, "charge-poor"))
 				.isInstanceOf(InsufficientAccountBalanceException.class);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId))
@@ -95,12 +97,12 @@ class PointChargeIntegrationTest {
 	@DisplayName("송금 실패 후 재시도하면 같은 멱등키로도 정상 충전된다")
 	void 실패한_요청은_재시도할_수_있다() {
 		mockBankTransferClient.registerAccount(childId, "김도토", 5_000);
-		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-retry"))
+		assertThatThrownBy(() -> pointChargeService.charge(familyId, childId, 10_000, "charge-retry"))
 				.isInstanceOf(InsufficientAccountBalanceException.class);
 
 		// 롤백으로 멱등키 행도 사라졌으므로 같은 키를 다시 쓸 수 있어야 한다.
 		mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
-		PointChangeResult retried = pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-retry");
+		PointChangeResult retried = pointChargeService.charge(familyId, childId, 10_000, "charge-retry");
 
 		assertThat(retried.replayed()).isFalse();
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(15_000);
@@ -111,8 +113,8 @@ class PointChargeIntegrationTest {
 	void 중복_충전은_한번만_반영된다() {
 		mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
 
-		pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-once");
-		PointChangeResult second = pointChargeService.charge(FAMILY_ID, childId, 10_000, "charge-once");
+		pointChargeService.charge(familyId, childId, 10_000, "charge-once");
+		PointChangeResult second = pointChargeService.charge(familyId, childId, 10_000, "charge-once");
 
 		assertThat(second.replayed()).isTrue();
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(15_000);

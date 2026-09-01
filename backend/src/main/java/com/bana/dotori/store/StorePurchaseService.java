@@ -37,14 +37,14 @@ public class StorePurchaseService {
 
 	private final StoreRepository storeRepository;
 	private final PointDeductionService pointDeductionService;
-
 	@Transactional
 	public StorePurchaseResult purchase(Integer familyId, Integer childId, Integer storeProductId, int quantity) {
 		StoreProductSnapshot product = storeRepository.findProduct(familyId, storeProductId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND,
 						"상품을 찾을 수 없습니다. familyId=" + familyId + ", storeProductId=" + storeProductId));
 
-		if (storeRepository.hasPurchasedOn(childId, storeProductId, LocalDate.now(KST))) {
+		LocalDate today = LocalDate.now(KST);
+		if (storeRepository.hasPurchasedOn(childId, storeProductId, today)) {
 			throw new BusinessException(ErrorCode.DAILY_LIMIT_EXCEEDED,
 					"오늘 이미 구매한 상품입니다. storeProductId=" + storeProductId);
 		}
@@ -55,14 +55,18 @@ public class StorePurchaseService {
 		}
 
 		int totalPrice = product.totalPrice(quantity);
-		Integer purchaseId = storeRepository.savePurchase(
-				familyId, childId, storeProductId, quantity, product.price());
 
-		// 멱등키에 구매 ID 를 넣어 두면, 같은 구매로 두 번 차감되는 일이 없다.
+		// 차감을 먼저 하고 구매 이력을 남긴다. 순서가 반대면 차감이 실패했을 때
+		// 이미 남긴 하루 1회 제한 이력 때문에 아이가 그날 그 상품을 다시 살 수 없게 된다.
+		// 상점 저장소가 메모리 목업이라 DB 트랜잭션이 롤백돼도 그 이력은 되돌아가지 않는다.
+		// 멱등키는 하루 1회 제한 덕분에 아이·상품·날짜 조합만으로 충분히 유일하다.
+		String idempotencyKey = "purchase-" + childId + "-" + storeProductId + "-" + today;
 		PointChangeResult deduction = pointDeductionService.deduct(
 				childId, totalPrice, PointTransactionReason.PURCHASE,
-				product.name() + " 구매", "purchase-" + purchaseId);
+				product.name() + " 구매", idempotencyKey);
 
+		Integer purchaseId = storeRepository.savePurchase(
+				familyId, childId, storeProductId, quantity, product.price(), today);
 		storeRepository.reduceStock(storeProductId, quantity);
 
 		log.info("상점 구매 완료. childId={}, storeProductId={}, totalPrice={}, 잔액={}",

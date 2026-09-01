@@ -9,6 +9,8 @@ import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.exception.BankTransferFailedException;
+import com.bana.dotori.wallet.exception.NotFamilyChildException;
+import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,9 +39,16 @@ public class PointChargeService {
 
 	private final PointWalletService pointWalletService;
 	private final BankTransferClient bankTransferClient;
+	private final FamilyMembershipReader familyMembershipReader;
 
 	@Transactional
 	public PointChangeResult charge(Integer familyId, Integer childId, int amount, String idempotencyKey) {
+		// familyId 는 돈을 받을 부모 계좌를 결정한다. 소속을 확인하지 않으면 아이 계좌에서
+		// 남의 가족 부모 계좌로 송금될 수 있으므로, 잔액을 건드리기 전에 먼저 막는다.
+		if (!familyMembershipReader.isChildOfFamily(familyId, childId)) {
+			throw new NotFamilyChildException(familyId, childId);
+		}
+
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
 				childId, amount, PointTransactionReason.CHARGE, "포인트 충전", idempotencyKey));
 

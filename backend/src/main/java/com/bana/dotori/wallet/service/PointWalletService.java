@@ -2,7 +2,7 @@ package com.bana.dotori.wallet.service;
 
 import java.util.Optional;
 
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,8 +107,10 @@ public class PointWalletService {
 		try {
 			// 유니크 인덱스 위반을 이 자리에서 잡으려면 flush 가 필요하다.
 			pointTransactionRepository.saveAndFlush(transaction);
-		} catch (DataIntegrityViolationException e) {
-			// 같은 멱등키를 서로 다른 지갑에 쓴 경우. 지갑 락으로는 막을 수 없어 인덱스가 최종 방어선이다.
+		} catch (DuplicateKeyException e) {
+			// 멱등키 유니크 위반만 잡는다. CHECK·외래키 위반까지 여기서 삼키면
+			// 전혀 다른 문제가 "이미 처리된 요청"으로 둔갑해 원인을 못 찾는다.
+			// 같은 멱등키를 서로 다른 지갑에 쓴 경우가 여기 해당한다.
 			throw new DuplicatePointRequestException(command.idempotencyKey(), e);
 		}
 
