@@ -19,10 +19,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
@@ -40,10 +42,13 @@ import com.bana.dotori.wallet.service.PointGrantService;
  * <p>서비스를 가짜로 대체했으므로 잔액 계산이나 송금은 전혀 일어나지 않는다.
  * 여기가 실패하면 원인은 요청 매핑, 검증 애노테이션, 예외 → 상태코드 매핑 중 하나다.
  *
- * <p>인증 필터를 끄고 돌린다. SecurityConfig 는 회원가입 담당 브랜치에 있어
- * 이 브랜치에는 아직 없고, 스프링 시큐리티 기본 설정이 모든 요청을 막기 때문이다.
+ * <p>팀 규칙대로 SecurityConfig 를 함께 올려 시큐리티 규칙까지 슬라이스에 포함한다.
+ * 다만 필터는 꺼 둔다. 로그인·토큰 발급(AUTH-02)이 없어 인증된 요청을 만들 수 없고,
+ * 필터를 켜면 모든 요청이 인증 단계에서 막혀 정작 보려는 매핑 검증에 도달하지 못한다.
+ * 보호 여부 자체는 {@link PointWalletApiSecurityTest} 가 필터를 켠 채로 확인한다.
  */
 @WebMvcTest(PointWalletController.class)
+@Import(SecurityConfig.class)
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("포인트 충전 API")
 class PointWalletControllerTest {
