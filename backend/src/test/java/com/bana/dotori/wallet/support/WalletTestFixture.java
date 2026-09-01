@@ -31,11 +31,31 @@ public final class WalletTestFixture {
 	}
 
 	/**
+	 * 가족을 만들고 그 안에 자녀를 넣는다. 지급(WLT-02)의 가족 소속 검증에 필요하다.
+	 *
+	 * @return 생성된 familyId
+	 */
+	public static Integer insertFamilyWithChild(JdbcTemplate jdbcTemplate, Integer parentId, Integer childId) {
+		Integer familyId = jdbcTemplate.queryForObject("""
+				INSERT INTO families (name, created_by) VALUES ('테스트 가족', ?) RETURNING family_id
+				""", Integer.class, parentId);
+		addFamilyMember(jdbcTemplate, familyId, parentId);
+		addFamilyMember(jdbcTemplate, familyId, childId);
+		return familyId;
+	}
+
+	public static void addFamilyMember(JdbcTemplate jdbcTemplate, Integer familyId, Integer userId) {
+		jdbcTemplate.update("INSERT INTO family_members (family_id, user_id) VALUES (?, ?)", familyId, userId);
+	}
+
+	/**
 	 * 트랜잭션 롤백에 기대지 않는 테스트(동시성 등)가 직접 뒷정리할 때 쓴다.
 	 */
 	public static void cleanUp(JdbcTemplate jdbcTemplate) {
 		jdbcTemplate.execute("DELETE FROM point_transactions");
 		jdbcTemplate.execute("DELETE FROM point_wallets");
+		jdbcTemplate.execute("DELETE FROM family_members");
+		jdbcTemplate.execute("DELETE FROM families");
 		jdbcTemplate.execute("DELETE FROM users");
 	}
 

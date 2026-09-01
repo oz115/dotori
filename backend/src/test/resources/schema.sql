@@ -18,6 +18,8 @@
 DROP TABLE IF EXISTS
 	"point_transactions",
 	"point_wallets",
+	"family_members",
+	"families",
 	"users"
 CASCADE;;
 
@@ -59,6 +61,28 @@ CREATE TABLE "users" (
 	"updated_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	"deleted_at"	TIMESTAMPTZ	NULL,
 	CONSTRAINT "PK_USERS" PRIMARY KEY ("user_id")
+);;
+
+
+CREATE TABLE "families" (
+	"family_id"	SERIAL	NOT NULL,
+	"name"	VARCHAR(100)	NOT NULL,
+	"created_by"	INTEGER	NOT NULL,
+	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	"updated_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	CONSTRAINT "PK_FAMILIES" PRIMARY KEY ("family_id"),
+	CONSTRAINT "FK_FAMILIES_CREATED_BY" FOREIGN KEY ("created_by") REFERENCES "users" ("user_id")
+);;
+
+
+CREATE TABLE "family_members" (
+	"family_member_id"	SERIAL	NOT NULL,
+	"family_id"	INTEGER	NOT NULL,
+	"user_id"	INTEGER	NOT NULL,
+	"joined_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	CONSTRAINT "PK_FAMILY_MEMBERS" PRIMARY KEY ("family_member_id"),
+	CONSTRAINT "FK_FAMILY_MEMBERS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id"),
+	CONSTRAINT "FK_FAMILY_MEMBERS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id")
 );;
 
 
