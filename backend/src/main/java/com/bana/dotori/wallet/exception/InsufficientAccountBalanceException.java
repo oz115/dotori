@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 아이의 실제 계좌 잔액이 충전 금액보다 적은 경우.

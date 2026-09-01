@@ -1,4 +1,4 @@
-package com.bana.dotori.common.exception;
+package com.bana.dotori.global.error;
 
 import java.util.stream.Collectors;
 

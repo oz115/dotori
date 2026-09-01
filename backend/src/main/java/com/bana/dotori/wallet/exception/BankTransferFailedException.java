@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 아이 계좌에서 부모 계좌로 실제 송금하는 데 실패한 경우.

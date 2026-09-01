@@ -2,9 +2,9 @@ package com.bana.dotori.wallet.dto.response;
 
 import java.time.OffsetDateTime;
 
-import com.bana.dotori.wallet.domain.PointTransaction;
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
+import com.bana.dotori.wallet.entity.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
 
 /**
  * 포인트 변경 결과.

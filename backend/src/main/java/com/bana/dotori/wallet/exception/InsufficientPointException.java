@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 보유 포인트보다 많은 금액을 차감하려 한 경우.

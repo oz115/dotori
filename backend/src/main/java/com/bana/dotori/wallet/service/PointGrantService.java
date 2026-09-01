@@ -3,9 +3,9 @@ package com.bana.dotori.wallet.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bana.dotori.wallet.domain.PointTransactionReason;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 

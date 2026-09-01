@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.dto.command;
 
-import com.bana.dotori.wallet.domain.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
 
 /**
  * 포인트 변경 한 건의 요청 값.

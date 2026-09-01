@@ -15,10 +15,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.bana.dotori.wallet.domain.PointTransaction;
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
-import com.bana.dotori.wallet.domain.PointWallet;
+import com.bana.dotori.wallet.entity.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
+import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
 /**

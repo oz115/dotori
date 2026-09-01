@@ -1,4 +1,4 @@
-package com.bana.dotori.wallet.domain;
+package com.bana.dotori.wallet.entity;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;

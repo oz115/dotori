@@ -1,4 +1,4 @@
-package com.bana.dotori.wallet.domain;
+package com.bana.dotori.wallet.entity;
 
 /**
  * 잔액이 늘었는지 줄었는지를 나타낸다.

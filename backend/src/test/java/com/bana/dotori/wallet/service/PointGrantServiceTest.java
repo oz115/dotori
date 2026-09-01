@@ -23,10 +23,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.exception.PointBalanceExceededException;
 import com.bana.dotori.wallet.exception.WalletErrorCode;

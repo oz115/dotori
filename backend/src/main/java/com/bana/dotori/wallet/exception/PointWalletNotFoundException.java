@@ -1,6 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
-import com.bana.dotori.common.exception.BusinessException;
+import com.bana.dotori.global.error.BusinessException;
 
 /**
  * 대상 사용자의 지갑이 아직 만들어지지 않은 경우.

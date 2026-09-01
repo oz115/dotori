@@ -21,12 +21,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.bana.dotori.wallet.domain.PointTransaction;
-import com.bana.dotori.wallet.domain.PointTransactionReason;
-import com.bana.dotori.wallet.domain.PointTransactionType;
-import com.bana.dotori.wallet.domain.PointWallet;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.entity.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointTransactionType;
+import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;
 import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
