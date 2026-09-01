@@ -40,7 +40,10 @@ public enum WalletErrorCode implements ErrorCode {
 			"계좌 잔액이 부족합니다"),
 
 	ACCOUNT_NOT_LINKED(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_LINKED",
-			"연동된 계좌가 없습니다");
+			"연동된 계좌가 없습니다"),
+
+	NOT_FAMILY_CHILD(HttpStatus.FORBIDDEN, "NOT_FAMILY_CHILD",
+			"해당 가족의 자녀가 아닙니다");
 
 	private final HttpStatus httpStatus;
 	private final String code;

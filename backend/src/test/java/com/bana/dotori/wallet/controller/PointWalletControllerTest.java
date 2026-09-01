@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.OffsetDateTime;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -28,8 +29,10 @@ import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.exception.AccountNotLinkedException;
 import com.bana.dotori.wallet.exception.InsufficientAccountBalanceException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;
+import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
 import com.bana.dotori.wallet.service.PointChargeService;
+import com.bana.dotori.wallet.service.PointGrantService;
 
 /**
  * 컨트롤러 계층 - HTTP 경계만 검증한다.
@@ -52,6 +55,9 @@ class PointWalletControllerTest {
 
 	@MockitoBean
 	private PointChargeService pointChargeService;
+
+	@MockitoBean
+	private PointGrantService pointGrantService;
 
 	@Test
 	@DisplayName("충전에 성공하면 201 과 명세 형식의 응답을 돌려준다")
@@ -156,6 +162,84 @@ class PointWalletControllerTest {
 						.content("{\"amount\": 10000}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_POINT_AMOUNT"));
+	}
+
+	@Nested
+	@DisplayName("포인트 지급")
+	class Grant {
+
+		private static final String GRANT_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/grant";
+
+		@Test
+		@DisplayName("지급에 성공하면 201 과 GRANT 응답을 돌려준다")
+		void 지급_성공() throws Exception {
+			given(pointGrantService.grant(eq(1), eq(2), eq(5_000), eq("용돈"), eq("grant-001")))
+					.willReturn(grantResult(101, 5_000, 20_000));
+
+			mockMvc.perform(post(GRANT_URL, 1, 2)
+							.header("Idempotency-Key", "grant-001")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"childId\": 2, \"amount\": 5000, \"description\": \"용돈\"}"))
+					.andExpect(status().isCreated())
+					.andExpect(jsonPath("$.pointTransactionId").value(101))
+					.andExpect(jsonPath("$.transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.amount").value(5_000))
+					.andExpect(jsonPath("$.balanceAfter").value(20_000));
+		}
+
+		@Test
+		@DisplayName("본문에 childId 가 없어도 경로 값으로 처리한다")
+		void 본문_childId가_없어도_된다() throws Exception {
+			given(pointGrantService.grant(eq(1), eq(2), eq(5_000), any(), any()))
+					.willReturn(grantResult(101, 5_000, 20_000));
+
+			mockMvc.perform(post(GRANT_URL, 1, 2)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 5000}"))
+					.andExpect(status().isCreated());
+		}
+
+		@Test
+		@DisplayName("경로와 본문의 childId 가 다르면 지급하지 않고 400 으로 막는다")
+		void childId가_어긋나면_거부한다() throws Exception {
+			mockMvc.perform(post(GRANT_URL, 1, 2)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"childId\": 99, \"amount\": 5000}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+			verify(pointGrantService, never()).grant(any(), any(), any(Integer.class), any(), any());
+		}
+
+		@Test
+		@DisplayName("가족 자녀가 아니면 403 NOT_FAMILY_CHILD 로 매핑한다")
+		void 가족_자녀가_아니면_403이다() throws Exception {
+			willThrow(new NotFamilyChildException(1, 2))
+					.given(pointGrantService).grant(any(), any(), any(Integer.class), any(), any());
+
+			mockMvc.perform(post(GRANT_URL, 1, 2)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 5000}"))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("NOT_FAMILY_CHILD"));
+		}
+
+		@Test
+		@DisplayName("금액이 0 이하면 서비스를 호출하지 않고 400 으로 막는다")
+		void 잘못된_금액은_400이다() throws Exception {
+			mockMvc.perform(post(GRANT_URL, 1, 2)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": -100}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+			verify(pointGrantService, never()).grant(any(), any(), any(Integer.class), any(), any());
+		}
+
+		private PointChangeResult grantResult(Integer transactionId, int amount, int balanceAfter) {
+			return new PointChangeResult(transactionId, 10, PointTransactionType.DEPOSIT,
+					PointTransactionReason.GRANT, amount, balanceAfter, OffsetDateTime.now(), false);
+		}
 	}
 
 	private PointChangeResult result(Integer transactionId, int amount, int balanceAfter) {
