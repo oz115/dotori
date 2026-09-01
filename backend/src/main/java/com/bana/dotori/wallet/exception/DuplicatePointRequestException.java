@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -11,7 +12,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class DuplicatePointRequestException extends BusinessException {
 
 	public DuplicatePointRequestException(String idempotencyKey, Throwable cause) {
-		super(WalletErrorCode.DUPLICATE_POINT_REQUEST,
+		super(ErrorCode.DUPLICATE_POINT_REQUEST,
 				"이미 다른 거래에 사용된 요청 키입니다. idempotencyKey=" + idempotencyKey, cause);
 	}
 }

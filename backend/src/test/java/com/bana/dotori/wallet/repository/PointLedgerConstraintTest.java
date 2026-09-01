@@ -111,7 +111,7 @@ class PointLedgerConstraintTest {
 		assertThatThrownBy(() -> jdbcTemplate.update("""
 				INSERT INTO point_transactions
 					(wallet_id, transaction_type, transaction_direction, amount, balance_after, idempotency_key)
-				VALUES (?, CAST(? AS point_transactions_transaction_type), ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?)
 				""", 999_999, "DEPOSIT", "GRANT", 100, 100, "orphan"))
 				.isInstanceOf(DataAccessException.class);
 	}
@@ -128,7 +128,7 @@ class PointLedgerConstraintTest {
 		jdbcTemplate.update("""
 				INSERT INTO point_transactions
 					(wallet_id, transaction_type, transaction_direction, amount, balance_after, idempotency_key)
-				VALUES (?, CAST(? AS point_transactions_transaction_type), ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?)
 				""", walletId, "DEPOSIT", "GRANT", amount, balanceAfter, idempotencyKey);
 	}
 }

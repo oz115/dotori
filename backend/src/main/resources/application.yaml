@@ -1,18 +1,22 @@
 spring:
   application:
     name: dotori
-
+  config:
+    # 루트 폴더의 .env에서 민감정보를 읽는다 (환경변수로 이미 주입된 값이 항상 우선)
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dotori_town}
-    username: ${DB_USERNAME:dotori}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     open-in-view: false
     properties:
       hibernate:
         jdbc:
+          # TIMESTAMPTZ 를 KST 기준으로 읽고 쓴다.
+          # 서버 타임존이 달라도 거래 시각이 어긋나지 않게 하려는 것이다.
           time_zone: Asia/Seoul

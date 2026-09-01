@@ -11,9 +11,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.Check;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -28,7 +28,12 @@ import lombok.NoArgsConstructor;
  */
 @Entity
 @Getter
-@Table(name = "point_transactions")
+@Table(name = "point_transactions", uniqueConstraints = {
+		// 중복 충전·지급·차감을 막는 최종 방어선. 애플리케이션 락이 뚫려도 DB 가 거른다.
+		// PostgreSQL 은 NULL 을 서로 다른 값으로 보므로, 멱등키 없는 내부 거래는 여러 건 허용된다.
+		@UniqueConstraint(name = "uk_point_transactions_idempotency_key", columnNames = "idempotency_key")
+})
+@Check(name = "ck_point_transactions_amount_positive", constraints = "amount > 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PointTransaction {
 
@@ -47,13 +52,13 @@ public class PointTransaction {
 	private Integer walletId;
 
 	/**
-	 * DB 의 네이티브 ENUM 타입에 매핑한다. VARCHAR 로 매핑하면
-	 * PostgreSQL 이 파라미터를 ENUM 으로 암묵 캐스팅하지 않아 insert 가 실패한다.
+	 * ERD 상으로는 PG 네이티브 ENUM(point_transactions_transaction_type)이지만 varchar 로 둔다.
+	 * ddl-auto:update 가 재기동 시 enum 타입을 다루지 못해 컬럼이 깨지기 때문이며,
+	 * users.role 도 같은 이유로 varchar 다. 스키마 관리가 스크립트나 Flyway 로 넘어가면
+	 * 네이티브 enum 으로 되돌리는 것이 맞다.
 	 */
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
-	@Column(name = "transaction_type", nullable = false, updatable = false,
-			columnDefinition = "point_transactions_transaction_type")
+	@Column(name = "transaction_type", length = 20, nullable = false, updatable = false)
 	private PointTransactionType transactionType;
 
 	/**

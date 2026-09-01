@@ -25,7 +25,7 @@ public final class WalletTestFixture {
 	private static Integer insertUser(JdbcTemplate jdbcTemplate, String loginId, String role) {
 		return jdbcTemplate.queryForObject("""
 				INSERT INTO users (login_id, password, name, email, role)
-				VALUES (?, 'test-encoded-password', ?, ?, CAST(? AS users_role))
+				VALUES (?, 'test-encoded-password', ?, ?, ?)
 				RETURNING user_id
 				""", Integer.class, loginId, loginId, loginId + "@dotori.test", role);
 	}

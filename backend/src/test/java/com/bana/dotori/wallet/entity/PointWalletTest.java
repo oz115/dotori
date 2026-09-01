@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;
 import com.bana.dotori.wallet.exception.PointBalanceExceededException;
-import com.bana.dotori.wallet.exception.WalletErrorCode;
+import com.bana.dotori.global.error.ErrorCode;
 
 /**
  * 1계층 - 잔액 계산 규칙만 검증한다.
@@ -48,7 +48,7 @@ class PointWalletTest {
 
 			assertThatThrownBy(() -> wallet.deposit(invalidAmount))
 					.isInstanceOf(InvalidPointAmountException.class)
-					.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.INVALID_POINT_AMOUNT);
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 			assertThat(wallet.getBalance()).as("거부됐으므로 잔액은 그대로여야 한다").isEqualTo(1_000);
 		}
@@ -60,7 +60,7 @@ class PointWalletTest {
 
 			assertThatThrownBy(() -> wallet.deposit(11))
 					.isInstanceOf(PointBalanceExceededException.class)
-					.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.POINT_BALANCE_EXCEEDED);
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.POINT_BALANCE_EXCEEDED);
 
 			assertThat(wallet.getBalance())
 					.as("오버플로로 음수가 되지 않아야 한다")
@@ -108,7 +108,7 @@ class PointWalletTest {
 
 			assertThatThrownBy(() -> wallet.withdraw(1_001))
 					.isInstanceOf(InsufficientPointException.class)
-					.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.INSUFFICIENT_POINT);
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 			assertThat(wallet.getBalance()).as("거부됐으므로 잔액은 그대로여야 한다").isEqualTo(1_000);
 		}

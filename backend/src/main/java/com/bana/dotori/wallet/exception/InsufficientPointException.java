@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -8,7 +9,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class InsufficientPointException extends BusinessException {
 
 	public InsufficientPointException(int balance, int amount) {
-		super(WalletErrorCode.INSUFFICIENT_POINT,
+		super(ErrorCode.INSUFFICIENT_POINT,
 				"보유 포인트가 부족합니다. 잔액=" + balance + ", 차감 요청=" + amount);
 	}
 }

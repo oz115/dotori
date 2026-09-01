@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.global.error.BusinessException;
-import com.bana.dotori.global.error.CommonErrorCode;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.dto.request.PointChargeRequest;
 import com.bana.dotori.wallet.dto.request.PointGrantRequest;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
@@ -71,7 +71,7 @@ public class PointWalletController {
 			@Valid @RequestBody PointGrantRequest request) {
 
 		if (request.conflictsWith(childId)) {
-			throw new BusinessException(CommonErrorCode.INVALID_REQUEST,
+			throw new BusinessException(ErrorCode.INVALID_REQUEST,
 					"경로와 본문의 childId 가 다릅니다. path=" + childId + ", body=" + request.childId());
 		}
 

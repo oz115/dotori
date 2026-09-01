@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -11,7 +12,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class PointBalanceExceededException extends BusinessException {
 
 	public PointBalanceExceededException(int balance, int amount) {
-		super(WalletErrorCode.POINT_BALANCE_EXCEEDED,
+		super(ErrorCode.POINT_BALANCE_EXCEEDED,
 				"보유 가능한 최대 포인트를 초과했습니다. 잔액=" + balance + ", 지급 요청=" + amount
 						+ ", 상한=" + Integer.MAX_VALUE);
 	}

@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -11,12 +12,12 @@ import com.bana.dotori.global.error.BusinessException;
 public class BankTransferFailedException extends BusinessException {
 
 	public BankTransferFailedException(Integer childId, int amount, String reason) {
-		super(WalletErrorCode.BANK_TRANSFER_FAILED,
+		super(ErrorCode.BANK_TRANSFER_FAILED,
 				"계좌 송금에 실패했습니다. childId=" + childId + ", amount=" + amount + ", reason=" + reason);
 	}
 
 	public BankTransferFailedException(Integer childId, int amount, Throwable cause) {
-		super(WalletErrorCode.BANK_TRANSFER_FAILED,
+		super(ErrorCode.BANK_TRANSFER_FAILED,
 				"계좌 송금에 실패했습니다. childId=" + childId + ", amount=" + amount, cause);
 	}
 }

@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,8 +31,9 @@ import com.bana.dotori.wallet.support.WalletTestFixture;
  * 계층 테스트가 모두 통과해도 배선이 어긋나 있으면 여기서만 깨진다.
  * 예를 들어 컨트롤러가 서비스를 잘못 호출하거나, 응답 필드명이 명세와 다른 경우다.
  *
- * <p>인증 필터는 꺼 둔다. SecurityConfig 가 회원가입 담당 브랜치에 있어 이 브랜치에는 없고,
- * 스프링 시큐리티 기본 설정이 모든 요청을 401 로 막기 때문이다.
+ * <p>인증 필터는 꺼 둔다. 로그인·토큰 발급(AUTH-02)이 아직 없어 인증된 요청을 만들 수 없고,
+ * 필터를 켜면 모든 요청이 인증 단계에서 막혀 정작 보려는 비즈니스 흐름에 도달하지 못하기 때문이다.
+ * "지갑 API 가 보호되고 있는가"는 {@link PointWalletApiSecurityTest} 가 따로 검증한다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -190,29 +190,4 @@ class PointWalletApiE2ETest {
 		}
 	}
 
-	@Nested
-	@DisplayName("인증·인가 (인증 기능 완성 후 활성화)")
-	class Authorization {
-
-		@Test
-		@Disabled("SecurityConfig 와 JWT 필터가 아직 없다. 회원가입·로그인(S15P21A505-19 계열)이 dev 에 들어온 뒤 활성화한다.")
-		@DisplayName("토큰 없이 호출하면 401 이어야 한다")
-		void 미인증은_401이다() {
-			// 인증 필터가 붙으면 addFilters = false 를 떼고 토큰 없는 요청이 401 인지 확인한다.
-		}
-
-		@Test
-		@Disabled("역할 검증은 인증된 사용자를 알아야 가능하다. 인증 도입 후 활성화한다.")
-		@DisplayName("아이가 지급 API 를 호출하면 403 이어야 한다")
-		void 아이의_지급_호출은_403이다() {
-			// 지급은 부모 전용이다. 지금은 호출자가 누구인지 알 수 없어 검증할 수 없다.
-		}
-
-		@Test
-		@Disabled("본인 확인은 인증 도입 후 가능하다.")
-		@DisplayName("다른 아이의 지갑에 충전하면 403 이어야 한다")
-		void 남의_지갑_충전은_403이다() {
-			// 충전은 경로의 childId 가 로그인한 본인인지 확인해야 한다.
-		}
-	}
 }

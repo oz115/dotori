@@ -2,26 +2,52 @@ package com.bana.dotori.global.error;
 
 import org.springframework.http.HttpStatus;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
- * 도메인별 에러 코드가 구현하는 계약.
+ * 서비스 전체의 에러 코드.
  *
- * <p>테스트에서 "어느 로직이 깨졌는지"를 코드 하나로 판별할 수 있도록,
- * 비즈니스 규칙 위반마다 서로 다른 코드를 부여한다.
+ * <p>응답의 {@code code} 필드에는 상수 이름이 그대로 나간다({@link ErrorResponse#of}).
+ * 따라서 상수 이름은 API 명세에 적힌 코드와 정확히 같아야 한다.
  */
-public interface ErrorCode {
+@Getter
+@RequiredArgsConstructor
+public enum ErrorCode {
 
-	/**
-	 * API 명세의 공통 에러 응답에 실리는 코드 문자열. (예: INSUFFICIENT_POINT)
-	 */
-	String getCode();
+	// 공통
+	INVALID_REQUEST(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다"),
+	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다"),
+	FORBIDDEN(HttpStatus.FORBIDDEN, "권한이 없습니다"),
+	NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다"),
+	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다"),
 
-	/**
-	 * 사용자에게 노출되는 기본 메시지.
-	 */
-	String getMessage();
+	// 회원
+	DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다"),
+	DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다"),
 
-	/**
-	 * 이 에러가 매핑되는 HTTP 상태.
-	 */
-	HttpStatus getHttpStatus();
+	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
+	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
+
+	// 포인트 지갑 (WLT)
+	INVALID_POINT_AMOUNT(HttpStatus.BAD_REQUEST, "포인트 금액은 1 이상이어야 합니다"),
+	INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "보유 포인트가 부족합니다"),
+	POINT_BALANCE_EXCEEDED(HttpStatus.CONFLICT, "보유 가능한 최대 포인트를 초과했습니다"),
+	WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "포인트 지갑을 찾을 수 없습니다"),
+	DUPLICATE_POINT_REQUEST(HttpStatus.CONFLICT, "이미 처리된 요청입니다"),
+	NOT_FAMILY_CHILD(HttpStatus.FORBIDDEN, "해당 가족의 자녀가 아닙니다"),
+	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "거래 사유와 방향이 맞지 않습니다"),
+
+	// 계좌 (ACC) - 계좌 연동이 구현되면 그쪽에서 함께 쓴다
+	BANK_TRANSFER_FAILED(HttpStatus.BAD_GATEWAY, "계좌 송금에 실패했습니다"),
+	INSUFFICIENT_ACCOUNT_BALANCE(HttpStatus.BAD_REQUEST, "계좌 잔액이 부족합니다"),
+	ACCOUNT_NOT_LINKED(HttpStatus.NOT_FOUND, "연동된 계좌가 없습니다"),
+
+	// 상점 (SHOP)
+	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다"),
+	OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 없습니다"),
+	DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 이미 구매한 상품입니다");
+
+	private final HttpStatus status;
+	private final String message;
 }

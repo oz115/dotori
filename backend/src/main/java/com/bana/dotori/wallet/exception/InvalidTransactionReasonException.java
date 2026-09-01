@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 import com.bana.dotori.wallet.entity.PointTransactionReason;
@@ -13,7 +14,7 @@ import com.bana.dotori.wallet.entity.PointTransactionReason;
 public class InvalidTransactionReasonException extends BusinessException {
 
 	public InvalidTransactionReasonException(PointTransactionReason reason, String direction) {
-		super(WalletErrorCode.INVALID_TRANSACTION_REASON,
+		super(ErrorCode.INVALID_TRANSACTION_REASON,
 				"거래 사유와 방향이 맞지 않습니다. reason=" + reason + ", direction=" + direction);
 	}
 }

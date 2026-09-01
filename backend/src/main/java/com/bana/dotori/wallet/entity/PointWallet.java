@@ -10,6 +10,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
+import org.hibernate.annotations.Check;
 
 import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;
@@ -28,7 +31,11 @@ import lombok.NoArgsConstructor;
  */
 @Entity
 @Getter
-@Table(name = "point_wallets")
+@Table(name = "point_wallets", uniqueConstraints = {
+		// 한 사용자에게 지갑이 두 개 생기면 잔액 조회가 어느 쪽을 골라야 할지 알 수 없다.
+		@UniqueConstraint(name = "uk_point_wallets_user_id", columnNames = "user_id")
+})
+@Check(name = "ck_point_wallets_balance_not_negative", constraints = "balance >= 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PointWallet {
 

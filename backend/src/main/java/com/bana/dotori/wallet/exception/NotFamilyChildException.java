@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -11,7 +12,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class NotFamilyChildException extends BusinessException {
 
 	public NotFamilyChildException(Integer familyId, Integer childId) {
-		super(WalletErrorCode.NOT_FAMILY_CHILD,
+		super(ErrorCode.NOT_FAMILY_CHILD,
 				"해당 가족의 자녀가 아닙니다. familyId=" + familyId + ", childId=" + childId);
 	}
 }

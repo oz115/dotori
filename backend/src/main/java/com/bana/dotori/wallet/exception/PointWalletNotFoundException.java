@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -8,7 +9,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class PointWalletNotFoundException extends BusinessException {
 
 	public PointWalletNotFoundException(Integer userId) {
-		super(WalletErrorCode.WALLET_NOT_FOUND,
+		super(ErrorCode.WALLET_NOT_FOUND,
 				"포인트 지갑을 찾을 수 없습니다. userId=" + userId);
 	}
 }

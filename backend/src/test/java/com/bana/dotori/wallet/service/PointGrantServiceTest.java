@@ -29,7 +29,7 @@ import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.exception.NotFamilyChildException;
 import com.bana.dotori.wallet.exception.PointBalanceExceededException;
-import com.bana.dotori.wallet.exception.WalletErrorCode;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 /**
@@ -80,7 +80,7 @@ class PointGrantServiceTest {
 
 		assertThatThrownBy(() -> pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
 				.isInstanceOf(NotFamilyChildException.class)
-				.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.NOT_FAMILY_CHILD);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
 		verify(pointWalletService, never()).deposit(any());
 	}

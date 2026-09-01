@@ -1,5 +1,6 @@
 package com.bana.dotori.store;
 
+import com.bana.dotori.global.error.ErrorCode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -40,16 +41,16 @@ public class StorePurchaseService {
 	@Transactional
 	public StorePurchaseResult purchase(Integer familyId, Integer childId, Integer storeProductId, int quantity) {
 		StoreProductSnapshot product = storeRepository.findProduct(familyId, storeProductId)
-				.orElseThrow(() -> new BusinessException(StoreErrorCode.PRODUCT_NOT_FOUND,
+				.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND,
 						"상품을 찾을 수 없습니다. familyId=" + familyId + ", storeProductId=" + storeProductId));
 
 		if (storeRepository.hasPurchasedOn(childId, storeProductId, LocalDate.now(KST))) {
-			throw new BusinessException(StoreErrorCode.DAILY_LIMIT_EXCEEDED,
+			throw new BusinessException(ErrorCode.DAILY_LIMIT_EXCEEDED,
 					"오늘 이미 구매한 상품입니다. storeProductId=" + storeProductId);
 		}
 
 		if (!product.hasStock(quantity)) {
-			throw new BusinessException(StoreErrorCode.OUT_OF_STOCK,
+			throw new BusinessException(ErrorCode.OUT_OF_STOCK,
 					"재고가 부족합니다. 남은 수량=" + product.quantity() + ", 요청 수량=" + quantity);
 		}
 

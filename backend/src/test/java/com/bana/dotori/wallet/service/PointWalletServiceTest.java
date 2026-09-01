@@ -30,7 +30,7 @@ import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.exception.InsufficientPointException;
 import com.bana.dotori.wallet.exception.InvalidPointAmountException;
 import com.bana.dotori.wallet.exception.PointWalletNotFoundException;
-import com.bana.dotori.wallet.exception.WalletErrorCode;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 
@@ -151,7 +151,7 @@ class PointWalletServiceTest {
 
 			assertThatThrownBy(() -> pointWalletService.withdraw(command(1_001)))
 					.isInstanceOf(InsufficientPointException.class)
-					.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.INSUFFICIENT_POINT);
+					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_POINT);
 
 			verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
 		}
@@ -164,7 +164,7 @@ class PointWalletServiceTest {
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(500)))
 				.isInstanceOf(PointWalletNotFoundException.class)
-				.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.WALLET_NOT_FOUND);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_NOT_FOUND);
 
 		verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
 	}
@@ -177,7 +177,7 @@ class PointWalletServiceTest {
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(0)))
 				.isInstanceOf(InvalidPointAmountException.class)
-				.hasFieldOrPropertyWithValue("errorCode", WalletErrorCode.INVALID_POINT_AMOUNT);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 		verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
 	}

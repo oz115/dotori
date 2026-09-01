@@ -1,5 +1,6 @@
 package com.bana.dotori.store;
 
+import com.bana.dotori.global.error.ErrorCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -75,7 +76,7 @@ class StorePurchaseIntegrationTest {
 				"SELECT transaction_direction FROM point_transactions", String.class))
 				.isEqualTo("PURCHASE");
 		assertThat(jdbcTemplate.queryForObject(
-				"SELECT transaction_type::text FROM point_transactions", String.class))
+				"SELECT transaction_type FROM point_transactions", String.class))
 				.isEqualTo("WITHDRAWAL");
 	}
 
@@ -117,7 +118,7 @@ class StorePurchaseIntegrationTest {
 		assertThatThrownBy(() -> storePurchaseService.purchase(
 				FAMILY_ID, childId, product.storeProductId(), 1))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", StoreErrorCode.OUT_OF_STOCK);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.OUT_OF_STOCK);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);
 		assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isZero();
@@ -134,7 +135,7 @@ class StorePurchaseIntegrationTest {
 		assertThatThrownBy(() -> storePurchaseService.purchase(
 				FAMILY_ID, childId, product.storeProductId(), 1))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", StoreErrorCode.DAILY_LIMIT_EXCEEDED);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DAILY_LIMIT_EXCEEDED);
 
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId))
 				.as("두 번째 구매가 막혔으면 한 번치만 빠져 있어야 한다")
@@ -150,6 +151,6 @@ class StorePurchaseIntegrationTest {
 		assertThatThrownBy(() -> storePurchaseService.purchase(
 				FAMILY_ID, childId, otherFamilyProduct.storeProductId(), 1))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", StoreErrorCode.PRODUCT_NOT_FOUND);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PRODUCT_NOT_FOUND);
 	}
 }

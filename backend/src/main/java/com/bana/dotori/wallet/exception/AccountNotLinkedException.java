@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.exception;
 
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
 
 /**
@@ -11,7 +12,7 @@ import com.bana.dotori.global.error.BusinessException;
 public class AccountNotLinkedException extends BusinessException {
 
 	public AccountNotLinkedException(String owner, Integer userId) {
-		super(WalletErrorCode.ACCOUNT_NOT_LINKED,
+		super(ErrorCode.ACCOUNT_NOT_LINKED,
 				"연동된 계좌가 없습니다. owner=" + owner + ", userId=" + userId);
 	}
 }
