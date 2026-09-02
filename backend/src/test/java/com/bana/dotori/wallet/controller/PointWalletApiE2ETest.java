@@ -6,6 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -221,6 +224,133 @@ class PointWalletApiE2ETest {
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.balance").value(0))
 					.andExpect(jsonPath("$.updatedAt").doesNotExist());
+		}
+	}
+
+	@Nested
+	@DisplayName("거래내역 조회")
+	class Transactions {
+
+		private static final String TX_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/transactions";
+
+		@BeforeEach
+		void 거래를_만든다() throws Exception {
+			mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
+
+			// 충전(CHARGE, IN) → 지급(GRANT, IN) 두 건을 실제 API 로 만든다.
+			mockMvc.perform(post(CHARGE_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.header("Idempotency-Key", "e2e-tx-charge")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 10000}"))
+					.andExpect(status().isCreated());
+
+			mockMvc.perform(post(GRANT_URL, familyId, childId)
+							.header("Authorization", bearer(parentId, UserRole.PARENT))
+							.header("Idempotency-Key", "e2e-tx-grant")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 3000, \"description\": \"용돈\"}"))
+					.andExpect(status().isCreated());
+		}
+
+		@Test
+		@DisplayName("목록의 마지막 잔액이 응답 잔액과 일치한다")
+		void 목록과_잔액이_일치한다() throws Exception {
+			int expected = 5_000 + 1_000 + 3_000;
+
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("sort", "ASC"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.balance").value(expected))
+					.andExpect(jsonPath("$.transactions.length()").value(2))
+					.andExpect(jsonPath("$.transactions[0].transactionType").value("CHARGE"))
+					.andExpect(jsonPath("$.transactions[0].transactionDirection").value("IN"))
+					.andExpect(jsonPath("$.transactions[0].balanceAfter").value(6_000))
+					.andExpect(jsonPath("$.transactions[1].transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.transactions[1].description").value("용돈"))
+					// 원장을 순서대로 훑은 마지막 잔액이 응답 잔액과 같아야 한다.
+					.andExpect(jsonPath("$.transactions[1].balanceAfter").value(expected));
+		}
+
+		@Test
+		@DisplayName("기본 정렬은 최신순이다")
+		void 기본은_최신순이다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions[0].transactionType").value("GRANT"));
+		}
+
+		@Test
+		@DisplayName("사유로 걸러 조회한다")
+		void 사유로_필터한다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("type", "GRANT"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions.length()").value(1))
+					.andExpect(jsonPath("$.transactions[0].transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.totalElements").value(1));
+		}
+
+		@Test
+		@DisplayName("페이지를 나눠 받으면 다음 페이지 여부를 알려준다")
+		void 페이지를_나눈다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("size", "1"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions.length()").value(1))
+					.andExpect(jsonPath("$.totalElements").value(2))
+					.andExpect(jsonPath("$.totalPages").value(2))
+					.andExpect(jsonPath("$.hasNext").value(true));
+		}
+
+		@Test
+		@DisplayName("오늘 하루로 조회하면 방금 만든 거래가 모두 나온다")
+		void 오늘_하루를_조회한다() throws Exception {
+			String today = LocalDate.now(ZoneId.of("Asia/Seoul")).toString();
+
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("startDate", today)
+							.param("endDate", today))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions.length()").value(2));
+		}
+
+		@Test
+		@DisplayName("거래가 없는 기간은 빈 목록과 현재 잔액을 돌려준다")
+		void 빈_기간은_빈_목록이다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("startDate", "2020-01-01")
+							.param("endDate", "2020-01-31"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions").isEmpty())
+					.andExpect(jsonPath("$.balance").value(9_000));
+		}
+
+		@Test
+		@DisplayName("기간이 뒤집히면 400 INVALID_DATE_RANGE 이다")
+		void 기간_역전은_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("startDate", "2026-09-05")
+							.param("endDate", "2026-09-01"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
+		}
+
+		@Test
+		@DisplayName("지원하지 않는 사유는 400 이다")
+		void 잘못된_사유는_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("type", "NOPE"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 		}
 	}
 

@@ -43,6 +43,8 @@ public enum ErrorCode {
 	DUPLICATE_POINT_REQUEST(HttpStatus.CONFLICT, "이미 처리된 요청입니다"),
 	NOT_FAMILY_CHILD(HttpStatus.FORBIDDEN, "해당 가족의 자녀가 아닙니다"),
 	WALLET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 지갑을 조회할 권한이 없습니다"),
+	INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "조회 시작일이 종료일보다 늦습니다"),
+	INVALID_PAGE_REQUEST(HttpStatus.BAD_REQUEST, "페이지 요청 값이 올바르지 않습니다"),
 	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "거래 사유와 방향이 맞지 않습니다"),
 
 	// 계좌 (ACC) - 계좌 연동이 구현되면 그쪽에서 함께 쓴다

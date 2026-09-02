@@ -1,12 +1,26 @@
 package com.bana.dotori.wallet.service;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
+import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
+import com.bana.dotori.wallet.entity.PointTransaction;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
+import com.bana.dotori.wallet.repository.PointTransactionRepository;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -31,7 +45,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PointWalletQueryService {
 
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	/**
+	 * 한 번에 가져갈 수 있는 거래 수 상한.
+	 * 상한이 없으면 size=1000000 한 방으로 원장 전체를 끌어갈 수 있다.
+	 */
+	static final int MAX_PAGE_SIZE = 100;
+
 	private final PointWalletRepository pointWalletRepository;
+	private final PointTransactionRepository pointTransactionRepository;
 	private final FamilyMembershipReader familyMembershipReader;
 
 	/**
@@ -49,6 +72,84 @@ public class PointWalletQueryService {
 		return pointWalletRepository.findByUserId(childId)
 				.map(PointBalanceResponse::from)
 				.orElseGet(() -> PointBalanceResponse.empty(childId));
+	}
+
+	/**
+	 * WLT-06 포인트 거래내역 조회.
+	 *
+	 * @param startDate 조회 시작일(KST, 포함). null 이면 제한 없음
+	 * @param endDate   조회 종료일(KST, 포함). null 이면 제한 없음
+	 * @param reason    거래 사유 필터. null 이면 전체
+	 * @param direction 거래 시각 정렬 방향
+	 * @param page      0부터 시작하는 페이지 번호
+	 * @param size      페이지 크기
+	 */
+	@Transactional(readOnly = true)
+	public PointTransactionHistoryResponse getTransactions(Integer familyId, Integer childId, Integer loginUserId,
+			LocalDate startDate, LocalDate endDate, PointTransactionReason reason,
+			Sort.Direction direction, int page, int size) {
+
+		validateReadAccess(familyId, childId, loginUserId);
+		validatePeriod(startDate, endDate);
+		validatePageRequest(page, size);
+
+		Optional<PointWallet> wallet = pointWalletRepository.findByUserId(childId);
+		if (wallet.isEmpty()) {
+			// 지갑이 없으면 원장도 없다. 404 대신 빈 목록으로 응답한다.
+			return PointTransactionHistoryResponse.empty(childId, page, size);
+		}
+
+		Page<PointTransaction> found = pointTransactionRepository.search(
+				wallet.get().getWalletId(),
+				startOfDay(startDate),
+				startOfNextDay(endDate),
+				reason,
+				toPageable(direction, page, size));
+
+		return PointTransactionHistoryResponse.of(childId, wallet.get().getBalance(), found);
+	}
+
+	/**
+	 * 정렬은 거래 시각을 기준으로 하되 마지막에 항상 식별자를 붙인다.
+	 *
+	 * <p>같은 초에 여러 거래가 생기면(동시 요청·연속 호출) created_at 만으로는 순서가
+	 * 고정되지 않는다. 페이지마다 순서가 흔들리면 어떤 거래는 두 번 보이고
+	 * 어떤 거래는 아예 빠진다. 원장은 삽입 순서가 곧 시간 순서라
+	 * point_transaction_id 를 같은 방향으로 덧붙이면 전순서가 확정된다.
+	 */
+	private Pageable toPageable(Sort.Direction direction, int page, int size) {
+		Sort.Direction resolved = direction == null ? Sort.Direction.DESC : direction;
+		return PageRequest.of(page, size, Sort.by(resolved, "createdAt", "pointTransactionId"));
+	}
+
+	private void validatePeriod(LocalDate startDate, LocalDate endDate) {
+		if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE,
+					"조회 시작일이 종료일보다 늦습니다. startDate=" + startDate + ", endDate=" + endDate);
+		}
+	}
+
+	private void validatePageRequest(int page, int size) {
+		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+			throw new BusinessException(ErrorCode.INVALID_PAGE_REQUEST,
+					"페이지 요청 값이 올바르지 않습니다. page=" + page + ", size=" + size
+							+ ", 허용 size=1~" + MAX_PAGE_SIZE);
+		}
+	}
+
+	/** 조회 시작일 00:00:00 KST. */
+	private OffsetDateTime startOfDay(LocalDate date) {
+		return date == null ? null : date.atStartOfDay(KST).toOffsetDateTime();
+	}
+
+	/**
+	 * 조회 종료일 다음 날 00:00:00 KST.
+	 *
+	 * <p>종료일을 포함하려면 반개구간의 끝을 다음 날 0시로 잡아야 한다.
+	 * "종료일 23:59:59" 로 자르면 그 뒤 밀리초에 생긴 거래가 빠진다.
+	 */
+	private OffsetDateTime startOfNextDay(LocalDate date) {
+		return date == null ? null : date.plusDays(1).atStartOfDay(KST).toOffsetDateTime();
 	}
 
 	/**

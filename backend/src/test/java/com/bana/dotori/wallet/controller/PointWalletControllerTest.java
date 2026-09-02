@@ -13,7 +13,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,6 +37,8 @@ import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
+import com.bana.dotori.wallet.dto.response.PointTransactionItem;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
@@ -243,6 +248,153 @@ class PointWalletControllerTest {
 					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
 			verify(pointWalletQueryService, never()).getBalance(any(), any(), any());
+		}
+	}
+
+	@Nested
+	@DisplayName("포인트 거래내역 조회")
+	class Transactions {
+
+		private static final String TX_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/transactions";
+
+		@Test
+		@DisplayName("조회에 성공하면 200 과 목록·잔액·페이지 정보를 돌려준다")
+		void 조회_성공() throws Exception {
+			given(pointWalletQueryService.getTransactions(
+					eq(1), eq(2), eq(2), isNull(), isNull(), isNull(), eq(Sort.Direction.DESC), eq(0), eq(20)))
+					.willReturn(new PointTransactionHistoryResponse(2, 6_000,
+							List.of(new PointTransactionItem(101, PointTransactionReason.CHARGE, "IN",
+									1_000, 6_000, "포인트 충전", OffsetDateTime.now())),
+							0, 20, 1L, 1, false));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.childId").value(2))
+					.andExpect(jsonPath("$.balance").value(6_000))
+					.andExpect(jsonPath("$.transactions[0].pointTransactionId").value(101))
+					.andExpect(jsonPath("$.transactions[0].transactionType").value("CHARGE"))
+					.andExpect(jsonPath("$.transactions[0].transactionDirection").value("IN"))
+					.andExpect(jsonPath("$.transactions[0].description").value("포인트 충전"))
+					.andExpect(jsonPath("$.totalElements").value(1))
+					.andExpect(jsonPath("$.hasNext").value(false));
+		}
+
+		@Test
+		@DisplayName("조회 조건을 그대로 서비스에 넘긴다")
+		void 조건을_그대로_넘긴다() throws Exception {
+			given(pointWalletQueryService.getTransactions(any(), any(), any(), any(), any(), any(), any(),
+					any(Integer.class), any(Integer.class)))
+					.willReturn(PointTransactionHistoryResponse.empty(2, 1, 5));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("startDate", "2026-09-01")
+							.param("endDate", "2026-09-03")
+							.param("type", "GRANT")
+							.param("sort", "ASC")
+							.param("page", "1")
+							.param("size", "5"))
+					.andExpect(status().isOk());
+
+			verify(pointWalletQueryService).getTransactions(1, 2, 2,
+					LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 3),
+					PointTransactionReason.GRANT, Sort.Direction.ASC, 1, 5);
+		}
+
+		@Test
+		@DisplayName("조건을 생략하면 최신순 첫 페이지로 조회한다")
+		void 기본값으로_조회한다() throws Exception {
+			given(pointWalletQueryService.getTransactions(any(), any(), any(), any(), any(), any(), any(),
+					any(Integer.class), any(Integer.class)))
+					.willReturn(PointTransactionHistoryResponse.empty(2, 0, 20));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk());
+
+			verify(pointWalletQueryService).getTransactions(1, 2, 2,
+					null, null, null, Sort.Direction.DESC, 0, 20);
+		}
+
+		@Test
+		@DisplayName("거래가 없으면 200 과 빈 배열이다")
+		void 빈_결과도_200이다() throws Exception {
+			given(pointWalletQueryService.getTransactions(any(), any(), any(), any(), any(), any(), any(),
+					any(Integer.class), any(Integer.class)))
+					.willReturn(PointTransactionHistoryResponse.empty(2, 0, 20));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.transactions").isArray())
+					.andExpect(jsonPath("$.transactions").isEmpty())
+					.andExpect(jsonPath("$.balance").value(0));
+		}
+
+		@Test
+		@DisplayName("지원하지 않는 거래 유형은 서비스를 부르지 않고 400 으로 막는다")
+		void 잘못된_유형은_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("type", "NOT_A_REASON"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+			verify(pointWalletQueryService, never()).getTransactions(any(), any(), any(), any(), any(), any(),
+					any(), any(Integer.class), any(Integer.class));
+		}
+
+		@Test
+		@DisplayName("지원하지 않는 정렬 값은 400 으로 막는다")
+		void 잘못된_정렬은_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("sort", "SIDEWAYS"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		}
+
+		@Test
+		@DisplayName("날짜 형식이 틀리면 400 으로 막는다")
+		void 잘못된_날짜는_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("startDate", "2026-13-45"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		}
+
+		@Test
+		@DisplayName("기간이 뒤집히면 400 INVALID_DATE_RANGE 로 매핑한다")
+		void 기간_역전은_400이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.INVALID_DATE_RANGE, "기간 역전"))
+					.given(pointWalletQueryService).getTransactions(any(), any(), any(), any(), any(), any(),
+							any(), any(Integer.class), any(Integer.class));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("startDate", "2026-09-05")
+							.param("endDate", "2026-09-01"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
+		}
+
+		@Test
+		@DisplayName("페이지 요청이 잘못되면 400 INVALID_PAGE_REQUEST 로 매핑한다")
+		void 잘못된_페이지_요청은_400이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.INVALID_PAGE_REQUEST, "size 초과"))
+					.given(pointWalletQueryService).getTransactions(any(), any(), any(), any(), any(), any(),
+							any(), any(Integer.class), any(Integer.class));
+
+			mockMvc.perform(get(TX_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.param("size", "1000"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_PAGE_REQUEST"));
+		}
+
+		@Test
+		@DisplayName("권한이 없으면 403 WALLET_ACCESS_DENIED 로 매핑한다")
+		void 권한_없음은_403이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.WALLET_ACCESS_DENIED, "권한 없음"))
+					.given(pointWalletQueryService).getTransactions(any(), any(), any(), any(), any(), any(),
+							any(), any(Integer.class), any(Integer.class));
+
+			mockMvc.perform(get(TX_URL, 1, 3).with(loginAs(2, "CHILD")))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
 		}
 	}
 

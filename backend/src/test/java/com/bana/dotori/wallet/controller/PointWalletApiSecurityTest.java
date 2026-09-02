@@ -44,6 +44,7 @@ class PointWalletApiSecurityTest {
 	private static final String CHARGE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/charge";
 	private static final String GRANT_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/grant";
 	private static final String BALANCE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/balance";
+	private static final String TX_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/transactions";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -73,6 +74,49 @@ class PointWalletApiSecurityTest {
 	@AfterEach
 	void tearDown() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
+	}
+
+	@Test
+	@DisplayName("보호_미인증_거래내역조회는_401이다")
+	void 보호_미인증_거래내역조회는_401이다() throws Exception {
+		mockMvc.perform(get(TX_URL, familyId, childId))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("보호_아이가_남의_거래내역을_조회하면_403이다")
+	void 보호_아이가_남의_거래내역을_조회하면_403이다() throws Exception {
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-tx");
+		WalletTestFixture.addFamilyMember(jdbcTemplate, familyId, otherChildId);
+		pointWalletRepository.save(PointWallet.openWithBalance(otherChildId, 9_999));
+
+		// 잔액이 막혔는데 거래내역으로 같은 정보가 새어 나가면 안 된다.
+		mockMvc.perform(get(TX_URL, familyId, otherChildId)
+						.header("Authorization", bearer(childId, UserRole.CHILD)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_다른_가족_부모가_거래내역을_조회하면_403이다")
+	void 보호_다른_가족_부모가_거래내역을_조회하면_403이다() throws Exception {
+		Integer otherParentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-other-tx");
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-family-tx");
+		WalletTestFixture.insertFamilyWithChild(jdbcTemplate, otherParentId, otherChildId);
+
+		mockMvc.perform(get(TX_URL, familyId, childId)
+						.header("Authorization", bearer(otherParentId, UserRole.PARENT)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_가족_부모는_자녀_거래내역을_조회한다")
+	void 보호_가족_부모는_자녀_거래내역을_조회한다() throws Exception {
+		mockMvc.perform(get(TX_URL, familyId, childId)
+						.header("Authorization", bearer(parentId, UserRole.PARENT)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.balance").value(5_000));
 	}
 
 	@Test
