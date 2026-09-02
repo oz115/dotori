@@ -58,6 +58,11 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
   - **service**: Mockito 단위 테스트 — `@ExtendWith(MockitoExtension.class)`, repository/encoder는 `@Mock`, mapper는 `@Spy`
   - **controller**: `@WebMvcTest` 슬라이스 테스트 — service는 `@MockitoBean`, `SecurityConfig`를 `@Import`해서 시큐리티 규칙 포함, MockMvc로 상태 코드·응답 JSON·에러 형식 검증
 - 테스트 클래스명은 `{대상 클래스}Test`, 메서드명은 `{기능}_{시나리오}` 형식으로 작성한다.
+- DB가 필요한 테스트(`@SpringBootTest`, `@DataJpaTest`)는 **애플리케이션과 같은 DB**를 쓴다.
+  `application-test.yaml`이 `application.yaml`의 datasource를 물려받고, 스키마는
+  `src/test/resources/schema.sql`이 `CREATE TABLE IF NOT EXISTS` + 제약조건 재적용으로 맞춘다.
+  - **주의**: 뒷정리(`WalletTestFixture.cleanUp`)가 `users`/`families`까지 DELETE 하므로
+    테스트를 돌리면 그 DB의 회원·가족 데이터가 비워진다. 보존할 데이터가 있는 DB를 가리키지 말 것.
 
 ## 규칙
 
