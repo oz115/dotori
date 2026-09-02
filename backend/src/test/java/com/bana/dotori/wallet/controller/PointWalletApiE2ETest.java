@@ -18,7 +18,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.mock.bank.MockBankTransferClient;
+import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
 import com.bana.dotori.wallet.support.WalletTestFixture;
@@ -31,13 +33,13 @@ import com.bana.dotori.wallet.support.WalletTestFixture;
  * 계층 테스트가 모두 통과해도 배선이 어긋나 있으면 여기서만 깨진다.
  * 예를 들어 컨트롤러가 서비스를 잘못 호출하거나, 응답 필드명이 명세와 다른 경우다.
  *
- * <p>인증 필터는 꺼 둔다. 로그인·토큰 발급(AUTH-02)이 아직 없어 인증된 요청을 만들 수 없고,
- * 필터를 켜면 모든 요청이 인증 단계에서 막혀 정작 보려는 비즈니스 흐름에 도달하지 못하기 때문이다.
- * "지갑 API 가 보호되고 있는가"는 {@link PointWalletApiSecurityTest} 가 따로 검증한다.
+ * <p>인증 필터를 켜고 실제 발급한 Access Token 으로 호출한다.
+ * 요청 하나가 인증부터 DB 까지 실제로 도는지 보려는 것이 이 테스트의 목적이기 때문이다.
+ * 권한 위반 케이스는 {@link PointWalletApiSecurityTest} 가 따로 검증한다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @DisplayName("포인트 지갑 API E2E")
 class PointWalletApiE2ETest {
 
@@ -48,6 +50,9 @@ class PointWalletApiE2ETest {
 	private MockMvc mockMvc;
 
 	@Autowired
+	private JwtTokenProvider jwtTokenProvider;
+
+	@Autowired
 	private PointWalletRepository pointWalletRepository;
 
 	@Autowired
@@ -56,6 +61,7 @@ class PointWalletApiE2ETest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	private Integer parentId;
 	private Integer familyId;
 	private Integer childId;
 
@@ -63,7 +69,7 @@ class PointWalletApiE2ETest {
 	void setUp() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
 		mockBankTransferClient.clear();
-		Integer parentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-e2e");
+		parentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-e2e");
 		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-e2e");
 		familyId = WalletTestFixture.insertFamilyWithChild(jdbcTemplate, parentId, childId);
 		pointWalletRepository.save(PointWallet.openWithBalance(childId, 5_000));
@@ -84,7 +90,7 @@ class PointWalletApiE2ETest {
 		void 충전_전_구간() throws Exception {
 			mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
 
-			mockMvc.perform(post(CHARGE_URL, familyId, childId)
+			mockMvc.perform(post(CHARGE_URL, familyId, childId).header("Authorization", bearer(childId, UserRole.CHILD))
 							.header("Idempotency-Key", "e2e-charge-1")
 							.contentType(MediaType.APPLICATION_JSON)
 							.content("{\"amount\": 10000}"))
@@ -105,7 +111,7 @@ class PointWalletApiE2ETest {
 		void 계좌_잔액_부족() throws Exception {
 			mockBankTransferClient.registerAccount(childId, "김도토", 1_000);
 
-			mockMvc.perform(post(CHARGE_URL, familyId, childId)
+			mockMvc.perform(post(CHARGE_URL, familyId, childId).header("Authorization", bearer(childId, UserRole.CHILD))
 							.contentType(MediaType.APPLICATION_JSON)
 							.content("{\"amount\": 10000}"))
 					.andExpect(status().isBadRequest())
@@ -124,7 +130,7 @@ class PointWalletApiE2ETest {
 			mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
 
 			for (int i = 0; i < 2; i++) {
-				mockMvc.perform(post(CHARGE_URL, familyId, childId)
+				mockMvc.perform(post(CHARGE_URL, familyId, childId).header("Authorization", bearer(childId, UserRole.CHILD))
 								.header("Idempotency-Key", "e2e-charge-dup")
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{\"amount\": 10000}"))
@@ -147,7 +153,7 @@ class PointWalletApiE2ETest {
 		@Test
 		@DisplayName("요청 한 번으로 포인트와 원장이 함께 남는다")
 		void 지급_전_구간() throws Exception {
-			mockMvc.perform(post(GRANT_URL, familyId, childId)
+			mockMvc.perform(post(GRANT_URL, familyId, childId).header("Authorization", bearer(parentId, UserRole.PARENT))
 							.header("Idempotency-Key", "e2e-grant-1")
 							.contentType(MediaType.APPLICATION_JSON)
 							.content("{\"childId\": " + childId + ", \"amount\": 3000, \"description\": \"용돈\"}"))
@@ -167,7 +173,7 @@ class PointWalletApiE2ETest {
 			Integer strangerId = WalletTestFixture.insertChild(jdbcTemplate, "child-stranger-e2e");
 			pointWalletRepository.save(PointWallet.openWithBalance(strangerId, 0));
 
-			mockMvc.perform(post(GRANT_URL, familyId, strangerId)
+			mockMvc.perform(post(GRANT_URL, familyId, strangerId).header("Authorization", bearer(parentId, UserRole.PARENT))
 							.contentType(MediaType.APPLICATION_JSON)
 							.content("{\"amount\": 3000}"))
 					.andExpect(status().isForbidden())
@@ -180,7 +186,7 @@ class PointWalletApiE2ETest {
 		@Test
 		@DisplayName("경로와 본문의 childId 가 다르면 400 이다")
 		void childId_불일치() throws Exception {
-			mockMvc.perform(post(GRANT_URL, familyId, childId)
+			mockMvc.perform(post(GRANT_URL, familyId, childId).header("Authorization", bearer(parentId, UserRole.PARENT))
 							.contentType(MediaType.APPLICATION_JSON)
 							.content("{\"childId\": 99999, \"amount\": 3000}"))
 					.andExpect(status().isBadRequest())
@@ -190,4 +196,9 @@ class PointWalletApiE2ETest {
 		}
 	}
 
+
+	/** 실제 발급된 Access Token 으로 호출한다. 인증 경로까지 함께 검증하기 위해서다. */
+	private String bearer(Integer userId, UserRole role) {
+		return "Bearer " + jwtTokenProvider.createAccessToken(userId, role);
+	}
 }

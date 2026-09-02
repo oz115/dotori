@@ -34,8 +34,15 @@ public class PointGrantService {
 	private final FamilyMembershipReader familyMembershipReader;
 
 	@Transactional
-	public PointChangeResult grant(Integer familyId, Integer childId, int amount, String description,
-			String idempotencyKey) {
+	public PointChangeResult grant(Integer parentId, Integer familyId, Integer childId, int amount,
+			String description, String idempotencyKey) {
+
+		// 발행을 요청한 사람이 그 가족의 부모인지 먼저 본다. 이 확인이 없으면
+		// 로그인만 되어 있으면 누구나 남의 집 아이에게 포인트를 꽂아 넣을 수 있다.
+		if (!familyMembershipReader.isParentOfFamily(familyId, parentId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+					"해당 가족의 부모가 아닙니다. familyId=" + familyId + ", parentId=" + parentId);
+		}
 
 		if (!familyMembershipReader.isChildOfFamily(familyId, childId)) {
 			throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD,
@@ -45,8 +52,8 @@ public class PointGrantService {
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
 				childId, amount, PointTransactionReason.GRANT, resolveDescription(description), idempotencyKey));
 
-		log.info("포인트 지급 완료. familyId={}, childId={}, amount={}, balanceAfter={}, replayed={}",
-				familyId, childId, amount, result.balanceAfter(), result.replayed());
+		log.info("포인트 지급 완료. familyId={}, parentId={}, childId={}, amount={}, balanceAfter={}, replayed={}",
+				familyId, parentId, childId, amount, result.balanceAfter(), result.replayed());
 		return result;
 	}
 

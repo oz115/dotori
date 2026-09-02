@@ -40,6 +40,7 @@ import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 @ExtendWith(MockitoExtension.class)
 class PointGrantServiceTest {
 
+	private static final Integer PARENT_ID = 9;
 	private static final Integer FAMILY_ID = 1;
 	private static final Integer CHILD_ID = 2;
 	private static final String KEY = "grant-001";
@@ -56,10 +57,11 @@ class PointGrantServiceTest {
 	@Test
 	@DisplayName("가족 자녀에게 GRANT 사유로 포인트를 발행한다")
 	void 포인트를_발행한다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(result(5_000, 20_000));
 
-		PointChangeResult result = pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY);
+		PointChangeResult result = pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY);
 
 		ArgumentCaptor<PointChangeCommand> captor = ArgumentCaptor.forClass(PointChangeCommand.class);
 		verify(pointWalletService).deposit(captor.capture());
@@ -74,9 +76,10 @@ class PointGrantServiceTest {
 	@Test
 	@DisplayName("가족 자녀가 아니면 포인트를 발행하지 않고 403 예외를 던진다")
 	void 가족_자녀가_아니면_거부한다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(false);
 
-		assertThatThrownBy(() -> pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
+		assertThatThrownBy(() -> pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
@@ -86,10 +89,11 @@ class PointGrantServiceTest {
 	@Test
 	@DisplayName("가족 소속 확인을 포인트 발행보다 먼저 한다")
 	void 소속_확인이_먼저다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(result(5_000, 20_000));
 
-		pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY);
+		pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY);
 
 		// 발행이 먼저 일어나면, 남의 집 아이 지갑에 포인트가 들어갔다가 롤백되는 셈이 된다.
 		InOrder inOrder = inOrder(familyMembershipReader, pointWalletService);
@@ -102,10 +106,11 @@ class PointGrantServiceTest {
 	@ValueSource(strings = {"   "})
 	@DisplayName("지급 사유가 비어 있으면 기본 문구를 넣는다")
 	void 사유가_비면_기본값을_쓴다(String blankDescription) {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(result(5_000, 20_000));
 
-		pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, blankDescription, KEY);
+		pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, blankDescription, KEY);
 
 		ArgumentCaptor<PointChangeCommand> captor = ArgumentCaptor.forClass(PointChangeCommand.class);
 		verify(pointWalletService).deposit(captor.capture());
@@ -117,11 +122,12 @@ class PointGrantServiceTest {
 	@Test
 	@DisplayName("공통 서비스가 던진 예외는 그대로 전파된다")
 	void 공통_서비스_예외가_전파된다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		willThrow(new BusinessException(ErrorCode.POINT_BALANCE_EXCEEDED, "상한 초과"))
 				.given(pointWalletService).deposit(any());
 
-		assertThatThrownBy(() -> pointGrantService.grant(FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
+		assertThatThrownBy(() -> pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.POINT_BALANCE_EXCEEDED);
 	}

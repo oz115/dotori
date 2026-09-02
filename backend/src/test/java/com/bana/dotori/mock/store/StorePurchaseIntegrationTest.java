@@ -74,9 +74,6 @@ class StorePurchaseIntegrationTest {
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT transaction_type FROM point_transactions", String.class))
 				.isEqualTo("PURCHASE");
-		assertThat(jdbcTemplate.queryForObject(
-				"SELECT transaction_type FROM point_transactions", String.class))
-				.isEqualTo("WITHDRAWAL");
 	}
 
 	@Test

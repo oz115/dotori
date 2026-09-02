@@ -39,13 +39,14 @@ class PointGrantIntegrationTest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	private Integer parentId;
 	private Integer familyId;
 	private Integer childId;
 
 	@BeforeEach
 	void setUp() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
-		Integer parentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-grant");
+		parentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-grant");
 		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-grant");
 		familyId = WalletTestFixture.insertFamilyWithChild(jdbcTemplate, parentId, childId);
 		pointWalletRepository.save(PointWallet.openWithBalance(childId, 15_000));
@@ -59,7 +60,7 @@ class PointGrantIntegrationTest {
 	@Test
 	@DisplayName("가족 자녀에게 지급하면 잔액이 늘고 원장에 GRANT 가 남는다")
 	void 지급_성공() {
-		PointChangeResult result = pointGrantService.grant(familyId, childId, 5_000, "용돈", "grant-success");
+		PointChangeResult result = pointGrantService.grant(parentId, familyId, childId, 5_000, "용돈", "grant-success");
 
 		assertThat(result.balanceAfter()).isEqualTo(20_000);
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);
@@ -77,7 +78,7 @@ class PointGrantIntegrationTest {
 		WalletTestFixture.insertFamilyWithChild(jdbcTemplate, otherParentId, otherChildId);
 		pointWalletRepository.save(PointWallet.openWithBalance(otherChildId, 0));
 
-		assertThatThrownBy(() -> pointGrantService.grant(familyId, otherChildId, 5_000, "용돈", "grant-other"))
+		assertThatThrownBy(() -> pointGrantService.grant(parentId, familyId, otherChildId, 5_000, "용돈", "grant-other"))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
@@ -92,7 +93,7 @@ class PointGrantIntegrationTest {
 	void 무소속_사용자는_거부된다() {
 		Integer strangerId = WalletTestFixture.insertChild(jdbcTemplate, "child-stranger");
 
-		assertThatThrownBy(() -> pointGrantService.grant(familyId, strangerId, 5_000, "용돈", "grant-stranger"))
+		assertThatThrownBy(() -> pointGrantService.grant(parentId, familyId, strangerId, 5_000, "용돈", "grant-stranger"))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 	}
@@ -100,10 +101,10 @@ class PointGrantIntegrationTest {
 	@Test
 	@DisplayName("부모 본인에게는 지급할 수 없다")
 	void 부모에게는_지급할_수_없다() {
-		Integer parentId = jdbcTemplate.queryForObject(
+		Integer self = jdbcTemplate.queryForObject(
 				"SELECT user_id FROM users WHERE login_id = 'parent-grant'", Integer.class);
 
-		assertThatThrownBy(() -> pointGrantService.grant(familyId, parentId, 5_000, "용돈", "grant-parent"))
+		assertThatThrownBy(() -> pointGrantService.grant(parentId, familyId, self, 5_000, "용돈", "grant-parent"))
 				.as("가족 구성원이지만 자녀가 아니므로 거부돼야 한다")
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
@@ -112,8 +113,8 @@ class PointGrantIntegrationTest {
 	@Test
 	@DisplayName("같은 멱등키로 다시 지급하면 한 번만 반영된다")
 	void 중복_지급은_한번만_반영된다() {
-		pointGrantService.grant(familyId, childId, 5_000, "용돈", "grant-once");
-		PointChangeResult second = pointGrantService.grant(familyId, childId, 5_000, "용돈", "grant-once");
+		pointGrantService.grant(parentId, familyId, childId, 5_000, "용돈", "grant-once");
+		PointChangeResult second = pointGrantService.grant(parentId, familyId, childId, 5_000, "용돈", "grant-once");
 
 		assertThat(second.replayed()).isTrue();
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);

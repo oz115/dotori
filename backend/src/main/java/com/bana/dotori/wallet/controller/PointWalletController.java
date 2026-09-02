@@ -3,6 +3,7 @@ package com.bana.dotori.wallet.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,9 +26,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * 포인트 지갑 API.
  *
- * <p>TODO 인증이 붙으면(S15P21A505-19 계열) 아래 검증을 추가해야 한다.
- * 충전은 경로의 childId 가 로그인한 아이 본인인지, 지급은 호출자가 그 가족의 부모인지 확인해야 한다.
- * 지금은 인증 필터가 없어 "대상 아이가 그 가족 소속인지"까지만 검증한다.
+ * <p>충전은 로그인한 아이 본인만, 지급은 그 가족의 부모만 호출할 수 있다.
+ * 경로에 childId 가 드러나 있어 검증이 없으면 남의 지갑을 조작할 수 있으므로,
+ * 서비스로 넘기기 전에 컨트롤러에서 호출자를 먼저 확인한다.
  */
 @RestController
 @RequiredArgsConstructor
@@ -46,10 +47,18 @@ public class PointWalletController {
 	@PostMapping("/charge")
 	@ResponseStatus(HttpStatus.CREATED)
 	public PointTransactionResponse charge(
+			@AuthenticationPrincipal Integer loginUserId,
 			@PathVariable Integer familyId,
 			@PathVariable Integer childId,
 			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
 			@Valid @RequestBody PointChargeRequest request) {
+
+		// 충전은 아이 본인의 계좌에서 돈이 빠져나간다. 남이 대신 부를 수 있으면
+		// 다른 사람 계좌에서 출금시키는 셈이 되므로 본인 확인이 필수다.
+		if (!childId.equals(loginUserId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+					"본인의 지갑만 충전할 수 있습니다. loginUserId=" + loginUserId + ", childId=" + childId);
+		}
 
 		PointChangeResult result = pointChargeService.charge(
 				familyId, childId, request.amount(), idempotencyKey);
@@ -61,10 +70,13 @@ public class PointWalletController {
 	 *
 	 * <p>대상 자녀는 경로의 childId 를 쓴다. 본문에도 childId 가 올 수 있는데(명세상 존재),
 	 * 두 값이 다르면 어느 쪽이 맞는지 알 수 없으므로 거부한다.
+	 *
+	 * <p>호출자가 그 가족의 부모인지는 서비스가 확인한다. 컨트롤러는 역할만 본다.
 	 */
 	@PostMapping("/grant")
 	@ResponseStatus(HttpStatus.CREATED)
 	public PointTransactionResponse grant(
+			@AuthenticationPrincipal Integer loginUserId,
 			@PathVariable Integer familyId,
 			@PathVariable Integer childId,
 			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -76,7 +88,7 @@ public class PointWalletController {
 		}
 
 		PointChangeResult result = pointGrantService.grant(
-				familyId, childId, request.amount(), request.description(), idempotencyKey);
+				loginUserId, familyId, childId, request.amount(), request.description(), idempotencyKey);
 		return PointTransactionResponse.from(result);
 	}
 }

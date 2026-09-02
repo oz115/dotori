@@ -27,6 +27,18 @@ public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 			)
 			""";
 
+	private static final String IS_PARENT_OF_FAMILY = """
+			SELECT EXISTS (
+				SELECT 1
+				FROM family_members fm
+				JOIN users u ON u.user_id = fm.user_id
+				WHERE fm.family_id = ?
+				  AND fm.user_id = ?
+				  AND u.role = 'PARENT'
+				  AND u.deleted_at IS NULL
+			)
+			""";
+
 	private final JdbcTemplate jdbcTemplate;
 
 	@Override
@@ -36,5 +48,14 @@ public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 		}
 		return Boolean.TRUE.equals(
 				jdbcTemplate.queryForObject(IS_CHILD_OF_FAMILY, Boolean.class, familyId, childId));
+	}
+
+	@Override
+	public boolean isParentOfFamily(Integer familyId, Integer parentId) {
+		if (familyId == null || parentId == null) {
+			return false;
+		}
+		return Boolean.TRUE.equals(
+				jdbcTemplate.queryForObject(IS_PARENT_OF_FAMILY, Boolean.class, familyId, parentId));
 	}
 }
