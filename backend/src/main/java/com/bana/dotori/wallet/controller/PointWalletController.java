@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,10 +17,12 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.dto.request.PointChargeRequest;
 import com.bana.dotori.wallet.dto.request.PointGrantRequest;
+import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.dto.response.PointTransactionResponse;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
+import com.bana.dotori.wallet.service.PointWalletQueryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +32,9 @@ import lombok.RequiredArgsConstructor;
  * <p>충전은 로그인한 아이 본인만, 지급은 그 가족의 부모만 호출할 수 있다.
  * 경로에 childId 가 드러나 있어 검증이 없으면 남의 지갑을 조작할 수 있으므로,
  * 서비스로 넘기기 전에 컨트롤러에서 호출자를 먼저 확인한다.
+ *
+ * <p>조회(WLT-04)는 규칙이 다르다. 아이 본인뿐 아니라 그 가족의 부모도 볼 수 있어서,
+ * 컨트롤러에서 본인 여부를 따지지 않고 판정을 {@link PointWalletQueryService} 에 맡긴다.
  */
 @RestController
 @RequiredArgsConstructor
@@ -37,6 +43,22 @@ public class PointWalletController {
 
 	private final PointChargeService pointChargeService;
 	private final PointGrantService pointGrantService;
+	private final PointWalletQueryService pointWalletQueryService;
+
+	/**
+	 * WLT-04 보유 포인트 조회.
+	 *
+	 * <p>아이는 본인 지갑을, 부모는 같은 가족 자녀의 지갑을 조회할 수 있다.
+	 * 지갑이 아직 없어도 오류가 아니라 잔액 0으로 응답한다.
+	 */
+	@GetMapping("/balance")
+	public PointBalanceResponse getBalance(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId) {
+
+		return pointWalletQueryService.getBalance(familyId, childId, loginUserId);
+	}
 
 	/**
 	 * WLT-01 포인트 충전. 아이가 실제 금액을 부모 계좌로 보내고 같은 금액을 포인트로 받는다.
