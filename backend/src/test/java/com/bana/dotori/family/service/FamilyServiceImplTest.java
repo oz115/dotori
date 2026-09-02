@@ -231,6 +231,71 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("자녀 제외 성공 시 자녀 구성원을 삭제한다")
+	void removeChild_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
+
+		familyService.removeChild(1, 1, 2);
+
+		verify(familyMemberRepository).delete(childMember);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 자녀 제외 시 FORBIDDEN 예외가 발생한다")
+	void removeChild_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.removeChild(2, 1, 3))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("해당 자녀가 가족에 없으면 MEMBER_NOT_FOUND 예외가 발생한다")
+	void removeChild_memberNotFound() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("제외 대상이 자녀가 아니면 MEMBER_NOT_FOUND 예외가 발생한다")
+	void removeChild_targetNotChild() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(parentMember));
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 자녀 제외를 시도하면 FORBIDDEN 예외가 발생한다")
+	void removeChild_notMember() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
 	@DisplayName("토큰의 유저가 존재하지 않으면 UNAUTHORIZED 예외가 발생한다")
 	void create_userNotFound() {
 		given(userRepository.findById(99)).willReturn(Optional.empty());

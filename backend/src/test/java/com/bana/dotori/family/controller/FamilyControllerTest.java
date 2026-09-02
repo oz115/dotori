@@ -239,6 +239,42 @@ class FamilyControllerTest {
 	}
 
 	@Test
+	@DisplayName("자녀 제외 성공 시 204를 반환한다")
+	void removeChild_success() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1/children/2")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNoContent());
+
+		then(familyService).should().removeChild(1, 1, 2);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 자녀 제외 시 403과 FORBIDDEN 에러를 반환한다")
+	void removeChild_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		doThrow(new BusinessException(ErrorCode.FORBIDDEN)).when(familyService).removeChild(2, 1, 3);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1/children/3")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("해당 자녀가 가족에 없으면 404와 MEMBER_NOT_FOUND 에러를 반환한다")
+	void removeChild_memberNotFound() throws Exception {
+		givenParentAuthenticated(1);
+		doThrow(new BusinessException(ErrorCode.MEMBER_NOT_FOUND)).when(familyService).removeChild(1, 1, 99);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1/children/99")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+	}
+
+	@Test
 	@DisplayName("Access Token 없이 요청하면 401과 UNAUTHORIZED 에러를 반환한다")
 	void create_withoutAccessToken() throws Exception {
 		mockMvc.perform(post(FAMILIES_URL)

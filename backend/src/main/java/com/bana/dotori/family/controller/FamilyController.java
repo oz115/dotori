@@ -52,4 +52,11 @@ public class FamilyController {
 		familyService.disband(userId, familyId);
 		return ResponseEntity.noContent().build();
 	}
+
+	@DeleteMapping("/{familyId}/children/{childId}")
+	public ResponseEntity<Void> removeChild(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer childId) {
+		familyService.removeChild(userId, familyId, childId);
+		return ResponseEntity.noContent().build();
+	}
 }

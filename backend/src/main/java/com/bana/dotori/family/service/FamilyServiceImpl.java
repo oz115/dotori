@@ -80,6 +80,25 @@ public class FamilyServiceImpl implements FamilyService {
 		familyRepository.delete(family);
 	}
 
+	@Override
+	@Transactional
+	public void removeChild(Integer userId, Integer familyId, Integer childId) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		FamilyMember childMember = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+		// 부모 구성원을 제외 대상으로 지정하는 것을 막는다 — 자녀만 제외 가능
+		if (childMember.getUser().getRole() != UserRole.CHILD) {
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
+		familyMemberRepository.delete(childMember);
+	}
+
 	private User findUser(Integer userId) {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
