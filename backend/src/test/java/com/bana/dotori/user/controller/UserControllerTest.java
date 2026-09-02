@@ -22,13 +22,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.security.JwtAccessDeniedHandler;
+import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
+import com.bana.dotori.global.security.JwtAuthenticationFilter;
+import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.service.UserService;
 
 @WebMvcTest(UserController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtAuthenticationEntryPoint.class,
+	JwtAccessDeniedHandler.class})
 class UserControllerTest {
 
 	@Autowired
@@ -36,6 +41,9 @@ class UserControllerTest {
 
 	@MockitoBean
 	private UserService userService;
+
+	@MockitoBean
+	private JwtTokenProvider jwtTokenProvider;
 
 	private static final String SIGNUP_URL = "/api/v1/auth/signup";
 

@@ -62,6 +62,6 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
 ## 규칙
 
 - 네이밍/커밋 컨벤션은 [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md)를 따른다.
-- API 스펙 변경 시 [../docs/API.md](../docs/API.md)를 함께 갱신한다.
+- API 명세는 노션(작업 > API 명세)이 유일한 원본이다. docs/API.md는 관리하지 않는다 (갱신 금지).
 - DB/아키텍처 변경 시 [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)를 함께 갱신한다.
 - 환경변수는 `.env`(gitignore 대상)로 관리하고 `.env.example`을 최신 상태로 유지한다.
