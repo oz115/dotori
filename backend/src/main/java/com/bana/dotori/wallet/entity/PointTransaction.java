@@ -31,7 +31,12 @@ import lombok.NoArgsConstructor;
 @Table(name = "point_transactions", uniqueConstraints = {
 		// 중복 충전·지급·차감을 막는 최종 방어선. 애플리케이션 락이 뚫려도 DB 가 거른다.
 		// PostgreSQL 은 NULL 을 서로 다른 값으로 보므로, 멱등키 없는 내부 거래는 여러 건 허용된다.
-		@UniqueConstraint(name = "uk_point_transactions_idempotency_key", columnNames = "idempotency_key")
+		//
+		// 지갑까지 묶어야 한다. 멱등키만으로 유일하게 두면 서로 다른 두 사용자가 우연히 같은
+		// Idempotency-Key 를 보냈을 때 뒤에 온 요청이 남의 거래를 자기 것으로 착각한다.
+		// 키는 클라이언트가 정하는 값이라 충돌을 막을 방법이 없으므로, 유일성 범위를 지갑 안으로 좁힌다.
+		@UniqueConstraint(name = "uk_point_transactions_wallet_idempotency_key",
+				columnNames = {"wallet_id", "idempotency_key"})
 })
 @Check(name = "ck_point_transactions_amount_positive", constraints = "amount > 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -77,6 +82,9 @@ public class PointTransaction {
 	/**
 	 * 같은 요청이 두 번 들어와도 한 번만 반영되게 하는 키.
 	 * 스케줄러 지급처럼 중복 위험이 없는 거래는 null 을 허용한다.
+	 *
+	 * <p>유일성은 지갑 안에서만 보장된다. 클라이언트가 정하는 값이라 사용자끼리 겹칠 수 있고,
+	 * 전역으로 유일하게 두면 남의 키와 충돌한 요청이 조용히 삼켜진다.
 	 */
 	@Column(name = "idempotency_key", length = 100, updatable = false)
 	private String idempotencyKey;

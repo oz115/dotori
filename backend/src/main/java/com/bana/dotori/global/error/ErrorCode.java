@@ -31,6 +31,7 @@ public enum ErrorCode {
 
 	// 포인트 지갑 (WLT)
 	INVALID_POINT_AMOUNT(HttpStatus.BAD_REQUEST, "포인트 금액은 1 이상이어야 합니다"),
+	INVALID_CHARGE_UNIT(HttpStatus.BAD_REQUEST, "충전 금액은 10원 단위여야 합니다"),
 	INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "보유 포인트가 부족합니다"),
 	POINT_BALANCE_EXCEEDED(HttpStatus.CONFLICT, "보유 가능한 최대 포인트를 초과했습니다"),
 	WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "포인트 지갑을 찾을 수 없습니다"),

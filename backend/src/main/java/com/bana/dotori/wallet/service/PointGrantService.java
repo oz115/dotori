@@ -49,6 +49,9 @@ public class PointGrantService {
 					"해당 가족의 자녀가 아닙니다. familyId=" + familyId + ", childId=" + childId);
 		}
 
+		// 아직 한 번도 충전한 적 없는 아이는 지갑이 없다. 가족 소속을 확인한 뒤에 만든다.
+		pointWalletService.createWalletIfAbsent(childId);
+
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
 				childId, amount, PointTransactionReason.GRANT, resolveDescription(description), idempotencyKey));
 

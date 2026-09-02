@@ -101,6 +101,35 @@ class PointGrantServiceTest {
 		inOrder.verify(pointWalletService).deposit(any());
 	}
 
+	@Test
+	@DisplayName("한 번도 충전한 적 없는 아이에게 지급하면 지갑을 먼저 만든다")
+	void 지갑이_없으면_먼저_만든다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(pointWalletService.deposit(any())).willReturn(result(5_000, 5_000));
+
+		pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY);
+
+		// 이 호출이 빠지면 가입 직후 아이는 지급을 받을 수 없다(WALLET_NOT_FOUND).
+		// 소속 확인 뒤에 만들어야 아무 userId 로나 지갑이 생기지 않는다.
+		InOrder inOrder = inOrder(familyMembershipReader, pointWalletService);
+		inOrder.verify(familyMembershipReader).isChildOfFamily(FAMILY_ID, CHILD_ID);
+		inOrder.verify(pointWalletService).createWalletIfAbsent(CHILD_ID);
+		inOrder.verify(pointWalletService).deposit(any());
+	}
+
+	@Test
+	@DisplayName("가족 자녀가 아니면 지갑도 만들지 않는다")
+	void 가족_자녀가_아니면_지갑도_만들지_않는다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> pointGrantService.grant(PARENT_ID, FAMILY_ID, CHILD_ID, 5_000, "용돈", KEY))
+				.isInstanceOf(BusinessException.class);
+
+		verify(pointWalletService, never()).createWalletIfAbsent(any());
+	}
+
 	@ParameterizedTest(name = "사유가 [{0}] 이면 기본 문구로 채운다")
 	@NullAndEmptySource
 	@ValueSource(strings = {"   "})

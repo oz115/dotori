@@ -85,6 +85,6 @@ CREATE TABLE "point_transactions" (
 	CONSTRAINT "PK_POINT_TRANSACTIONS" PRIMARY KEY ("point_transaction_id"),
 	CONSTRAINT "FK_POINT_TRANSACTIONS_WALLET" FOREIGN KEY ("wallet_id")
 		REFERENCES "point_wallets" ("wallet_id"),
-	CONSTRAINT "uk_point_transactions_idempotency_key" UNIQUE ("idempotency_key"),
+	CONSTRAINT "uk_point_transactions_wallet_idempotency_key" UNIQUE ("wallet_id", "idempotency_key"),
 	CONSTRAINT "ck_point_transactions_amount_positive" CHECK ("amount" > 0)
 );

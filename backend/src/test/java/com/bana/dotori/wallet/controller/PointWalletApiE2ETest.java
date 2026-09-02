@@ -96,14 +96,30 @@ class PointWalletApiE2ETest {
 							.content("{\"amount\": 10000}"))
 					.andExpect(status().isCreated())
 					.andExpect(jsonPath("$.transactionType").value("CHARGE"))
-					.andExpect(jsonPath("$.amount").value(10_000))
-					.andExpect(jsonPath("$.balanceAfter").value(15_000));
+					// 응답의 amount 는 원장에 남는 값, 즉 발행된 포인트다. 요청한 현금이 아니다.
+					.andExpect(jsonPath("$.amount").value(1_000))
+					.andExpect(jsonPath("$.balanceAfter").value(6_000));
 
-			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(15_000);
+			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(6_000);
 			assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isEqualTo(1);
 			assertThat(mockBankTransferClient.findAccount(childId).balance())
-					.as("포인트가 늘어난 만큼 실제 계좌에서 빠져야 한다")
+					.as("포인트는 10분의 1만 늘지만 계좌에서는 요청한 현금 전액이 빠져야 한다")
 					.isEqualTo(490_000);
+		}
+
+		@Test
+		@DisplayName("10원 단위가 아니면 400 INVALID_CHARGE_UNIT 이다")
+		void 십원_단위가_아니면_400이다() throws Exception {
+			mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
+
+			mockMvc.perform(post(CHARGE_URL, familyId, childId).header("Authorization", bearer(childId, UserRole.CHILD))
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 1005}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_CHARGE_UNIT"));
+
+			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(5_000);
+			assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isZero();
 		}
 
 		@Test

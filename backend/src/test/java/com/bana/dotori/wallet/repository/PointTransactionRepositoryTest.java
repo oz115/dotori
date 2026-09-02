@@ -1,6 +1,7 @@
 package com.bana.dotori.wallet.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
@@ -105,16 +106,52 @@ class PointTransactionRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("멱등키로 이전 거래를 찾을 수 있다")
+	@DisplayName("멱등키로 이 지갑의 이전 거래를 찾을 수 있다")
 	void 멱등키로_조회된다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
 				walletId, PointTransactionReason.GRANT,
 				700, 1_700, "부모 지급", "grant-0001"));
 
-		Optional<PointTransaction> found = pointTransactionRepository.findByIdempotencyKey("grant-0001");
+		Optional<PointTransaction> found =
+				pointTransactionRepository.findByWalletIdAndIdempotencyKey(walletId, "grant-0001");
 
 		assertThat(found).isPresent();
 		assertThat(found.orElseThrow().getAmount()).isEqualTo(700);
+	}
+
+	@Test
+	@DisplayName("같은 멱등키라도 다른 지갑의 거래는 걸리지 않는다")
+	void 다른_지갑의_멱등키는_조회되지_않는다() {
+		pointTransactionRepository.saveAndFlush(PointTransaction.record(
+				walletId, PointTransactionReason.GRANT,
+				700, 1_700, "부모 지급", "shared-key"));
+
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-ledger");
+		Integer otherWalletId = pointWalletRepository.saveAndFlush(
+				PointWallet.openWithBalance(otherChildId, 0)).getWalletId();
+
+		// 멱등키는 클라이언트가 정하는 값이라 사용자끼리 겹칠 수 있다.
+		// 전역으로 조회하면 남의 거래가 걸려 나와 이번 요청이 조용히 삼켜진다.
+		assertThat(pointTransactionRepository.findByWalletIdAndIdempotencyKey(otherWalletId, "shared-key"))
+				.isEmpty();
+	}
+
+	@Test
+	@DisplayName("다른 지갑이면 같은 멱등키로도 거래를 남길 수 있다")
+	void 다른_지갑이면_같은_멱등키를_쓸_수_있다() {
+		pointTransactionRepository.saveAndFlush(PointTransaction.record(
+				walletId, PointTransactionReason.CHARGE,
+				500, 1_500, "충전", "collision-key"));
+
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-key");
+		Integer otherWalletId = pointWalletRepository.saveAndFlush(
+				PointWallet.openWithBalance(otherChildId, 0)).getWalletId();
+
+		assertThatCode(() -> pointTransactionRepository.saveAndFlush(PointTransaction.record(
+				otherWalletId, PointTransactionReason.CHARGE,
+				500, 500, "충전", "collision-key")))
+				.as("유일성은 (지갑, 키) 범위여야 한다")
+				.doesNotThrowAnyException();
 	}
 
 	@Test

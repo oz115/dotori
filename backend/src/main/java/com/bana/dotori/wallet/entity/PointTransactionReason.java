@@ -6,14 +6,11 @@ import lombok.RequiredArgsConstructor;
 /**
  * 포인트가 움직인 사유.
  *
- * <p>기존 ERD 의 {@code transaction_direction VARCHAR(10)} 컬럼에 문자열로 저장한다.
+ * <p>{@code point_transactions.transaction_type VARCHAR(20)} 컬럼에 문자열로 저장한다.
  * RPT-02(수입 유형별 통계)는 사유를 조건으로 조회할 수 있어야 하므로 사유가 컬럼에 남아야 한다.
  *
- * <p>주의 1: 컬럼명이 실제 의미(reason)와 다르다. 데이터가 쌓이기 전에
- * {@code transaction_direction} → {@code reason} 으로 renaming 하는 것을 팀에 제안한 상태다.
- *
- * <p>주의 2: 컬럼이 VARCHAR(10)이라 상수 이름은 10자를 넘을 수 없다.
- * {@code INVESTMENT} 가 정확히 10자로 상한에 걸려 있다.
+ * <p>컬럼이 VARCHAR(20)이라 상수 이름은 20자를 넘을 수 없다.
+ * 지금 가장 긴 값은 {@code INVESTMENT}(10자)로 여유가 있다.
  *
  * <p>사유마다 허용되는 방향을 함께 들고 있다. 지급 사유로 차감이 일어나거나
  * 차감 사유로 포인트가 발행되면 통계와 원장이 뒤틀리기 때문에, 방향을 값에 못 박아 둔다.

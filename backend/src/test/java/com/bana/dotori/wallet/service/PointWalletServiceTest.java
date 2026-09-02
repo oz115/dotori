@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,6 +21,8 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
@@ -59,6 +62,8 @@ class PointWalletServiceTest {
 	@BeforeEach
 	void setUp() {
 		wallet = PointWallet.openWithBalance(USER_ID, 1_000);
+		// 멱등성 조회가 walletId 로 범위를 좁히므로, 영속화되지 않은 지갑에도 식별자를 넣어 준다.
+		ReflectionTestUtils.setField(wallet, "walletId", WALLET_ID);
 	}
 
 	@Nested
@@ -69,7 +74,7 @@ class PointWalletServiceTest {
 		@DisplayName("잔액을 늘리고 같은 트랜잭션에서 거래이력을 저장한다")
 		void 잔액과_이력을_함께_남긴다() {
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
+			given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 			PointChangeResult result = pointWalletService.deposit(command(500));
 
@@ -85,7 +90,7 @@ class PointWalletServiceTest {
 			PointTransaction alreadyProcessed = PointTransaction.record(WALLET_ID,
 					PointTransactionReason.CHARGE, 500, 1_500, "충전", IDEMPOTENCY_KEY);
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
+			given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY))
 					.willReturn(Optional.of(alreadyProcessed));
 
 			PointChangeResult result = pointWalletService.deposit(command(500));
@@ -99,14 +104,15 @@ class PointWalletServiceTest {
 		@DisplayName("멱등성 확인은 반드시 지갑 락을 잡은 뒤에 한다")
 		void 락을_먼저_잡는다() {
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
+			given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 			pointWalletService.deposit(command(500));
 
 			// 순서가 뒤집히면 동시에 들어온 같은 요청이 둘 다 "처리된 적 없음"으로 판정돼 중복 반영된다.
 			InOrder inOrder = inOrder(pointWalletRepository, pointTransactionRepository);
 			inOrder.verify(pointWalletRepository).findByUserIdForUpdate(USER_ID);
-			inOrder.verify(pointTransactionRepository).findByIdempotencyKey(IDEMPOTENCY_KEY);
+			inOrder.verify(pointTransactionRepository)
+					.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY);
 		}
 
 		@Test
@@ -117,7 +123,7 @@ class PointWalletServiceTest {
 			pointWalletService.deposit(PointChangeCommand.withoutIdempotency(
 					USER_ID, 500, PointTransactionReason.ALLOWANCE, "정기 지급"));
 
-			verify(pointTransactionRepository, never()).findByIdempotencyKey(anyString());
+			verify(pointTransactionRepository, never()).findByWalletIdAndIdempotencyKey(any(), anyString());
 			verify(pointTransactionRepository).saveAndFlush(any(PointTransaction.class));
 		}
 	}
@@ -130,7 +136,7 @@ class PointWalletServiceTest {
 		@DisplayName("잔액을 줄이고 WITHDRAWAL 이력을 남긴다")
 		void 잔액과_이력을_함께_남긴다() {
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
+			given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 			PointChangeResult result = pointWalletService.withdraw(command(300));
 
@@ -142,7 +148,7 @@ class PointWalletServiceTest {
 		@DisplayName("잔액이 부족하면 이력을 저장하지 않고 InsufficientPointException 을 던진다")
 		void 잔액이_부족하면_이력도_남기지_않는다() {
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
+			given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 			assertThatThrownBy(() -> pointWalletService.withdraw(command(1_001)))
 					.isInstanceOf(BusinessException.class)
@@ -168,13 +174,47 @@ class PointWalletServiceTest {
 	@DisplayName("0 이하 금액은 지갑을 잠근 뒤라도 이력 없이 거부한다")
 	void 유효하지_않은_금액을_거부한다() {
 		given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
-		given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY)).willReturn(Optional.empty());
+		given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(0)))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_POINT_AMOUNT);
 
 		verify(pointTransactionRepository, never()).saveAndFlush(any(PointTransaction.class));
+	}
+
+	@Test
+	@DisplayName("멱등키 유니크 위반은 DUPLICATE_POINT_REQUEST 로 바꿔 던진다")
+	void 멱등키_위반을_409로_바꾼다() {
+		given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
+		given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY))
+				.willReturn(Optional.empty());
+		// JPA 경로에서 유니크 위반은 DuplicateKeyException 이 아니라 이 타입으로 올라온다.
+		// 하위 타입을 잡으면 이 예외가 그대로 새어나가 500 이 된다.
+		willThrow(new DataIntegrityViolationException(
+				"""
+				could not execute statement; SQL [n/a]; \
+				constraint [uk_point_transactions_wallet_idempotency_key]"""))
+				.given(pointTransactionRepository).saveAndFlush(any(PointTransaction.class));
+
+		assertThatThrownBy(() -> pointWalletService.deposit(command(500)))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.DUPLICATE_POINT_REQUEST);
+	}
+
+	@Test
+	@DisplayName("멱등키와 무관한 무결성 위반은 삼키지 않고 그대로 올려보낸다")
+	void 다른_무결성_위반은_그대로_전파한다() {
+		given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
+		given(pointTransactionRepository.findByWalletIdAndIdempotencyKey(WALLET_ID, IDEMPOTENCY_KEY))
+				.willReturn(Optional.empty());
+		willThrow(new DataIntegrityViolationException(
+				"constraint [fk_point_transactions_wallet]"))
+				.given(pointTransactionRepository).saveAndFlush(any(PointTransaction.class));
+
+		assertThatThrownBy(() -> pointWalletService.deposit(command(500)))
+				.as("외래키·CHECK 위반까지 409 로 둔갑하면 진짜 원인을 못 찾는다")
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	private PointChangeCommand command(int amount) {

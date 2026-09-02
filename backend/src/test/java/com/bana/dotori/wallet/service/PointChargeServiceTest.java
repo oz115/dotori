@@ -60,7 +60,7 @@ class PointChargeServiceTest {
 	@DisplayName("포인트를 CHARGE 사유로 발행한 뒤 송금한다")
 	void 포인트_발행_후_송금한다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
+		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
 		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
 				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
 
@@ -69,9 +69,11 @@ class PointChargeServiceTest {
 		ArgumentCaptor<PointChangeCommand> captor = ArgumentCaptor.forClass(PointChangeCommand.class);
 		verify(pointWalletService).deposit(captor.capture());
 		assertThat(captor.getValue().reason()).isEqualTo(PointTransactionReason.CHARGE);
-		assertThat(captor.getValue().amount()).isEqualTo(10_000);
+		assertThat(captor.getValue().amount())
+				.as("현금 10원 = 포인트 1점이므로 10,000원 요청은 1,000포인트로 발행돼야 한다")
+				.isEqualTo(1_000);
 		assertThat(captor.getValue().idempotencyKey()).isEqualTo(KEY);
-		assertThat(result.balanceAfter()).isEqualTo(15_000);
+		assertThat(result.balanceAfter()).isEqualTo(6_000);
 
 		// 검증을 모두 통과한 뒤에 돈을 움직여야 한다.
 		InOrder inOrder = inOrder(pointWalletService, bankTransferClient);
@@ -96,7 +98,7 @@ class PointChargeServiceTest {
 	@DisplayName("송금이 실패하면 예외가 그대로 전파돼 트랜잭션이 롤백된다")
 	void 송금_실패는_전파된다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
+		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
 		willThrow(new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE, "계좌 잔액 부족"))
 				.given(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
 
@@ -110,7 +112,7 @@ class PointChargeServiceTest {
 	@DisplayName("이미 처리된 요청이면 송금을 다시 보내지 않는다")
 	void 중복_요청은_송금하지_않는다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(pointWalletService.deposit(any())).willReturn(replayed(10_000, 15_000));
+		given(pointWalletService.deposit(any())).willReturn(replayed(1_000, 6_000));
 
 		PointChangeResult result = pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
@@ -122,7 +124,7 @@ class PointChargeServiceTest {
 	@DisplayName("이체 금액이 요청 금액과 다르면 실패로 처리한다")
 	void 부분_송금은_실패다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
+		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
 		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
 				.willReturn(new BankTransferResult("MOCK-1", 9_000, null, null));
 
@@ -160,10 +162,80 @@ class PointChargeServiceTest {
 	}
 
 	@Test
+	@DisplayName("환전_10원당_1포인트로_발행한다")
+	void 환전_10원당_1포인트로_발행한다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(pointWalletService.deposit(any())).willReturn(applied(5, 5));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 50))
+				.willReturn(new BankTransferResult("MOCK-1", 50, null, null));
+
+		pointChargeService.charge(FAMILY_ID, CHILD_ID, 50, KEY);
+
+		ArgumentCaptor<PointChangeCommand> captor = ArgumentCaptor.forClass(PointChangeCommand.class);
+		verify(pointWalletService).deposit(captor.capture());
+		assertThat(captor.getValue().amount()).as("50원 → 5포인트").isEqualTo(5);
+
+		// 송금은 포인트가 아니라 현금 금액으로 나가야 한다. 여기가 뒤바뀌면 10분의 1만 빠진다.
+		verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 50);
+	}
+
+	@Test
+	@DisplayName("환전_10원_단위가_아니면_송금도_발행도_하지_않는다")
+	void 환전_10원_단위가_아니면_거부한다() {
+		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 1_005, KEY))
+				.as("버림하면 잔돈이 계좌에서만 빠지고 포인트로 돌아오지 않는다")
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_CHARGE_UNIT);
+
+		verify(pointWalletService, never()).deposit(any());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+	}
+
+	@Test
+	@DisplayName("환전_10원_미만은_거부한다")
+	void 환전_10원_미만은_거부한다() {
+		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 9, KEY))
+				.as("1포인트도 안 되는 금액은 받을 수 없다")
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_CHARGE_UNIT);
+
+		verify(pointWalletService, never()).deposit(any());
+	}
+
+	@Test
+	@DisplayName("첫_충전이면_지갑을_만들고_발행한다")
+	void 첫_충전이면_지갑을_먼저_만든다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 1_000));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
+				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
+
+		pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
+
+		// 가입 직후 아이는 지갑 행이 없다. 이 호출이 빠지면 첫 충전이 WALLET_NOT_FOUND 로 막힌다.
+		// 순서도 중요하다. 가족 소속 확인 전에 만들면 아무 userId 로나 지갑을 만들 수 있다.
+		InOrder inOrder = inOrder(familyMembershipReader, pointWalletService);
+		inOrder.verify(familyMembershipReader).isChildOfFamily(FAMILY_ID, CHILD_ID);
+		inOrder.verify(pointWalletService).createWalletIfAbsent(CHILD_ID);
+		inOrder.verify(pointWalletService).deposit(any());
+	}
+
+	@Test
+	@DisplayName("가족_자녀가_아니면_지갑도_만들지_않는다")
+	void 가족_자녀가_아니면_지갑도_만들지_않는다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.isInstanceOf(BusinessException.class);
+
+		verify(pointWalletService, never()).createWalletIfAbsent(any());
+	}
+
+	@Test
 	@DisplayName("충전_순서_가족_확인을_포인트_발행보다_먼저_한다")
 	void 충전_순서_가족_확인을_포인트_발행보다_먼저_한다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(pointWalletService.deposit(any())).willReturn(applied(10_000, 15_000));
+		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
 		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
 				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
 
