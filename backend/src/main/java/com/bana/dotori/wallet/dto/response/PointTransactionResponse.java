@@ -1,6 +1,7 @@
 package com.bana.dotori.wallet.dto.response;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 
@@ -30,12 +31,18 @@ public record PointTransactionResponse(
 		@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
 		OffsetDateTime createdAt) {
 
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
 	public static PointTransactionResponse from(PointChangeResult result) {
 		return new PointTransactionResponse(
 				result.pointTransactionId(),
 				result.reason(),
 				result.amount(),
 				result.balanceAfter(),
-				result.createdAt());
+				// 항상 KST 오프셋으로 맞춘다.
+				// 방금 만든 거래는 +09:00 이지만, 멱등키로 DB 에서 다시 읽어온 거래는
+				// timestamptz 특성상 드라이버가 UTC(Z) 로 돌려준다. 같은 시각인데도 표기가 갈려
+				// 클라이언트가 문자열을 그대로 쓰면 9시간 차이로 보인다.
+				result.createdAt().atZoneSameInstant(KST).toOffsetDateTime());
 	}
 }
