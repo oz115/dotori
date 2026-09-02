@@ -26,7 +26,6 @@ import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.PointTransactionRepository;
@@ -76,7 +75,6 @@ class PointWalletServiceTest {
 
 			assertThat(wallet.getBalance()).as("변경된 잔액").isEqualTo(1_500);
 			assertThat(result.balanceAfter()).as("결과에 실린 잔액").isEqualTo(1_500);
-			assertThat(result.transactionType()).isEqualTo(PointTransactionType.DEPOSIT);
 			assertThat(result.replayed()).as("새로 처리된 요청이다").isFalse();
 			verify(pointTransactionRepository).saveAndFlush(any(PointTransaction.class));
 		}
@@ -84,7 +82,7 @@ class PointWalletServiceTest {
 		@Test
 		@DisplayName("멱등키가 이미 처리됐으면 잔액을 건드리지 않고 이전 거래를 그대로 돌려준다")
 		void 중복_요청은_재반영하지_않는다() {
-			PointTransaction alreadyProcessed = PointTransaction.record(WALLET_ID, PointTransactionType.DEPOSIT,
+			PointTransaction alreadyProcessed = PointTransaction.record(WALLET_ID,
 					PointTransactionReason.CHARGE, 500, 1_500, "충전", IDEMPOTENCY_KEY);
 			given(pointWalletRepository.findByUserIdForUpdate(USER_ID)).willReturn(Optional.of(wallet));
 			given(pointTransactionRepository.findByIdempotencyKey(IDEMPOTENCY_KEY))
@@ -137,7 +135,6 @@ class PointWalletServiceTest {
 			PointChangeResult result = pointWalletService.withdraw(command(300));
 
 			assertThat(wallet.getBalance()).isEqualTo(700);
-			assertThat(result.transactionType()).isEqualTo(PointTransactionType.WITHDRAWAL);
 			assertThat(result.balanceAfter()).isEqualTo(700);
 		}
 

@@ -17,7 +17,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
@@ -54,12 +53,11 @@ class PointTransactionRepositoryTest {
 	@DisplayName("네이티브 ENUM 컬럼에 거래 유형이 저장되고 그대로 읽힌다")
 	void 거래유형_ENUM이_왕복한다() {
 		PointTransaction saved = pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.WITHDRAWAL, PointTransactionReason.PURCHASE,
+				walletId, PointTransactionReason.PURCHASE,
 				300, 700, "상점 구매", "purchase-0001"));
 
 		PointTransaction found = pointTransactionRepository.findById(saved.getPointTransactionId()).orElseThrow();
 
-		assertThat(found.getTransactionType()).isEqualTo(PointTransactionType.WITHDRAWAL);
 		assertThat(found.getReason()).isEqualTo(PointTransactionReason.PURCHASE);
 		assertThat(found.getAmount()).isEqualTo(300);
 		assertThat(found.getBalanceAfter()).isEqualTo(700);
@@ -70,7 +68,7 @@ class PointTransactionRepositoryTest {
 	@DisplayName("가장 긴 사유(INVESTMENT, 10자)도 VARCHAR(10) 컬럼에 들어간다")
 	void 가장_긴_사유도_저장된다() {
 		PointTransaction saved = pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.WITHDRAWAL, PointTransactionReason.INVESTMENT,
+				walletId, PointTransactionReason.INVESTMENT,
 				100, 900, "투자 매수", "invest-0001"));
 
 		assertThat(pointTransactionRepository.findById(saved.getPointTransactionId()).orElseThrow().getReason())
@@ -81,11 +79,11 @@ class PointTransactionRepositoryTest {
 	@DisplayName("같은 멱등키로 두 건을 저장하려 하면 유니크 인덱스가 막는다")
 	void 멱등키는_중복될_수_없다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.DEPOSIT, PointTransactionReason.CHARGE,
+				walletId, PointTransactionReason.CHARGE,
 				500, 1_500, "충전", "duplicated-key"));
 
 		assertThatThrownBy(() -> pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.DEPOSIT, PointTransactionReason.CHARGE,
+				walletId, PointTransactionReason.CHARGE,
 				500, 2_000, "충전", "duplicated-key")))
 				.as("애플리케이션 락이 뚫려도 DB 가 마지막으로 막아야 한다")
 				.isInstanceOf(DataIntegrityViolationException.class);
@@ -95,10 +93,10 @@ class PointTransactionRepositoryTest {
 	@DisplayName("멱등키가 없는 거래는 여러 건 저장할 수 있다")
 	void 멱등키가_없으면_여러건_허용된다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.DEPOSIT, PointTransactionReason.ALLOWANCE,
+				walletId, PointTransactionReason.ALLOWANCE,
 				100, 1_100, "정기 지급", null));
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.DEPOSIT, PointTransactionReason.ALLOWANCE,
+				walletId, PointTransactionReason.ALLOWANCE,
 				100, 1_200, "정기 지급", null));
 
 		assertThat(pointTransactionRepository.findAllByWalletIdOrderByPointTransactionIdAsc(walletId))
@@ -110,7 +108,7 @@ class PointTransactionRepositoryTest {
 	@DisplayName("멱등키로 이전 거래를 찾을 수 있다")
 	void 멱등키로_조회된다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionType.DEPOSIT, PointTransactionReason.GRANT,
+				walletId, PointTransactionReason.GRANT,
 				700, 1_700, "부모 지급", "grant-0001"));
 
 		Optional<PointTransaction> found = pointTransactionRepository.findByIdempotencyKey("grant-0001");

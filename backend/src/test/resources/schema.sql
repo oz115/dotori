@@ -77,7 +77,6 @@ CREATE TABLE "point_transactions" (
 	"point_transaction_id"	SERIAL	NOT NULL,
 	"wallet_id"	INTEGER	NOT NULL,
 	"transaction_type"	VARCHAR(20)	NOT NULL,
-	"transaction_direction"	VARCHAR(10)	NOT NULL,
 	"amount"	INTEGER	NOT NULL,
 	"balance_after"	INTEGER	NOT NULL,
 	"description"	VARCHAR(255)	NULL,

@@ -163,17 +163,21 @@ class PointWalletServiceConcurrencyTest {
 		int expected = INITIAL_BALANCE + topUp + (pairCount * depositAmount) - (pairCount * withdrawAmount);
 		assertThat(finalBalance).as("갱신 손실이 있으면 이 값이 어긋난다").isEqualTo(expected);
 
-		// 원장을 순서대로 재생한 잔액이 실제 잔액과 같아야 한다.
+		// 원장을 순서대로 훑으면서, 앞 거래의 잔액에서 이번 금액만큼만 움직였는지 본다.
+		// 증감 방향은 따로 저장하지 않으므로 balance_after 의 변화량으로 판단한다.
+		// 변화량의 절댓값이 amount 와 다르면 어딘가에서 갱신 손실이 난 것이다.
 		List<PointTransaction> ledger =
 				pointTransactionRepository.findAllByWalletIdOrderByPointTransactionIdAsc(walletId);
-		int replayed = INITIAL_BALANCE;
+		int previousBalance = INITIAL_BALANCE;
 		for (PointTransaction transaction : ledger) {
-			replayed += transaction.isDeposit() ? transaction.getAmount() : -transaction.getAmount();
-			assertThat(transaction.getBalanceAfter())
-					.as("거래 %d 의 balance_after 가 재생한 잔액과 달라 원장이 깨졌다", transaction.getPointTransactionId())
-					.isEqualTo(replayed);
+			int delta = transaction.getBalanceAfter() - previousBalance;
+			assertThat(Math.abs(delta))
+					.as("거래 %d 의 잔액 변화(%d)가 금액(%d)과 달라 원장이 깨졌다",
+							transaction.getPointTransactionId(), delta, transaction.getAmount())
+					.isEqualTo(transaction.getAmount());
+			previousBalance = transaction.getBalanceAfter();
 		}
-		assertThat(replayed).as("원장 재생 결과와 실제 잔액이 일치해야 한다").isEqualTo(finalBalance);
+		assertThat(previousBalance).as("원장 마지막 잔액과 실제 잔액이 일치해야 한다").isEqualTo(finalBalance);
 		assertThat(ledger).as("준비용 지급 1건 + 동시 요청 건수").hasSize(pairCount * 2 + 1);
 	}
 

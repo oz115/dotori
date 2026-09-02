@@ -101,7 +101,7 @@ public class PointWalletService {
 		// 4. 잔액 변경과 이력 저장이 같은 트랜잭션 안에 있다.
 		//    둘 중 하나라도 실패하면 전체가 롤백되어 잔액과 이력이 어긋나지 않는다.
 		PointTransaction transaction = PointTransaction.record(
-				wallet.getWalletId(), transactionType, command.reason(),
+				wallet.getWalletId(), command.reason(),
 				command.amount(), balanceAfter, command.description(), command.idempotencyKey());
 
 		try {

@@ -29,7 +29,6 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
 
@@ -239,13 +238,13 @@ class PointWalletControllerTest {
 		}
 
 		private PointChangeResult grantResult(Integer transactionId, int amount, int balanceAfter) {
-			return new PointChangeResult(transactionId, 10, PointTransactionType.DEPOSIT,
+			return new PointChangeResult(transactionId, 10,
 					PointTransactionReason.GRANT, amount, balanceAfter, OffsetDateTime.now(), false);
 		}
 	}
 
 	private PointChangeResult result(Integer transactionId, int amount, int balanceAfter) {
-		return new PointChangeResult(transactionId, 10, PointTransactionType.DEPOSIT,
+		return new PointChangeResult(transactionId, 10,
 				PointTransactionReason.CHARGE, amount, balanceAfter, OffsetDateTime.now(), false);
 	}
 }

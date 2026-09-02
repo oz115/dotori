@@ -52,21 +52,17 @@ public class PointTransaction {
 	private Integer walletId;
 
 	/**
-	 * ERD 상으로는 PG 네이티브 ENUM(point_transactions_transaction_type)이지만 varchar 로 둔다.
-	 * ddl-auto:update 가 재기동 시 enum 타입을 다루지 못해 컬럼이 깨지기 때문이며,
-	 * users.role 도 같은 이유로 varchar 다. 스키마 관리가 스크립트나 Flyway 로 넘어가면
-	 * 네이티브 enum 으로 되돌리는 것이 맞다.
+	 * 거래 사유. API 명세의 {@code transactionType} 필드가 이 값을 그대로 내보낸다.
+	 *
+	 * <p>원래 ERD 에서는 이 컬럼이 DEPOSIT/WITHDRAWAL 을 담는 네이티브 ENUM 이고
+	 * 사유는 transaction_direction 에 넣고 있었다. 팀에서 direction 컬럼을 쓰지 않기로 해
+	 * 컬럼을 없애고 사유를 이쪽으로 옮겼다. 명세가 기대하던 모양과도 이제 일치한다.
+	 *
+	 * <p>잔액이 늘었는지 줄었는지는 따로 저장하지 않는다. {@code balance_after} 의 변화로
+	 * 알 수 있고, 같은 정보를 두 곳에 두면 어긋날 여지만 생긴다.
 	 */
 	@Enumerated(EnumType.STRING)
 	@Column(name = "transaction_type", length = 20, nullable = false, updatable = false)
-	private PointTransactionType transactionType;
-
-	/**
-	 * 사유. 컬럼명은 transaction_direction 이지만 실제로 담는 값은 사유다.
-	 * 자세한 배경은 {@link PointTransactionReason} 주석 참고.
-	 */
-	@Enumerated(EnumType.STRING)
-	@Column(name = "transaction_direction", nullable = false, length = 10, updatable = false)
 	private PointTransactionReason reason;
 
 	@Column(name = "amount", nullable = false, updatable = false)
@@ -88,11 +84,9 @@ public class PointTransaction {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
-	@SuppressWarnings("checkstyle:ParameterNumber")
-	private PointTransaction(Integer walletId, PointTransactionType transactionType, PointTransactionReason reason,
+	private PointTransaction(Integer walletId, PointTransactionReason reason,
 			int amount, int balanceAfter, String description, String idempotencyKey) {
 		this.walletId = walletId;
-		this.transactionType = transactionType;
 		this.reason = reason;
 		this.amount = amount;
 		this.balanceAfter = balanceAfter;
@@ -101,13 +95,8 @@ public class PointTransaction {
 		this.createdAt = OffsetDateTime.now(KST);
 	}
 
-	public static PointTransaction record(Integer walletId, PointTransactionType transactionType,
-			PointTransactionReason reason, int amount, int balanceAfter, String description, String idempotencyKey) {
-		return new PointTransaction(walletId, transactionType, reason, amount, balanceAfter, description,
-				idempotencyKey);
-	}
-
-	public boolean isDeposit() {
-		return this.transactionType == PointTransactionType.DEPOSIT;
+	public static PointTransaction record(Integer walletId, PointTransactionReason reason,
+			int amount, int balanceAfter, String description, String idempotencyKey) {
+		return new PointTransaction(walletId, reason, amount, balanceAfter, description, idempotencyKey);
 	}
 }

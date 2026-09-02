@@ -65,7 +65,7 @@ class PointGrantIntegrationTest {
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(20_000);
 		assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isEqualTo(1);
 		assertThat(jdbcTemplate.queryForObject(
-				"SELECT transaction_direction FROM point_transactions", String.class))
+				"SELECT transaction_type FROM point_transactions", String.class))
 				.isEqualTo("GRANT");
 	}
 

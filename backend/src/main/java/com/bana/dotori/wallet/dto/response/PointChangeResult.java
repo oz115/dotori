@@ -4,7 +4,6 @@ import java.time.OffsetDateTime;
 
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 
 /**
  * 포인트 변경 결과.
@@ -15,7 +14,6 @@ import com.bana.dotori.wallet.entity.PointTransactionType;
 public record PointChangeResult(
 		Integer pointTransactionId,
 		Integer walletId,
-		PointTransactionType transactionType,
 		PointTransactionReason reason,
 		int amount,
 		int balanceAfter,
@@ -34,7 +32,6 @@ public record PointChangeResult(
 		return new PointChangeResult(
 				transaction.getPointTransactionId(),
 				transaction.getWalletId(),
-				transaction.getTransactionType(),
 				transaction.getReason(),
 				transaction.getAmount(),
 				transaction.getBalanceAfter(),

@@ -28,7 +28,6 @@ import com.bana.dotori.mock.bank.BankTransferResult;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 /**
@@ -142,7 +141,7 @@ class PointChargeServiceTest {
 	}
 
 	private PointChangeResult result(int amount, int balanceAfter, boolean replayed) {
-		return new PointChangeResult(100, 10, PointTransactionType.DEPOSIT, PointTransactionReason.CHARGE,
+		return new PointChangeResult(100, 10, PointTransactionReason.CHARGE,
 				amount, balanceAfter, OffsetDateTime.now(), replayed);
 	}
 

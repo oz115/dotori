@@ -27,7 +27,6 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
@@ -128,7 +127,7 @@ class PointGrantServiceTest {
 	}
 
 	private PointChangeResult result(int amount, int balanceAfter) {
-		return new PointChangeResult(101, 10, PointTransactionType.DEPOSIT, PointTransactionReason.GRANT,
+		return new PointChangeResult(101, 10, PointTransactionReason.GRANT,
 				amount, balanceAfter, OffsetDateTime.now(), false);
 	}
 }

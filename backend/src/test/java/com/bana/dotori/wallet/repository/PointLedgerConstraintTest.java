@@ -110,9 +110,9 @@ class PointLedgerConstraintTest {
 	void 없는_지갑의_거래는_넣을_수_없다() {
 		assertThatThrownBy(() -> jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, transaction_direction, amount, balance_after, idempotency_key)
-				VALUES (?, ?, ?, ?, ?, ?)
-				""", 999_999, "DEPOSIT", "GRANT", 100, 100, "orphan"))
+					(wallet_id, transaction_type, amount, balance_after, idempotency_key)
+				VALUES (?, ?, ?, ?, ?)
+				""", 999_999, "GRANT", 100, 100, "orphan"))
 				.isInstanceOf(DataAccessException.class);
 	}
 
@@ -127,8 +127,8 @@ class PointLedgerConstraintTest {
 	private void insertTransaction(int amount, int balanceAfter, String idempotencyKey) {
 		jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, transaction_direction, amount, balance_after, idempotency_key)
-				VALUES (?, ?, ?, ?, ?, ?)
-				""", walletId, "DEPOSIT", "GRANT", amount, balanceAfter, idempotencyKey);
+					(wallet_id, transaction_type, amount, balance_after, idempotency_key)
+				VALUES (?, ?, ?, ?, ?)
+				""", walletId, "GRANT", amount, balanceAfter, idempotencyKey);
 	}
 }

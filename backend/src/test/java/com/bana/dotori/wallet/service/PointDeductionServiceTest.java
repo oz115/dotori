@@ -25,7 +25,6 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
-import com.bana.dotori.wallet.entity.PointTransactionType;
 
 /**
  * 서비스 계층 - 차감 파사드가 사유와 방향을 제대로 지키는지 본다.
@@ -117,7 +116,7 @@ class PointDeductionServiceTest {
 	}
 
 	private PointChangeResult result(int amount, int balanceAfter) {
-		return new PointChangeResult(200, 10, PointTransactionType.WITHDRAWAL,
+		return new PointChangeResult(200, 10,
 				PointTransactionReason.PURCHASE, amount, balanceAfter, OffsetDateTime.now(), false);
 	}
 }

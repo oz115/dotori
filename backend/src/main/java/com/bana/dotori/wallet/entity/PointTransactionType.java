@@ -1,10 +1,11 @@
 package com.bana.dotori.wallet.entity;
 
 /**
- * 잔액이 늘었는지 줄었는지를 나타낸다.
+ * 잔액이 늘어나는 거래인지 줄어드는 거래인지 고르기 위한 내부 구분값.
  *
- * <p>DB 의 네이티브 ENUM 타입 {@code point_transactions_transaction_type} 과 값이 1:1로 대응한다.
- * 값을 추가하려면 DB 의 ENUM 타입에도 함께 추가해야 한다.
+ * <p>DB 에 저장하지 않는다. 원장에는 사유(transaction_type)와 balance_after 만 남고,
+ * 증감 방향은 앞 거래의 잔액과 비교하면 알 수 있다. 같은 정보를 두 곳에 두면
+ * 어긋날 여지만 생기기 때문에 저장하지 않기로 했다.
  */
 public enum PointTransactionType {
 
