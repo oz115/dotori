@@ -29,10 +29,10 @@ public enum ErrorCode {
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
+	// 가족 (FAM)
 	ALREADY_IN_FAMILY(HttpStatus.CONFLICT, "이미 가족에 소속되어 있습니다"),
 	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "소속된 가족을 찾을 수 없습니다"),
 	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 자녀가 가족에 없습니다"),
-	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
 	// 포인트 지갑 (WLT)
 	INVALID_POINT_AMOUNT(HttpStatus.BAD_REQUEST, "포인트 금액은 1 이상이어야 합니다"),
@@ -42,6 +42,7 @@ public enum ErrorCode {
 	WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "포인트 지갑을 찾을 수 없습니다"),
 	DUPLICATE_POINT_REQUEST(HttpStatus.CONFLICT, "이미 처리된 요청입니다"),
 	NOT_FAMILY_CHILD(HttpStatus.FORBIDDEN, "해당 가족의 자녀가 아닙니다"),
+	WALLET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 지갑을 조회할 권한이 없습니다"),
 	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "거래 사유와 방향이 맞지 않습니다"),
 
 	// 계좌 (ACC) - 계좌 연동이 구현되면 그쪽에서 함께 쓴다
