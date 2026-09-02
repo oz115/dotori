@@ -3,10 +3,13 @@ package com.bana.dotori.family.service;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
@@ -131,6 +134,33 @@ public class FamilyServiceImpl implements FamilyService {
 			.expiredAt(OffsetDateTime.now().plus(CODE_TTL))
 			.build());
 		return familyMapper.toInvitationCodeResponse(familyCode);
+	}
+
+	@Override
+	@Transactional
+	public FamilyConnectResponse connect(Integer userId, FamilyConnectRequest request) {
+		User user = findUserForUpdate(userId);
+		if (user.getRole() != UserRole.CHILD) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		if (familyMemberRepository.existsByUserIdAndDeletedAtIsNull(userId)) {
+			throw new BusinessException(ErrorCode.ALREADY_IN_FAMILY);
+		}
+
+		String code = request.code().strip().toUpperCase(Locale.ROOT);
+		FamilyCode familyCode = familyCodeRepository.findWithFamilyByCode(code)
+			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_FAMILY_CODE));
+		Family family = familyCode.getFamily();
+		// 만료됐거나 이미 해체된 가족의 코드는 존재하지 않는 코드와 동일하게 취급한다
+		if (familyCode.isExpired() || family.getDeletedAt() != null) {
+			throw new BusinessException(ErrorCode.INVALID_FAMILY_CODE);
+		}
+
+		FamilyMember member = familyMemberRepository.save(FamilyMember.builder()
+			.family(family)
+			.user(user)
+			.build());
+		return familyMapper.toConnectResponse(family, member);
 	}
 
 	private String generateUniqueCode() {

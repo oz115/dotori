@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
@@ -315,6 +317,102 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("가족 연결 성공 시 구성원으로 등록하고 가족 정보를 반환한다")
+	void connect_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().plusMinutes(10))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+		given(familyMemberRepository.save(any(FamilyMember.class)))
+			.willAnswer(invocation -> invocation.getArgument(0));
+
+		FamilyConnectResponse response = familyService.connect(2, new FamilyConnectRequest("A3B7K9"));
+
+		assertThat(response.familyName()).isEqualTo("도토리네 가족");
+		verify(familyMemberRepository).save(any(FamilyMember.class));
+	}
+
+	@Test
+	@DisplayName("입력한 코드는 공백 제거·대문자 정규화 후 조회한다")
+	void connect_normalizesCode() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().plusMinutes(10))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+		given(familyMemberRepository.save(any(FamilyMember.class)))
+			.willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.connect(2, new FamilyConnectRequest(" a3b7k9 "));
+
+		verify(familyCodeRepository).findWithFamilyByCode("A3B7K9");
+	}
+
+	@Test
+	@DisplayName("자녀 계정이 아니면 가족 연결 시 FORBIDDEN 예외가 발생한다")
+	void connect_notChild() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+
+		assertThatThrownBy(() -> familyService.connect(1, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("이미 가족에 소속된 자녀가 연결하면 ALREADY_IN_FAMILY 예외가 발생한다")
+	void connect_alreadyInFamily() {
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 코드로 연결하면 INVALID_FAMILY_CODE 예외가 발생한다")
+	void connect_codeNotFound() {
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("WRONG9")).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("WRONG9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_FAMILY_CODE);
+	}
+
+	@Test
+	@DisplayName("만료된 코드로 연결하면 INVALID_FAMILY_CODE 예외가 발생한다")
+	void connect_expiredCode() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().minusMinutes(1))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_FAMILY_CODE);
 	}
 
 	@Test

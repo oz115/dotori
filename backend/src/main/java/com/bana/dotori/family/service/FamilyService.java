@@ -1,5 +1,7 @@
 package com.bana.dotori.family.service;
 
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
@@ -19,4 +21,6 @@ public interface FamilyService {
 	void removeChild(Integer userId, Integer familyId, Integer childId);
 
 	InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId);
+
+	FamilyConnectResponse connect(Integer userId, FamilyConnectRequest request);
 }

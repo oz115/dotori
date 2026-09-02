@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
@@ -52,6 +54,12 @@ public class FamilyController {
 		@PathVariable Integer familyId) {
 		familyService.deleteFamily(userId, familyId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/connect")
+	public ResponseEntity<FamilyConnectResponse> connect(@AuthenticationPrincipal Integer userId,
+		@Valid @RequestBody FamilyConnectRequest request) {
+		return ResponseEntity.ok(familyService.connect(userId, request));
 	}
 
 	@PostMapping("/{familyId}/invitations")
