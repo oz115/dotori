@@ -11,6 +11,14 @@ spring:
       # createWalletIfAbsent 가 REQUIRES_NEW 로 커넥션을 한 개 더 쓰는 것도 감안한 값이다.
       maximum-pool-size: 24
 
+      # 스프링이 테스트 컨텍스트를 여러 개 캐싱하고, 캐시된 컨텍스트는 끝까지 살아 있다.
+      # 컨텍스트마다 풀을 24개씩 붙잡고 있으면 서버 max_connections 를 넘겨
+      # 뒤에 뜨는 컨텍스트가 "too many clients already" 로 통째로 실패한다.
+      # 유휴 커넥션을 0까지 반납시켜, 실제로 일하는 컨텍스트만 커넥션을 쓰게 한다.
+      minimum-idle: 0
+      idle-timeout: 10000
+      max-lifetime: 60000
+
   jpa:
     hibernate:
       # 스키마는 아래 schema.sql 이 책임진다. 테스트가 엔티티로 DDL 을 만들지 않게 한다.
