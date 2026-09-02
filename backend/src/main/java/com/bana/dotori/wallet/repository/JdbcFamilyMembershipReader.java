@@ -15,15 +15,23 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 
+	/**
+	 * 소속 판정은 세 가지 소프트 삭제를 모두 봐야 한다.
+	 * 탈퇴한 사용자(users), 가족에서 빠진 소속(family_members), 해체된 가족(families) 중
+	 * 하나라도 놓치면 이미 관계가 끊긴 사람이 지갑을 건드릴 수 있다.
+	 */
 	private static final String IS_CHILD_OF_FAMILY = """
 			SELECT EXISTS (
 				SELECT 1
 				FROM family_members fm
 				JOIN users u ON u.user_id = fm.user_id
+				JOIN families f ON f.family_id = fm.family_id
 				WHERE fm.family_id = ?
 				  AND fm.user_id = ?
 				  AND u.role = 'CHILD'
 				  AND u.deleted_at IS NULL
+				  AND fm.deleted_at IS NULL
+				  AND f.deleted_at IS NULL
 			)
 			""";
 
@@ -32,10 +40,13 @@ public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 				SELECT 1
 				FROM family_members fm
 				JOIN users u ON u.user_id = fm.user_id
+				JOIN families f ON f.family_id = fm.family_id
 				WHERE fm.family_id = ?
 				  AND fm.user_id = ?
 				  AND u.role = 'PARENT'
 				  AND u.deleted_at IS NULL
+				  AND fm.deleted_at IS NULL
+				  AND f.deleted_at IS NULL
 			)
 			""";
 
