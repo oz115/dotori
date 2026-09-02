@@ -1,11 +1,17 @@
 package com.bana.dotori.family.mapper;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMemberResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.entity.Family;
+import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.user.entity.User;
 
 @Component
 public class FamilyMapper {
@@ -25,5 +31,17 @@ public class FamilyMapper {
 	public FamilyResponse toFamilyResponse(Family family, long memberCount) {
 		return new FamilyResponse(family.getId(), family.getName(), family.getCreatedBy(), memberCount,
 			family.getCreatedAt());
+	}
+
+	public FamilyMembersResponse toMembersResponse(List<FamilyMember> members) {
+		return new FamilyMembersResponse(members.stream()
+			.map(this::toMemberResponse)
+			.toList());
+	}
+
+	public FamilyMemberResponse toMemberResponse(FamilyMember member) {
+		User user = member.getUser();
+		// users 테이블에 프로필 이미지 컬럼이 아직 없어 profileImageUrl은 null로 내려간다
+		return new FamilyMemberResponse(user.getId(), user.getName(), user.getRole(), null, member.getJoinedAt());
 	}
 }

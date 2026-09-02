@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
@@ -139,6 +141,39 @@ class FamilyServiceImplTest {
 		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 2)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.getFamily(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("구성원 조회 성공 시 구성원 목록을 반환한다")
+	void getMembers_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.findAllWithUserByFamilyId(1))
+			.willReturn(List.of(parentMember, childMember));
+
+		FamilyMembersResponse response = familyService.getMembers(1, 1);
+
+		assertThat(response.members()).hasSize(2);
+		assertThat(response.members().get(0).name()).isEqualTo("김도토");
+		assertThat(response.members().get(0).role()).isEqualTo(UserRole.PARENT);
+		assertThat(response.members().get(1).name()).isEqualTo("김도랑");
+		assertThat(response.members().get(1).role()).isEqualTo(UserRole.CHILD);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 구성원을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getMembers_notMember() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 2)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.getMembers(2, 1))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);

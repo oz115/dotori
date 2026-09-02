@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.service.FamilyService;
 
@@ -36,5 +37,11 @@ public class FamilyController {
 	public ResponseEntity<FamilyResponse> getFamily(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId) {
 		return ResponseEntity.ok(familyService.getFamily(userId, familyId));
+	}
+
+	@GetMapping("/{familyId}/members")
+	public ResponseEntity<FamilyMembersResponse> getMembers(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId) {
+		return ResponseEntity.ok(familyService.getMembers(userId, familyId));
 	}
 }

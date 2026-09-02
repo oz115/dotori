@@ -27,8 +27,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMemberResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.service.FamilyService;
+import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -157,6 +160,41 @@ class FamilyControllerTest {
 			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
 
 		mockMvc.perform(get(FAMILIES_URL + "/99")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("구성원 조회 성공 시 200과 구성원 목록을 반환한다")
+	void getMembers_success() throws Exception {
+		givenParentAuthenticated(1);
+		FamilyMembersResponse response = new FamilyMembersResponse(List.of(
+			new FamilyMemberResponse(1, "김도토", UserRole.PARENT, null,
+				OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9))),
+			new FamilyMemberResponse(2, "김도랑", UserRole.CHILD, null,
+				OffsetDateTime.of(2026, 8, 28, 11, 0, 0, 0, ZoneOffset.ofHours(9)))));
+		given(familyService.getMembers(1, 1)).willReturn(response);
+
+		mockMvc.perform(get(FAMILIES_URL + "/1/members")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.members.length()").value(2))
+			.andExpect(jsonPath("$.members[0].userId").value(1))
+			.andExpect(jsonPath("$.members[0].name").value("김도토"))
+			.andExpect(jsonPath("$.members[0].role").value("PARENT"))
+			.andExpect(jsonPath("$.members[0].joinedAt").exists())
+			.andExpect(jsonPath("$.members[1].role").value("CHILD"));
+	}
+
+	@Test
+	@DisplayName("소속된 가족이 없으면 구성원 조회 시 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void getMembers_notFound() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.getMembers(1, 99))
+			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(get(FAMILIES_URL + "/99/members")
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));

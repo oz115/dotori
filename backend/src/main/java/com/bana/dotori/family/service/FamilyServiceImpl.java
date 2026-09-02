@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
@@ -53,6 +54,13 @@ public class FamilyServiceImpl implements FamilyService {
 		Family family = findMemberFamily(userId, familyId);
 		long memberCount = familyMemberRepository.countByFamilyId(familyId);
 		return familyMapper.toFamilyResponse(family, memberCount);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public FamilyMembersResponse getMembers(Integer userId, Integer familyId) {
+		findMemberFamily(userId, familyId);
+		return familyMapper.toMembersResponse(familyMemberRepository.findAllWithUserByFamilyId(familyId));
 	}
 
 	private User findUser(Integer userId) {
