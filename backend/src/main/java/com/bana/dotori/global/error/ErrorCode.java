@@ -29,6 +29,11 @@ public enum ErrorCode {
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
+	ALREADY_IN_FAMILY(HttpStatus.CONFLICT, "이미 가족에 소속되어 있습니다"),
+	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "소속된 가족을 찾을 수 없습니다"),
+	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 자녀가 가족에 없습니다"),
+	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
+
 	// 포인트 지갑 (WLT)
 	INVALID_POINT_AMOUNT(HttpStatus.BAD_REQUEST, "포인트 금액은 1 이상이어야 합니다"),
 	INVALID_CHARGE_UNIT(HttpStatus.BAD_REQUEST, "충전 금액은 10원 단위여야 합니다"),
