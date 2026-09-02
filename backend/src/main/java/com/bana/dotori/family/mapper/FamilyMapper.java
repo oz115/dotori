@@ -4,12 +4,15 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
+import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.user.entity.User;
 
@@ -42,5 +45,14 @@ public class FamilyMapper {
 	public FamilyMemberResponse toMemberResponse(FamilyMember member) {
 		User user = member.getUser();
 		return new FamilyMemberResponse(user.getId(), user.getName(), user.getRole(), member.getJoinedAt());
+	}
+
+	public InvitationCodeResponse toInvitationCodeResponse(FamilyCode familyCode) {
+		return new InvitationCodeResponse(familyCode.getFamily().getId(), familyCode.getCode(),
+			familyCode.getExpiredAt());
+	}
+
+	public FamilyConnectResponse toConnectResponse(Family family, FamilyMember member) {
+		return new FamilyConnectResponse(family.getId(), family.getName(), member.getJoinedAt());
 	}
 }
