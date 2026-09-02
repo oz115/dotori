@@ -29,6 +29,12 @@ public enum ErrorCode {
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
+	ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 계좌입니다"),
+	AUTH_SESSION_NOT_FOUND(HttpStatus.BAD_REQUEST, "1원 인증 요청이 없거나 만료되었습니다"),
+	AUTH_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "1원 인증코드가 일치하지 않습니다"),
+	AUTH_ATTEMPT_EXCEEDED(HttpStatus.BAD_REQUEST, "1원 인증 시도 횟수를 초과했습니다. 다시 요청해 주세요"),
+	FINANCE_API_ERROR(HttpStatus.BAD_GATEWAY, "금융망 처리 중 오류가 발생했습니다");
+
 	ALREADY_IN_FAMILY(HttpStatus.CONFLICT, "이미 가족에 소속되어 있습니다"),
 	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "소속된 가족을 찾을 수 없습니다"),
 	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 자녀가 가족에 없습니다"),
