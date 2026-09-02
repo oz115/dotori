@@ -7,10 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.auth.dto.LoginRequest;
-import com.bana.dotori.auth.dto.LoginResponse;
-import com.bana.dotori.auth.dto.LogoutRequest;
-import com.bana.dotori.auth.dto.TokenRefreshRequest;
-import com.bana.dotori.auth.dto.TokenRefreshResponse;
+import com.bana.dotori.auth.dto.LoginResult;
+import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.entity.RefreshToken;
 import com.bana.dotori.auth.mapper.AuthMapper;
 import com.bana.dotori.auth.repository.RefreshTokenRepository;
@@ -35,7 +33,7 @@ public class AuthServiceImpl implements AuthService {
 
 	@Override
 	@Transactional
-	public LoginResponse login(LoginRequest request) {
+	public LoginResult login(LoginRequest request) {
 		User user = userRepository.findByLoginId(request.loginId())
 			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
@@ -46,14 +44,14 @@ public class AuthServiceImpl implements AuthService {
 		String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole());
 		String refreshToken = issueRefreshToken(user);
 
-		return authMapper.toLoginResponse(accessToken, refreshToken,
+		return authMapper.toLoginResult(accessToken, refreshToken,
 			jwtTokenProvider.getAccessTokenValiditySeconds(), user);
 	}
 
 	@Override
 	@Transactional
-	public TokenRefreshResponse refresh(TokenRefreshRequest request) {
-		RefreshToken stored = findUsableToken(request.refreshToken(), ErrorCode.INVALID_REFRESH_TOKEN);
+	public TokenRefreshResult refresh(String refreshToken) {
+		RefreshToken stored = findUsableToken(refreshToken, ErrorCode.INVALID_REFRESH_TOKEN);
 		User user = stored.getUser();
 		if (user.getDeletedAt() != null) {
 			throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -61,16 +59,16 @@ public class AuthServiceImpl implements AuthService {
 
 		stored.revoke();
 		String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole());
-		String refreshToken = issueRefreshToken(user);
+		String newRefreshToken = issueRefreshToken(user);
 
-		return authMapper.toTokenRefreshResponse(accessToken, refreshToken,
+		return authMapper.toTokenRefreshResult(accessToken, newRefreshToken,
 			jwtTokenProvider.getAccessTokenValiditySeconds());
 	}
 
 	@Override
 	@Transactional
-	public void logout(Integer userId, LogoutRequest request) {
-		RefreshToken stored = findUsableToken(request.refreshToken(), ErrorCode.UNAUTHORIZED);
+	public void logout(Integer userId, String refreshToken) {
+		RefreshToken stored = findUsableToken(refreshToken, ErrorCode.UNAUTHORIZED);
 		if (!stored.getUser().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}

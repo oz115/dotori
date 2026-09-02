@@ -20,10 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.auth.dto.LoginRequest;
-import com.bana.dotori.auth.dto.LoginResponse;
-import com.bana.dotori.auth.dto.LogoutRequest;
-import com.bana.dotori.auth.dto.TokenRefreshRequest;
-import com.bana.dotori.auth.dto.TokenRefreshResponse;
+import com.bana.dotori.auth.dto.LoginResult;
+import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.entity.RefreshToken;
 import com.bana.dotori.auth.mapper.AuthMapper;
 import com.bana.dotori.auth.repository.RefreshTokenRepository;
@@ -84,16 +82,16 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.createAccessToken(1, UserRole.PARENT)).willReturn("access-token");
 		given(jwtTokenProvider.createRefreshToken(1)).willReturn("refresh-token");
 		given(jwtTokenProvider.hashToken("refresh-token")).willReturn("refresh-hash");
-		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(3600L);
+		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(1800L);
 
-		LoginResponse response = authService.login(new LoginRequest("dotori123", "P@ssw0rd!"));
+		LoginResult result = authService.login(new LoginRequest("dotori123", "P@ssw0rd!"));
 
-		assertThat(response.accessToken()).isEqualTo("access-token");
-		assertThat(response.refreshToken()).isEqualTo("refresh-token");
-		assertThat(response.tokenType()).isEqualTo("Bearer");
-		assertThat(response.expiresIn()).isEqualTo(3600L);
-		assertThat(response.user().userId()).isEqualTo(1);
-		assertThat(response.user().role()).isEqualTo(UserRole.PARENT);
+		assertThat(result.refreshToken()).isEqualTo("refresh-token");
+		assertThat(result.response().accessToken()).isEqualTo("access-token");
+		assertThat(result.response().tokenType()).isEqualTo("Bearer");
+		assertThat(result.response().expiresIn()).isEqualTo(1800L);
+		assertThat(result.response().user().userId()).isEqualTo(1);
+		assertThat(result.response().user().role()).isEqualTo(UserRole.PARENT);
 		verify(refreshTokenRepository).save(argThat(saved -> "refresh-hash".equals(saved.getTokenHash())));
 	}
 
@@ -130,12 +128,12 @@ class AuthServiceImplTest {
 		given(refreshTokenRepository.findByTokenHash("stored-hash")).willReturn(Optional.of(stored));
 		given(jwtTokenProvider.createAccessToken(1, UserRole.PARENT)).willReturn("new-access");
 		given(jwtTokenProvider.createRefreshToken(1)).willReturn("new-refresh");
-		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(3600L);
+		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(1800L);
 
-		TokenRefreshResponse response = authService.refresh(new TokenRefreshRequest("old-refresh"));
+		TokenRefreshResult result = authService.refresh("old-refresh");
 
-		assertThat(response.accessToken()).isEqualTo("new-access");
-		assertThat(response.refreshToken()).isEqualTo("new-refresh");
+		assertThat(result.response().accessToken()).isEqualTo("new-access");
+		assertThat(result.refreshToken()).isEqualTo("new-refresh");
 		assertThat(stored.getRevokedAt()).isNotNull();
 		verify(refreshTokenRepository).save(argThat(saved -> "new-hash".equals(saved.getTokenHash())));
 	}
@@ -146,7 +144,7 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.hashToken("forged")).willReturn("forged-hash");
 		given(refreshTokenRepository.findByTokenHash("forged-hash")).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> authService.refresh(new TokenRefreshRequest("forged")))
+		assertThatThrownBy(() -> authService.refresh("forged"))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -160,7 +158,7 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.hashToken("revoked")).willReturn("stored-hash");
 		given(refreshTokenRepository.findByTokenHash("stored-hash")).willReturn(Optional.of(stored));
 
-		assertThatThrownBy(() -> authService.refresh(new TokenRefreshRequest("revoked")))
+		assertThatThrownBy(() -> authService.refresh("revoked"))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -173,7 +171,7 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.hashToken("refresh-token")).willReturn("stored-hash");
 		given(refreshTokenRepository.findByTokenHash("stored-hash")).willReturn(Optional.of(stored));
 
-		authService.logout(1, new LogoutRequest("refresh-token"));
+		authService.logout(1, "refresh-token");
 
 		assertThat(stored.getRevokedAt()).isNotNull();
 	}
@@ -185,7 +183,7 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.hashToken("refresh-token")).willReturn("stored-hash");
 		given(refreshTokenRepository.findByTokenHash("stored-hash")).willReturn(Optional.of(stored));
 
-		assertThatThrownBy(() -> authService.logout(1, new LogoutRequest("refresh-token")))
+		assertThatThrownBy(() -> authService.logout(1, "refresh-token"))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);
