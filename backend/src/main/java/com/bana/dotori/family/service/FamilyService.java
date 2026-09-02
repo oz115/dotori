@@ -13,7 +13,7 @@ public interface FamilyService {
 
 	FamilyMembersResponse getMembers(Integer userId, Integer familyId);
 
-	void disband(Integer userId, Integer familyId);
+	void deleteFamily(Integer userId, Integer familyId);
 
 	void removeChild(Integer userId, Integer familyId, Integer childId);
 }

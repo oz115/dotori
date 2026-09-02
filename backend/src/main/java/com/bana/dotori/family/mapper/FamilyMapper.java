@@ -28,7 +28,7 @@ public class FamilyMapper {
 			family.getCreatedAt());
 	}
 
-	public FamilyResponse toFamilyResponse(Family family, long memberCount) {
+	public FamilyResponse toFamilyResponse(Family family, int memberCount) {
 		return new FamilyResponse(family.getId(), family.getName(), family.getCreatedBy(), memberCount,
 			family.getCreatedAt());
 	}

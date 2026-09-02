@@ -11,18 +11,20 @@ import com.bana.dotori.family.entity.FamilyMember;
 
 public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Integer> {
 
-	boolean existsByUserId(Integer userId);
+	boolean existsByUserIdAndDeletedAtIsNull(Integer userId);
 
-	boolean existsByFamilyIdAndUserId(Integer familyId, Integer userId);
+	boolean existsByFamilyIdAndUserIdAndDeletedAtIsNull(Integer familyId, Integer userId);
 
-	long countByFamilyId(Integer familyId);
+	int countByFamilyIdAndDeletedAtIsNull(Integer familyId);
 
-	@Query("select fm from FamilyMember fm join fetch fm.user where fm.family.id = :familyId order by fm.joinedAt")
+	@Query("select fm from FamilyMember fm join fetch fm.user "
+		+ "where fm.family.id = :familyId and fm.deletedAt is null order by fm.joinedAt")
 	List<FamilyMember> findAllWithUserByFamilyId(@Param("familyId") Integer familyId);
 
-	void deleteAllByFamilyId(Integer familyId);
+	List<FamilyMember> findAllByFamilyIdAndDeletedAtIsNull(Integer familyId);
 
-	@Query("select fm from FamilyMember fm join fetch fm.user where fm.family.id = :familyId and fm.user.id = :userId")
+	@Query("select fm from FamilyMember fm join fetch fm.user "
+		+ "where fm.family.id = :familyId and fm.user.id = :userId and fm.deletedAt is null")
 	Optional<FamilyMember> findWithUserByFamilyIdAndUserId(@Param("familyId") Integer familyId,
 		@Param("userId") Integer userId);
 }

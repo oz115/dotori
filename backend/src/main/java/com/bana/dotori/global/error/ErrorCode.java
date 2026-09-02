@@ -23,7 +23,6 @@ public enum ErrorCode {
 
 	ALREADY_IN_FAMILY(HttpStatus.CONFLICT, "이미 가족에 소속되어 있습니다"),
 	FAMILY_NOT_FOUND(HttpStatus.NOT_FOUND, "소속된 가족을 찾을 수 없습니다"),
-	FAMILY_HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "자녀 보유 자산이 남아 있어 가족을 해체할 수 없습니다"),
 	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 자녀가 가족에 없습니다");
 
 	private final HttpStatus status;

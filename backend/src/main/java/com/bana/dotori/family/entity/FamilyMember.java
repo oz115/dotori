@@ -43,9 +43,16 @@ public class FamilyMember {
 	@Column(name = "joined_at", nullable = false, updatable = false)
 	private OffsetDateTime joinedAt;
 
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	@Builder
 	private FamilyMember(Family family, User user) {
 		this.family = family;
 		this.user = user;
+	}
+
+	public void softDelete() {
+		this.deletedAt = OffsetDateTime.now();
 	}
 }

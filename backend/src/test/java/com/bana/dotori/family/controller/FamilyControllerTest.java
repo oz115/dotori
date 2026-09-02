@@ -168,6 +168,19 @@ class FamilyControllerTest {
 	}
 
 	@Test
+	@DisplayName("가족 ID가 숫자가 아니면 400과 INVALID_REQUEST 에러를 반환한다")
+	void getFamily_invalidFamilyId() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(get(FAMILIES_URL + "/not-a-number")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
 	@DisplayName("구성원 조회 성공 시 200과 구성원 목록을 반환한다")
 	void getMembers_success() throws Exception {
 		givenParentAuthenticated(1);
@@ -204,38 +217,26 @@ class FamilyControllerTest {
 
 	@Test
 	@DisplayName("가족 해체 성공 시 204를 반환한다")
-	void disband_success() throws Exception {
+	void deleteFamily_success() throws Exception {
 		givenParentAuthenticated(1);
 
 		mockMvc.perform(delete(FAMILIES_URL + "/1")
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isNoContent());
 
-		then(familyService).should().disband(1, 1);
+		then(familyService).should().deleteFamily(1, 1);
 	}
 
 	@Test
 	@DisplayName("부모 권한이 아니면 가족 해체 시 403과 FORBIDDEN 에러를 반환한다")
-	void disband_notParent() throws Exception {
+	void deleteFamily_notParent() throws Exception {
 		givenParentAuthenticated(2);
-		doThrow(new BusinessException(ErrorCode.FORBIDDEN)).when(familyService).disband(2, 1);
+		doThrow(new BusinessException(ErrorCode.FORBIDDEN)).when(familyService).deleteFamily(2, 1);
 
 		mockMvc.perform(delete(FAMILIES_URL + "/1")
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
-	}
-
-	@Test
-	@DisplayName("자녀 잔여 자산이 있으면 409와 FAMILY_HAS_ACTIVE_ASSETS 에러를 반환한다")
-	void disband_hasActiveAssets() throws Exception {
-		givenParentAuthenticated(1);
-		doThrow(new BusinessException(ErrorCode.FAMILY_HAS_ACTIVE_ASSETS)).when(familyService).disband(1, 1);
-
-		mockMvc.perform(delete(FAMILIES_URL + "/1")
-				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("FAMILY_HAS_ACTIVE_ASSETS"));
 	}
 
 	@Test

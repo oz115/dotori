@@ -32,11 +32,11 @@ public class FamilyServiceImpl implements FamilyService {
 	@Override
 	@Transactional
 	public FamilyCreateResponse create(Integer userId, FamilyCreateRequest request) {
-		User user = findUser(userId);
+		User user = findUserForUpdate(userId);
 		if (user.getRole() != UserRole.PARENT) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		if (familyMemberRepository.existsByUserId(userId)) {
+		if (familyMemberRepository.existsByUserIdAndDeletedAtIsNull(userId)) {
 			throw new BusinessException(ErrorCode.ALREADY_IN_FAMILY);
 		}
 
@@ -52,7 +52,7 @@ public class FamilyServiceImpl implements FamilyService {
 	@Transactional(readOnly = true)
 	public FamilyResponse getFamily(Integer userId, Integer familyId) {
 		Family family = findMemberFamily(userId, familyId);
-		long memberCount = familyMemberRepository.countByFamilyId(familyId);
+		int memberCount = familyMemberRepository.countByFamilyIdAndDeletedAtIsNull(familyId);
 		return familyMapper.toFamilyResponse(family, memberCount);
 	}
 
@@ -65,19 +65,19 @@ public class FamilyServiceImpl implements FamilyService {
 
 	@Override
 	@Transactional
-	public void disband(Integer userId, Integer familyId) {
+	public void deleteFamily(Integer userId, Integer familyId) {
 		User user = findUser(userId);
 		if (user.getRole() != UserRole.PARENT) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		Family family = familyRepository.findById(familyId)
+		Family family = familyRepository.findByIdAndDeletedAtIsNull(familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+		if (!family.getCreatedBy().equals(userId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		// TODO: 포인트/예적금/투자 도메인 구현 후 자녀 잔여 자산 검증 추가 (FAMILY_HAS_ACTIVE_ASSETS, 잔여 자산 처리 정책 팀 논의 필요)
-		familyMemberRepository.deleteAllByFamilyId(familyId);
-		familyRepository.delete(family);
+		familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId)
+			.forEach(FamilyMember::softDelete);
+		family.softDelete();
 	}
 
 	@Override
@@ -87,7 +87,7 @@ public class FamilyServiceImpl implements FamilyService {
 		if (user.getRole() != UserRole.PARENT) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 		FamilyMember childMember = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
@@ -96,7 +96,7 @@ public class FamilyServiceImpl implements FamilyService {
 		if (childMember.getUser().getRole() != UserRole.CHILD) {
 			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
 		}
-		familyMemberRepository.delete(childMember);
+		childMember.softDelete();
 	}
 
 	private User findUser(Integer userId) {
@@ -104,11 +104,16 @@ public class FamilyServiceImpl implements FamilyService {
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 	}
 
+	private User findUserForUpdate(Integer userId) {
+		return userRepository.findByIdForUpdate(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+	}
+
 	// 가족이 없거나 요청자가 그 가족의 구성원이 아니면 모두 FAMILY_NOT_FOUND로 처리해 타 가족 정보 노출을 막는다
 	private Family findMemberFamily(Integer userId, Integer familyId) {
-		Family family = familyRepository.findById(familyId)
+		Family family = familyRepository.findByIdAndDeletedAtIsNull(familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
 		}
 		return family;

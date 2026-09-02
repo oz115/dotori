@@ -47,9 +47,9 @@ public class FamilyController {
 	}
 
 	@DeleteMapping("/{familyId}")
-	public ResponseEntity<Void> disband(@AuthenticationPrincipal Integer userId,
+	public ResponseEntity<Void> deleteFamily(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId) {
-		familyService.disband(userId, familyId);
+		familyService.deleteFamily(userId, familyId);
 		return ResponseEntity.noContent().build();
 	}
 

@@ -41,9 +41,16 @@ public class Family {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	@Builder
 	private Family(String name, Integer createdBy) {
 		this.name = name;
 		this.createdBy = createdBy;
+	}
+
+	public void softDelete() {
+		this.deletedAt = OffsetDateTime.now();
 	}
 }

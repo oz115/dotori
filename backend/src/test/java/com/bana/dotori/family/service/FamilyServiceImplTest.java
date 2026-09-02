@@ -73,8 +73,8 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("가족 생성 성공 시 생성된 가족 정보를 반환하고 생성자를 구성원으로 등록한다")
 	void create_success() {
-		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByUserId(1)).willReturn(false);
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(1)).willReturn(false);
 		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		FamilyCreateResponse response = familyService.create(1, new FamilyCreateRequest("도토리네 가족"));
@@ -87,7 +87,7 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
 	void create_notParent() {
-		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
 
 		assertThatThrownBy(() -> familyService.create(2, new FamilyCreateRequest("도토리네 가족")))
 			.isInstanceOf(BusinessException.class)
@@ -98,8 +98,8 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("이미 가족에 소속되어 있으면 ALREADY_IN_FAMILY 예외가 발생한다")
 	void create_alreadyInFamily() {
-		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByUserId(1)).willReturn(true);
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(1)).willReturn(true);
 
 		assertThatThrownBy(() -> familyService.create(1, new FamilyCreateRequest("도토리네 가족")))
 			.isInstanceOf(BusinessException.class)
@@ -111,9 +111,9 @@ class FamilyServiceImplTest {
 	@DisplayName("가족 조회 성공 시 가족 정보와 구성원 수를 반환한다")
 	void getFamily_success() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
-		given(familyMemberRepository.countByFamilyId(1)).willReturn(3L);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.countByFamilyIdAndDeletedAtIsNull(1)).willReturn(3);
 
 		FamilyResponse response = familyService.getFamily(1, 1);
 
@@ -125,7 +125,7 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("가족이 존재하지 않으면 FAMILY_NOT_FOUND 예외가 발생한다")
 	void getFamily_familyNotFound() {
-		given(familyRepository.findById(99)).willReturn(Optional.empty());
+		given(familyRepository.findByIdAndDeletedAtIsNull(99)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> familyService.getFamily(1, 99))
 			.isInstanceOf(BusinessException.class)
@@ -137,8 +137,8 @@ class FamilyServiceImplTest {
 	@DisplayName("소속되지 않은 가족을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
 	void getFamily_notMember() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 2)).willReturn(false);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 2)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.getFamily(2, 1))
 			.isInstanceOf(BusinessException.class)
@@ -152,8 +152,8 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
 		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findAllWithUserByFamilyId(1))
 			.willReturn(List.of(parentMember, childMember));
 
@@ -170,8 +170,8 @@ class FamilyServiceImplTest {
 	@DisplayName("소속되지 않은 가족의 구성원을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
 	void getMembers_notMember() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 2)).willReturn(false);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 2)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.getMembers(2, 1))
 			.isInstanceOf(BusinessException.class)
@@ -180,39 +180,42 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가족 해체 성공 시 구성원과 가족을 모두 삭제한다")
-	void disband_success() {
+	@DisplayName("가족 생성자가 해체하면 가족과 모든 구성원을 소프트 삭제한다")
+	void deleteFamily_success() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1))
+			.willReturn(List.of(parentMember, childMember));
 
-		familyService.disband(1, 1);
+		familyService.deleteFamily(1, 1);
 
-		verify(familyMemberRepository).deleteAllByFamilyId(1);
-		verify(familyRepository).delete(family);
+		assertThat(family.getDeletedAt()).isNotNull();
+		assertThat(parentMember.getDeletedAt()).isNotNull();
+		assertThat(childMember.getDeletedAt()).isNotNull();
 	}
 
 	@Test
 	@DisplayName("부모 권한이 아니면 가족 해체 시 FORBIDDEN 예외가 발생한다")
-	void disband_notParent() {
+	void deleteFamily_notParent() {
 		given(userRepository.findById(2)).willReturn(Optional.of(child()));
 
-		assertThatThrownBy(() -> familyService.disband(2, 1))
+		assertThatThrownBy(() -> familyService.deleteFamily(2, 1))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
 	}
 
 	@Test
-	@DisplayName("소속되지 않은 가족을 해체하려 하면 FORBIDDEN 예외가 발생한다")
-	void disband_notMember() {
+	@DisplayName("가족 구성원인 부모라도 생성자가 아니면 해체할 수 없다")
+	void deleteFamily_notCreator() {
 		Family family = Family.builder().name("남의 가족").createdBy(3).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyRepository.findById(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(false);
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 
-		assertThatThrownBy(() -> familyService.disband(1, 1))
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 1))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
@@ -220,11 +223,11 @@ class FamilyServiceImplTest {
 
 	@Test
 	@DisplayName("존재하지 않는 가족을 해체하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
-	void disband_familyNotFound() {
+	void deleteFamily_familyNotFound() {
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyRepository.findById(99)).willReturn(Optional.empty());
+		given(familyRepository.findByIdAndDeletedAtIsNull(99)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> familyService.disband(1, 99))
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 99))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
@@ -236,12 +239,12 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
 
 		familyService.removeChild(1, 1, 2);
 
-		verify(familyMemberRepository).delete(childMember);
+		assertThat(childMember.getDeletedAt()).isNotNull();
 	}
 
 	@Test
@@ -259,7 +262,7 @@ class FamilyServiceImplTest {
 	@DisplayName("해당 자녀가 가족에 없으면 MEMBER_NOT_FOUND 예외가 발생한다")
 	void removeChild_memberNotFound() {
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 99)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 99))
@@ -274,7 +277,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(parentMember));
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
@@ -287,7 +290,7 @@ class FamilyServiceImplTest {
 	@DisplayName("소속되지 않은 가족에서 자녀 제외를 시도하면 FORBIDDEN 예외가 발생한다")
 	void removeChild_notMember() {
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(false);
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
 			.isInstanceOf(BusinessException.class)
@@ -298,7 +301,7 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("토큰의 유저가 존재하지 않으면 UNAUTHORIZED 예외가 발생한다")
 	void create_userNotFound() {
-		given(userRepository.findById(99)).willReturn(Optional.empty());
+		given(userRepository.findByIdForUpdate(99)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> familyService.create(99, new FamilyCreateRequest("도토리네 가족")))
 			.isInstanceOf(BusinessException.class)

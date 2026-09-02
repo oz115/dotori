@@ -6,7 +6,7 @@ public record FamilyResponse(
 	Integer familyId,
 	String name,
 	Integer createdBy,
-	long memberCount,
+	int memberCount,
 	OffsetDateTime createdAt
 ) {
 }
