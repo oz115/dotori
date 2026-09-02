@@ -6,6 +6,11 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:../.env[.properties]
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
   datasource:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
     username: ${POSTGRES_USER}
@@ -21,3 +26,10 @@ jwt:
   refresh-token-validity-seconds: 1209600
   # Refresh Token 쿠키의 Secure 속성. HTTPS를 쓰는 운영 환경에서는 COOKIE_SECURE=true로 주입한다
   cookie-secure: ${COOKIE_SECURE:false}
+
+finance:
+  base-url: ${FINANCE_BASE_URL:https://finopenapi.ssafy.io/ssafy/api/v1}
+  api-key: ${FINANCE_API_KEY:}
+  institution-code: ${FINANCE_INSTITUTION_CODE:00100}
+  fintech-app-no: ${FINANCE_FINTECH_APP_NO:001}
+  auth-text: ${FINANCE_AUTH_TEXT:도토리}
