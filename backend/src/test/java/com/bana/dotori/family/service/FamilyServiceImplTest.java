@@ -249,6 +249,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
 
@@ -271,7 +272,9 @@ class FamilyServiceImplTest {
 	@Test
 	@DisplayName("해당 자녀가 가족에 없으면 MEMBER_NOT_FOUND 예외가 발생한다")
 	void removeChild_memberNotFound() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 99)).willReturn(Optional.empty());
 
@@ -287,6 +290,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(parentMember));
 
@@ -297,15 +301,17 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("소속되지 않은 가족에서 자녀 제외를 시도하면 FORBIDDEN 예외가 발생한다")
+	@DisplayName("소속되지 않은 가족에서 자녀 제외를 시도하면 FAMILY_NOT_FOUND 예외가 발생한다")
 	void removeChild_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
-			.isEqualTo(ErrorCode.FORBIDDEN);
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 	}
 
 	@Test
