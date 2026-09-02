@@ -73,7 +73,12 @@ API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` �
 
 #### 이미 만들어진 DB 에 적용해야 하는 변경
 
-`ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다. 아래는 손으로 한 번 실행해야 한다.
+`ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다.
+그래서 `backend/src/test/resources/schema.sql` 아래쪽이 위 제약들을
+`DROP CONSTRAINT IF EXISTS` → `ADD CONSTRAINT` 로 매번 다시 걸어 준다.
+테스트가 앱과 같은 DB 를 쓰므로, **테스트를 한 번 돌리면 그 DB 에는 자동으로 반영된다.**
+
+테스트가 닿지 않는 DB(배포 환경 등)에는 손으로 한 번 실행한다.
 `init.sql` 최신화 때 같이 반영한다.
 
 ```sql

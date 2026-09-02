@@ -1,18 +1,19 @@
 spring:
+  # datasource 를 따로 두지 않는다. application.yaml 의 접속 정보를 그대로 물려받아
+  # 애플리케이션과 같은 DB 를 쓴다. 테스트 전용 DB 를 따로 관리하지 않기로 한 팀 결정이다.
+  #
+  # 경고: WalletTestFixture.cleanUp() 이 users·families·family_members 까지 DELETE 한다.
+  # 테스트를 돌리면 이 DB 의 회원·가족 데이터가 비워지므로,
+  # 보존해야 할 데이터가 있는 DB 를 가리키게 두면 안 된다.
   datasource:
-    # docker-compose.local.yml 의 dotori-postgres 를 그대로 쓰되,
-    # 개발 데이터를 건드리지 않도록 테스트 전용 DB 를 따로 바라본다.
-    #   docker exec dotori-postgres psql -U dotori -d postgres -c "CREATE DATABASE dotori_town_test OWNER dotori;"
-    url: jdbc:postgresql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:5432}/${TEST_DB_NAME:dotori_town_test}
-    username: ${TEST_DB_USERNAME:dotori}
-    password: ${TEST_DB_PASSWORD:dotori1234}
-    driver-class-name: org.postgresql.Driver
     hikari:
       # 동시성 테스트가 스레드 수만큼 커넥션을 동시에 요구한다.
+      # createWalletIfAbsent 가 REQUIRES_NEW 로 커넥션을 한 개 더 쓰는 것도 감안한 값이다.
       maximum-pool-size: 24
 
   jpa:
     hibernate:
+      # 스키마는 아래 schema.sql 이 책임진다. 테스트가 엔티티로 DDL 을 만들지 않게 한다.
       ddl-auto: none
     open-in-view: false
     properties:
@@ -22,6 +23,8 @@ spring:
 
   sql:
     init:
+      # schema.sql 은 CREATE TABLE IF NOT EXISTS 와 제약조건 재적용으로만 이루어져 있어
+      # 매번 실행해도 안전하다. 테이블을 지우지 않는다.
       mode: always
       schema-locations: classpath:schema.sql
 
