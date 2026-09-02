@@ -31,6 +31,7 @@ public class AccountServiceImpl implements AccountService {
 	private final AccountAuthSessionManager accountAuthSessionManager;
 	private final AccountMapper accountMapper;
 
+	// 금융망 userKey를 조회해 1원 송금을 요청하고 인증 세션을 생성한다
 	@Override
 	@Transactional(readOnly = true)
 	public AccountAuthResponse requestAuth(Integer userId, AccountAuthRequest request) {
@@ -40,8 +41,9 @@ public class AccountServiceImpl implements AccountService {
 		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-		String userKey = financeClient.getOrCreateUserKey(user.getEmail());
+		String userKey;
 		try {
+			userKey = financeClient.getUserKey(user.getEmail());
 			financeClient.openAccountAuth(userKey, request.accountNo(), financeProperties.authText());
 		} catch (FinanceApiException ex) {
 			throw new BusinessException(ErrorCode.FINANCE_API_ERROR);
@@ -51,6 +53,7 @@ public class AccountServiceImpl implements AccountService {
 		return accountMapper.toAccountAuthResponse(request.accountNo());
 	}
 
+	// 인증 세션의 userKey로 인증코드를 검증하고 계좌를 저장한다
 	@Override
 	@Transactional
 	public AccountResponse verifyAuth(Integer userId, AccountAuthVerifyRequest request) {

@@ -44,8 +44,8 @@ class RestClientFinanceClientTest {
 	}
 
 	@Test
-	@DisplayName("getOrCreateUserKey_기존_회원이_존재하면_해당_userKey를_반환한다")
-	void getOrCreateUserKey_기존회원_조회성공() {
+	@DisplayName("getUserKey_회원이_존재하면_해당_userKey를_반환한다")
+	void getUserKey_회원조회_성공() {
 		// given
 		String userId = "dotori@example.com";
 		String expectedUserKey = "633d65a0-67c4-48b2-9bbf-94b948d8e141";
@@ -63,7 +63,7 @@ class RestClientFinanceClientTest {
 			.andRespond(withSuccess(searchResponseJson, MediaType.APPLICATION_JSON));
 
 		// when
-		String userKey = client.getOrCreateUserKey(userId);
+		String userKey = client.getUserKey(userId);
 
 		// then
 		assertThat(userKey).isEqualTo(expectedUserKey);
@@ -71,33 +71,19 @@ class RestClientFinanceClientTest {
 	}
 
 	@Test
-	@DisplayName("getOrCreateUserKey_기존_회원이_없으면_회원을_생성하고_userKey를_반환한다")
-	void getOrCreateUserKey_신규회원_자동등록성공() {
+	@DisplayName("getUserKey_회원이_없으면_FinanceApiException이_발생한다")
+	void getUserKey_회원없음_예외발생() {
 		// given
-		String userId = "new@example.com";
-		String expectedUserKey = "new-user-key-1234";
-		String createResponseJson = String.format("""
-			{
-				"userId": "%s",
-				"userName": "신규유저",
-				"institutionCode": "00100",
-				"userKey": "%s"
-			}
-			""", userId, expectedUserKey);
+		String userId = "unknown@example.com";
 
 		mockServer.expect(requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/member/search"))
 			.andExpect(method(HttpMethod.POST))
 			.andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-		mockServer.expect(requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/member"))
-			.andExpect(method(HttpMethod.POST))
-			.andRespond(withSuccess(createResponseJson, MediaType.APPLICATION_JSON));
+		// when & then
+		assertThatThrownBy(() -> client.getUserKey(userId))
+			.isInstanceOf(FinanceApiException.class);
 
-		// when
-		String userKey = client.getOrCreateUserKey(userId);
-
-		// then
-		assertThat(userKey).isEqualTo(expectedUserKey);
 		mockServer.verify();
 	}
 

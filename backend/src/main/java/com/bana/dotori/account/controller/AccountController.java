@@ -24,12 +24,14 @@ public class AccountController {
 
 	private final AccountService accountService;
 
+	// 1원 인증 요청 API
 	@PostMapping("/auth")
 	public ResponseEntity<AccountAuthResponse> requestAuth(@AuthenticationPrincipal Integer userId,
 		@Valid @RequestBody AccountAuthRequest request) {
 		return ResponseEntity.ok(accountService.requestAuth(userId, request));
 	}
 
+	// 1원 인증코드 검증 API
 	@PostMapping("/auth/verify")
 	public ResponseEntity<AccountResponse> verifyAuth(@AuthenticationPrincipal Integer userId,
 		@Valid @RequestBody AccountAuthVerifyRequest request) {

@@ -85,7 +85,7 @@ class AccountServiceImplTest {
 	void requestAuth_success() {
 		given(accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(USER_ID, ACCOUNT_NO)).willReturn(false);
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(USER_ID)));
-		given(financeClient.getOrCreateUserKey("dotori@example.com")).willReturn(USER_KEY);
+		given(financeClient.getUserKey("dotori@example.com")).willReturn(USER_KEY);
 
 		AccountAuthResponse response = accountService.requestAuth(USER_ID,
 			new AccountAuthRequest("003", "국민은행", ACCOUNT_NO));
@@ -128,7 +128,7 @@ class AccountServiceImplTest {
 	void requestAuth_financeApiException() {
 		given(accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(USER_ID, ACCOUNT_NO)).willReturn(false);
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(USER_ID)));
-		given(financeClient.getOrCreateUserKey("dotori@example.com")).willReturn(USER_KEY);
+		given(financeClient.getUserKey("dotori@example.com")).willReturn(USER_KEY);
 		willThrow(new FinanceApiException("A1001", "존재하지 않는 계좌번호입니다."))
 			.given(financeClient).openAccountAuth(USER_KEY, ACCOUNT_NO, "도토리");
 
