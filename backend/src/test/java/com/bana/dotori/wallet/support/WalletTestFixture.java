@@ -54,6 +54,7 @@ public final class WalletTestFixture {
 	public static void cleanUp(JdbcTemplate jdbcTemplate) {
 		jdbcTemplate.execute("DELETE FROM point_transactions");
 		jdbcTemplate.execute("DELETE FROM point_wallets");
+		jdbcTemplate.execute("DELETE FROM family_codes");
 		jdbcTemplate.execute("DELETE FROM family_members");
 		jdbcTemplate.execute("DELETE FROM families");
 		jdbcTemplate.execute("DELETE FROM users");
