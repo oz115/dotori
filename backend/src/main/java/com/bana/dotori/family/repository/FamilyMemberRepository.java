@@ -18,4 +18,6 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 
 	@Query("select fm from FamilyMember fm join fetch fm.user where fm.family.id = :familyId order by fm.joinedAt")
 	List<FamilyMember> findAllWithUserByFamilyId(@Param("familyId") Integer familyId);
+
+	void deleteAllByFamilyId(Integer familyId);
 }

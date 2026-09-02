@@ -3,6 +3,7 @@ package com.bana.dotori.family.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,5 +44,12 @@ public class FamilyController {
 	public ResponseEntity<FamilyMembersResponse> getMembers(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId) {
 		return ResponseEntity.ok(familyService.getMembers(userId, familyId));
+	}
+
+	@DeleteMapping("/{familyId}")
+	public ResponseEntity<Void> disband(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId) {
+		familyService.disband(userId, familyId);
+		return ResponseEntity.noContent().build();
 	}
 }

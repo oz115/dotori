@@ -63,6 +63,23 @@ public class FamilyServiceImpl implements FamilyService {
 		return familyMapper.toMembersResponse(familyMemberRepository.findAllWithUserByFamilyId(familyId));
 	}
 
+	@Override
+	@Transactional
+	public void disband(Integer userId, Integer familyId) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Family family = familyRepository.findById(familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		if (!familyMemberRepository.existsByFamilyIdAndUserId(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		// TODO: 포인트/예적금/투자 도메인 구현 후 자녀 잔여 자산 검증 추가 (FAMILY_HAS_ACTIVE_ASSETS, 잔여 자산 처리 정책 팀 논의 필요)
+		familyMemberRepository.deleteAllByFamilyId(familyId);
+		familyRepository.delete(family);
+	}
+
 	private User findUser(Integer userId) {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

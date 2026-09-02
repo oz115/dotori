@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -198,6 +200,42 @@ class FamilyControllerTest {
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("가족 해체 성공 시 204를 반환한다")
+	void disband_success() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNoContent());
+
+		then(familyService).should().disband(1, 1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 가족 해체 시 403과 FORBIDDEN 에러를 반환한다")
+	void disband_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		doThrow(new BusinessException(ErrorCode.FORBIDDEN)).when(familyService).disband(2, 1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("자녀 잔여 자산이 있으면 409와 FAMILY_HAS_ACTIVE_ASSETS 에러를 반환한다")
+	void disband_hasActiveAssets() throws Exception {
+		givenParentAuthenticated(1);
+		doThrow(new BusinessException(ErrorCode.FAMILY_HAS_ACTIVE_ASSETS)).when(familyService).disband(1, 1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("FAMILY_HAS_ACTIVE_ASSETS"));
 	}
 
 	@Test

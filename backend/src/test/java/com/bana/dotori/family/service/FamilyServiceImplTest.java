@@ -180,6 +180,57 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("가족 해체 성공 시 구성원과 가족을 모두 삭제한다")
+	void disband_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+
+		familyService.disband(1, 1);
+
+		verify(familyMemberRepository).deleteAllByFamilyId(1);
+		verify(familyRepository).delete(family);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 가족 해체 시 FORBIDDEN 예외가 발생한다")
+	void disband_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.disband(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족을 해체하려 하면 FORBIDDEN 예외가 발생한다")
+	void disband_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.disband(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족을 해체하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void disband_familyNotFound() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findById(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.disband(1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
 	@DisplayName("토큰의 유저가 존재하지 않으면 UNAUTHORIZED 예외가 발생한다")
 	void create_userNotFound() {
 		given(userRepository.findById(99)).willReturn(Optional.empty());

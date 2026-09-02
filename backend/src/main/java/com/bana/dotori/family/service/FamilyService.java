@@ -12,4 +12,6 @@ public interface FamilyService {
 	FamilyResponse getFamily(Integer userId, Integer familyId);
 
 	FamilyMembersResponse getMembers(Integer userId, Integer familyId);
+
+	void disband(Integer userId, Integer familyId);
 }
