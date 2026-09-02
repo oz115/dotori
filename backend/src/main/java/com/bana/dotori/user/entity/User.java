@@ -45,8 +45,6 @@ public class User {
 	@Column(name = "email", nullable = false)
 	private String email;
 
-	// ERD상 role은 PG 네이티브 enum(users_role)이지만, ddl-auto:update가 재기동 시 enum 타입을
-	// DROP CASCADE로 재생성해 컬럼이 유실되므로 스키마 관리가 스크립트/Flyway로 전환되기 전까지 varchar로 유지
 	@Enumerated(EnumType.STRING)
 	@Column(name = "role", length = 20, nullable = false)
 	private UserRole role;
