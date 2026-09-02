@@ -82,13 +82,6 @@ public class PointWalletService {
 				.orElseGet(() -> pointWalletRepository.save(PointWallet.openFor(userId)));
 	}
 
-	@Transactional(readOnly = true)
-	public int getBalance(Integer userId) {
-		return pointWalletRepository.findByUserId(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. userId=" + userId))
-				.getBalance();
-	}
-
 	private PointChangeResult changeBalance(PointChangeCommand command, PointTransactionType transactionType) {
 		// 1. 먼저 지갑 행을 잠근다.
 		//    같은 지갑에 대한 모든 잔액 변경이 이 지점에서 직렬화되므로,

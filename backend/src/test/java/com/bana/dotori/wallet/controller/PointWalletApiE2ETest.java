@@ -1,6 +1,7 @@
 package com.bana.dotori.wallet.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +46,7 @@ class PointWalletApiE2ETest {
 
 	private static final String CHARGE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/charge";
 	private static final String GRANT_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/grant";
+	private static final String BALANCE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/balance";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -159,6 +161,66 @@ class PointWalletApiE2ETest {
 			assertThat(mockBankTransferClient.findAccount(childId).balance())
 					.as("중복 요청으로 돈이 두 번 빠지면 안 된다")
 					.isEqualTo(490_000);
+		}
+	}
+
+	@Nested
+	@DisplayName("보유 포인트 조회")
+	class Balance {
+
+		@Test
+		@DisplayName("충전·지급으로 움직인 잔액이 조회 결과와 일치한다")
+		void 잔액이_거래와_일치한다() throws Exception {
+			mockBankTransferClient.registerAccount(childId, "김도토", 500_000);
+
+			// 10,000원 충전 → 1,000포인트, 그 뒤 3,000포인트 지급.
+			// 조회가 원장과 어긋나면 여기서만 깨진다.
+			mockMvc.perform(post(CHARGE_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.header("Idempotency-Key", "e2e-balance-charge")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 10000}"))
+					.andExpect(status().isCreated());
+
+			mockMvc.perform(post(GRANT_URL, familyId, childId)
+							.header("Authorization", bearer(parentId, UserRole.PARENT))
+							.header("Idempotency-Key", "e2e-balance-grant")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 3000}"))
+					.andExpect(status().isCreated());
+
+			int expected = 5_000 + 1_000 + 3_000;
+
+			mockMvc.perform(get(BALANCE_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.childId").value(childId))
+					.andExpect(jsonPath("$.balance").value(expected))
+					.andExpect(jsonPath("$.updatedAt").exists());
+
+			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(expected);
+		}
+
+		@Test
+		@DisplayName("부모가 조회해도 아이가 조회한 것과 같은 잔액이 나온다")
+		void 부모_조회와_본인_조회가_같다() throws Exception {
+			mockMvc.perform(get(BALANCE_URL, familyId, childId)
+							.header("Authorization", bearer(parentId, UserRole.PARENT)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.balance").value(5_000));
+		}
+
+		@Test
+		@DisplayName("지갑이 없는 아이도 200 과 잔액 0 을 받는다")
+		void 지갑이_없으면_0이다() throws Exception {
+			Integer freshChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-no-wallet-e2e");
+			WalletTestFixture.addFamilyMember(jdbcTemplate, familyId, freshChildId);
+
+			mockMvc.perform(get(BALANCE_URL, familyId, freshChildId)
+							.header("Authorization", bearer(freshChildId, UserRole.CHILD)))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.balance").value(0))
+					.andExpect(jsonPath("$.updatedAt").doesNotExist());
 		}
 	}
 

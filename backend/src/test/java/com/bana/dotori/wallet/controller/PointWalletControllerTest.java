@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,10 +32,12 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
+import com.bana.dotori.wallet.service.PointWalletQueryService;
 
 /**
  * 컨트롤러 계층 - HTTP 경계만 검증한다.
@@ -64,6 +67,9 @@ class PointWalletControllerTest {
 
 	@MockitoBean
 	private PointGrantService pointGrantService;
+
+	@MockitoBean
+	private PointWalletQueryService pointWalletQueryService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
@@ -171,6 +177,73 @@ class PointWalletControllerTest {
 						.content("{\"amount\": 10000}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_POINT_AMOUNT"));
+	}
+
+	@Nested
+	@DisplayName("보유 포인트 조회")
+	class Balance {
+
+		private static final String BALANCE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/balance";
+
+		@Test
+		@DisplayName("조회에 성공하면 200 과 명세 형식의 응답을 돌려준다")
+		void 조회_성공() throws Exception {
+			given(pointWalletQueryService.getBalance(eq(1), eq(2), eq(2)))
+					.willReturn(new PointBalanceResponse(2, 12_000, OffsetDateTime.now()));
+
+			mockMvc.perform(get(BALANCE_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.childId").value(2))
+					.andExpect(jsonPath("$.balance").value(12_000))
+					.andExpect(jsonPath("$.updatedAt").exists());
+		}
+
+		@Test
+		@DisplayName("경로의 familyId·childId 와 호출자를 그대로 서비스에 넘긴다")
+		void 인자를_그대로_넘긴다() throws Exception {
+			given(pointWalletQueryService.getBalance(eq(7), eq(3), eq(9)))
+					.willReturn(new PointBalanceResponse(3, 500, OffsetDateTime.now()));
+
+			mockMvc.perform(get(BALANCE_URL, 7, 3).with(loginAs(9, "PARENT")))
+					.andExpect(status().isOk());
+
+			// 대상자와 호출자를 뒤바꿔 넘기면 부모가 자기 지갑을 조회하게 된다.
+			verify(pointWalletQueryService).getBalance(7, 3, 9);
+		}
+
+		@Test
+		@DisplayName("지갑이 없으면 404 가 아니라 200 과 잔액 0 이다")
+		void 지갑이_없어도_200이다() throws Exception {
+			given(pointWalletQueryService.getBalance(eq(1), eq(2), eq(2)))
+					.willReturn(PointBalanceResponse.empty(2));
+
+			mockMvc.perform(get(BALANCE_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.balance").value(0))
+					.andExpect(jsonPath("$.updatedAt").doesNotExist());
+		}
+
+		@Test
+		@DisplayName("권한이 없으면 403 WALLET_ACCESS_DENIED 로 매핑한다")
+		void 권한_없음은_403이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.WALLET_ACCESS_DENIED, "권한 없음"))
+					.given(pointWalletQueryService).getBalance(any(), any(), any());
+
+			mockMvc.perform(get(BALANCE_URL, 1, 3).with(loginAs(2, "CHILD")))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"))
+					.andExpect(jsonPath("$.timestamp").exists());
+		}
+
+		@Test
+		@DisplayName("childId 가 숫자가 아니면 400 으로 막는다")
+		void 잘못된_경로변수는_400이다() throws Exception {
+			mockMvc.perform(get(BALANCE_URL, 1, "abc").with(loginAs(2, "CHILD")))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+			verify(pointWalletQueryService, never()).getBalance(any(), any(), any());
+		}
 	}
 
 	@Nested
