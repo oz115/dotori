@@ -172,9 +172,9 @@ class FamilyControllerTest {
 	void getMembers_success() throws Exception {
 		givenParentAuthenticated(1);
 		FamilyMembersResponse response = new FamilyMembersResponse(List.of(
-			new FamilyMemberResponse(1, "김도토", UserRole.PARENT, null,
+			new FamilyMemberResponse(1, "김도토", UserRole.PARENT,
 				OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9))),
-			new FamilyMemberResponse(2, "김도랑", UserRole.CHILD, null,
+			new FamilyMemberResponse(2, "김도랑", UserRole.CHILD,
 				OffsetDateTime.of(2026, 8, 28, 11, 0, 0, 0, ZoneOffset.ofHours(9)))));
 		given(familyService.getMembers(1, 1)).willReturn(response);
 

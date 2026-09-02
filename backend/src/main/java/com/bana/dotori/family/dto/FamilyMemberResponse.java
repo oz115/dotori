@@ -8,7 +8,6 @@ public record FamilyMemberResponse(
 	Integer userId,
 	String name,
 	UserRole role,
-	String profileImageUrl,
 	OffsetDateTime joinedAt
 ) {
 }

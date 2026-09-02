@@ -41,7 +41,6 @@ public class FamilyMapper {
 
 	public FamilyMemberResponse toMemberResponse(FamilyMember member) {
 		User user = member.getUser();
-		// users 테이블에 프로필 이미지 컬럼이 아직 없어 profileImageUrl은 null로 내려간다
-		return new FamilyMemberResponse(user.getId(), user.getName(), user.getRole(), null, member.getJoinedAt());
+		return new FamilyMemberResponse(user.getId(), user.getName(), user.getRole(), member.getJoinedAt());
 	}
 }
