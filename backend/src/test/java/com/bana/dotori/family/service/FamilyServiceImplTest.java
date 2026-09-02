@@ -420,7 +420,7 @@ class FamilyServiceImplTest {
 	void createInvitationCode_success() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
 		given(familyCodeRepository.existsByCode(anyString())).willReturn(false);
 		given(familyCodeRepository.save(any(FamilyCode.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -448,7 +448,7 @@ class FamilyServiceImplTest {
 	void createInvitationCode_notMember() {
 		Family family = Family.builder().name("남의 가족").createdBy(3).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
-		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
 		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.createInvitationCode(1, 1))

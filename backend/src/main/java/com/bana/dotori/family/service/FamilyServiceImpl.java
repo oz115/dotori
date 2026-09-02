@@ -124,7 +124,12 @@ public class FamilyServiceImpl implements FamilyService {
 		if (user.getRole() != UserRole.PARENT) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		Family family = findMemberFamily(userId, familyId);
+		// 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
+		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
+		}
 
 		// 재발급 시 기존 코드는 무효화하고 가족당 유효 코드를 하나만 유지한다
 		familyCodeRepository.deleteAllByFamilyId(familyId);
