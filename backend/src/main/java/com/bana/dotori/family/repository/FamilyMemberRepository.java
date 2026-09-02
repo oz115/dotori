@@ -7,4 +7,8 @@ import com.bana.dotori.family.entity.FamilyMember;
 public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Integer> {
 
 	boolean existsByUserId(Integer userId);
+
+	boolean existsByFamilyIdAndUserId(Integer familyId, Integer userId);
+
+	long countByFamilyId(Integer familyId);
 }

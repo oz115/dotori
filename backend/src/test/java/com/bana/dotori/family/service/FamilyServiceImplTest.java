@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.mapper.FamilyMapper;
@@ -102,6 +103,45 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("가족 조회 성공 시 가족 정보와 구성원 수를 반환한다")
+	void getFamily_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 1)).willReturn(true);
+		given(familyMemberRepository.countByFamilyId(1)).willReturn(3L);
+
+		FamilyResponse response = familyService.getFamily(1, 1);
+
+		assertThat(response.name()).isEqualTo("도토리네 가족");
+		assertThat(response.createdBy()).isEqualTo(1);
+		assertThat(response.memberCount()).isEqualTo(3);
+	}
+
+	@Test
+	@DisplayName("가족이 존재하지 않으면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getFamily_familyNotFound() {
+		given(familyRepository.findById(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.getFamily(1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getFamily_notMember() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findById(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserId(1, 2)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.getFamily(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 	}
 
 	@Test
