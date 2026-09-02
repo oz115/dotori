@@ -3,9 +3,11 @@ package com.bana.dotori.family.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,9 +23,12 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
+import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.mapper.FamilyMapper;
+import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
@@ -40,6 +45,9 @@ class FamilyServiceImplTest {
 
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
+
+	@Mock
+	private FamilyCodeRepository familyCodeRepository;
 
 	@Mock
 	private UserRepository userRepository;
@@ -307,5 +315,47 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("초대 코드 생성 성공 시 기존 코드를 무효화하고 6자리 코드와 만료 시각을 반환한다")
+	void createInvitationCode_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyCodeRepository.existsByCode(anyString())).willReturn(false);
+		given(familyCodeRepository.save(any(FamilyCode.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		InvitationCodeResponse response = familyService.createInvitationCode(1, 1);
+
+		assertThat(response.code()).hasSize(6).matches("[A-HJ-NP-Z2-9]+");
+		assertThat(response.expiresAt()).isAfter(OffsetDateTime.now());
+		verify(familyCodeRepository).deleteAllByFamilyId(1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 생성 시 FORBIDDEN 예외가 발생한다")
+	void createInvitationCode_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.createInvitationCode(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 초대 코드를 생성하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void createInvitationCode_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.createInvitationCode(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 	}
 }

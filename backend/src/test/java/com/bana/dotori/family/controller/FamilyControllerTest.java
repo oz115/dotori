@@ -32,6 +32,7 @@ import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -273,6 +274,48 @@ class FamilyControllerTest {
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("초대 코드 생성 성공 시 201과 코드·만료 시각을 반환한다")
+	void createInvitationCode_success() throws Exception {
+		givenParentAuthenticated(1);
+		InvitationCodeResponse response = new InvitationCodeResponse(1, "A3B7K9",
+			OffsetDateTime.of(2026, 9, 2, 15, 10, 0, 0, ZoneOffset.ofHours(9)));
+		given(familyService.createInvitationCode(1, 1)).willReturn(response);
+
+		mockMvc.perform(post(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.familyId").value(1))
+			.andExpect(jsonPath("$.code").value("A3B7K9"))
+			.andExpect(jsonPath("$.expiresAt").exists());
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 생성 시 403과 FORBIDDEN 에러를 반환한다")
+	void createInvitationCode_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		given(familyService.createInvitationCode(2, 1))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(post(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("소속된 가족이 없으면 초대 코드 생성 시 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void createInvitationCode_familyNotFound() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.createInvitationCode(1, 99))
+			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(post(FAMILIES_URL + "/99/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
 	}
 
 	@Test

@@ -15,6 +15,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.service.FamilyService;
 
 import jakarta.validation.Valid;
@@ -51,6 +52,13 @@ public class FamilyController {
 		@PathVariable Integer familyId) {
 		familyService.deleteFamily(userId, familyId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{familyId}/invitations")
+	public ResponseEntity<InvitationCodeResponse> createInvitationCode(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId) {
+		InvitationCodeResponse response = familyService.createInvitationCode(userId, familyId);
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
 	@DeleteMapping("/{familyId}/children/{childId}")

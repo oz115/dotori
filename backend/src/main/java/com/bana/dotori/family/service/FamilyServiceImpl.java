@@ -1,5 +1,9 @@
 package com.bana.dotori.family.service;
 
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -7,9 +11,12 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
+import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.mapper.FamilyMapper;
+import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
@@ -24,8 +31,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FamilyServiceImpl implements FamilyService {
 
+	// 초대 코드 문자셋 — 아이가 보고 입력하기 쉽도록 혼동되는 문자(0, O, 1, I)는 제외
+	private static final String CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+	private static final int CODE_LENGTH = 6;
+	private static final Duration CODE_TTL = Duration.ofMinutes(10);
+	private static final int CODE_GENERATION_MAX_ATTEMPTS = 10;
+	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
+	private final FamilyCodeRepository familyCodeRepository;
 	private final UserRepository userRepository;
 	private final FamilyMapper familyMapper;
 
@@ -97,6 +112,39 @@ public class FamilyServiceImpl implements FamilyService {
 			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
 		}
 		childMember.softDelete();
+	}
+
+	@Override
+	@Transactional
+	public InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Family family = findMemberFamily(userId, familyId);
+
+		// 재발급 시 기존 코드는 무효화하고 가족당 유효 코드를 하나만 유지한다
+		familyCodeRepository.deleteAllByFamilyId(familyId);
+		FamilyCode familyCode = familyCodeRepository.save(FamilyCode.builder()
+			.family(family)
+			.code(generateUniqueCode())
+			.expiredAt(OffsetDateTime.now().plus(CODE_TTL))
+			.build());
+		return familyMapper.toInvitationCodeResponse(familyCode);
+	}
+
+	private String generateUniqueCode() {
+		for (int attempt = 0; attempt < CODE_GENERATION_MAX_ATTEMPTS; attempt++) {
+			StringBuilder builder = new StringBuilder(CODE_LENGTH);
+			for (int i = 0; i < CODE_LENGTH; i++) {
+				builder.append(CODE_CHARACTERS.charAt(SECURE_RANDOM.nextInt(CODE_CHARACTERS.length())));
+			}
+			String code = builder.toString();
+			if (!familyCodeRepository.existsByCode(code)) {
+				return code;
+			}
+		}
+		throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
 	}
 
 	private User findUser(Integer userId) {
