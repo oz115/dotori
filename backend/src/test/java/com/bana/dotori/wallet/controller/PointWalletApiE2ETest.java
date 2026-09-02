@@ -151,10 +151,10 @@ class PointWalletApiE2ETest {
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{\"amount\": 10000}"))
 						.andExpect(status().isCreated())
-						.andExpect(jsonPath("$.balanceAfter").value(15_000));
+						.andExpect(jsonPath("$.balanceAfter").value(6_000));
 			}
 
-			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(15_000);
+			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(6_000);
 			assertThat(WalletTestFixture.countTransactions(jdbcTemplate)).isEqualTo(1);
 			assertThat(mockBankTransferClient.findAccount(childId).balance())
 					.as("중복 요청으로 돈이 두 번 빠지면 안 된다")

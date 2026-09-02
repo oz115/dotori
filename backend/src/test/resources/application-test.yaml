@@ -28,6 +28,13 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
 
+jwt:
+  # 테스트 전용 서명 키. 운영 키가 아니고 이 저장소 밖으로 나가지 않는다.
+  # 여기 고정해 두는 이유는 @SpringBootTest 가 JwtTokenProvider 를 항상 띄우기 때문이다.
+  # application.yaml 의 ${JWT_SECRET} 에 기대면 각자 .env 에 값을 채워 넣어야만
+  # 테스트가 도는데, 그러면 CI 나 새로 받은 사람에게서 전부 컨텍스트 로딩 실패로 깨진다.
+  secret: Kfc5n4etu9b908ckpMRCOJ/3qahjHYwXp0wwFX0BXuUH9hVaubZyTXxc0qYr6Q+S
+
 logging:
   level:
     com.bana.dotori: DEBUG
