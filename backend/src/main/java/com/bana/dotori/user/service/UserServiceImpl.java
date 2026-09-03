@@ -20,6 +20,7 @@ import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.dto.UserWithdrawRequest;
 import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.mapper.UserMapper;
 import com.bana.dotori.user.repository.UserRepository;
 
@@ -138,6 +139,12 @@ public class UserServiceImpl implements UserService {
 		// 되돌릴 수 없는 동작이라 본인 확인이 먼저다.
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
+		}
+		// 부모가 자녀를 남긴 채 나가면 자녀들은 부모 없는 가족에 갇힌다.
+		// 자녀를 먼저 내보낸 뒤(FAM-05) 탈퇴해야 한다.
+		if (user.getRole() == UserRole.PARENT && !familyService.findConnectedChildren(targetUserId).isEmpty()) {
+			throw new BusinessException(ErrorCode.FAMILY_HAS_CHILDREN,
+				"가족에 남은 자녀를 먼저 내보낸 뒤 탈퇴할 수 있습니다. userId=" + targetUserId);
 		}
 		// 자산을 남긴 채 탈퇴하면 그 포인트를 되찾을 방법이 없다.
 		if (remainingAssetReader.hasRemainingAsset(targetUserId)) {

@@ -257,6 +257,7 @@ class MyPageApiE2ETest {
 		@Test
 		@DisplayName("탈퇴하면 로그인도 토큰 재발급도 막힌다")
 		void 탈퇴하면_계정이_막힌다() throws Exception {
+			detachChild();
 			Cookie refreshCookie = loginAndGetRefreshCookie("mypage-parent", PARENT_PASSWORD);
 
 			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
@@ -285,6 +286,7 @@ class MyPageApiE2ETest {
 		@Test
 		@DisplayName("포인트가 남아 있으면 409 로 막고 계정은 살아 있다")
 		void 잔여_포인트가_있으면_409() throws Exception {
+			detachChild();
 			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 1_000);
 
 			withdraw(PARENT_PASSWORD)
@@ -297,7 +299,25 @@ class MyPageApiE2ETest {
 		@Test
 		@DisplayName("잔액이 0 이면 지갑이 있어도 탈퇴된다")
 		void 잔액_0_이면_탈퇴된다() throws Exception {
+			detachChild();
 			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 0);
+
+			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
+		}
+
+		@Test
+		@DisplayName("자녀가 남아 있는 부모는 409 로 막고, 자녀를 내보낸 뒤에는 탈퇴된다")
+		void 자녀를_먼저_내보내야_탈퇴된다() throws Exception {
+			withdraw(PARENT_PASSWORD)
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("FAMILY_HAS_CHILDREN"));
+
+			// FAM-05 자녀 관리로 내보낸다. 탈퇴 전에 밟아야 하는 순서를 그대로 검증한다.
+			Integer familyId = jdbcTemplate.queryForObject(
+				"SELECT family_id FROM families WHERE created_by = ?", Integer.class, parentId);
+			mockMvc.perform(delete("/api/v1/families/{familyId}/children/{childId}", familyId, childId)
+					.header(HttpHeaders.AUTHORIZATION, bearer(parentId, "PARENT")))
+				.andExpect(status().isNoContent());
 
 			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
 		}
@@ -336,6 +356,14 @@ class MyPageApiE2ETest {
 		Cookie cookie = result.getResponse().getCookie(RefreshTokenCookieProvider.COOKIE_NAME);
 		assertThat(cookie).isNotNull();
 		return cookie;
+	}
+
+	/**
+	 * 부모 탈퇴만 보려는 테스트의 선행 조건. 자녀가 남아 있으면 FAMILY_HAS_CHILDREN 으로 먼저 막힌다.
+	 * 내보내는 경로 자체는 자녀를_먼저_내보내야_탈퇴된다 가 API 로 검증한다.
+	 */
+	private void detachChild() {
+		jdbcTemplate.update("UPDATE family_members SET deleted_at = now() WHERE user_id = ?", childId);
 	}
 
 	private ResultActions withdraw(String password) throws Exception {

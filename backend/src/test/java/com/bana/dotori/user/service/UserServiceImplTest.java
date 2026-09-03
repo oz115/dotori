@@ -494,4 +494,37 @@ class UserServiceImplTest {
 
 		verify(userRepository, never()).findById(any());
 	}
+
+	@Test
+	@DisplayName("가족에 자녀가 남아 있는 부모는 FAMILY_HAS_CHILDREN 예외로 탈퇴가 막힌다")
+	void withdraw_parentWithChildren() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+		given(familyService.findConnectedChildren(1)).willReturn(List.of(
+			new ConnectedChild(2, "김아이", OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9)))));
+
+		assertThatThrownBy(() -> userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_HAS_CHILDREN);
+
+		assertThat(stored.getDeletedAt()).isNull();
+		verify(authService, never()).revokeAllRefreshTokens(any());
+	}
+
+	@Test
+	@DisplayName("자녀 계정은 가족에 남아 있어도 자녀 확인 없이 탈퇴된다")
+	void withdraw_childSkipsChildrenCheck() {
+		User child = user(1);
+		ReflectionTestUtils.setField(child, "role", UserRole.CHILD);
+		given(userRepository.findById(1)).willReturn(Optional.of(child));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(false);
+
+		userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!"));
+
+		assertThat(child.getDeletedAt()).isNotNull();
+		verify(familyService, never()).findConnectedChildren(any());
+	}
 }
