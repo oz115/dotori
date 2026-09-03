@@ -27,11 +27,14 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -59,6 +62,8 @@ class FamilyControllerTest {
 	private static final String FAMILIES_URL = "/api/v1/families";
 	private static final String PARENT_TOKEN = "parent-access-token";
 	private static final String BEARER_PARENT = "Bearer " + PARENT_TOKEN;
+	private static final String CHILD_TOKEN = "child-access-token";
+	private static final String BEARER_CHILD = "Bearer " + CHILD_TOKEN;
 
 	private static final String CREATE_BODY = """
 		{
@@ -70,6 +75,12 @@ class FamilyControllerTest {
 		given(jwtTokenProvider.getAuthentication(PARENT_TOKEN))
 			.willReturn(new UsernamePasswordAuthenticationToken(userId, null,
 				List.of(new SimpleGrantedAuthority("ROLE_PARENT"))));
+	}
+
+	private void givenChildAuthenticated(Integer userId) {
+		given(jwtTokenProvider.getAuthentication(CHILD_TOKEN))
+			.willReturn(new UsernamePasswordAuthenticationToken(userId, null,
+				List.of(new SimpleGrantedAuthority("ROLE_CHILD"))));
 	}
 
 	@Test
@@ -273,6 +284,111 @@ class FamilyControllerTest {
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("초대 코드 생성 성공 시 201과 코드·만료 시각을 반환한다")
+	void createInvitationCode_success() throws Exception {
+		givenParentAuthenticated(1);
+		InvitationCodeResponse response = new InvitationCodeResponse(1, "A3B7K9",
+			OffsetDateTime.of(2026, 9, 2, 15, 10, 0, 0, ZoneOffset.ofHours(9)));
+		given(familyService.createInvitationCode(1, 1)).willReturn(response);
+
+		mockMvc.perform(post(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.familyId").value(1))
+			.andExpect(jsonPath("$.code").value("A3B7K9"))
+			.andExpect(jsonPath("$.expiresAt").exists());
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 생성 시 403과 FORBIDDEN 에러를 반환한다")
+	void createInvitationCode_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		given(familyService.createInvitationCode(2, 1))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(post(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("소속된 가족이 없으면 초대 코드 생성 시 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void createInvitationCode_familyNotFound() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.createInvitationCode(1, 99))
+			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(post(FAMILIES_URL + "/99/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("가족 연결 성공 시 200과 가족 정보를 반환한다")
+	void connect_success() throws Exception {
+		givenChildAuthenticated(2);
+		FamilyConnectResponse response = new FamilyConnectResponse(1, "도토리네 가족",
+			OffsetDateTime.of(2026, 9, 2, 15, 0, 0, 0, ZoneOffset.ofHours(9)));
+		given(familyService.connect(eq(2), any(FamilyConnectRequest.class))).willReturn(response);
+
+		mockMvc.perform(post(FAMILIES_URL + "/connect")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_CHILD)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"code\": \"A3B7K9\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.familyId").value(1))
+			.andExpect(jsonPath("$.familyName").value("도토리네 가족"))
+			.andExpect(jsonPath("$.joinedAt").exists());
+	}
+
+	@Test
+	@DisplayName("유효하지 않은 코드로 연결하면 404와 INVALID_FAMILY_CODE 에러를 반환한다")
+	void connect_invalidCode() throws Exception {
+		givenChildAuthenticated(2);
+		given(familyService.connect(eq(2), any(FamilyConnectRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INVALID_FAMILY_CODE));
+
+		mockMvc.perform(post(FAMILIES_URL + "/connect")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_CHILD)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"code\": \"WRONG9\"}"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("INVALID_FAMILY_CODE"));
+	}
+
+	@Test
+	@DisplayName("이미 가족에 소속된 자녀가 연결하면 409와 ALREADY_IN_FAMILY 에러를 반환한다")
+	void connect_alreadyInFamily() throws Exception {
+		givenChildAuthenticated(2);
+		given(familyService.connect(eq(2), any(FamilyConnectRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.ALREADY_IN_FAMILY));
+
+		mockMvc.perform(post(FAMILIES_URL + "/connect")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_CHILD)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"code\": \"A3B7K9\"}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("ALREADY_IN_FAMILY"));
+	}
+
+	@Test
+	@DisplayName("code가 비어 있으면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void connect_blankCode() throws Exception {
+		givenChildAuthenticated(2);
+
+		mockMvc.perform(post(FAMILIES_URL + "/connect")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_CHILD)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"code\": \"\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
 	}
 
 	@Test

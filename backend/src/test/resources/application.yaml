@@ -1,0 +1,33 @@
+# 프로파일을 지정하지 않은 테스트의 기본 설정. H2 인메모리를 쓴다.
+#
+# @ActiveProfiles("test") 를 붙인 테스트는 application-test.yaml 로 가서
+# 실제 PostgreSQL 을 쓴다. 지갑 테스트가 행 잠금·TIMESTAMPTZ·커서 정렬처럼
+# H2 가 흉내 내지 못하는 동작을 검증하기 때문이다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  sql:
+    init:
+      # 기본값(embedded)이면 H2 를 임베디드로 보고 classpath 의 schema.sql 을 자동 실행한다.
+      # 그 스크립트는 PostgreSQL 전용이라 H2 에서 TIMESTAMPTZ 부터 깨진다.
+      # 여기서는 ddl-auto: create-drop 이 스키마를 만들므로 스크립트가 필요 없다.
+      mode: never
+
+# 프로파일 없는 테스트도 JwtTokenProvider 를 띄운다. 이 파일이 메인 application.yaml 을
+# 가려서 그쪽 jwt 설정이 적용되지 않으므로 여기서 다시 준다.
+# 없으면 생성자가 플레이스홀더 문자열을 그대로 받아 NumberFormatException 이 난다.
+jwt:
+  # 테스트 전용 서명 키. 운영 키가 아니다.
+  secret: Kfc5n4etu9b908ckpMRCOJ/3qahjHYwXp0wwFX0BXuUH9hVaubZyTXxc0qYr6Q+S
+  access-token-validity-seconds: 1800
+  refresh-token-validity-seconds: 1209600
+  cookie-secure: false

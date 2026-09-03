@@ -31,8 +31,10 @@
 | --- | --- | --- |
 | Family | 부모 한 명이 생성하는 가족 그룹. 생성자만 해체할 수 있으며 `deleted_at`으로 소프트 삭제 | FamilyMember 1:N |
 | FamilyMember | 부모 한 명과 여러 자녀의 가족 소속 이력. 활성 소속은 `deleted_at IS NULL`로 조회 | Family N:1, User N:1 |
+| FamilyCode | 가족 초대 코드(6자리, TTL 10분). `code`는 전역 UNIQUE — 코드만으로 가족을 특정하므로 중복이 생기면 연결 API가 죽는다. 재발급 시 기존 코드를 하드 삭제해 가족당 유효 코드 1개 유지 | Family N:1 |
 
 - 가족 해체 시 가족과 구성원 소속만 소프트 삭제하며, 포인트 등 거래·자산 이력은 삭제하지 않는다.
+- `family_codes`는 소프트 삭제 대상이 아니다(하드 삭제). 다만 해체된 가족의 코드는 정리되지 않고 남는다 — 연결 API가 가족의 `deleted_at`을 확인해 막는다.
 
 ### 스키마 관리 방식
 
@@ -65,6 +67,7 @@ ERD 상 `users.role` 과 `point_transactions.transaction_type` 은 PG 네이티�
 | `point_wallets.user_id` | UNIQUE | 한 사용자에게 지갑이 두 개 생기면 잔액 조회가 어느 쪽을 골라야 할지 알 수 없다 |
 | `point_wallets.balance` | CHECK `>= 0` | 애플리케이션 락이 뚫리거나 수동 SQL 로 잔액이 음수가 되는 것을 차단 |
 | `point_transactions.amount` | CHECK `> 0` | 음수 금액 거래가 원장에 남는 것을 차단 |
+| `point_transactions` (`wallet_id`, `created_at`, `point_transaction_id`) | INDEX | WLT-06 거래내역 조회(무한 스크롤). 정렬 키와 순서가 같아야 커서 지점부터 요청한 건수만 읽고 멈춘다. 없으면 지갑의 거래를 전부 읽어 정렬한 뒤 잘라낸다. 방향은 ASC 하나만 만든다 — PostgreSQL 은 역방향 스캔도 하므로 최신순 조회도 같은 인덱스를 쓴다 |
 
 원장에는 입출금만 기록하고, 도메인별 포인트 집계는 각 도메인 테이블에서 관리한 뒤
 뷰로 합치는 팀 설계 방향을 따랐다.
@@ -92,6 +95,10 @@ ALTER TABLE point_transactions
 ALTER TABLE point_transactions
 	ADD CONSTRAINT uk_point_transactions_wallet_idempotency_key
 	UNIQUE (wallet_id, idempotency_key);
+
+-- WLT-06 거래내역 조회(커서 페이징)용 인덱스.
+CREATE INDEX IF NOT EXISTS ix_point_transactions_wallet_created_at
+	ON point_transactions (wallet_id, created_at, point_transaction_id);
 ```
 
 이미 서로 다른 지갑에 같은 멱등키가 들어가 있으면 두 번째 문장이 실패한다.

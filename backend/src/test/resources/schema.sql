@@ -68,6 +68,17 @@ ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
 ALTER TABLE "family_members" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
 
 
+CREATE TABLE IF NOT EXISTS "family_codes" (
+	"family_code_id"	SERIAL	NOT NULL,
+	"family_id"	INTEGER	NOT NULL,
+	"code"	VARCHAR(100)	NOT NULL,
+	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	"expired_at"	TIMESTAMPTZ	NOT NULL,
+	CONSTRAINT "PK_FAMILY_CODES" PRIMARY KEY ("family_code_id"),
+	CONSTRAINT "FK_FAMILY_CODES_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id")
+);
+
+
 CREATE TABLE IF NOT EXISTS "point_wallets" (
 	"wallet_id"	SERIAL	NOT NULL,
 	"user_id"	INTEGER	NOT NULL,
@@ -107,6 +118,13 @@ CREATE TABLE IF NOT EXISTS "point_transactions" (
 
    기존 데이터가 제약을 위반하면 여기서 시끄럽게 실패한다. 의도한 동작이다.
    --------------------------------------------------------- */
+
+/* 초대 코드는 전역 유일해야 한다. 코드만으로 가족을 특정하므로
+   중복이 생기면 조회가 2행을 반환해 연결 API 가 500 으로 죽는다. */
+ALTER TABLE "family_codes"
+	DROP CONSTRAINT IF EXISTS "uk_family_codes_code";
+ALTER TABLE "family_codes"
+	ADD CONSTRAINT "uk_family_codes_code" UNIQUE ("code");
 
 ALTER TABLE "point_wallets"
 	DROP CONSTRAINT IF EXISTS "uk_point_wallets_user_id";
