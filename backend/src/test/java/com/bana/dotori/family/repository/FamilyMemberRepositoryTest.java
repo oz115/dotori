@@ -142,4 +142,37 @@ class FamilyMemberRepositoryTest {
 		jdbcTemplate.update("INSERT INTO family_members (family_id, user_id, joined_at) VALUES (?, ?, ?)",
 			familyId, userId, joinedAt);
 	}
+
+	@Test
+	@DisplayName("탈퇴한 회원은 구성원 목록에서 빠진다")
+	void 탈퇴한_회원은_구성원_목록에서_빠진다() {
+		Integer parentId = insertUser("fam03-parent", "PARENT");
+		Integer childId = insertUser("fam03-child", "CHILD");
+		Integer familyId = insertFamily(parentId);
+		insertMember(familyId, parentId, OffsetDateTime.now().minusDays(1));
+		insertMember(familyId, childId, OffsetDateTime.now());
+		jdbcTemplate.update("UPDATE users SET deleted_at = now() WHERE user_id = ?", childId);
+
+		assertThat(familyMemberRepository.findAllWithUserByFamilyId(familyId))
+			.extracting(member -> member.getUser().getId())
+			.containsExactly(parentId);
+	}
+
+	@Test
+	@DisplayName("인원수는 구성원 목록과 같은 기준으로 센다")
+	void 인원수는_목록과_같은_기준으로_센다() {
+		Integer parentId = insertUser("fam02-parent", "PARENT");
+		Integer stayingChildId = insertUser("fam02-child-1", "CHILD");
+		Integer leavingChildId = insertUser("fam02-child-2", "CHILD");
+		Integer familyId = insertFamily(parentId);
+		insertMember(familyId, parentId, OffsetDateTime.now());
+		insertMember(familyId, stayingChildId, OffsetDateTime.now());
+		insertMember(familyId, leavingChildId, OffsetDateTime.now());
+		jdbcTemplate.update("UPDATE users SET deleted_at = now() WHERE user_id = ?", leavingChildId);
+
+		// 한쪽만 걸러 내면 "구성원 3명"인데 목록에는 2명만 나온다.
+		assertThat(familyMemberRepository.countActiveMembers(familyId))
+			.isEqualTo(familyMemberRepository.findAllWithUserByFamilyId(familyId).size())
+			.isEqualTo(2);
+	}
 }

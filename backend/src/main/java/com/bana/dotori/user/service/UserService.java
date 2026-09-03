@@ -7,6 +7,7 @@ import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
+import com.bana.dotori.user.dto.UserWithdrawRequest;
 
 public interface UserService {
 
@@ -45,4 +46,14 @@ public interface UserService {
 	 * @param targetUserId 경로에서 지정한 조회 대상
 	 */
 	ConnectedChildrenResponse getConnectedChildren(Integer loginUserId, Integer targetUserId);
+
+	/**
+	 * MYPAGE-05 회원 탈퇴. 본인 계정만, 비밀번호를 확인한 뒤 처리한다.
+	 *
+	 * <p>잔여 자산이 있으면 거부하고, 성공하면 Refresh Token 을 모두 폐기한다.
+	 *
+	 * @param loginUserId  인증된 요청자
+	 * @param targetUserId 경로에서 지정한 탈퇴 대상
+	 */
+	void withdraw(Integer loginUserId, Integer targetUserId, UserWithdrawRequest request);
 }

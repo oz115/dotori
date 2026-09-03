@@ -1,6 +1,7 @@
 package com.bana.dotori.user.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -249,6 +250,90 @@ class MyPageApiE2ETest {
 		}
 	}
 
+	@Nested
+	@DisplayName("회원 탈퇴 (MYPAGE-05)")
+	class Withdraw {
+
+		@Test
+		@DisplayName("탈퇴하면 로그인도 토큰 재발급도 막힌다")
+		void 탈퇴하면_계정이_막힌다() throws Exception {
+			detachChild();
+			Cookie refreshCookie = loginAndGetRefreshCookie("mypage-parent", PARENT_PASSWORD);
+
+			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
+
+			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isUnauthorized());
+			mockMvc.perform(post("/api/v1/auth/refresh").cookie(refreshCookie))
+				.andExpect(status().isUnauthorized());
+		}
+
+		@Test
+		@DisplayName("탈퇴한 자녀는 부모의 연결된 자녀 목록에서 사라진다")
+		void 탈퇴한_자녀는_목록에서_사라진다() throws Exception {
+			mockMvc.perform(delete(USER_URL, childId)
+					.header(HttpHeaders.AUTHORIZATION, bearer(childId, "CHILD"))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"password\": \"ChildP@ss1\"}"))
+				.andExpect(status().isNoContent());
+
+			// 가족 소속 행은 그대로 남는다. 조회 쿼리가 users.deleted_at 을 보고 걸러 내는지 확인한다.
+			mockMvc.perform(get(CHILDREN_URL, parentId)
+					.header(HttpHeaders.AUTHORIZATION, bearer(parentId, "PARENT")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.children").isEmpty());
+		}
+
+		@Test
+		@DisplayName("포인트가 남아 있으면 409 로 막고 계정은 살아 있다")
+		void 잔여_포인트가_있으면_409() throws Exception {
+			detachChild();
+			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 1_000);
+
+			withdraw(PARENT_PASSWORD)
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("HAS_ACTIVE_ASSETS"));
+
+			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isOk());
+		}
+
+		@Test
+		@DisplayName("잔액이 0 이면 지갑이 있어도 탈퇴된다")
+		void 잔액_0_이면_탈퇴된다() throws Exception {
+			detachChild();
+			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 0);
+
+			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
+		}
+
+		@Test
+		@DisplayName("자녀가 남아 있는 부모는 409 로 막고, 자녀를 내보낸 뒤에는 탈퇴된다")
+		void 자녀를_먼저_내보내야_탈퇴된다() throws Exception {
+			withdraw(PARENT_PASSWORD)
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("FAMILY_HAS_CHILDREN"));
+
+			// FAM-05 자녀 관리로 내보낸다. 탈퇴 전에 밟아야 하는 순서를 그대로 검증한다.
+			Integer familyId = jdbcTemplate.queryForObject(
+				"SELECT family_id FROM families WHERE created_by = ?", Integer.class, parentId);
+			mockMvc.perform(delete("/api/v1/families/{familyId}/children/{childId}", familyId, childId)
+					.header(HttpHeaders.AUTHORIZATION, bearer(parentId, "PARENT")))
+				.andExpect(status().isNoContent());
+
+			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
+		}
+
+		@Test
+		@DisplayName("비밀번호가 틀리면 401 이고 계정은 살아 있다")
+		void 비밀번호_불일치는_401() throws Exception {
+			withdraw("wrong-password")
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("PASSWORD_MISMATCH"));
+
+			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isOk());
+		}
+	}
+
+
 	private Integer signup(String loginId, String password, String name, String role) throws Exception {
 		mockMvc.perform(post("/api/v1/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -271,6 +356,21 @@ class MyPageApiE2ETest {
 		Cookie cookie = result.getResponse().getCookie(RefreshTokenCookieProvider.COOKIE_NAME);
 		assertThat(cookie).isNotNull();
 		return cookie;
+	}
+
+	/**
+	 * 부모 탈퇴만 보려는 테스트의 선행 조건. 자녀가 남아 있으면 FAMILY_HAS_CHILDREN 으로 먼저 막힌다.
+	 * 내보내는 경로 자체는 자녀를_먼저_내보내야_탈퇴된다 가 API 로 검증한다.
+	 */
+	private void detachChild() {
+		jdbcTemplate.update("UPDATE family_members SET deleted_at = now() WHERE user_id = ?", childId);
+	}
+
+	private ResultActions withdraw(String password) throws Exception {
+		return mockMvc.perform(delete(USER_URL, parentId)
+			.header(HttpHeaders.AUTHORIZATION, bearer(parentId, "PARENT"))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"password\": \"%s\"}".formatted(password)));
 	}
 
 	private ResultActions changePassword(String current, String next) throws Exception {
