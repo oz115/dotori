@@ -26,7 +26,7 @@ spring:
     # 경고: WalletTestFixture.cleanUp() 이 users·families·family_members 까지 DELETE 한다.
     # 테스트를 돌리면 이 DB 의 회원·가족 데이터가 비워지므로,
     # 보존해야 할 데이터가 있는 DB 를 가리키게 두면 안 된다.
-    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
