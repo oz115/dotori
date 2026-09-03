@@ -1,6 +1,7 @@
 package com.bana.dotori.wallet.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -42,6 +43,8 @@ class PointWalletApiSecurityTest {
 
 	private static final String CHARGE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/charge";
 	private static final String GRANT_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/grant";
+	private static final String BALANCE_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/balance";
+	private static final String TX_URL = "/api/v1/families/{familyId}/children/{childId}/wallet/transactions";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -71,6 +74,117 @@ class PointWalletApiSecurityTest {
 	@AfterEach
 	void tearDown() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
+	}
+
+	@Test
+	@DisplayName("보호_미인증_거래내역조회는_401이다")
+	void 보호_미인증_거래내역조회는_401이다() throws Exception {
+		mockMvc.perform(get(TX_URL, familyId, childId))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("보호_아이가_남의_거래내역을_조회하면_403이다")
+	void 보호_아이가_남의_거래내역을_조회하면_403이다() throws Exception {
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-tx");
+		WalletTestFixture.addFamilyMember(jdbcTemplate, familyId, otherChildId);
+		pointWalletRepository.save(PointWallet.openWithBalance(otherChildId, 9_999));
+
+		// 잔액이 막혔는데 거래내역으로 같은 정보가 새어 나가면 안 된다.
+		mockMvc.perform(get(TX_URL, familyId, otherChildId)
+						.header("Authorization", bearer(childId, UserRole.CHILD)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_다른_가족_부모가_거래내역을_조회하면_403이다")
+	void 보호_다른_가족_부모가_거래내역을_조회하면_403이다() throws Exception {
+		Integer otherParentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-other-tx");
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-family-tx");
+		WalletTestFixture.insertFamilyWithChild(jdbcTemplate, otherParentId, otherChildId);
+
+		mockMvc.perform(get(TX_URL, familyId, childId)
+						.header("Authorization", bearer(otherParentId, UserRole.PARENT)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_가족_부모는_자녀_거래내역을_조회한다")
+	void 보호_가족_부모는_자녀_거래내역을_조회한다() throws Exception {
+		mockMvc.perform(get(TX_URL, familyId, childId)
+						.header("Authorization", bearer(parentId, UserRole.PARENT)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.balance").value(5_000));
+	}
+
+	@Test
+	@DisplayName("보호_미인증_잔액조회는_401이다")
+	void 보호_미인증_잔액조회는_401이다() throws Exception {
+		mockMvc.perform(get(BALANCE_URL, familyId, childId))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("보호_아이는_본인_잔액을_조회한다")
+	void 보호_아이는_본인_잔액을_조회한다() throws Exception {
+		mockMvc.perform(get(BALANCE_URL, familyId, childId)
+						.header("Authorization", bearer(childId, UserRole.CHILD)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.childId").value(childId))
+				.andExpect(jsonPath("$.balance").value(5_000));
+	}
+
+	@Test
+	@DisplayName("보호_가족_부모는_자녀_잔액을_조회한다")
+	void 보호_가족_부모는_자녀_잔액을_조회한다() throws Exception {
+		mockMvc.perform(get(BALANCE_URL, familyId, childId)
+						.header("Authorization", bearer(parentId, UserRole.PARENT)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.balance").value(5_000));
+	}
+
+	@Test
+	@DisplayName("보호_아이가_남의_잔액을_조회하면_403이다")
+	void 보호_아이가_남의_잔액을_조회하면_403이다() throws Exception {
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-balance");
+		WalletTestFixture.addFamilyMember(jdbcTemplate, familyId, otherChildId);
+		pointWalletRepository.save(PointWallet.openWithBalance(otherChildId, 9_999));
+
+		// 같은 가족 아이여도 서로의 잔액은 볼 수 없다. 부모만 볼 수 있다.
+		mockMvc.perform(get(BALANCE_URL, familyId, otherChildId)
+						.header("Authorization", bearer(childId, UserRole.CHILD)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_다른_가족_부모가_잔액을_조회하면_403이다")
+	void 보호_다른_가족_부모가_잔액을_조회하면_403이다() throws Exception {
+		Integer otherParentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-other-balance");
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-family-balance");
+		WalletTestFixture.insertFamilyWithChild(jdbcTemplate, otherParentId, otherChildId);
+
+		mockMvc.perform(get(BALANCE_URL, familyId, childId)
+						.header("Authorization", bearer(otherParentId, UserRole.PARENT)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
+	}
+
+	@Test
+	@DisplayName("보호_남의_가족_번호를_끼워_넣어도_403이다")
+	void 보호_남의_가족_번호를_끼워_넣어도_403이다() throws Exception {
+		Integer otherParentId = WalletTestFixture.insertParent(jdbcTemplate, "parent-foreign-family");
+		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-foreign-family");
+		Integer otherFamilyId = WalletTestFixture.insertFamilyWithChild(jdbcTemplate, otherParentId, otherChildId);
+
+		// 본인 지갑이지만 경로의 familyId 가 남의 가족이다.
+		// 통과시키면 200/403 차이로 남의 가족 구성을 추측할 수 있다.
+		mockMvc.perform(get(BALANCE_URL, otherFamilyId, childId)
+						.header("Authorization", bearer(childId, UserRole.CHILD)))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("WALLET_ACCESS_DENIED"));
 	}
 
 	@Test

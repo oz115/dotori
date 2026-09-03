@@ -1,11 +1,76 @@
+# 모든 테스트의 설정. 테스트 클래스패스가 메인 application.yaml 보다 앞서므로
+# 이 파일 하나가 테스트 전체의 설정이 된다.
+#
+# 팀 결정: 테스트는 H2 가 아니라 애플리케이션과 같은 PostgreSQL 을 쓴다.
+# H2 의 PostgreSQL MODE 는 아래를 그대로 흉내 내지 못해, 통과해도 배포에서 깨진다.
+#   - SELECT ... FOR UPDATE 행 잠금 (동시 차감 검증)
+#   - TIMESTAMPTZ 와 KST 환산 (거래내역 기간 경계)
+#   - 커서 페이징의 정렬·인덱스 거동
+#   - CHECK·부분 유니크 제약의 실제 동작
+#
+# 일부 테스트에 붙어 있는 @ActiveProfiles("test") 는 통합 테스트를 표시하는 관례로
+# 남겨 두었다. 별도의 application-test.yaml 은 없고 전부 이 파일을 쓴다.
+#
+# 실행하려면 DB 로 가는 터널이 필요하다: ssh -N A505
 spring:
+  config:
+    # 접속 정보를 .env 에서 읽는다. 이 파일이 메인 application.yaml 을 가려서
+    # 그쪽 import 가 적용되지 않으므로 여기 다시 적는다.
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    # 애플리케이션과 같은 DB 를 쓴다. 테스트 전용 DB 를 따로 관리하지 않는다.
+    #
+    # 경고: WalletTestFixture.cleanUp() 이 users·families·family_members 까지 DELETE 한다.
+    # 테스트를 돌리면 이 DB 의 회원·가족 데이터가 비워지므로,
+    # 보존해야 할 데이터가 있는 DB 를 가리키게 두면 안 된다.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      # 동시성 테스트가 스레드 수만큼 커넥션을 동시에 요구한다.
+      # createWalletIfAbsent 가 REQUIRES_NEW 로 커넥션을 한 개 더 쓰는 것도 감안한 값이다.
+      maximum-pool-size: 24
+
+      # 스프링이 테스트 컨텍스트를 여러 개 캐싱하고, 캐시된 컨텍스트는 끝까지 살아 있다.
+      # 컨텍스트마다 풀을 24개씩 붙잡고 있으면 서버 max_connections 를 넘겨
+      # 뒤에 뜨는 컨텍스트가 "too many clients already" 로 통째로 실패한다.
+      # 유휴 커넥션을 0까지 반납시켜, 실제로 일하는 컨텍스트만 커넥션을 쓰게 한다.
+      minimum-idle: 0
+      idle-timeout: 10000
+      max-lifetime: 60000
+
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    database-platform: org.hibernate.dialect.H2Dialect
+      # 스키마는 아래 schema.sql 이 책임진다. 테스트가 엔티티로 DDL 을 만들지 않게 한다.
+      ddl-auto: none
     open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+
+  sql:
+    init:
+      # schema.sql 은 CREATE TABLE IF NOT EXISTS 와 제약조건 재적용으로만 이루어져 있어
+      # 매번 실행해도 안전하다. 테이블을 지우지 않는다.
+      mode: always
+      schema-locations: classpath:schema.sql
+
+jwt:
+  # 테스트 전용 서명 키. 운영 키가 아니고 이 저장소 밖으로 나가지 않는다.
+  # 여기 고정해 두는 이유는 컨텍스트를 띄우는 테스트가 JwtTokenProvider 를 함께 올리기 때문이다.
+  # 메인 application.yaml 의 ${JWT_SECRET} 에 기대면 각자 .env 에 값을 채워 넣어야만
+  # 테스트가 도는데, 그러면 CI 나 새로 받은 사람에게서 전부 컨텍스트 로딩 실패로 깨진다.
+  secret: Kfc5n4etu9b908ckpMRCOJ/3qahjHYwXp0wwFX0BXuUH9hVaubZyTXxc0qYr6Q+S
+  access-token-validity-seconds: 1800
+  refresh-token-validity-seconds: 1209600
+  cookie-secure: false
+
+logging:
+  level:
+    com.bana.dotori: DEBUG

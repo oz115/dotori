@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS "families" (
 	"created_by"	INTEGER	NOT NULL,
 	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	"updated_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	"deleted_at"	TIMESTAMPTZ	NULL,
 	CONSTRAINT "PK_FAMILIES" PRIMARY KEY ("family_id"),
 	CONSTRAINT "FK_FAMILIES_CREATED_BY" FOREIGN KEY ("created_by") REFERENCES "users" ("user_id")
 );
@@ -55,10 +56,16 @@ CREATE TABLE IF NOT EXISTS "family_members" (
 	"family_id"	INTEGER	NOT NULL,
 	"user_id"	INTEGER	NOT NULL,
 	"joined_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	"deleted_at"	TIMESTAMPTZ	NULL,
 	CONSTRAINT "PK_FAMILY_MEMBERS" PRIMARY KEY ("family_member_id"),
 	CONSTRAINT "FK_FAMILY_MEMBERS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id"),
 	CONSTRAINT "FK_FAMILY_MEMBERS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id")
 );
+
+/* 가족 도메인(FAM)이 소프트 삭제를 도입해 deleted_at 이 생겼다.
+   CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 컬럼을 붙이지 않으므로 따로 채워 준다. */
+ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
+ALTER TABLE "family_members" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
 
 
 CREATE TABLE IF NOT EXISTS "family_codes" (
@@ -143,3 +150,10 @@ ALTER TABLE "point_transactions"
 ALTER TABLE "point_transactions"
 	ADD CONSTRAINT "uk_point_transactions_wallet_idempotency_key"
 	UNIQUE ("wallet_id", "idempotency_key");
+
+/* WLT-06 거래내역 조회용 인덱스.
+   커서 페이징은 정렬 키와 같은 순서의 인덱스가 있어야 "이 지점 이후"부터
+   limit 만큼만 읽고 멈춘다. 없으면 지갑의 거래를 전부 읽어 정렬한 뒤 잘라낸다.
+   방향은 ASC 하나만 만든다. PostgreSQL 은 역방향 스캔도 하므로 최신순도 이 인덱스를 쓴다. */
+CREATE INDEX IF NOT EXISTS "ix_point_transactions_wallet_created_at"
+	ON "point_transactions" ("wallet_id", "created_at", "point_transaction_id");

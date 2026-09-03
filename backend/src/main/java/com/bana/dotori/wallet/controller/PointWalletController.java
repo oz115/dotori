@@ -1,14 +1,19 @@
 package com.bana.dotori.wallet.controller;
 
+import java.time.LocalDate;
+
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,10 +21,14 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.dto.request.PointChargeRequest;
 import com.bana.dotori.wallet.dto.request.PointGrantRequest;
+import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
+import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
 import com.bana.dotori.wallet.dto.response.PointTransactionResponse;
+import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
+import com.bana.dotori.wallet.service.PointWalletQueryService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +38,9 @@ import lombok.RequiredArgsConstructor;
  * <p>충전은 로그인한 아이 본인만, 지급은 그 가족의 부모만 호출할 수 있다.
  * 경로에 childId 가 드러나 있어 검증이 없으면 남의 지갑을 조작할 수 있으므로,
  * 서비스로 넘기기 전에 컨트롤러에서 호출자를 먼저 확인한다.
+ *
+ * <p>조회(WLT-04)는 규칙이 다르다. 아이 본인뿐 아니라 그 가족의 부모도 볼 수 있어서,
+ * 컨트롤러에서 본인 여부를 따지지 않고 판정을 {@link PointWalletQueryService} 에 맡긴다.
  */
 @RestController
 @RequiredArgsConstructor
@@ -37,6 +49,58 @@ public class PointWalletController {
 
 	private final PointChargeService pointChargeService;
 	private final PointGrantService pointGrantService;
+	private final PointWalletQueryService pointWalletQueryService;
+
+	/**
+	 * WLT-04 보유 포인트 조회.
+	 *
+	 * <p>아이는 본인 지갑을, 부모는 같은 가족 자녀의 지갑을 조회할 수 있다.
+	 * 지갑이 아직 없어도 오류가 아니라 잔액 0으로 응답한다.
+	 */
+	@GetMapping("/balance")
+	public PointBalanceResponse getBalance(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId) {
+
+		return pointWalletQueryService.getBalance(familyId, childId, loginUserId);
+	}
+
+	/**
+	 * WLT-06 포인트 거래내역 조회.
+	 *
+	 * <p>조회 권한은 잔액과 같다. 아이는 본인, 부모는 같은 가족 자녀다.
+	 *
+	 * <p>{@code type} 과 {@code sort} 는 enum 으로 받는다. 지원하지 않는 값이 오면
+	 * 스프링이 바인딩 단계에서 걸러 400 으로 응답하므로, 서비스까지 내려가지 않는다.
+	 *
+	 * <p><b>무한 스크롤은 커서로 넘긴다.</b> 첫 요청은 {@code cursor} 없이 부르고,
+	 * 이후에는 응답의 {@code page.nextCursor} 를 그대로 실어 보낸다.
+	 * 페이지 번호를 쓰면 스크롤 중에 새 거래가 앞에 끼어들었을 때 전체가 밀려
+	 * 이미 본 항목이 다시 나온다.
+	 *
+	 * @param startDate 조회 시작일(포함). 생략하면 제한 없음
+	 * @param endDate   조회 종료일(포함). 생략하면 제한 없음
+	 * @param type      거래 사유 필터. 생략하면 전체
+	 * @param sort      거래 시각 정렬. 기본은 최신순(DESC)
+	 * @param cursor    이전 응답의 nextCursor. 생략하면 첫 묶음
+	 * @param size      한 번에 가져올 건수. 기본 20, 최대 100
+	 */
+	@GetMapping("/transactions")
+	public PointTransactionHistoryResponse getTransactions(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@RequestParam(required = false) LocalDate startDate,
+			@RequestParam(required = false) LocalDate endDate,
+			@RequestParam(required = false) PointTransactionReason type,
+			@RequestParam(defaultValue = "DESC") Sort.Direction sort,
+			@RequestParam(required = false) String cursor,
+			@RequestParam(defaultValue = "20") int size) {
+
+		return pointWalletQueryService.getTransactions(
+				familyId, childId, loginUserId, startDate, endDate, type, sort, cursor, size);
+	}
 
 	/**
 	 * WLT-01 포인트 충전. 아이가 실제 금액을 부모 계좌로 보내고 같은 금액을 포인트로 받는다.
