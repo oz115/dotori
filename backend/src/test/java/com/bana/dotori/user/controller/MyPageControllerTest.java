@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,6 +35,7 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
@@ -54,6 +56,7 @@ import com.bana.dotori.user.service.UserService;
 class MyPageControllerTest {
 
 	private static final String USER_URL = "/api/v1/users/{userId}";
+	private static final String PASSWORD_URL = "/api/v1/users/{userId}/password";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -171,6 +174,67 @@ class MyPageControllerTest {
 		mockMvc.perform(patch(USER_URL, 2).with(loginAs(1, "PARENT"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"name\": \"김도토리\"}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("비밀번호 변경에 성공하면 본문 없이 204 를 돌려준다")
+	void changePassword_success() throws Exception {
+		mockMvc.perform(patch(PASSWORD_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\": \"P@ssw0rd!\", \"newPassword\": \"NewP@ssw0rd!\"}"))
+			.andExpect(status().isNoContent())
+			.andExpect(content().string(""));
+	}
+
+	@Test
+	@DisplayName("현재 비밀번호가 틀리면 401 과 PASSWORD_MISMATCH 에러를 돌려준다")
+	void changePassword_mismatch() throws Exception {
+		willThrow(new BusinessException(ErrorCode.PASSWORD_MISMATCH))
+			.given(userService).changePassword(eq(1), eq(1), any(PasswordChangeRequest.class));
+
+		mockMvc.perform(patch(PASSWORD_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\": \"wrong\", \"newPassword\": \"NewP@ssw0rd!\"}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("PASSWORD_MISMATCH"));
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 정책에 어긋나면 400 과 INVALID_PASSWORD_FORMAT 에러를 돌려준다")
+	void changePassword_invalidFormat() throws Exception {
+		willThrow(new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT))
+			.given(userService).changePassword(eq(1), eq(1), any(PasswordChangeRequest.class));
+
+		mockMvc.perform(patch(PASSWORD_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\": \"P@ssw0rd!\", \"newPassword\": \"short\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_PASSWORD_FORMAT"));
+	}
+
+	@Test
+	@DisplayName("currentPassword 가 없으면 서비스를 호출하지 않고 400 으로 막는다")
+	void changePassword_missingCurrentPassword() throws Exception {
+		mockMvc.perform(patch(PASSWORD_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"newPassword\": \"NewP@ssw0rd!\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("남의 비밀번호를 바꾸려 하면 403 과 FORBIDDEN 에러를 돌려준다")
+	void changePassword_forbidden() throws Exception {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.given(userService).changePassword(eq(1), eq(2), any(PasswordChangeRequest.class));
+
+		mockMvc.perform(patch(PASSWORD_URL, 2).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"currentPassword\": \"P@ssw0rd!\", \"newPassword\": \"NewP@ssw0rd!\"}"))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}

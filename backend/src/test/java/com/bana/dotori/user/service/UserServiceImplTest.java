@@ -24,8 +24,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.auth.service.AuthService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.dto.UserInfoResponse;
@@ -44,6 +46,9 @@ class UserServiceImplTest {
 
 	@Mock
 	private PasswordEncoder passwordEncoder;
+
+	@Mock
+	private AuthService authService;
 
 	@Spy
 	private UserMapper userMapper;
@@ -263,6 +268,90 @@ class UserServiceImplTest {
 		given(userRepository.findById(1)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> userService.updateUserInfo(1, 1, new UserUpdateRequest("김도토리")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("비밀번호를 바꾸면 인코딩해 저장하고 기존 Refresh Token 을 모두 폐기한다")
+	void changePassword_success() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+		given(passwordEncoder.encode("NewP@ssw0rd!")).willReturn("encoded-new-password");
+
+		userService.changePassword(1, 1, new PasswordChangeRequest("P@ssw0rd!", "NewP@ssw0rd!"));
+
+		assertThat(stored.getPassword()).isEqualTo("encoded-new-password");
+		verify(authService).revokeAllRefreshTokens(1);
+	}
+
+	@Test
+	@DisplayName("현재 비밀번호가 틀리면 PASSWORD_MISMATCH 예외가 나고 토큰도 유지된다")
+	void changePassword_currentPasswordMismatch() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("wrong-password", "encoded-password")).willReturn(false);
+
+		assertThatThrownBy(() -> userService.changePassword(1, 1,
+			new PasswordChangeRequest("wrong-password", "NewP@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.PASSWORD_MISMATCH);
+
+		assertThat(stored.getPassword()).isEqualTo("encoded-password");
+		verify(authService, never()).revokeAllRefreshTokens(any());
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 8자 미만이면 INVALID_PASSWORD_FORMAT 예외가 발생한다")
+	void changePassword_tooShortNewPassword() {
+		given(userRepository.findById(1)).willReturn(Optional.of(user(1)));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+
+		assertThatThrownBy(() -> userService.changePassword(1, 1,
+			new PasswordChangeRequest("P@ssw0rd!", "short")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_PASSWORD_FORMAT);
+
+		verify(authService, never()).revokeAllRefreshTokens(any());
+	}
+
+	@Test
+	@DisplayName("새 비밀번호가 공백뿐이면 길이를 채워도 INVALID_PASSWORD_FORMAT 예외가 발생한다")
+	void changePassword_blankNewPassword() {
+		given(userRepository.findById(1)).willReturn(Optional.of(user(1)));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+
+		assertThatThrownBy(() -> userService.changePassword(1, 1,
+			new PasswordChangeRequest("P@ssw0rd!", "          ")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_PASSWORD_FORMAT);
+	}
+
+	@Test
+	@DisplayName("남의 비밀번호를 바꾸려 하면 조회 자체를 하지 않고 FORBIDDEN 예외가 발생한다")
+	void changePassword_otherUserIsForbidden() {
+		assertThatThrownBy(() -> userService.changePassword(1, 2,
+			new PasswordChangeRequest("P@ssw0rd!", "NewP@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(userRepository, never()).findById(any());
+		verify(authService, never()).revokeAllRefreshTokens(any());
+	}
+
+	@Test
+	@DisplayName("본인 계정인데 회원이 없으면 NOT_FOUND 예외가 발생한다")
+	void changePassword_notFound() {
+		given(userRepository.findById(1)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userService.changePassword(1, 1,
+			new PasswordChangeRequest("P@ssw0rd!", "NewP@ssw0rd!")))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.NOT_FOUND);
