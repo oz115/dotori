@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -58,7 +59,7 @@ class AccountControllerTest {
 
 	private static final String AUTH_URL = "/api/v1/accounts/auth";
 	private static final String VERIFY_URL = "/api/v1/accounts/auth/verify";
-	private static final String TRANSACTIONS_URL = "/api/v1/accounts/1/transactions";
+	private static final String TRANSACTIONS_URL = "/api/v1/accounts/transactions";
 	private static final String ACCESS_TOKEN = "valid-access-token";
 
 	private static final String AUTH_BODY = """
@@ -237,7 +238,7 @@ class AccountControllerTest {
 		authenticateAs(1);
 		AccountTransactionResponse transaction = new AccountTransactionResponse("61", TransactionDirection.WITHDRAWAL,
 			"출금(이체)", 10000000, 89900000, "(수시입출금) : 출금(이체)", OffsetDateTime.now());
-		given(accountService.getTransactionHistory(eq(1), eq(1L), isNull(), isNull(), isNull()))
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
 			.willReturn(new AccountTransactionHistoryResponse(List.of(transaction), "61", true));
 
 		mockMvc.perform(get(TRANSACTIONS_URL)
@@ -253,30 +254,74 @@ class AccountControllerTest {
 	@DisplayName("거래내역 조회 시 cursor/size 파라미터를 그대로 서비스에 전달한다")
 	void getTransactionHistory_withCursorAndSize() throws Exception {
 		authenticateAs(1);
-		given(accountService.getTransactionHistory(eq(1), eq(1L), eq("60"), eq(10), anyString()))
-			.willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), eq("60"), eq(10),
+			anyString())).willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
 
 		mockMvc.perform(get(TRANSACTIONS_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
 				.param("cursor", "60")
 				.param("size", "10")
-				.param("transactionType", "A"))
+				.param("transactionType", "DEPOSIT"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.transactions").isEmpty())
 			.andExpect(jsonPath("$.hasNext").value(false));
 	}
 
 	@Test
-	@DisplayName("소유하지 않은 계좌면 404와 NOT_FOUND 에러를 반환한다")
-	void getTransactionHistory_notOwned() throws Exception {
+	@DisplayName("거래내역 조회 시 period 파라미터를 그대로 서비스에 전달한다")
+	void getTransactionHistory_withPeriod() throws Exception {
 		authenticateAs(1);
-		given(accountService.getTransactionHistory(eq(1), eq(1L), isNull(), isNull(), isNull()))
-			.willThrow(new BusinessException(ErrorCode.NOT_FOUND));
+		given(accountService.getTransactionHistory(eq(1), eq("WEEK"), isNull(), isNull(), isNull(), isNull(),
+			isNull())).willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("period", "WEEK"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 시 startDate/endDate 파라미터를 LocalDate로 바인딩해 서비스에 전달한다")
+	void getTransactionHistory_withDateRange() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), eq(LocalDate.of(2024, 1, 1)),
+			eq(LocalDate.of(2024, 3, 1)), isNull(), isNull(), isNull()))
+			.willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("startDate", "2024-01-01")
+				.param("endDate", "2024-03-01"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("조회 기간이 3개월을 초과하면 400과 INVALID_REQUEST 에러를 반환한다")
+	void getTransactionHistory_기간초과() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), eq(LocalDate.of(2024, 1, 1)),
+			eq(LocalDate.of(2024, 5, 1)), isNull(), isNull(), isNull()))
+			.willThrow(new BusinessException(ErrorCode.INVALID_REQUEST));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("startDate", "2024-01-01")
+				.param("endDate", "2024-05-01"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("연동된 계좌가 없으면 404와 ACCOUNT_NOT_LINKED 에러를 반환한다")
+	void getTransactionHistory_notLinked() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+			.willThrow(new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
 
 		mockMvc.perform(get(TRANSACTIONS_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
 			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+			.andExpect(jsonPath("$.code").value("ACCOUNT_NOT_LINKED"));
 	}
 
 	@Test

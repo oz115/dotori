@@ -10,6 +10,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -266,14 +268,15 @@ class AccountServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("getTransactionHistory_소유하지_않은_계좌면_NOT_FOUND_예외가_발생한다")
-	void getTransactionHistory_소유하지않은계좌() {
-		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.empty());
+	@DisplayName("getTransactionHistory_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생한다")
+	void getTransactionHistory_연동계좌없음() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, 1L, null, null, null))
+		assertThatThrownBy(
+			() -> accountService.getTransactionHistory(USER_ID, null, null, null, null, null, null))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
-			.isEqualTo(ErrorCode.NOT_FOUND);
+			.isEqualTo(ErrorCode.ACCOUNT_NOT_LINKED);
 
 		then(financeClient).shouldHaveNoInteractions();
 	}
@@ -281,7 +284,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("getTransactionHistory_커서가_없으면_최신_거래부터_size만큼_반환하고_다음_커서를_내려준다")
 	void getTransactionHistory_첫페이지() {
-		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
 		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
 			.totalCount("3")
 			.list(List.of(
@@ -293,7 +296,7 @@ class AccountServiceImplTest {
 			eq("A"), eq("DESC"))).willReturn(rec);
 
 		AccountTransactionHistoryResponse response =
-			accountService.getTransactionHistory(USER_ID, 1L, null, 2, null);
+			accountService.getTransactionHistory(USER_ID, null, null, null, null, 2, null);
 
 		assertThat(response.transactions()).hasSize(2);
 		assertThat(response.transactions().get(0).transactionUniqueNo()).isEqualTo("61");
@@ -306,7 +309,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("getTransactionHistory_커서_이후_거래가_size보다_적으면_hasNext가_false다")
 	void getTransactionHistory_마지막페이지() {
-		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
 		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
 			.totalCount("3")
 			.list(List.of(
@@ -318,7 +321,7 @@ class AccountServiceImplTest {
 			eq("A"), eq("DESC"))).willReturn(rec);
 
 		AccountTransactionHistoryResponse response =
-			accountService.getTransactionHistory(USER_ID, 1L, "60", 2, null);
+			accountService.getTransactionHistory(USER_ID, null, null, null, "60", 2, null);
 
 		assertThat(response.transactions()).hasSize(1);
 		assertThat(response.transactions().get(0).transactionUniqueNo()).isEqualTo("59");
@@ -330,14 +333,173 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("getTransactionHistory_금융망_오류시_FINANCE_API_ERROR_예외가_발생한다")
 	void getTransactionHistory_금융망오류() {
-		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
 		willThrow(new FinanceApiException("A1003", "계좌번호가 유효하지 않습니다."))
 			.given(financeClient).inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(),
 				anyString(), eq("A"), eq("DESC"));
 
-		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, 1L, null, null, null))
+		assertThatThrownBy(
+			() -> accountService.getTransactionHistory(USER_ID, null, null, null, null, null, null))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FINANCE_API_ERROR);
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_period가_WEEK이면_최근_1주_구간으로_조회한다")
+	void getTransactionHistory_period_WEEK() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("0")
+			.list(List.of())
+			.build();
+		LocalDate today = LocalDate.now();
+		String expectedStart = today.minusWeeks(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+		String expectedEnd = today.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), eq(expectedStart),
+			eq(expectedEnd), eq("A"), eq("DESC"))).willReturn(rec);
+
+		accountService.getTransactionHistory(USER_ID, "WEEK", null, null, null, null, null);
+
+		then(financeClient).should()
+			.inquireTransactionHistoryList(USER_KEY, ACCOUNT_NO, expectedStart, expectedEnd, "A", "DESC");
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_startDate와_endDate를_지정하면_해당_절대_기간으로_조회한다")
+	void getTransactionHistory_절대기간() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("0")
+			.list(List.of())
+			.build();
+		LocalDate startDate = LocalDate.of(2024, 1, 1);
+		LocalDate endDate = LocalDate.of(2024, 3, 1);
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), eq("20240101"),
+			eq("20240301"), eq("A"), eq("DESC"))).willReturn(rec);
+
+		accountService.getTransactionHistory(USER_ID, null, startDate, endDate, null, null, null);
+
+		then(financeClient).should()
+			.inquireTransactionHistoryList(USER_KEY, ACCOUNT_NO, "20240101", "20240301", "A", "DESC");
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_period와_날짜를_함께_지정하면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_period와날짜동시지정() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, "WEEK",
+			LocalDate.of(2024, 1, 1), null, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_startDate만_지정하면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_startDate만지정() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, null,
+			LocalDate.of(2024, 1, 1), null, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_endDate가_startDate보다_이전이면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_기간역전() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, null,
+			LocalDate.of(2024, 3, 1), LocalDate.of(2024, 1, 1), null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_조회기간이_3개월을_초과하면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_최대기간초과() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, null,
+			LocalDate.of(2024, 1, 1), LocalDate.of(2024, 5, 1), null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_유효하지_않은_period값이면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_잘못된period() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(
+			() -> accountService.getTransactionHistory(USER_ID, "YEAR", null, null, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_transactionType이_DEPOSIT이면_금융망에_M코드로_요청한다")
+	void getTransactionHistory_입금필터() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("0")
+			.list(List.of())
+			.build();
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(),
+			eq("M"), eq("DESC"))).willReturn(rec);
+
+		accountService.getTransactionHistory(USER_ID, null, null, null, null, null, "DEPOSIT");
+
+		then(financeClient).should()
+			.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(), eq("M"),
+				eq("DESC"));
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_transactionType이_WITHDRAWAL이면_금융망에_D코드로_요청한다")
+	void getTransactionHistory_출금필터() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("0")
+			.list(List.of())
+			.build();
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(),
+			eq("D"), eq("DESC"))).willReturn(rec);
+
+		accountService.getTransactionHistory(USER_ID, null, null, null, null, null, "WITHDRAWAL");
+
+		then(financeClient).should()
+			.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(), eq("D"),
+				eq("DESC"));
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_유효하지_않은_transactionType값이면_INVALID_REQUEST_예외가_발생한다")
+	void getTransactionHistory_잘못된transactionType() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, null, null, null, null, null, "ALL"))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
 	}
 }
