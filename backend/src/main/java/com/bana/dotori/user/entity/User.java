@@ -72,4 +72,18 @@ public class User {
 		this.role = role;
 		this.emailVerified = false;
 	}
+
+	/**
+	 * MYPAGE-02 회원 정보 수정. 지금 바꿀 수 있는 값은 이름뿐이다.
+	 */
+	public void changeName(String name) {
+		this.name = name;
+	}
+
+	/**
+	 * MYPAGE-04 비밀번호 변경. 인코딩된 값을 받는다.
+	 */
+	public void changePassword(String encodedPassword) {
+		this.password = encodedPassword;
+	}
 }

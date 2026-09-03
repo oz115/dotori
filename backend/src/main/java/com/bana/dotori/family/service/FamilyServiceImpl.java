@@ -3,11 +3,13 @@ package com.bana.dotori.family.service;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.dto.ConnectedChild;
 import com.bana.dotori.family.dto.FamilyConnectRequest;
 import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
@@ -198,5 +200,14 @@ public class FamilyServiceImpl implements FamilyService {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
 		}
 		return family;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ConnectedChild> findConnectedChildren(Integer parentUserId) {
+		return familyMemberRepository.findConnectedChildren(parentUserId, UserRole.CHILD).stream()
+			.map(member -> new ConnectedChild(
+				member.getUser().getId(), member.getUser().getName(), member.getJoinedAt()))
+			.toList();
 	}
 }

@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,7 +19,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.family.dto.ConnectedChild;
 import com.bana.dotori.family.dto.FamilyConnectRequest;
 import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
@@ -461,5 +464,22 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("연결된 자녀 조회는 구성원을 자녀 요약으로 옮겨 담는다")
+	void findConnectedChildren_mapsToSummary() {
+		User child = User.builder()
+			.loginId("child1").password("encoded").name("김아이").email("child1@dotori.test")
+			.role(UserRole.CHILD).build();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember member = FamilyMember.builder().family(null).user(child).build();
+		OffsetDateTime joinedAt = OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9));
+		ReflectionTestUtils.setField(member, "joinedAt", joinedAt);
+		given(familyMemberRepository.findConnectedChildren(1, UserRole.CHILD)).willReturn(List.of(member));
+
+		List<ConnectedChild> children = familyService.findConnectedChildren(1);
+
+		assertThat(children).containsExactly(new ConnectedChild(2, "김아이", joinedAt));
 	}
 }
