@@ -1,13 +1,16 @@
 package com.bana.dotori.user.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
@@ -54,5 +57,20 @@ public class MyPageController {
 			@Valid @RequestBody UserUpdateRequest request) {
 
 		return userService.updateUserInfo(loginUserId, userId, request);
+	}
+
+	/**
+	 * MYPAGE-04 비밀번호 변경.
+	 *
+	 * <p>성공하면 본문 없이 204 만 돌려준다.
+	 */
+	@PatchMapping("/{userId}/password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void changePassword(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer userId,
+			@Valid @RequestBody PasswordChangeRequest request) {
+
+		userService.changePassword(loginUserId, userId, request);
 	}
 }
