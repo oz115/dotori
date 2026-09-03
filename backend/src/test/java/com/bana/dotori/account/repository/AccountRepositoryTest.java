@@ -8,13 +8,22 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 
+/**
+ * {@code @DataJpaTest} 는 기본적으로 데이터소스를 임베디드 DB 로 갈아끼운다.
+ * 팀이 테스트를 실제 PostgreSQL 로 돌리기로 해 임베디드 드라이버가 클래스패스에 없으므로,
+ * 갈아끼우기를 끄고 application.yaml 의 접속 정보를 그대로 쓴다.
+ */
 @DataJpaTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class AccountRepositoryTest {
 
 	@Autowired
