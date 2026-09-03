@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
@@ -72,5 +73,18 @@ public class MyPageController {
 			@Valid @RequestBody PasswordChangeRequest request) {
 
 		userService.changePassword(loginUserId, userId, request);
+	}
+
+	/**
+	 * MYPAGE-06 연결된 자녀 조회.
+	 *
+	 * <p>부모 계정만 볼 수 있고, 자녀가 없으면 빈 배열을 돌려준다.
+	 */
+	@GetMapping("/{userId}/children")
+	public ConnectedChildrenResponse getConnectedChildren(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer userId) {
+
+		return userService.getConnectedChildren(loginUserId, userId);
 	}
 }

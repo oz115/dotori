@@ -1,5 +1,6 @@
 package com.bana.dotori.user.service;
 
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
@@ -36,4 +37,12 @@ public interface UserService {
 	 * @param targetUserId 경로에서 지정한 변경 대상
 	 */
 	void changePassword(Integer loginUserId, Integer targetUserId, PasswordChangeRequest request);
+
+	/**
+	 * MYPAGE-06 연결된 자녀 조회. 본인 계정의, 부모 역할일 때만 볼 수 있다.
+	 *
+	 * @param loginUserId  인증된 요청자
+	 * @param targetUserId 경로에서 지정한 조회 대상
+	 */
+	ConnectedChildrenResponse getConnectedChildren(Integer loginUserId, Integer targetUserId);
 }

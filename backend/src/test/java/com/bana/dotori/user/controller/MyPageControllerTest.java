@@ -35,6 +35,8 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.user.dto.ConnectedChildResponse;
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
@@ -57,6 +59,7 @@ class MyPageControllerTest {
 
 	private static final String USER_URL = "/api/v1/users/{userId}";
 	private static final String PASSWORD_URL = "/api/v1/users/{userId}/password";
+	private static final String CHILDREN_URL = "/api/v1/users/{userId}/children";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -235,6 +238,45 @@ class MyPageControllerTest {
 		mockMvc.perform(patch(PASSWORD_URL, 2).with(loginAs(1, "PARENT"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"currentPassword\": \"P@ssw0rd!\", \"newPassword\": \"NewP@ssw0rd!\"}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("연결된 자녀 조회에 성공하면 200 과 명세 형식의 응답을 돌려준다")
+	void getConnectedChildren_success() throws Exception {
+		given(userService.getConnectedChildren(1, 1)).willReturn(new ConnectedChildrenResponse(List.of(
+			new ConnectedChildResponse(2, "김아이",
+				OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9))))));
+
+		mockMvc.perform(get(CHILDREN_URL, 1).with(loginAs(1, "PARENT")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.children").isArray())
+			.andExpect(jsonPath("$.children[0].userId").value(2))
+			.andExpect(jsonPath("$.children[0].name").value("김아이"))
+			.andExpect(jsonPath("$.children[0].joinedAt").exists())
+			// 프로필 이미지는 쓰지 않기로 했으므로 응답에 남아 있으면 안 된다.
+			.andExpect(jsonPath("$.children[0].profileImageUrl").doesNotExist());
+	}
+
+	@Test
+	@DisplayName("연결된 자녀가 없으면 200 과 빈 배열을 돌려준다")
+	void getConnectedChildren_emptyList() throws Exception {
+		given(userService.getConnectedChildren(1, 1)).willReturn(new ConnectedChildrenResponse(List.of()));
+
+		mockMvc.perform(get(CHILDREN_URL, 1).with(loginAs(1, "PARENT")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.children").isArray())
+			.andExpect(jsonPath("$.children").isEmpty());
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 403 과 FORBIDDEN 에러를 돌려준다")
+	void getConnectedChildren_forbidden() throws Exception {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.given(userService).getConnectedChildren(1, 1);
+
+		mockMvc.perform(get(CHILDREN_URL, 1).with(loginAs(1, "CHILD")))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
