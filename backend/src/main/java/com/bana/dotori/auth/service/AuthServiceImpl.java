@@ -75,6 +75,13 @@ public class AuthServiceImpl implements AuthService {
 		stored.revoke();
 	}
 
+	@Override
+	@Transactional
+	public void revokeAllRefreshTokens(Integer userId) {
+		// 폐기 시각을 찍는 규칙은 엔티티가 갖고 있다. 로그아웃·재발급과 같은 경로를 타게 둔다.
+		refreshTokenRepository.findAllByUser_IdAndRevokedAtIsNull(userId).forEach(RefreshToken::revoke);
+	}
+
 	private RefreshToken findUsableToken(String refreshToken, ErrorCode errorCode) {
 		try {
 			jwtTokenProvider.parseClaims(refreshToken);
