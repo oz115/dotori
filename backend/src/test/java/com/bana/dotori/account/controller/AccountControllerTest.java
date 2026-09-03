@@ -82,14 +82,16 @@ class AccountControllerTest {
 	void requestAuth_success() throws Exception {
 		authenticateAs(1);
 		given(accountService.requestAuth(eq(1), any(AccountAuthRequest.class)))
-			.willReturn(new AccountAuthResponse("0011214764051239"));
+			.willReturn(new AccountAuthResponse("0011214764051239", "도토리", 180L));
 
 		mockMvc.perform(post(AUTH_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(AUTH_BODY))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.accountNo").value("0011214764051239"));
+			.andExpect(jsonPath("$.accountNo").value("0011214764051239"))
+			.andExpect(jsonPath("$.authText").value("도토리"))
+			.andExpect(jsonPath("$.expiresInSeconds").value(180));
 	}
 
 	@Test

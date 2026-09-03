@@ -11,8 +11,8 @@ import com.bana.dotori.user.entity.User;
 @Component
 public class AccountMapper {
 
-	public AccountAuthResponse toAccountAuthResponse(String accountNo) {
-		return new AccountAuthResponse(accountNo);
+	public AccountAuthResponse toAccountAuthResponse(String accountNo, String authText, long expiresInSeconds) {
+		return new AccountAuthResponse(accountNo, authText, expiresInSeconds);
 	}
 
 	public Account toAccount(User user, AccountAuthVerifyRequest request, String financeUserKey) {

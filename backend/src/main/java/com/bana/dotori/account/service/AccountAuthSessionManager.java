@@ -19,10 +19,19 @@ public class AccountAuthSessionManager {
 	private static final String KEY_PREFIX = "account:auth:";
 	private static final String FIELD_USER_KEY = ":userKey";
 	private static final String FIELD_ATTEMPT = ":attempt";
-	private static final long SESSION_TTL_SECONDS = 180L;
+	private static final long SESSION_TTL_SECONDS = 300L;
 	private static final int MAX_ATTEMPT = 5;
 
 	private final StringRedisTemplate redisTemplate;
+
+	/**
+	 * 1원 인증 세션의 유효 시간(초)을 반환한다.
+	 *
+	 * @return 세션 TTL(초)
+	 */
+	public long sessionTtlSeconds() {
+		return SESSION_TTL_SECONDS;
+	}
 
 	/**
 	 * 1원 인증 세션을 생성한다.

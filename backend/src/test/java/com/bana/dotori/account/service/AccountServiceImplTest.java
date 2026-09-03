@@ -86,11 +86,14 @@ class AccountServiceImplTest {
 		given(accountRepository.existsByUserIdAndAccountNumber(USER_ID, ACCOUNT_NO)).willReturn(false);
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(USER_ID)));
 		given(financeClient.getUserKey("dotori@example.com")).willReturn(USER_KEY);
+		given(accountAuthSessionManager.sessionTtlSeconds()).willReturn(180L);
 
 		AccountAuthResponse response = accountService.requestAuth(USER_ID,
 			new AccountAuthRequest("003", "국민은행", ACCOUNT_NO));
 
 		assertThat(response.accountNo()).isEqualTo(ACCOUNT_NO);
+		assertThat(response.authText()).isEqualTo("도토리");
+		assertThat(response.expiresInSeconds()).isEqualTo(180L);
 		then(financeClient).should().openAccountAuth(USER_KEY, ACCOUNT_NO, "도토리");
 		then(accountAuthSessionManager).should().create(USER_ID, ACCOUNT_NO, USER_KEY);
 	}

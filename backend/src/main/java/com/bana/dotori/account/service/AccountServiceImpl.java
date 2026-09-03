@@ -50,7 +50,8 @@ public class AccountServiceImpl implements AccountService {
 		}
 
 		accountAuthSessionManager.create(userId, request.accountNo(), userKey);
-		return accountMapper.toAccountAuthResponse(request.accountNo());
+		return accountMapper.toAccountAuthResponse(request.accountNo(), financeProperties.authText(),
+			accountAuthSessionManager.sessionTtlSeconds());
 	}
 
 	// 인증 세션의 userKey로 인증코드를 검증하고 계좌를 저장한다
