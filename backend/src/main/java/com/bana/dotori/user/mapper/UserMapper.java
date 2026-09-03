@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component;
 
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
+import com.bana.dotori.user.dto.UserInfoResponse;
+import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.entity.User;
 
 @Component
@@ -22,5 +24,14 @@ public class UserMapper {
 	public SignupResponse toSignupResponse(User user) {
 		return new SignupResponse(user.getId(), user.getLoginId(), user.getName(), user.getEmail(), user.getRole(),
 			user.getCreatedAt());
+	}
+
+	public UserInfoResponse toUserInfoResponse(User user) {
+		return new UserInfoResponse(user.getId(), user.getLoginId(), user.getName(), user.getEmail(), user.getRole(),
+			user.isEmailVerified(), user.getCreatedAt());
+	}
+
+	public UserUpdateResponse toUserUpdateResponse(User user) {
+		return new UserUpdateResponse(user.getId(), user.getName(), user.getUpdatedAt());
 	}
 }
