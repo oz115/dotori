@@ -3,11 +3,14 @@ package com.bana.dotori.account.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +26,15 @@ import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountResponse;
+import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.TransactionDirection;
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
 import com.bana.dotori.finance.client.FinanceClient;
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
+import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -78,6 +85,34 @@ class AccountServiceImplTest {
 			.build();
 		ReflectionTestUtils.setField(user, "id", id);
 		return user;
+	}
+
+	private Account account(Long id) {
+		Account account = Account.builder()
+			.user(user(USER_ID))
+			.bankCode("003")
+			.bankName("국민은행")
+			.accountNumber(ACCOUNT_NO)
+			.financeUserKey(USER_KEY)
+			.build();
+		ReflectionTestUtils.setField(account, "id", id);
+		return account;
+	}
+
+	private TransactionHistoryItem transactionItem(String uniqueNo, String type, String typeName, String balance,
+		String afterBalance) {
+		return TransactionHistoryItem.builder()
+			.transactionUniqueNo(uniqueNo)
+			.transactionDate("20240401")
+			.transactionTime("102447")
+			.transactionType(type)
+			.transactionTypeName(typeName)
+			.transactionAccountNo("")
+			.transactionBalance(balance)
+			.transactionAfterBalance(afterBalance)
+			.transactionSummary("(수시입출금) : " + typeName)
+			.transactionMemo("")
+			.build();
 	}
 
 	@Test
@@ -228,5 +263,81 @@ class AccountServiceImplTest {
 			.isEqualTo(ErrorCode.AUTH_ATTEMPT_EXCEEDED);
 
 		then(accountRepository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_소유하지_않은_계좌면_NOT_FOUND_예외가_발생한다")
+	void getTransactionHistory_소유하지않은계좌() {
+		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, 1L, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOT_FOUND);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_커서가_없으면_최신_거래부터_size만큼_반환하고_다음_커서를_내려준다")
+	void getTransactionHistory_첫페이지() {
+		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("3")
+			.list(List.of(
+				transactionItem("61", "2", "출금(이체)", "10000000", "89900000"),
+				transactionItem("60", "2", "출금", "100000", "99900000"),
+				transactionItem("59", "1", "입금", "100000000", "100000000")))
+			.build();
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(),
+			eq("A"), eq("DESC"))).willReturn(rec);
+
+		AccountTransactionHistoryResponse response =
+			accountService.getTransactionHistory(USER_ID, 1L, null, 2, null);
+
+		assertThat(response.transactions()).hasSize(2);
+		assertThat(response.transactions().get(0).transactionUniqueNo()).isEqualTo("61");
+		assertThat(response.transactions().get(0).transactionType()).isEqualTo(TransactionDirection.WITHDRAWAL);
+		assertThat(response.transactions().get(1).transactionUniqueNo()).isEqualTo("60");
+		assertThat(response.hasNext()).isTrue();
+		assertThat(response.nextCursor()).isEqualTo("60");
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_커서_이후_거래가_size보다_적으면_hasNext가_false다")
+	void getTransactionHistory_마지막페이지() {
+		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireTransactionHistoryListRec rec = InquireTransactionHistoryListRec.builder()
+			.totalCount("3")
+			.list(List.of(
+				transactionItem("61", "2", "출금(이체)", "10000000", "89900000"),
+				transactionItem("60", "2", "출금", "100000", "99900000"),
+				transactionItem("59", "1", "입금", "100000000", "100000000")))
+			.build();
+		given(financeClient.inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(), anyString(),
+			eq("A"), eq("DESC"))).willReturn(rec);
+
+		AccountTransactionHistoryResponse response =
+			accountService.getTransactionHistory(USER_ID, 1L, "60", 2, null);
+
+		assertThat(response.transactions()).hasSize(1);
+		assertThat(response.transactions().get(0).transactionUniqueNo()).isEqualTo("59");
+		assertThat(response.transactions().get(0).transactionType()).isEqualTo(TransactionDirection.DEPOSIT);
+		assertThat(response.hasNext()).isFalse();
+		assertThat(response.nextCursor()).isNull();
+	}
+
+	@Test
+	@DisplayName("getTransactionHistory_금융망_오류시_FINANCE_API_ERROR_예외가_발생한다")
+	void getTransactionHistory_금융망오류() {
+		given(accountRepository.findByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(account(1L)));
+		willThrow(new FinanceApiException("A1003", "계좌번호가 유효하지 않습니다."))
+			.given(financeClient).inquireTransactionHistoryList(eq(USER_KEY), eq(ACCOUNT_NO), anyString(),
+				anyString(), eq("A"), eq("DESC"));
+
+		assertThatThrownBy(() -> accountService.getTransactionHistory(USER_ID, 1L, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FINANCE_API_ERROR);
 	}
 }

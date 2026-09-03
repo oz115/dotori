@@ -14,6 +14,9 @@ import com.bana.dotori.finance.dto.common.FinanceCommonHeader;
 import com.bana.dotori.finance.dto.common.FinanceResponseHeader;
 import com.bana.dotori.finance.dto.member.SearchMemberRequest;
 import com.bana.dotori.finance.dto.member.SearchMemberResponse;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRequest;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListResponse;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.finance.util.FinanceHeaderGenerator;
 
@@ -27,6 +30,7 @@ public class RestClientFinanceClient implements FinanceClient {
 
 	private static final String API_OPEN_ACCOUNT_AUTH = "openAccountAuth";
 	private static final String API_CHECK_AUTH_CODE = "checkAuthCode";
+	private static final String API_INQUIRE_TRANSACTION_HISTORY_LIST = "inquireTransactionHistoryList";
 
 	private final RestClient financeRestClient;
 	private final FinanceProperties properties;
@@ -105,6 +109,37 @@ public class RestClientFinanceClient implements FinanceClient {
 		} catch (RestClientException ex) {
 			log.error("금융망 1원 인증코드 검증 실패: {}", ex.getMessage());
 			throw new FinanceApiException("금융망 1원 인증코드 검증 중 통신 오류가 발생했습니다", ex);
+		}
+	}
+
+	// 연동 계좌의 거래내역을 조회한다
+	@Override
+	public InquireTransactionHistoryListRec inquireTransactionHistoryList(String userKey, String accountNo,
+		String startDate, String endDate, String transactionType, String orderByType) {
+		FinanceCommonHeader header = headerGenerator.createHeader(API_INQUIRE_TRANSACTION_HISTORY_LIST, userKey);
+		InquireTransactionHistoryListRequest request = InquireTransactionHistoryListRequest.builder()
+			.header(header)
+			.accountNo(accountNo)
+			.startDate(startDate)
+			.endDate(endDate)
+			.transactionType(transactionType)
+			.orderByType(orderByType)
+			.build();
+
+		try {
+			InquireTransactionHistoryListResponse response = financeRestClient.post()
+				.uri("/edu/demandDeposit/inquireTransactionHistoryList")
+				.body(request)
+				.retrieve()
+				.body(InquireTransactionHistoryListResponse.class);
+
+			validateResponse(response != null ? response.header() : null, "거래내역 조회");
+			return response.rec();
+		} catch (FinanceApiException ex) {
+			throw ex;
+		} catch (RestClientException ex) {
+			log.error("금융망 거래내역 조회 실패: {}", ex.getMessage());
+			throw new FinanceApiException("금융망 거래내역 조회 중 통신 오류가 발생했습니다", ex);
 		}
 	}
 

@@ -1,9 +1,12 @@
 package com.bana.dotori.account.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,6 +30,9 @@ import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountResponse;
+import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.AccountTransactionResponse;
+import com.bana.dotori.account.dto.TransactionDirection;
 import com.bana.dotori.account.service.AccountService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
@@ -52,6 +58,7 @@ class AccountControllerTest {
 
 	private static final String AUTH_URL = "/api/v1/accounts/auth";
 	private static final String VERIFY_URL = "/api/v1/accounts/auth/verify";
+	private static final String TRANSACTIONS_URL = "/api/v1/accounts/1/transactions";
 	private static final String ACCESS_TOKEN = "valid-access-token";
 
 	private static final String AUTH_BODY = """
@@ -219,6 +226,63 @@ class AccountControllerTest {
 		mockMvc.perform(post(VERIFY_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(VERIFY_BODY))
+			.andExpect(status().isUnauthorized());
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 성공 시 200과 거래내역·다음 커서를 반환한다")
+	void getTransactionHistory_success() throws Exception {
+		authenticateAs(1);
+		AccountTransactionResponse transaction = new AccountTransactionResponse("61", TransactionDirection.WITHDRAWAL,
+			"출금(이체)", 10000000, 89900000, "(수시입출금) : 출금(이체)", OffsetDateTime.now());
+		given(accountService.getTransactionHistory(eq(1), eq(1L), isNull(), isNull(), isNull()))
+			.willReturn(new AccountTransactionHistoryResponse(List.of(transaction), "61", true));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.transactions[0].transactionUniqueNo").value("61"))
+			.andExpect(jsonPath("$.transactions[0].transactionType").value("WITHDRAWAL"))
+			.andExpect(jsonPath("$.nextCursor").value("61"))
+			.andExpect(jsonPath("$.hasNext").value(true));
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 시 cursor/size 파라미터를 그대로 서비스에 전달한다")
+	void getTransactionHistory_withCursorAndSize() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), eq(1L), eq("60"), eq(10), anyString()))
+			.willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("cursor", "60")
+				.param("size", "10")
+				.param("transactionType", "A"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.transactions").isEmpty())
+			.andExpect(jsonPath("$.hasNext").value(false));
+	}
+
+	@Test
+	@DisplayName("소유하지 않은 계좌면 404와 NOT_FOUND 에러를 반환한다")
+	void getTransactionHistory_notOwned() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), eq(1L), isNull(), isNull(), isNull()))
+			.willThrow(new BusinessException(ErrorCode.NOT_FOUND));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 거래내역을 요청하면 401을 반환한다")
+	void getTransactionHistory_withoutAuth() throws Exception {
+		mockMvc.perform(get(TRANSACTIONS_URL))
 			.andExpect(status().isUnauthorized());
 
 		then(accountService).shouldHaveNoInteractions();
