@@ -6,7 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,11 +22,13 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
+import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.mapper.UserMapper;
@@ -147,5 +154,58 @@ class UserServiceImplTest {
 		userService.signup(request);
 
 		verify(userRepository).save(argThat(user -> "encoded-password".equals(user.getPassword())));
+	}
+
+	@Test
+	@DisplayName("본인 계정을 조회하면 명세의 회원 정보를 돌려준다")
+	void getUserInfo_success() {
+		given(userRepository.findById(1)).willReturn(Optional.of(user(1)));
+
+		UserInfoResponse response = userService.getUserInfo(1, 1);
+
+		assertThat(response.userId()).isEqualTo(1);
+		assertThat(response.loginId()).isEqualTo("dotori123");
+		assertThat(response.name()).isEqualTo("김도토");
+		assertThat(response.email()).isEqualTo("dotori@example.com");
+		assertThat(response.role()).isEqualTo(UserRole.PARENT);
+		assertThat(response.emailVerified()).isFalse();
+		assertThat(response.createdAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("남의 계정을 조회하면 조회 자체를 하지 않고 FORBIDDEN 예외가 발생한다")
+	void getUserInfo_otherUserIsForbidden() {
+		assertThatThrownBy(() -> userService.getUserInfo(1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		// 존재 여부를 확인하기 전에 막아야 응답 코드만으로 다른 계정의 존재를 알아낼 수 없다.
+		verify(userRepository, never()).findById(any());
+	}
+
+	@Test
+	@DisplayName("본인 계정인데 회원이 없으면 NOT_FOUND 예외가 발생한다")
+	void getUserInfo_notFound() {
+		given(userRepository.findById(1)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userService.getUserInfo(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOT_FOUND);
+	}
+
+	private User user(Integer id) {
+		User user = User.builder()
+			.loginId("dotori123")
+			.password("encoded-password")
+			.name("김도토")
+			.email("dotori@example.com")
+			.role(UserRole.PARENT)
+			.build();
+		ReflectionTestUtils.setField(user, "id", id);
+		ReflectionTestUtils.setField(user, "createdAt",
+			OffsetDateTime.of(2026, 9, 1, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		return user;
 	}
 }
