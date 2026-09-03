@@ -35,7 +35,7 @@ public class AccountServiceImpl implements AccountService {
 	@Override
 	@Transactional(readOnly = true)
 	public AccountAuthResponse requestAuth(Integer userId, AccountAuthRequest request) {
-		if (accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(userId, request.accountNo())) {
+		if (accountRepository.existsByUserIdAndAccountNumber(userId, request.accountNo())) {
 			throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_LINKED);
 		}
 		User user = userRepository.findById(userId)
@@ -57,7 +57,7 @@ public class AccountServiceImpl implements AccountService {
 	@Override
 	@Transactional
 	public AccountResponse verifyAuth(Integer userId, AccountAuthVerifyRequest request) {
-		if (accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(userId, request.accountNo())) {
+		if (accountRepository.existsByUserIdAndAccountNumber(userId, request.accountNo())) {
 			throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_LINKED);
 		}
 		String userKey = accountAuthSessionManager.getUserKey(userId, request.accountNo());

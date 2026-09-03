@@ -8,7 +8,7 @@ import com.bana.dotori.account.entity.Account;
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
-	List<Account> findByUserIdAndDeletedAtIsNull(Integer userId);
+	List<Account> findByUserId(Integer userId);
 
-	boolean existsByUserIdAndAccountNoAndDeletedAtIsNull(Integer userId, String accountNo);
+	boolean existsByUserIdAndAccountNumber(Integer userId, String accountNumber);
 }

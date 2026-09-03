@@ -20,13 +20,13 @@ public class AccountMapper {
 			.user(user)
 			.bankCode(request.bankCode())
 			.bankName(request.bankName())
-			.accountNo(request.accountNo())
+			.accountNumber(request.accountNo())
 			.financeUserKey(financeUserKey)
 			.build();
 	}
 
 	public AccountResponse toAccountResponse(Account account) {
 		return new AccountResponse(account.getId(), account.getBankCode(), account.getBankName(),
-			account.getAccountNo(), account.isPrimary(), account.getCreatedAt());
+			account.getAccountNumber(), account.getLinkedAt());
 	}
 }

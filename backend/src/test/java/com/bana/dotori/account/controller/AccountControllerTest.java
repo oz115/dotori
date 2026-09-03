@@ -138,7 +138,7 @@ class AccountControllerTest {
 	void verifyAuth_success() throws Exception {
 		authenticateAs(1);
 		given(accountService.verifyAuth(eq(1), any(AccountAuthVerifyRequest.class)))
-			.willReturn(new AccountResponse(1L, "003", "국민은행", "0011214764051239", true, OffsetDateTime.now()));
+			.willReturn(new AccountResponse(1L, "003", "국민은행", "0011214764051239", OffsetDateTime.now()));
 
 		mockMvc.perform(post(VERIFY_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
@@ -147,8 +147,7 @@ class AccountControllerTest {
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.id").value(1))
 			.andExpect(jsonPath("$.bankCode").value("003"))
-			.andExpect(jsonPath("$.accountNo").value("0011214764051239"))
-			.andExpect(jsonPath("$.primary").value(true));
+			.andExpect(jsonPath("$.accountNo").value("0011214764051239"));
 	}
 
 	@Test

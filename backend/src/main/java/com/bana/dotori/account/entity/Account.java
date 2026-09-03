@@ -23,8 +23,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "accounts", uniqueConstraints = {
-	@UniqueConstraint(name = "uk_accounts_user_account", columnNames = {"user_id", "account_no"})
+@Table(name = "linked_accounts", uniqueConstraints = {
+	@UniqueConstraint(name = "uk_linked_accounts_user_account", columnNames = {"user_id", "account_number"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -39,43 +39,46 @@ public class Account {
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
-	@Column(name = "bank_code", length = 20, nullable = false)
+	@Column(name = "external_account_id", length = 255)
+	private String externalAccountId;
+
+	@Column(name = "bank_code", length = 50, nullable = false)
 	private String bankCode;
 
-	@Column(name = "bank_name", length = 50, nullable = false)
+	@Column(name = "bank_name", length = 100, nullable = false)
 	private String bankName;
 
-	@Column(name = "account_no", length = 50, nullable = false)
-	private String accountNo;
+	@Column(name = "account_number", length = 100, nullable = false)
+	private String accountNumber;
+
+	@Column(name = "account_name", length = 100)
+	private String accountName;
+
+	@Column(name = "balance")
+	private Integer balance;
 
 	@Column(name = "finance_user_key", length = 100, nullable = false)
 	private String financeUserKey;
 
-	@Column(name = "is_primary", nullable = false)
-	private boolean primary;
-
 	@CreationTimestamp
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private OffsetDateTime createdAt;
+	@Column(name = "linked_at", nullable = false, updatable = false)
+	private OffsetDateTime linkedAt;
 
 	@UpdateTimestamp
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
-	@Column(name = "deleted_at")
-	private OffsetDateTime deletedAt;
-
 	@Builder
-	private Account(User user, String bankCode, String bankName, String accountNo, String financeUserKey) {
+	private Account(User user, String externalAccountId, String bankCode, String bankName, String accountNumber,
+		String accountName, Integer balance, String financeUserKey) {
 		this.user = user;
+		this.externalAccountId = externalAccountId;
 		this.bankCode = bankCode;
 		this.bankName = bankName;
-		this.accountNo = accountNo;
+		this.accountNumber = accountNumber;
+		this.accountName = accountName;
+		this.balance = balance;
 		this.financeUserKey = financeUserKey;
-		this.primary = true;
 	}
 
-	public void markDeleted() {
-		this.deletedAt = OffsetDateTime.now();
-	}
 }
