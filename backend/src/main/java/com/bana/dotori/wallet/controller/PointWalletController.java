@@ -74,10 +74,17 @@ public class PointWalletController {
 	 * <p>{@code type} 과 {@code sort} 는 enum 으로 받는다. 지원하지 않는 값이 오면
 	 * 스프링이 바인딩 단계에서 걸러 400 으로 응답하므로, 서비스까지 내려가지 않는다.
 	 *
+	 * <p><b>무한 스크롤은 커서로 넘긴다.</b> 첫 요청은 {@code cursor} 없이 부르고,
+	 * 이후에는 응답의 {@code page.nextCursor} 를 그대로 실어 보낸다.
+	 * 페이지 번호를 쓰면 스크롤 중에 새 거래가 앞에 끼어들었을 때 전체가 밀려
+	 * 이미 본 항목이 다시 나온다.
+	 *
 	 * @param startDate 조회 시작일(포함). 생략하면 제한 없음
 	 * @param endDate   조회 종료일(포함). 생략하면 제한 없음
 	 * @param type      거래 사유 필터. 생략하면 전체
 	 * @param sort      거래 시각 정렬. 기본은 최신순(DESC)
+	 * @param cursor    이전 응답의 nextCursor. 생략하면 첫 묶음
+	 * @param size      한 번에 가져올 건수. 기본 20, 최대 100
 	 */
 	@GetMapping("/transactions")
 	public PointTransactionHistoryResponse getTransactions(
@@ -88,11 +95,11 @@ public class PointWalletController {
 			@RequestParam(required = false) LocalDate endDate,
 			@RequestParam(required = false) PointTransactionReason type,
 			@RequestParam(defaultValue = "DESC") Sort.Direction sort,
-			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(required = false) String cursor,
 			@RequestParam(defaultValue = "20") int size) {
 
 		return pointWalletQueryService.getTransactions(
-				familyId, childId, loginUserId, startDate, endDate, type, sort, page, size);
+				familyId, childId, loginUserId, startDate, endDate, type, sort, cursor, size);
 	}
 
 	/**

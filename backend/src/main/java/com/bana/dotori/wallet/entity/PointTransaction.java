@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -37,6 +38,15 @@ import lombok.NoArgsConstructor;
 		// 키는 클라이언트가 정하는 값이라 충돌을 막을 방법이 없으므로, 유일성 범위를 지갑 안으로 좁힌다.
 		@UniqueConstraint(name = "uk_point_transactions_wallet_idempotency_key",
 				columnNames = {"wallet_id", "idempotency_key"})
+}, indexes = {
+		// WLT-06 거래내역 조회가 쓰는 인덱스. 정렬 키와 순서가 같아야 한다.
+		// 커서 페이징은 "이 지점 이후"를 인덱스에서 바로 찾아 limit 만큼 읽고 멈추는 것이
+		// 핵심이라, 이 인덱스가 없으면 지갑의 거래를 전부 읽고 정렬한 뒤 잘라낸다.
+		//
+		// 방향은 ASC 로만 만든다. PostgreSQL 은 인덱스를 역방향으로도 스캔하므로
+		// 최신순(DESC) 조회도 같은 인덱스를 쓴다.
+		@Index(name = "ix_point_transactions_wallet_created_at",
+				columnList = "wallet_id, created_at, point_transaction_id")
 })
 @Check(name = "ck_point_transactions_amount_positive", constraints = "amount > 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

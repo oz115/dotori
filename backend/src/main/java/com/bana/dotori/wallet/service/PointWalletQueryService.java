@@ -3,19 +3,20 @@ package com.bana.dotori.wallet.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.wallet.dto.request.TransactionCursor;
+import com.bana.dotori.wallet.dto.response.CursorPage;
 import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
+import com.bana.dotori.wallet.dto.response.PointTransactionItem;
 import com.bana.dotori.wallet.entity.PointTransaction;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.entity.PointWallet;
@@ -75,51 +76,71 @@ public class PointWalletQueryService {
 	}
 
 	/**
-	 * WLT-06 포인트 거래내역 조회.
+	 * WLT-06 포인트 거래내역 조회. 무한 스크롤용 커서 페이징이다.
 	 *
 	 * @param startDate 조회 시작일(KST, 포함). null 이면 제한 없음
 	 * @param endDate   조회 종료일(KST, 포함). null 이면 제한 없음
 	 * @param reason    거래 사유 필터. null 이면 전체
-	 * @param direction 거래 시각 정렬 방향
-	 * @param page      0부터 시작하는 페이지 번호
-	 * @param size      페이지 크기
+	 * @param direction 거래 시각 정렬 방향. null 이면 최신순
+	 * @param encodedCursor 이전 응답의 nextCursor. null 이면 첫 묶음
+	 * @param size      한 번에 가져올 건수
 	 */
 	@Transactional(readOnly = true)
 	public PointTransactionHistoryResponse getTransactions(Integer familyId, Integer childId, Integer loginUserId,
 			LocalDate startDate, LocalDate endDate, PointTransactionReason reason,
-			Sort.Direction direction, int page, int size) {
+			Sort.Direction direction, String encodedCursor, int size) {
 
 		validateReadAccess(familyId, childId, loginUserId);
 		validatePeriod(startDate, endDate);
-		validatePageRequest(page, size);
+		validateSize(size);
+
+		TransactionCursor cursor = TransactionCursor.decode(encodedCursor);
+		Sort.Direction resolved = direction == null ? Sort.Direction.DESC : direction;
 
 		Optional<PointWallet> wallet = pointWalletRepository.findByUserId(childId);
 		if (wallet.isEmpty()) {
 			// 지갑이 없으면 원장도 없다. 404 대신 빈 목록으로 응답한다.
-			return PointTransactionHistoryResponse.empty(childId, page, size);
+			return PointTransactionHistoryResponse.empty(childId);
 		}
 
-		Page<PointTransaction> found = pointTransactionRepository.search(
+		// 한 건을 더 요청해서 "다음이 있는지"를 판단한다.
+		// COUNT(*) 를 따로 실행하지 않기 위한 방법이고, 그 한 건은 응답에서 잘라낸다.
+		List<PointTransaction> found = pointTransactionRepository.search(
 				wallet.get().getWalletId(),
 				startOfDay(startDate),
 				startOfNextDay(endDate),
 				reason,
-				toPageable(direction, page, size));
+				cursor,
+				resolved,
+				size + 1);
 
-		return PointTransactionHistoryResponse.of(childId, wallet.get().getBalance(), found);
+		return PointTransactionHistoryResponse.of(
+				childId, wallet.get().getBalance(), toCursorPage(found, size));
 	}
 
 	/**
-	 * 정렬은 거래 시각을 기준으로 하되 마지막에 항상 식별자를 붙인다.
+	 * 한 건 더 받아온 목록을 잘라 커서 묶음으로 만든다.
 	 *
-	 * <p>같은 초에 여러 거래가 생기면(동시 요청·연속 호출) created_at 만으로는 순서가
-	 * 고정되지 않는다. 페이지마다 순서가 흔들리면 어떤 거래는 두 번 보이고
-	 * 어떤 거래는 아예 빠진다. 원장은 삽입 순서가 곧 시간 순서라
-	 * point_transaction_id 를 같은 방향으로 덧붙이면 전순서가 확정된다.
+	 * <p>여분이 있으면 다음이 있다는 뜻이므로, 잘라낸 뒤 마지막 항목으로 다음 커서를 만든다.
+	 * 커서는 반드시 <b>돌려주는 목록의 마지막</b> 항목이어야 한다. 여분 항목으로 만들면
+	 * 그 거래가 다음 요청에서 빠진다.
 	 */
-	private Pageable toPageable(Sort.Direction direction, int page, int size) {
-		Sort.Direction resolved = direction == null ? Sort.Direction.DESC : direction;
-		return PageRequest.of(page, size, Sort.by(resolved, "createdAt", "pointTransactionId"));
+	private CursorPage<PointTransactionItem> toCursorPage(List<PointTransaction> found, int size) {
+		if (found.isEmpty()) {
+			return CursorPage.empty();
+		}
+
+		boolean hasNext = found.size() > size;
+		List<PointTransaction> page = hasNext ? found.subList(0, size) : found;
+		List<PointTransactionItem> items = page.stream().map(PointTransactionItem::from).toList();
+
+		if (!hasNext) {
+			return CursorPage.lastPage(items);
+		}
+
+		PointTransaction last = page.get(page.size() - 1);
+		return CursorPage.of(items,
+				new TransactionCursor(last.getCreatedAt(), last.getPointTransactionId()).encode());
 	}
 
 	private void validatePeriod(LocalDate startDate, LocalDate endDate) {
@@ -129,11 +150,10 @@ public class PointWalletQueryService {
 		}
 	}
 
-	private void validatePageRequest(int page, int size) {
-		if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+	private void validateSize(int size) {
+		if (size < 1 || size > MAX_PAGE_SIZE) {
 			throw new BusinessException(ErrorCode.INVALID_PAGE_REQUEST,
-					"페이지 요청 값이 올바르지 않습니다. page=" + page + ", size=" + size
-							+ ", 허용 size=1~" + MAX_PAGE_SIZE);
+					"조회 건수가 올바르지 않습니다. size=" + size + ", 허용 범위=1~" + MAX_PAGE_SIZE);
 		}
 	}
 

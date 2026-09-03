@@ -263,14 +263,14 @@ class PointWalletApiE2ETest {
 							.param("sort", "ASC"))
 					.andExpect(status().isOk())
 					.andExpect(jsonPath("$.balance").value(expected))
-					.andExpect(jsonPath("$.transactions.length()").value(2))
-					.andExpect(jsonPath("$.transactions[0].transactionType").value("CHARGE"))
-					.andExpect(jsonPath("$.transactions[0].transactionDirection").value("IN"))
-					.andExpect(jsonPath("$.transactions[0].balanceAfter").value(6_000))
-					.andExpect(jsonPath("$.transactions[1].transactionType").value("GRANT"))
-					.andExpect(jsonPath("$.transactions[1].description").value("용돈"))
+					.andExpect(jsonPath("$.page.items.length()").value(2))
+					.andExpect(jsonPath("$.page.items[0].transactionType").value("CHARGE"))
+					.andExpect(jsonPath("$.page.items[0].transactionDirection").value("IN"))
+					.andExpect(jsonPath("$.page.items[0].balanceAfter").value(6_000))
+					.andExpect(jsonPath("$.page.items[1].transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.page.items[1].description").value("용돈"))
 					// 원장을 순서대로 훑은 마지막 잔액이 응답 잔액과 같아야 한다.
-					.andExpect(jsonPath("$.transactions[1].balanceAfter").value(expected));
+					.andExpect(jsonPath("$.page.items[1].balanceAfter").value(expected));
 		}
 
 		@Test
@@ -279,7 +279,7 @@ class PointWalletApiE2ETest {
 			mockMvc.perform(get(TX_URL, familyId, childId)
 							.header("Authorization", bearer(childId, UserRole.CHILD)))
 					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.transactions[0].transactionType").value("GRANT"));
+					.andExpect(jsonPath("$.page.items[0].transactionType").value("GRANT"));
 		}
 
 		@Test
@@ -289,22 +289,47 @@ class PointWalletApiE2ETest {
 							.header("Authorization", bearer(childId, UserRole.CHILD))
 							.param("type", "GRANT"))
 					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.transactions.length()").value(1))
-					.andExpect(jsonPath("$.transactions[0].transactionType").value("GRANT"))
-					.andExpect(jsonPath("$.totalElements").value(1));
+					.andExpect(jsonPath("$.page.items.length()").value(1))
+					.andExpect(jsonPath("$.page.items[0].transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.page.hasNext").value(false));
 		}
 
 		@Test
-		@DisplayName("페이지를 나눠 받으면 다음 페이지 여부를 알려준다")
-		void 페이지를_나눈다() throws Exception {
-			mockMvc.perform(get(TX_URL, familyId, childId)
+		@DisplayName("커서를 이어가며 스크롤하면 두 거래가 중복 없이 모두 나온다")
+		void 커서로_이어서_받는다() throws Exception {
+			// 첫 묶음: 최신순이므로 지급(GRANT)이 먼저다.
+			String body = mockMvc.perform(get(TX_URL, familyId, childId)
 							.header("Authorization", bearer(childId, UserRole.CHILD))
 							.param("size", "1"))
 					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.transactions.length()").value(1))
-					.andExpect(jsonPath("$.totalElements").value(2))
-					.andExpect(jsonPath("$.totalPages").value(2))
-					.andExpect(jsonPath("$.hasNext").value(true));
+					.andExpect(jsonPath("$.page.items.length()").value(1))
+					.andExpect(jsonPath("$.page.items[0].transactionType").value("GRANT"))
+					.andExpect(jsonPath("$.page.hasNext").value(true))
+					.andExpect(jsonPath("$.page.nextCursor").isNotEmpty())
+					.andReturn().getResponse().getContentAsString();
+
+			String cursor = com.jayway.jsonpath.JsonPath.read(body, "$.page.nextCursor");
+
+			// 두 번째 묶음: 커서 지점 이후만 나와야 한다. 첫 묶음의 GRANT 가 다시 나오면 안 된다.
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("size", "1")
+							.param("cursor", cursor))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.page.items.length()").value(1))
+					.andExpect(jsonPath("$.page.items[0].transactionType").value("CHARGE"))
+					.andExpect(jsonPath("$.page.hasNext")
+							.value(false));
+		}
+
+		@Test
+		@DisplayName("커서가 깨졌으면 400 INVALID_CURSOR 이다")
+		void 깨진_커서는_400이다() throws Exception {
+			mockMvc.perform(get(TX_URL, familyId, childId)
+							.header("Authorization", bearer(childId, UserRole.CHILD))
+							.param("cursor", "!!broken!!"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_CURSOR"));
 		}
 
 		@Test
@@ -317,7 +342,7 @@ class PointWalletApiE2ETest {
 							.param("startDate", today)
 							.param("endDate", today))
 					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.transactions.length()").value(2));
+					.andExpect(jsonPath("$.page.items.length()").value(2));
 		}
 
 		@Test
@@ -328,7 +353,7 @@ class PointWalletApiE2ETest {
 							.param("startDate", "2020-01-01")
 							.param("endDate", "2020-01-31"))
 					.andExpect(status().isOk())
-					.andExpect(jsonPath("$.transactions").isEmpty())
+					.andExpect(jsonPath("$.page.items").isEmpty())
 					.andExpect(jsonPath("$.balance").value(9_000));
 		}
 

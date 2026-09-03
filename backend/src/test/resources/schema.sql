@@ -132,3 +132,10 @@ ALTER TABLE "point_transactions"
 ALTER TABLE "point_transactions"
 	ADD CONSTRAINT "uk_point_transactions_wallet_idempotency_key"
 	UNIQUE ("wallet_id", "idempotency_key");
+
+/* WLT-06 거래내역 조회용 인덱스.
+   커서 페이징은 정렬 키와 같은 순서의 인덱스가 있어야 "이 지점 이후"부터
+   limit 만큼만 읽고 멈춘다. 없으면 지갑의 거래를 전부 읽어 정렬한 뒤 잘라낸다.
+   방향은 ASC 하나만 만든다. PostgreSQL 은 역방향 스캔도 하므로 최신순도 이 인덱스를 쓴다. */
+CREATE INDEX IF NOT EXISTS "ix_point_transactions_wallet_created_at"
+	ON "point_transactions" ("wallet_id", "created_at", "point_transaction_id");
