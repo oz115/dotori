@@ -60,6 +60,9 @@ class UserServiceImplTest {
 	@Spy
 	private UserMapper userMapper;
 
+	@Spy
+	private MyPageAccessPolicy accessPolicy;
+
 	@InjectMocks
 	private UserServiceImpl userService;
 
