@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -25,8 +26,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.auth.service.AuthService;
+import com.bana.dotori.family.dto.ConnectedChild;
+import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
@@ -49,6 +53,9 @@ class UserServiceImplTest {
 
 	@Mock
 	private AuthService authService;
+
+	@Mock
+	private FamilyService familyService;
 
 	@Spy
 	private UserMapper userMapper;
@@ -355,5 +362,58 @@ class UserServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("부모가 조회하면 연결된 자녀 목록을 돌려준다")
+	void getConnectedChildren_success() {
+		given(userRepository.findById(1)).willReturn(Optional.of(user(1)));
+		given(familyService.findConnectedChildren(1)).willReturn(List.of(
+			new ConnectedChild(2, "김아이", OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9)))));
+
+		ConnectedChildrenResponse response = userService.getConnectedChildren(1, 1);
+
+		assertThat(response.children()).hasSize(1);
+		assertThat(response.children().get(0).userId()).isEqualTo(2);
+		assertThat(response.children().get(0).name()).isEqualTo("김아이");
+		assertThat(response.children().get(0).joinedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("연결된 자녀가 없으면 오류 대신 빈 목록을 돌려준다")
+	void getConnectedChildren_emptyList() {
+		given(userRepository.findById(1)).willReturn(Optional.of(user(1)));
+		given(familyService.findConnectedChildren(1)).willReturn(List.of());
+
+		ConnectedChildrenResponse response = userService.getConnectedChildren(1, 1);
+
+		assertThat(response.children()).isEmpty();
+	}
+
+	@Test
+	@DisplayName("자녀 계정이 조회하면 FORBIDDEN 예외가 발생한다")
+	void getConnectedChildren_childIsForbidden() {
+		User child = user(1);
+		ReflectionTestUtils.setField(child, "role", UserRole.CHILD);
+		given(userRepository.findById(1)).willReturn(Optional.of(child));
+
+		assertThatThrownBy(() -> userService.getConnectedChildren(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(familyService, never()).findConnectedChildren(any());
+	}
+
+	@Test
+	@DisplayName("남의 자녀 목록을 조회하면 조회 자체를 하지 않고 FORBIDDEN 예외가 발생한다")
+	void getConnectedChildren_otherUserIsForbidden() {
+		assertThatThrownBy(() -> userService.getConnectedChildren(1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(userRepository, never()).findById(any());
+		verify(familyService, never()).findConnectedChildren(any());
 	}
 }

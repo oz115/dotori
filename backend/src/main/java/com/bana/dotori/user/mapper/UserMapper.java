@@ -1,7 +1,12 @@
 package com.bana.dotori.user.mapper;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
+import com.bana.dotori.family.dto.ConnectedChild;
+import com.bana.dotori.user.dto.ConnectedChildResponse;
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.dto.UserInfoResponse;
@@ -33,5 +38,11 @@ public class UserMapper {
 
 	public UserUpdateResponse toUserUpdateResponse(User user) {
 		return new UserUpdateResponse(user.getId(), user.getName(), user.getUpdatedAt());
+	}
+
+	public ConnectedChildrenResponse toConnectedChildrenResponse(List<ConnectedChild> children) {
+		return new ConnectedChildrenResponse(children.stream()
+			.map(child -> new ConnectedChildResponse(child.userId(), child.name(), child.joinedAt()))
+			.toList());
 	}
 }

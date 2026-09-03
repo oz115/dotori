@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.auth.service.AuthService;
+import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
 import com.bana.dotori.user.dto.SignupResponse;
@@ -17,6 +19,7 @@ import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.mapper.UserMapper;
 import com.bana.dotori.user.repository.UserRepository;
 
@@ -34,6 +37,7 @@ public class UserServiceImpl implements UserService {
 	private final UserMapper userMapper;
 	private final PasswordEncoder passwordEncoder;
 	private final AuthService authService;
+	private final FamilyService familyService;
 
 	@Override
 	@Transactional
@@ -110,6 +114,21 @@ public class UserServiceImpl implements UserService {
 			throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT,
 				"비밀번호는 공백 없이 " + PASSWORD_MIN_LENGTH + "자 이상 " + PASSWORD_MAX_LENGTH + "자 이하여야 합니다");
 		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ConnectedChildrenResponse getConnectedChildren(Integer loginUserId, Integer targetUserId) {
+		requireSelf(loginUserId, targetUserId);
+
+		User user = findUser(targetUserId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+				"연결된 자녀는 부모만 조회할 수 있습니다. userId=" + targetUserId + ", role=" + user.getRole());
+		}
+
+		// 가족이 없으면 빈 목록이 온다. 자녀가 없는 것과 구분하지 않고 그대로 빈 배열로 내려준다.
+		return userMapper.toConnectedChildrenResponse(familyService.findConnectedChildren(targetUserId));
 	}
 
 	/**
