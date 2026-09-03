@@ -86,4 +86,14 @@ public class User {
 	public void changePassword(String encodedPassword) {
 		this.password = encodedPassword;
 	}
+
+	/**
+	 * MYPAGE-05 회원 탈퇴. 행을 지우지 않고 시각만 남긴다.
+	 *
+	 * <p>가족 소속·포인트 거래 이력이 이 회원을 참조하고 있어 실제로 지우면 이력이 끊긴다.
+	 * 대신 조회 쿼리들이 deleted_at 을 보고 걸러 낸다.
+	 */
+	public void withdraw() {
+		this.deletedAt = OffsetDateTime.now();
+	}
 }

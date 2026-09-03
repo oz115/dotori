@@ -18,6 +18,7 @@ import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
+import com.bana.dotori.user.dto.UserWithdrawRequest;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.mapper.UserMapper;
 import com.bana.dotori.user.repository.UserRepository;
@@ -38,6 +39,7 @@ public class UserServiceImpl implements UserService {
 	private final AuthService authService;
 	private final FamilyService familyService;
 	private final MyPageAccessPolicy accessPolicy;
+	private final RemainingAssetReader remainingAssetReader;
 
 	@Override
 	@Transactional
@@ -126,8 +128,34 @@ public class UserServiceImpl implements UserService {
 		return userMapper.toConnectedChildrenResponse(familyService.findConnectedChildren(targetUserId));
 	}
 
+	@Override
+	@Transactional
+	public void withdraw(Integer loginUserId, Integer targetUserId, UserWithdrawRequest request) {
+		accessPolicy.requireSelf(loginUserId, targetUserId);
+
+		User user = findUser(targetUserId);
+
+		// 되돌릴 수 없는 동작이라 본인 확인이 먼저다.
+		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+			throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
+		}
+		// 자산을 남긴 채 탈퇴하면 그 포인트를 되찾을 방법이 없다.
+		if (remainingAssetReader.hasRemainingAsset(targetUserId)) {
+			throw new BusinessException(ErrorCode.HAS_ACTIVE_ASSETS,
+				"잔여 자산을 정리한 뒤 탈퇴할 수 있습니다. userId=" + targetUserId);
+		}
+
+		user.withdraw();
+
+		// 탈퇴한 계정의 토큰이 살아 있으면 계정이 없는 상태로 API 를 계속 호출할 수 있다.
+		authService.revokeAllRefreshTokens(targetUserId);
+	}
+
 	private User findUser(Integer userId) {
+		// 탈퇴한 계정은 없는 것으로 본다. 로그인이 막혀 있어 정상 흐름에서는 닿지 않지만,
+		// 토큰이 남은 상태로 들어오는 경우까지 여기서 끊는다.
 		return userRepository.findById(userId)
+			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "회원을 찾을 수 없습니다. userId=" + userId));
 	}
 

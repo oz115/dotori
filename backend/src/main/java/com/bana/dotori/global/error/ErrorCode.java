@@ -29,6 +29,7 @@ public enum ErrorCode {
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
 	INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "비밀번호 형식이 올바르지 않습니다"),
 	PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치하지 않습니다"),
+	HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "잔여 자산이 있어 탈퇴할 수 없습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
 	// 계좌 연동 (ACC-01·02)

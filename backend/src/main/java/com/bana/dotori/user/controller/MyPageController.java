@@ -2,6 +2,7 @@ package com.bana.dotori.user.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +16,7 @@ import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
+import com.bana.dotori.user.dto.UserWithdrawRequest;
 import com.bana.dotori.user.service.UserService;
 
 import jakarta.validation.Valid;
@@ -86,5 +88,20 @@ public class MyPageController {
 			@PathVariable Integer userId) {
 
 		return userService.getConnectedChildren(loginUserId, userId);
+	}
+
+	/**
+	 * MYPAGE-05 회원 탈퇴.
+	 *
+	 * <p>계정을 실제로 지우지 않고 비활성으로 표시한다. 성공하면 본문 없이 204 다.
+	 */
+	@DeleteMapping("/{userId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void withdraw(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer userId,
+			@Valid @RequestBody UserWithdrawRequest request) {
+
+		userService.withdraw(loginUserId, userId, request);
 	}
 }

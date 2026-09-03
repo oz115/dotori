@@ -37,6 +37,7 @@ import com.bana.dotori.user.dto.SignupResponse;
 import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
+import com.bana.dotori.user.dto.UserWithdrawRequest;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.mapper.UserMapper;
@@ -56,6 +57,9 @@ class UserServiceImplTest {
 
 	@Mock
 	private FamilyService familyService;
+
+	@Mock
+	private RemainingAssetReader remainingAssetReader;
 
 	@Spy
 	private UserMapper userMapper;
@@ -418,5 +422,76 @@ class UserServiceImplTest {
 
 		verify(userRepository, never()).findById(any());
 		verify(familyService, never()).findConnectedChildren(any());
+	}
+
+	@Test
+	@DisplayName("탈퇴하면 계정을 비활성으로 표시하고 Refresh Token 을 모두 폐기한다")
+	void withdraw_success() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(false);
+
+		userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!"));
+
+		assertThat(stored.getDeletedAt()).isNotNull();
+		verify(authService).revokeAllRefreshTokens(1);
+	}
+
+	@Test
+	@DisplayName("잔여 자산이 있으면 HAS_ACTIVE_ASSETS 예외가 나고 계정은 그대로다")
+	void withdraw_hasRemainingAsset() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
+		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(true);
+
+		assertThatThrownBy(() -> userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.HAS_ACTIVE_ASSETS);
+
+		assertThat(stored.getDeletedAt()).isNull();
+		verify(authService, never()).revokeAllRefreshTokens(any());
+	}
+
+	@Test
+	@DisplayName("비밀번호가 틀리면 잔여 자산을 보기도 전에 PASSWORD_MISMATCH 예외가 발생한다")
+	void withdraw_passwordMismatch() {
+		User stored = user(1);
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+		given(passwordEncoder.matches("wrong-password", "encoded-password")).willReturn(false);
+
+		assertThatThrownBy(() -> userService.withdraw(1, 1, new UserWithdrawRequest("wrong-password")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.PASSWORD_MISMATCH);
+
+		assertThat(stored.getDeletedAt()).isNull();
+		verify(remainingAssetReader, never()).hasRemainingAsset(any());
+	}
+
+	@Test
+	@DisplayName("이미 탈퇴한 계정은 없는 것으로 보고 NOT_FOUND 예외가 발생한다")
+	void withdraw_alreadyWithdrawn() {
+		User stored = user(1);
+		stored.withdraw();
+		given(userRepository.findById(1)).willReturn(Optional.of(stored));
+
+		assertThatThrownBy(() -> userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("남의 계정을 탈퇴시키려 하면 조회 자체를 하지 않고 FORBIDDEN 예외가 발생한다")
+	void withdraw_otherUserIsForbidden() {
+		assertThatThrownBy(() -> userService.withdraw(1, 2, new UserWithdrawRequest("P@ssw0rd!")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(userRepository, never()).findById(any());
 	}
 }

@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -39,6 +40,7 @@ import com.bana.dotori.user.dto.ConnectedChildResponse;
 import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.UserInfoResponse;
+import com.bana.dotori.user.dto.UserWithdrawRequest;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.entity.UserRole;
@@ -279,5 +281,53 @@ class MyPageControllerTest {
 		mockMvc.perform(get(CHILDREN_URL, 1).with(loginAs(1, "CHILD")))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("탈퇴에 성공하면 본문 없이 204 를 돌려준다")
+	void withdraw_success() throws Exception {
+		mockMvc.perform(delete(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"password\": \"P@ssw0rd!\"}"))
+			.andExpect(status().isNoContent())
+			.andExpect(content().string(""));
+	}
+
+	@Test
+	@DisplayName("잔여 자산이 있으면 409 와 HAS_ACTIVE_ASSETS 에러를 돌려준다")
+	void withdraw_hasActiveAssets() throws Exception {
+		willThrow(new BusinessException(ErrorCode.HAS_ACTIVE_ASSETS))
+			.given(userService).withdraw(eq(1), eq(1), any(UserWithdrawRequest.class));
+
+		mockMvc.perform(delete(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"password\": \"P@ssw0rd!\"}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("HAS_ACTIVE_ASSETS"));
+	}
+
+	@Test
+	@DisplayName("비밀번호가 틀리면 401 과 PASSWORD_MISMATCH 에러를 돌려준다")
+	void withdraw_passwordMismatch() throws Exception {
+		willThrow(new BusinessException(ErrorCode.PASSWORD_MISMATCH))
+			.given(userService).withdraw(eq(1), eq(1), any(UserWithdrawRequest.class));
+
+		mockMvc.perform(delete(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"password\": \"wrong\"}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("PASSWORD_MISMATCH"));
+	}
+
+	@Test
+	@DisplayName("비밀번호가 없으면 서비스를 호출하지 않고 400 으로 막는다")
+	void withdraw_missingPassword() throws Exception {
+		mockMvc.perform(delete(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
 	}
 }
