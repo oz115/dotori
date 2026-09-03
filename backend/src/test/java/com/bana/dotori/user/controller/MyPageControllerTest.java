@@ -1,9 +1,13 @@
 package com.bana.dotori.user.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -30,6 +35,8 @@ import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.user.dto.UserInfoResponse;
+import com.bana.dotori.user.dto.UserUpdateRequest;
+import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.service.UserService;
 
@@ -113,5 +120,58 @@ class MyPageControllerTest {
 	private static RequestPostProcessor loginAs(Integer userId, String role) {
 		return authentication(new UsernamePasswordAuthenticationToken(userId, null,
 			List.of(new SimpleGrantedAuthority("ROLE_" + role))));
+	}
+
+	@Test
+	@DisplayName("이름 수정에 성공하면 200 과 명세 형식의 응답을 돌려준다")
+	void updateUserInfo_success() throws Exception {
+		given(userService.updateUserInfo(eq(1), eq(1), any(UserUpdateRequest.class)))
+			.willReturn(new UserUpdateResponse(1, "김도토리",
+				OffsetDateTime.of(2026, 9, 1, 13, 0, 0, 0, ZoneOffset.ofHours(9))));
+
+		mockMvc.perform(patch(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"김도토리\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.userId").value(1))
+			.andExpect(jsonPath("$.name").value("김도토리"))
+			.andExpect(jsonPath("$.updatedAt").exists());
+	}
+
+	@Test
+	@DisplayName("이름이 공백뿐이면 서비스를 호출하지 않고 400 으로 막는다")
+	void updateUserInfo_blankName() throws Exception {
+		mockMvc.perform(patch(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"   \"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("이름이 50자를 넘으면 서비스를 호출하지 않고 400 으로 막는다")
+	void updateUserInfo_tooLongName() throws Exception {
+		mockMvc.perform(patch(USER_URL, 1).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"" + "가".repeat(51) + "\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("남의 계정을 수정하면 403 과 FORBIDDEN 에러를 돌려준다")
+	void updateUserInfo_forbidden() throws Exception {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.given(userService).updateUserInfo(eq(1), eq(2), any(UserUpdateRequest.class));
+
+		mockMvc.perform(patch(USER_URL, 2).with(loginAs(1, "PARENT"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"김도토리\"}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
 }
