@@ -19,7 +19,6 @@ import com.bana.dotori.user.dto.UserInfoResponse;
 import com.bana.dotori.user.dto.UserUpdateRequest;
 import com.bana.dotori.user.dto.UserUpdateResponse;
 import com.bana.dotori.user.entity.User;
-import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.mapper.UserMapper;
 import com.bana.dotori.user.repository.UserRepository;
 
@@ -38,6 +37,7 @@ public class UserServiceImpl implements UserService {
 	private final PasswordEncoder passwordEncoder;
 	private final AuthService authService;
 	private final FamilyService familyService;
+	private final MyPageAccessPolicy accessPolicy;
 
 	@Override
 	@Transactional
@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional(readOnly = true)
 	public UserInfoResponse getUserInfo(Integer loginUserId, Integer targetUserId) {
-		requireSelf(loginUserId, targetUserId);
+		accessPolicy.requireSelf(loginUserId, targetUserId);
 
 		return userMapper.toUserInfoResponse(findUser(targetUserId));
 	}
@@ -71,7 +71,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional
 	public UserUpdateResponse updateUserInfo(Integer loginUserId, Integer targetUserId, UserUpdateRequest request) {
-		requireSelf(loginUserId, targetUserId);
+		accessPolicy.requireSelf(loginUserId, targetUserId);
 
 		User user = findUser(targetUserId);
 
@@ -88,7 +88,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional
 	public void changePassword(Integer loginUserId, Integer targetUserId, PasswordChangeRequest request) {
-		requireSelf(loginUserId, targetUserId);
+		accessPolicy.requireSelf(loginUserId, targetUserId);
 
 		User user = findUser(targetUserId);
 
@@ -119,29 +119,11 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional(readOnly = true)
 	public ConnectedChildrenResponse getConnectedChildren(Integer loginUserId, Integer targetUserId) {
-		requireSelf(loginUserId, targetUserId);
-
-		User user = findUser(targetUserId);
-		if (user.getRole() != UserRole.PARENT) {
-			throw new BusinessException(ErrorCode.FORBIDDEN,
-				"연결된 자녀는 부모만 조회할 수 있습니다. userId=" + targetUserId + ", role=" + user.getRole());
-		}
+		accessPolicy.requireSelf(loginUserId, targetUserId);
+		accessPolicy.requireParent(findUser(targetUserId));
 
 		// 가족이 없으면 빈 목록이 온다. 자녀가 없는 것과 구분하지 않고 그대로 빈 배열로 내려준다.
 		return userMapper.toConnectedChildrenResponse(familyService.findConnectedChildren(targetUserId));
-	}
-
-	/**
-	 * 본인 리소스인지 확인한다.
-	 *
-	 * <p>회원을 찾기 전에 먼저 부른다. 순서를 뒤집으면 없는 id 는 404, 남의 id 는 403 이 되어
-	 * 응답 코드만으로 다른 계정의 존재 여부를 알아낼 수 있다.
-	 */
-	private void requireSelf(Integer loginUserId, Integer targetUserId) {
-		if (!targetUserId.equals(loginUserId)) {
-			throw new BusinessException(ErrorCode.FORBIDDEN,
-				"본인의 회원 정보만 다룰 수 있습니다. loginUserId=" + loginUserId + ", targetUserId=" + targetUserId);
-		}
 	}
 
 	private User findUser(Integer userId) {
