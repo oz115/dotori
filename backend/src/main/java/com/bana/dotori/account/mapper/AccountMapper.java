@@ -10,11 +10,13 @@ import org.springframework.stereotype.Component;
 
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
+import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.AccountTransactionResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
 import com.bana.dotori.account.entity.Account;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
 import com.bana.dotori.user.entity.User;
 
@@ -44,6 +46,12 @@ public class AccountMapper {
 	public AccountResponse toAccountResponse(Account account) {
 		return new AccountResponse(account.getId(), account.getBankCode(), account.getBankName(),
 			account.getAccountNumber(), account.getLinkedAt());
+	}
+
+	public AccountInfoResponse toAccountInfoResponse(InquireDemandDepositAccountRec rec) {
+		return new AccountInfoResponse(rec.bankCode(), rec.bankName(), rec.accountNo(), rec.accountName(),
+			rec.accountTypeName(), Long.parseLong(rec.accountBalance()), Long.parseLong(rec.dailyTransferLimit()),
+			Long.parseLong(rec.oneTimeTransferLimit()), rec.currency());
 	}
 
 	public AccountTransactionHistoryResponse toAccountTransactionHistoryResponse(List<TransactionHistoryItem> items,

@@ -6,6 +6,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRequest;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountResponse;
 import com.bana.dotori.finance.dto.auth.CheckAuthCodeRequest;
 import com.bana.dotori.finance.dto.auth.CheckAuthCodeResponse;
 import com.bana.dotori.finance.dto.auth.OpenAccountAuthRequest;
@@ -31,6 +34,7 @@ public class RestClientFinanceClient implements FinanceClient {
 	private static final String API_OPEN_ACCOUNT_AUTH = "openAccountAuth";
 	private static final String API_CHECK_AUTH_CODE = "checkAuthCode";
 	private static final String API_INQUIRE_TRANSACTION_HISTORY_LIST = "inquireTransactionHistoryList";
+	private static final String API_INQUIRE_DEMAND_DEPOSIT_ACCOUNT = "inquireDemandDepositAccount";
 
 	private final RestClient financeRestClient;
 	private final FinanceProperties properties;
@@ -140,6 +144,32 @@ public class RestClientFinanceClient implements FinanceClient {
 		} catch (RestClientException ex) {
 			log.error("금융망 거래내역 조회 실패: {}", ex.getMessage());
 			throw new FinanceApiException("금융망 거래내역 조회 중 통신 오류가 발생했습니다", ex);
+		}
+	}
+
+	// 연동 계좌의 상세 정보를 조회한다
+	@Override
+	public InquireDemandDepositAccountRec inquireDemandDepositAccount(String userKey, String accountNo) {
+		FinanceCommonHeader header = headerGenerator.createHeader(API_INQUIRE_DEMAND_DEPOSIT_ACCOUNT, userKey);
+		InquireDemandDepositAccountRequest request = InquireDemandDepositAccountRequest.builder()
+			.header(header)
+			.accountNo(accountNo)
+			.build();
+
+		try {
+			InquireDemandDepositAccountResponse response = financeRestClient.post()
+				.uri("/edu/demandDeposit/inquireDemandDepositAccount")
+				.body(request)
+				.retrieve()
+				.body(InquireDemandDepositAccountResponse.class);
+
+			validateResponse(response != null ? response.header() : null, "계좌 정보 조회");
+			return response.rec();
+		} catch (FinanceApiException ex) {
+			throw ex;
+		} catch (RestClientException ex) {
+			log.error("금융망 계좌 정보 조회 실패: {}", ex.getMessage());
+			throw new FinanceApiException("금융망 계좌 정보 조회 중 통신 오류가 발생했습니다", ex);
 		}
 	}
 

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
+import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
@@ -19,6 +20,7 @@ import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
 import com.bana.dotori.finance.client.FinanceClient;
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
 import com.bana.dotori.finance.exception.FinanceApiException;
@@ -95,6 +97,23 @@ public class AccountServiceImpl implements AccountService {
 
 		Account saved = accountRepository.save(accountMapper.toAccount(user, request, userKey));
 		return accountMapper.toAccountResponse(saved);
+	}
+
+	// 연동 계좌의 상세 정보를 금융망에서 실시간으로 조회한다
+	@Override
+	@Transactional(readOnly = true)
+	public AccountInfoResponse getAccountInfo(Integer userId) {
+		Account account = accountRepository.findFirstByUserId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		InquireDemandDepositAccountRec rec;
+		try {
+			rec = financeClient.inquireDemandDepositAccount(account.getFinanceUserKey(), account.getAccountNumber());
+		} catch (FinanceApiException ex) {
+			throw new BusinessException(ErrorCode.FINANCE_API_ERROR);
+		}
+
+		return accountMapper.toAccountInfoResponse(rec);
 	}
 
 	// 연동 계좌의 거래내역을 금융망에서 실시간으로 조회해 커서 기반으로 잘라 반환한다

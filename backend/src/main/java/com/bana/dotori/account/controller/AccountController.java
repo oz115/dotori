@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
+import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.service.AccountService;
@@ -42,6 +43,12 @@ public class AccountController {
 	public ResponseEntity<AccountResponse> verifyAuth(@AuthenticationPrincipal Integer userId,
 		@Valid @RequestBody AccountAuthVerifyRequest request) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(accountService.verifyAuth(userId, request));
+	}
+
+	// 연동 계좌 상세 정보 조회 API (금융망 실시간 조회)
+	@GetMapping("/me")
+	public ResponseEntity<AccountInfoResponse> getAccountInfo(@AuthenticationPrincipal Integer userId) {
+		return ResponseEntity.ok(accountService.getAccountInfo(userId));
 	}
 
 	// 연동 계좌 거래내역 조회 API (커서 기반 무한 스크롤, 항상 최신순 정렬)

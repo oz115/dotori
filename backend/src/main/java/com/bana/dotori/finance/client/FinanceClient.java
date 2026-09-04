@@ -1,5 +1,6 @@
 package com.bana.dotori.finance.client;
 
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 
 public interface FinanceClient {
@@ -16,4 +17,7 @@ public interface FinanceClient {
 	// 연동 계좌의 거래내역을 조회한다
 	InquireTransactionHistoryListRec inquireTransactionHistoryList(String userKey, String accountNo,
 		String startDate, String endDate, String transactionType, String orderByType);
+
+	// 연동 계좌의 상세 정보를 조회한다
+	InquireDemandDepositAccountRec inquireDemandDepositAccount(String userKey, String accountNo);
 }
