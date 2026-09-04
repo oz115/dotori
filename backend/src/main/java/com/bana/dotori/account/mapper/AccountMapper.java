@@ -32,9 +32,11 @@ public class AccountMapper {
 	public Account toAccount(User user, AccountAuthVerifyRequest request, String financeUserKey) {
 		return Account.builder()
 			.user(user)
+			.externalAccountId(request.accountNo())
 			.bankCode(request.bankCode())
 			.bankName(request.bankName())
 			.accountNumber(request.accountNo())
+			.balance(0)
 			.financeUserKey(financeUserKey)
 			.build();
 	}
