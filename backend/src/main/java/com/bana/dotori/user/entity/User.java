@@ -72,4 +72,28 @@ public class User {
 		this.role = role;
 		this.emailVerified = false;
 	}
+
+	/**
+	 * MYPAGE-02 회원 정보 수정. 지금 바꿀 수 있는 값은 이름뿐이다.
+	 */
+	public void changeName(String name) {
+		this.name = name;
+	}
+
+	/**
+	 * MYPAGE-04 비밀번호 변경. 인코딩된 값을 받는다.
+	 */
+	public void changePassword(String encodedPassword) {
+		this.password = encodedPassword;
+	}
+
+	/**
+	 * MYPAGE-05 회원 탈퇴. 행을 지우지 않고 시각만 남긴다.
+	 *
+	 * <p>가족 소속·포인트 거래 이력이 이 회원을 참조하고 있어 실제로 지우면 이력이 끊긴다.
+	 * 대신 조회 쿼리들이 deleted_at 을 보고 걸러 낸다.
+	 */
+	public void withdraw() {
+		this.deletedAt = OffsetDateTime.now();
+	}
 }

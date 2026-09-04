@@ -3,11 +3,13 @@ package com.bana.dotori.family.service;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.dto.ConnectedChild;
 import com.bana.dotori.family.dto.FamilyConnectRequest;
 import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
@@ -54,7 +56,7 @@ public class FamilyServiceImpl implements FamilyService {
 		if (user.getRole() != UserRole.PARENT) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		if (familyMemberRepository.existsByUserIdAndDeletedAtIsNull(userId)) {
+		if (familyMemberRepository.existsActiveMembership(userId)) {
 			throw new BusinessException(ErrorCode.ALREADY_IN_FAMILY);
 		}
 
@@ -70,7 +72,7 @@ public class FamilyServiceImpl implements FamilyService {
 	@Transactional(readOnly = true)
 	public FamilyResponse getFamily(Integer userId, Integer familyId) {
 		Family family = findMemberFamily(userId, familyId);
-		int memberCount = familyMemberRepository.countByFamilyIdAndDeletedAtIsNull(familyId);
+		int memberCount = familyMemberRepository.countActiveMembers(familyId);
 		return familyMapper.toFamilyResponse(family, memberCount);
 	}
 
@@ -125,7 +127,7 @@ public class FamilyServiceImpl implements FamilyService {
 		// 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
 		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(familyId, userId)) {
+		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
 		}
 
@@ -146,7 +148,7 @@ public class FamilyServiceImpl implements FamilyService {
 		if (user.getRole() != UserRole.CHILD) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		if (familyMemberRepository.existsByUserIdAndDeletedAtIsNull(userId)) {
+		if (familyMemberRepository.existsActiveMembership(userId)) {
 			throw new BusinessException(ErrorCode.ALREADY_IN_FAMILY);
 		}
 
@@ -194,9 +196,18 @@ public class FamilyServiceImpl implements FamilyService {
 	private Family findMemberFamily(Integer userId, Integer familyId) {
 		Family family = familyRepository.findByIdAndDeletedAtIsNull(familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(familyId, userId)) {
+		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
 			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
 		}
 		return family;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ConnectedChild> findConnectedChildren(Integer parentUserId) {
+		return familyMemberRepository.findConnectedChildren(parentUserId, UserRole.CHILD).stream()
+			.map(member -> new ConnectedChild(
+				member.getUser().getId(), member.getUser().getName(), member.getJoinedAt()))
+			.toList();
 	}
 }

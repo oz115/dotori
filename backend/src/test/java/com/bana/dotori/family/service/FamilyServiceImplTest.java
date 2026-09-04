@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,7 +19,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.family.dto.ConnectedChild;
 import com.bana.dotori.family.dto.FamilyConnectRequest;
 import com.bana.dotori.family.dto.FamilyConnectResponse;
 import com.bana.dotori.family.dto.FamilyCreateRequest;
@@ -84,7 +87,7 @@ class FamilyServiceImplTest {
 	@DisplayName("가족 생성 성공 시 생성된 가족 정보를 반환하고 생성자를 구성원으로 등록한다")
 	void create_success() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(1)).willReturn(false);
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		FamilyCreateResponse response = familyService.create(1, new FamilyCreateRequest("도토리네 가족"));
@@ -109,7 +112,7 @@ class FamilyServiceImplTest {
 	@DisplayName("이미 가족에 소속되어 있으면 ALREADY_IN_FAMILY 예외가 발생한다")
 	void create_alreadyInFamily() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
 
 		assertThatThrownBy(() -> familyService.create(1, new FamilyCreateRequest("도토리네 가족")))
 			.isInstanceOf(BusinessException.class)
@@ -122,8 +125,8 @@ class FamilyServiceImplTest {
 	void getFamily_success() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
-		given(familyMemberRepository.countByFamilyIdAndDeletedAtIsNull(1)).willReturn(3);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
 
 		FamilyResponse response = familyService.getFamily(1, 1);
 
@@ -148,7 +151,7 @@ class FamilyServiceImplTest {
 	void getFamily_notMember() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMember(1, 2)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.getFamily(2, 1))
 			.isInstanceOf(BusinessException.class)
@@ -163,7 +166,7 @@ class FamilyServiceImplTest {
 		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
 		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.findAllWithUserByFamilyId(1))
 			.willReturn(List.of(parentMember, childMember));
 
@@ -181,7 +184,7 @@ class FamilyServiceImplTest {
 	void getMembers_notMember() {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMember(1, 2)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.getMembers(2, 1))
 			.isInstanceOf(BusinessException.class)
@@ -250,7 +253,7 @@ class FamilyServiceImplTest {
 		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
 
 		familyService.removeChild(1, 1, 2);
@@ -275,7 +278,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 99)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 99))
@@ -291,7 +294,7 @@ class FamilyServiceImplTest {
 		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(parentMember));
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
@@ -306,7 +309,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("남의 가족").createdBy(3).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
 			.isInstanceOf(BusinessException.class)
@@ -335,7 +338,7 @@ class FamilyServiceImplTest {
 			.expiredAt(OffsetDateTime.now().plusMinutes(10))
 			.build();
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
 		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
 		given(familyMemberRepository.save(any(FamilyMember.class)))
 			.willAnswer(invocation -> invocation.getArgument(0));
@@ -356,7 +359,7 @@ class FamilyServiceImplTest {
 			.expiredAt(OffsetDateTime.now().plusMinutes(10))
 			.build();
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
 		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
 		given(familyMemberRepository.save(any(FamilyMember.class)))
 			.willAnswer(invocation -> invocation.getArgument(0));
@@ -381,7 +384,7 @@ class FamilyServiceImplTest {
 	@DisplayName("이미 가족에 소속된 자녀가 연결하면 ALREADY_IN_FAMILY 예외가 발생한다")
 	void connect_alreadyInFamily() {
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(true);
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(true);
 
 		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
 			.isInstanceOf(BusinessException.class)
@@ -393,7 +396,7 @@ class FamilyServiceImplTest {
 	@DisplayName("존재하지 않는 코드로 연결하면 INVALID_FAMILY_CODE 예외가 발생한다")
 	void connect_codeNotFound() {
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
 		given(familyCodeRepository.findWithFamilyByCode("WRONG9")).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("WRONG9")))
@@ -412,7 +415,7 @@ class FamilyServiceImplTest {
 			.expiredAt(OffsetDateTime.now().minusMinutes(1))
 			.build();
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
-		given(familyMemberRepository.existsByUserIdAndDeletedAtIsNull(2)).willReturn(false);
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
 		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
 
 		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
@@ -427,7 +430,7 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(true);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyCodeRepository.existsByCode(anyString())).willReturn(false);
 		given(familyCodeRepository.save(any(FamilyCode.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -455,11 +458,28 @@ class FamilyServiceImplTest {
 		Family family = Family.builder().name("남의 가족").createdBy(3).build();
 		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
-		given(familyMemberRepository.existsByFamilyIdAndUserIdAndDeletedAtIsNull(1, 1)).willReturn(false);
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
 
 		assertThatThrownBy(() -> familyService.createInvitationCode(1, 1))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("연결된 자녀 조회는 구성원을 자녀 요약으로 옮겨 담는다")
+	void findConnectedChildren_mapsToSummary() {
+		User child = User.builder()
+			.loginId("child1").password("encoded").name("김아이").email("child1@dotori.test")
+			.role(UserRole.CHILD).build();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember member = FamilyMember.builder().family(null).user(child).build();
+		OffsetDateTime joinedAt = OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9));
+		ReflectionTestUtils.setField(member, "joinedAt", joinedAt);
+		given(familyMemberRepository.findConnectedChildren(1, UserRole.CHILD)).willReturn(List.of(member));
+
+		List<ConnectedChild> children = familyService.findConnectedChildren(1);
+
+		assertThat(children).containsExactly(new ConnectedChild(2, "김아이", joinedAt));
 	}
 }

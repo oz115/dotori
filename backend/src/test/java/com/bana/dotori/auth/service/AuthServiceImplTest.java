@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -187,5 +188,26 @@ class AuthServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("Refresh Token 일괄 폐기는 살아 있는 토큰을 모두 폐기한다")
+	void revokeAllRefreshTokens_revokesEveryUsableToken() {
+		RefreshToken first = RefreshToken.builder()
+			.user(user(1))
+			.tokenHash("hash-1")
+			.expiresAt(OffsetDateTime.now().plusDays(7))
+			.build();
+		RefreshToken second = RefreshToken.builder()
+			.user(user(1))
+			.tokenHash("hash-2")
+			.expiresAt(OffsetDateTime.now().plusDays(7))
+			.build();
+		given(refreshTokenRepository.findAllByUser_IdAndRevokedAtIsNull(1)).willReturn(List.of(first, second));
+
+		authService.revokeAllRefreshTokens(1);
+
+		assertThat(first.isUsable()).isFalse();
+		assertThat(second.isUsable()).isFalse();
 	}
 }
