@@ -17,6 +17,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.finance.util.FinanceHeaderGenerator;
 
@@ -196,6 +197,86 @@ class RestClientFinanceClientTest {
 			.isInstanceOf(FinanceApiException.class)
 			.hasMessageContaining("A1002")
 			.hasMessageContaining("인증코드가 일치하지 않습니다.");
+
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("inquireTransactionHistoryList_정상_응답이면_REC를_반환한다")
+	void inquireTransactionHistoryList_성공() {
+		// given
+		String userKey = "test-user-key";
+		String accountNo = "0016174648358792";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "H0000",
+					"responseMessage": "정상처리 되었습니다.",
+					"apiName": "inquireTransactionHistoryList"
+				},
+				"REC": {
+					"totalCount": "1",
+					"list": [
+						{
+							"transactionUniqueNo": "59",
+							"transactionDate": "20240401",
+							"transactionTime": "102447",
+							"transactionType": "1",
+							"transactionTypeName": "입금",
+							"transactionAccountNo": "",
+							"transactionBalance": "100000000",
+							"transactionAfterBalance": "100000000",
+							"transactionSummary": "(수시입출금) : 입금",
+							"transactionMemo": ""
+						}
+					]
+				}
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/inquireTransactionHistoryList"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when
+		InquireTransactionHistoryListRec rec = client.inquireTransactionHistoryList(userKey, accountNo, "20240101",
+			"20241231", "A", "DESC");
+
+		// then
+		assertThat(rec.totalCount()).isEqualTo("1");
+		assertThat(rec.list()).hasSize(1);
+		assertThat(rec.list().get(0).transactionUniqueNo()).isEqualTo("59");
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("inquireTransactionHistoryList_금융망_오류코드_반환시_FinanceApiException이_발생한다")
+	void inquireTransactionHistoryList_금융망오류_예외발생() {
+		// given
+		String userKey = "test-user-key";
+		String accountNo = "0016174648358792";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "A1003",
+					"responseMessage": "계좌번호가 유효하지 않습니다.",
+					"apiName": "inquireTransactionHistoryList"
+				}
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/inquireTransactionHistoryList"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when & then
+		assertThatThrownBy(() -> client.inquireTransactionHistoryList(userKey, accountNo, "20240101", "20241231",
+			"A", "DESC"))
+			.isInstanceOf(FinanceApiException.class)
+			.hasMessageContaining("A1003")
+			.hasMessageContaining("계좌번호가 유효하지 않습니다.");
 
 		mockServer.verify();
 	}

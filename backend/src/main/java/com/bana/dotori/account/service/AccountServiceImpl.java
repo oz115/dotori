@@ -1,5 +1,9 @@
 package com.bana.dotori.account.service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -7,11 +11,16 @@ import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountResponse;
+import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.TransactionDirection;
+import com.bana.dotori.account.dto.TransactionPeriod;
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
 import com.bana.dotori.finance.client.FinanceClient;
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
+import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -24,6 +33,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
 
+	private static final int DEFAULT_TRANSACTION_PAGE_SIZE = 20;
+	private static final int MAX_TRANSACTION_PAGE_SIZE = 100;
+	private static final long MAX_TRANSACTION_RANGE_MONTHS = 3L;
+	private static final TransactionPeriod DEFAULT_TRANSACTION_PERIOD = TransactionPeriod.MONTH;
+	private static final String FINANCE_TRANSACTION_TYPE_ALL = "A";
+	private static final String FINANCE_TRANSACTION_TYPE_DEPOSIT = "M";
+	private static final String FINANCE_TRANSACTION_TYPE_WITHDRAWAL = "D";
+	private static final String ORDER_BY_DESC = "DESC";
+	private static final DateTimeFormatter FINANCE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
 	private final AccountRepository accountRepository;
 	private final UserRepository userRepository;
 	private final FinanceClient financeClient;
@@ -35,7 +54,7 @@ public class AccountServiceImpl implements AccountService {
 	@Override
 	@Transactional(readOnly = true)
 	public AccountAuthResponse requestAuth(Integer userId, AccountAuthRequest request) {
-		if (accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(userId, request.accountNo())) {
+		if (accountRepository.existsByUserIdAndAccountNumber(userId, request.accountNo())) {
 			throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_LINKED);
 		}
 		User user = userRepository.findById(userId)
@@ -50,14 +69,15 @@ public class AccountServiceImpl implements AccountService {
 		}
 
 		accountAuthSessionManager.create(userId, request.accountNo(), userKey);
-		return accountMapper.toAccountAuthResponse(request.accountNo());
+		return accountMapper.toAccountAuthResponse(request.accountNo(), financeProperties.authText(),
+			accountAuthSessionManager.sessionTtlSeconds());
 	}
 
 	// 인증 세션의 userKey로 인증코드를 검증하고 계좌를 저장한다
 	@Override
 	@Transactional
 	public AccountResponse verifyAuth(Integer userId, AccountAuthVerifyRequest request) {
-		if (accountRepository.existsByUserIdAndAccountNoAndDeletedAtIsNull(userId, request.accountNo())) {
+		if (accountRepository.existsByUserIdAndAccountNumber(userId, request.accountNo())) {
 			throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_LINKED);
 		}
 		String userKey = accountAuthSessionManager.getUserKey(userId, request.accountNo());
@@ -75,5 +95,109 @@ public class AccountServiceImpl implements AccountService {
 
 		Account saved = accountRepository.save(accountMapper.toAccount(user, request, userKey));
 		return accountMapper.toAccountResponse(saved);
+	}
+
+	// 연동 계좌의 거래내역을 금융망에서 실시간으로 조회해 커서 기반으로 잘라 반환한다
+	@Override
+	@Transactional(readOnly = true)
+	public AccountTransactionHistoryResponse getTransactionHistory(Integer userId, String period,
+		LocalDate startDate, LocalDate endDate, String cursor, Integer size, String transactionType) {
+		Account account = accountRepository.findFirstByUserId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		DateRange range = resolveDateRange(period, startDate, endDate);
+		int pageSize = (size == null) ? DEFAULT_TRANSACTION_PAGE_SIZE : Math.min(size, MAX_TRANSACTION_PAGE_SIZE);
+
+		String financeTransactionType = resolveFinanceTransactionType(transactionType);
+
+		InquireTransactionHistoryListRec rec;
+		try {
+			rec = financeClient.inquireTransactionHistoryList(account.getFinanceUserKey(),
+				account.getAccountNumber(), range.startDate().format(FINANCE_DATE_FORMATTER),
+				range.endDate().format(FINANCE_DATE_FORMATTER), financeTransactionType, ORDER_BY_DESC);
+		} catch (FinanceApiException ex) {
+			throw new BusinessException(ErrorCode.FINANCE_API_ERROR);
+		}
+
+		List<TransactionHistoryItem> items = rec.list();
+		int startIndex = 0;
+		if (cursor != null) {
+			int cursorIndex = indexOfTransaction(items, cursor);
+			startIndex = (cursorIndex >= 0) ? cursorIndex + 1 : items.size();
+		}
+
+		int endIndex = Math.min(startIndex + pageSize, items.size());
+		List<TransactionHistoryItem> page = items.subList(startIndex, endIndex);
+		boolean hasNext = endIndex < items.size();
+		String nextCursor = hasNext ? page.get(page.size() - 1).transactionUniqueNo() : null;
+
+		return accountMapper.toAccountTransactionHistoryResponse(page, nextCursor, hasNext);
+	}
+
+	private int indexOfTransaction(List<TransactionHistoryItem> items, String transactionUniqueNo) {
+		for (int i = 0; i < items.size(); i++) {
+			if (items.get(i).transactionUniqueNo().equals(transactionUniqueNo)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	// period(상대 기간)와 startDate/endDate(절대 기간)는 배타적이며, 조회 기간은 최대 3개월로 제한한다
+	private DateRange resolveDateRange(String period, LocalDate startDate, LocalDate endDate) {
+		boolean hasPeriod = period != null;
+		boolean hasStartDate = startDate != null;
+		boolean hasEndDate = endDate != null;
+
+		if (hasPeriod && (hasStartDate || hasEndDate)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST,
+				"period와 startDate/endDate는 함께 지정할 수 없습니다");
+		}
+		if (hasStartDate != hasEndDate) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "startDate와 endDate는 함께 지정해야 합니다");
+		}
+
+		if (hasStartDate) {
+			if (startDate.isAfter(endDate)) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST, "endDate는 startDate 이후여야 합니다");
+			}
+			if (startDate.plusMonths(MAX_TRANSACTION_RANGE_MONTHS).isBefore(endDate)) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST,
+					"조회 기간은 최대 " + MAX_TRANSACTION_RANGE_MONTHS + "개월까지 가능합니다");
+			}
+			return new DateRange(startDate, endDate);
+		}
+
+		TransactionPeriod resolvedPeriod = hasPeriod ? parsePeriod(period) : DEFAULT_TRANSACTION_PERIOD;
+		LocalDate resolvedEndDate = LocalDate.now();
+		return new DateRange(resolvedPeriod.toStartDate(resolvedEndDate), resolvedEndDate);
+	}
+
+	private TransactionPeriod parsePeriod(String period) {
+		try {
+			return TransactionPeriod.valueOf(period);
+		} catch (IllegalArgumentException ex) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "유효하지 않은 period 값입니다: " + period);
+		}
+	}
+
+	// 우리 쪽 방향 필터(DEPOSIT/WITHDRAWAL)를 금융망 요청 코드(M/D/A)로 변환한다
+	private String resolveFinanceTransactionType(String transactionType) {
+		if (transactionType == null) {
+			return FINANCE_TRANSACTION_TYPE_ALL;
+		}
+		TransactionDirection direction;
+		try {
+			direction = TransactionDirection.valueOf(transactionType);
+		} catch (IllegalArgumentException ex) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST,
+				"유효하지 않은 transactionType 값입니다: " + transactionType);
+		}
+		return direction == TransactionDirection.DEPOSIT
+			? FINANCE_TRANSACTION_TYPE_DEPOSIT
+			: FINANCE_TRANSACTION_TYPE_WITHDRAWAL;
+	}
+
+	private record DateRange(LocalDate startDate, LocalDate endDate) {
 	}
 }

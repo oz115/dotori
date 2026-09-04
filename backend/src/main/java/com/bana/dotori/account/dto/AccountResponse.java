@@ -7,7 +7,6 @@ public record AccountResponse(
 	String bankCode,
 	String bankName,
 	String accountNo,
-	boolean primary,
 	OffsetDateTime createdAt
 ) {
 }

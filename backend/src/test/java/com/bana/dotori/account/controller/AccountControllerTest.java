@@ -1,13 +1,17 @@
 package com.bana.dotori.account.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -27,6 +31,9 @@ import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountResponse;
+import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.AccountTransactionResponse;
+import com.bana.dotori.account.dto.TransactionDirection;
 import com.bana.dotori.account.service.AccountService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
@@ -52,6 +59,7 @@ class AccountControllerTest {
 
 	private static final String AUTH_URL = "/api/v1/accounts/auth";
 	private static final String VERIFY_URL = "/api/v1/accounts/auth/verify";
+	private static final String TRANSACTIONS_URL = "/api/v1/accounts/transactions";
 	private static final String ACCESS_TOKEN = "valid-access-token";
 
 	private static final String AUTH_BODY = """
@@ -82,14 +90,16 @@ class AccountControllerTest {
 	void requestAuth_success() throws Exception {
 		authenticateAs(1);
 		given(accountService.requestAuth(eq(1), any(AccountAuthRequest.class)))
-			.willReturn(new AccountAuthResponse("0011214764051239"));
+			.willReturn(new AccountAuthResponse("0011214764051239", "도토리", 180L));
 
 		mockMvc.perform(post(AUTH_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(AUTH_BODY))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.accountNo").value("0011214764051239"));
+			.andExpect(jsonPath("$.accountNo").value("0011214764051239"))
+			.andExpect(jsonPath("$.authText").value("도토리"))
+			.andExpect(jsonPath("$.expiresInSeconds").value(180));
 	}
 
 	@Test
@@ -138,7 +148,7 @@ class AccountControllerTest {
 	void verifyAuth_success() throws Exception {
 		authenticateAs(1);
 		given(accountService.verifyAuth(eq(1), any(AccountAuthVerifyRequest.class)))
-			.willReturn(new AccountResponse(1L, "003", "국민은행", "0011214764051239", true, OffsetDateTime.now()));
+			.willReturn(new AccountResponse(1L, "003", "국민은행", "0011214764051239", OffsetDateTime.now()));
 
 		mockMvc.perform(post(VERIFY_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
@@ -147,8 +157,7 @@ class AccountControllerTest {
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.id").value(1))
 			.andExpect(jsonPath("$.bankCode").value("003"))
-			.andExpect(jsonPath("$.accountNo").value("0011214764051239"))
-			.andExpect(jsonPath("$.primary").value(true));
+			.andExpect(jsonPath("$.accountNo").value("0011214764051239"));
 	}
 
 	@Test
@@ -218,6 +227,107 @@ class AccountControllerTest {
 		mockMvc.perform(post(VERIFY_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(VERIFY_BODY))
+			.andExpect(status().isUnauthorized());
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 성공 시 200과 거래내역·다음 커서를 반환한다")
+	void getTransactionHistory_success() throws Exception {
+		authenticateAs(1);
+		AccountTransactionResponse transaction = new AccountTransactionResponse("61", TransactionDirection.WITHDRAWAL,
+			"출금(이체)", 10000000, 89900000, "(수시입출금) : 출금(이체)", OffsetDateTime.now());
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+			.willReturn(new AccountTransactionHistoryResponse(List.of(transaction), "61", true));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.transactions[0].transactionUniqueNo").value("61"))
+			.andExpect(jsonPath("$.transactions[0].transactionType").value("WITHDRAWAL"))
+			.andExpect(jsonPath("$.nextCursor").value("61"))
+			.andExpect(jsonPath("$.hasNext").value(true));
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 시 cursor/size 파라미터를 그대로 서비스에 전달한다")
+	void getTransactionHistory_withCursorAndSize() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), eq("60"), eq(10),
+			anyString())).willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("cursor", "60")
+				.param("size", "10")
+				.param("transactionType", "DEPOSIT"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.transactions").isEmpty())
+			.andExpect(jsonPath("$.hasNext").value(false));
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 시 period 파라미터를 그대로 서비스에 전달한다")
+	void getTransactionHistory_withPeriod() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), eq("WEEK"), isNull(), isNull(), isNull(), isNull(),
+			isNull())).willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("period", "WEEK"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("거래내역 조회 시 startDate/endDate 파라미터를 LocalDate로 바인딩해 서비스에 전달한다")
+	void getTransactionHistory_withDateRange() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), eq(LocalDate.of(2024, 1, 1)),
+			eq(LocalDate.of(2024, 3, 1)), isNull(), isNull(), isNull()))
+			.willReturn(new AccountTransactionHistoryResponse(List.of(), null, false));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("startDate", "2024-01-01")
+				.param("endDate", "2024-03-01"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("조회 기간이 3개월을 초과하면 400과 INVALID_REQUEST 에러를 반환한다")
+	void getTransactionHistory_기간초과() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), eq(LocalDate.of(2024, 1, 1)),
+			eq(LocalDate.of(2024, 5, 1)), isNull(), isNull(), isNull()))
+			.willThrow(new BusinessException(ErrorCode.INVALID_REQUEST));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.param("startDate", "2024-01-01")
+				.param("endDate", "2024-05-01"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("연동된 계좌가 없으면 404와 ACCOUNT_NOT_LINKED 에러를 반환한다")
+	void getTransactionHistory_notLinked() throws Exception {
+		authenticateAs(1);
+		given(accountService.getTransactionHistory(eq(1), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+			.willThrow(new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		mockMvc.perform(get(TRANSACTIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("ACCOUNT_NOT_LINKED"));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 거래내역을 요청하면 401을 반환한다")
+	void getTransactionHistory_withoutAuth() throws Exception {
+		mockMvc.perform(get(TRANSACTIONS_URL))
 			.andExpect(status().isUnauthorized());
 
 		then(accountService).shouldHaveNoInteractions();

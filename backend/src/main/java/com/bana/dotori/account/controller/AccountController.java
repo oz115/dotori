@@ -1,17 +1,23 @@
 package com.bana.dotori.account.controller;
 
+import java.time.LocalDate;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountResponse;
+import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.service.AccountService;
 
 import jakarta.validation.Valid;
@@ -36,5 +42,19 @@ public class AccountController {
 	public ResponseEntity<AccountResponse> verifyAuth(@AuthenticationPrincipal Integer userId,
 		@Valid @RequestBody AccountAuthVerifyRequest request) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(accountService.verifyAuth(userId, request));
+	}
+
+	// 연동 계좌 거래내역 조회 API (커서 기반 무한 스크롤, 항상 최신순 정렬)
+	// period(상대 기간: WEEK/MONTH/THREE_MONTHS) 또는 startDate·endDate(절대 기간) 중 하나만 지정한다
+	// transactionType은 DEPOSIT/WITHDRAWAL 중 하나이며 생략하면 전체 조회한다
+	@GetMapping("/transactions")
+	public ResponseEntity<AccountTransactionHistoryResponse> getTransactionHistory(
+		@AuthenticationPrincipal Integer userId, @RequestParam(required = false) String period,
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+		@RequestParam(required = false) String cursor, @RequestParam(required = false) Integer size,
+		@RequestParam(required = false) String transactionType) {
+		return ResponseEntity.ok(
+			accountService.getTransactionHistory(userId, period, startDate, endDate, cursor, size, transactionType));
 	}
 }
