@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.service.StoreProductService;
 
@@ -23,5 +24,11 @@ public class StoreProductController {
 	public ResponseEntity<StoreProductListResponse> getProducts(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId) {
 		return ResponseEntity.ok(storeProductService.getProducts(userId, familyId));
+	}
+
+	@GetMapping("/{productId}")
+	public ResponseEntity<StoreProductDetailResponse> getProduct(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer productId) {
+		return ResponseEntity.ok(storeProductService.getProduct(userId, familyId, productId));
 	}
 }

@@ -7,7 +7,9 @@ import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
+import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.mapper.StoreProductMapper;
 import com.bana.dotori.store.repository.StoreProductRepository;
 
@@ -28,6 +30,15 @@ public class StoreProductServiceImpl implements StoreProductService {
 		validateFamilyMember(userId, familyId);
 		return storeProductMapper.toListResponse(
 			storeProductRepository.findAllByFamilyIdOrderByCreatedAtDescIdDesc(familyId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public StoreProductDetailResponse getProduct(Integer userId, Integer familyId, Integer productId) {
+		validateFamilyMember(userId, familyId);
+		StoreProduct product = storeProductRepository.findByIdAndFamilyId(productId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		return storeProductMapper.toDetailResponse(product);
 	}
 
 	/**
