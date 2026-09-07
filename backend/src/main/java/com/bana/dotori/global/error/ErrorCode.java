@@ -33,6 +33,9 @@ public enum ErrorCode {
 	FAMILY_HAS_CHILDREN(HttpStatus.CONFLICT, "가족에 남은 자녀가 있어 탈퇴할 수 없습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
+	// 이메일 인증 (AUTH-07)
+	TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "인증 코드가 이미 발송되었습니다. 잠시 후 다시 시도해 주세요"),
+
 	// 계좌 연동 (ACC-01·02)
 	ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 계좌입니다"),
 	AUTH_SESSION_NOT_FOUND(HttpStatus.BAD_REQUEST, "1원 인증 요청이 없거나 만료되었습니다"),
