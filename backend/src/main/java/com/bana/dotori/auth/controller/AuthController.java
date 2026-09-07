@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.auth.dto.EmailVerificationConfirmRequest;
+import com.bana.dotori.auth.dto.EmailVerificationConfirmResponse;
 import com.bana.dotori.auth.dto.EmailVerificationSendRequest;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
@@ -58,6 +60,13 @@ public class AuthController {
 		@Valid @RequestBody EmailVerificationSendRequest request) {
 		emailVerificationService.sendCode(request.email());
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/email-verification/confirm")
+	public ResponseEntity<EmailVerificationConfirmResponse> confirmEmailVerificationCode(
+		@Valid @RequestBody EmailVerificationConfirmRequest request) {
+		String verificationToken = emailVerificationService.confirmCode(request.email(), request.code());
+		return ResponseEntity.ok(new EmailVerificationConfirmResponse(true, verificationToken));
 	}
 
 	@PostMapping("/logout")

@@ -1,6 +1,7 @@
 package com.bana.dotori.auth.service;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -27,8 +28,11 @@ public class EmailVerificationCodeManager {
 	private static final String FIELD_CODE = ":code";
 	private static final String FIELD_ATTEMPT = ":attempt";
 	private static final String FIELD_COOLDOWN = ":cooldown";
+	private static final String FIELD_TOKEN = ":token";
 	private static final long CODE_TTL_SECONDS = 600L;
 	private static final long COOLDOWN_SECONDS = 60L;
+	private static final long TOKEN_TTL_SECONDS = 600L;
+	private static final int MAX_ATTEMPT = 5;
 
 	private final StringRedisTemplate redisTemplate;
 
@@ -58,6 +62,45 @@ public class EmailVerificationCodeManager {
 	 */
 	public long codeTtlSeconds() {
 		return CODE_TTL_SECONDS;
+	}
+
+	/**
+	 * 저장된 코드와 대조한다. 성공 시 코드를 지우고 후속 요청용 verificationToken 을 발급한다.
+	 *
+	 * <p>실패할 때마다 시도 횟수를 올리고, {@value MAX_ATTEMPT}회 이상이면 코드를 지워
+	 * 재발송을 강제한다 (TOO_MANY_ATTEMPTS).
+	 *
+	 * @param email 코드를 받은 이메일 (소문자 정규화된 값)
+	 * @param code  사용자가 입력한 6자리 코드
+	 * @return 후속 API(회원가입/아이디 찾기/비밀번호 재설정)에 전달할 verificationToken
+	 */
+	public String verifyCode(String email, String code) {
+		String stored = redisTemplate.opsForValue().get(buildKey(email) + FIELD_CODE);
+		if (stored == null) {
+			throw new BusinessException(ErrorCode.INVALID_CODE);
+		}
+		if (!stored.equals(code)) {
+			incrementAttempt(email);
+			throw new BusinessException(ErrorCode.INVALID_CODE);
+		}
+
+		redisTemplate.delete(buildKey(email) + FIELD_CODE);
+		redisTemplate.delete(buildKey(email) + FIELD_ATTEMPT);
+
+		String token = "vt_" + UUID.randomUUID().toString().replace("-", "");
+		redisTemplate.opsForValue()
+			.set(buildKey(email) + FIELD_TOKEN, token, Duration.ofSeconds(TOKEN_TTL_SECONDS));
+		return token;
+	}
+
+	private void incrementAttempt(String email) {
+		Long current = redisTemplate.opsForValue().increment(buildKey(email) + FIELD_ATTEMPT);
+		if (current == null || current >= MAX_ATTEMPT) {
+			log.warn("이메일 인증 시도 횟수 초과 - email: {}", email);
+			redisTemplate.delete(buildKey(email) + FIELD_CODE);
+			redisTemplate.delete(buildKey(email) + FIELD_ATTEMPT);
+			throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
+		}
 	}
 
 	private String buildKey(String email) {

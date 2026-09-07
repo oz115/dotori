@@ -35,4 +35,9 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 			+ (codeManager.codeTtlSeconds() / 60) + "분 안에 입력해 주세요.");
 		mailSender.send(message);
 	}
+
+	@Override
+	public String confirmCode(String email, String code) {
+		return codeManager.verifyCode(email.toLowerCase(Locale.ROOT), code);
+	}
 }

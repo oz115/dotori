@@ -35,6 +35,8 @@ public enum ErrorCode {
 
 	// 이메일 인증 (AUTH-07)
 	TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "인증 코드가 이미 발송되었습니다. 잠시 후 다시 시도해 주세요"),
+	INVALID_CODE(HttpStatus.BAD_REQUEST, "인증 코드가 일치하지 않거나 만료되었습니다"),
+	TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다. 코드를 다시 발송해 주세요"),
 
 	// 계좌 연동 (ACC-01·02)
 	ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 계좌입니다"),
