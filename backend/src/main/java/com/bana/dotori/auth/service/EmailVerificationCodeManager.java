@@ -1,6 +1,7 @@
 package com.bana.dotori.auth.service;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -44,15 +45,34 @@ public class EmailVerificationCodeManager {
 	 * @param code  6자리 숫자 인증 코드
 	 */
 	public void saveCode(String email, String code) {
+		// SET NX(setIfAbsent)로 쿨타임 검사와 기록을 한 명령에 처리한다.
+		// hasKey 후 set 으로 나누면 동시 요청 둘 다 검사를 통과해 메일이 두 번 나가고,
+		// 나중 코드가 먼저 것을 덮어써 먼저 도착한 메일의 코드가 무효가 된다.
 		String cooldownKey = buildKey(email) + FIELD_COOLDOWN;
-		if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
+		Boolean acquired = redisTemplate.opsForValue()
+			.setIfAbsent(cooldownKey, "1", Duration.ofSeconds(COOLDOWN_SECONDS));
+		if (!Boolean.TRUE.equals(acquired)) {
 			throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
 		}
 
 		Duration codeTtl = Duration.ofSeconds(CODE_TTL_SECONDS);
 		redisTemplate.opsForValue().set(buildKey(email) + FIELD_CODE, code, codeTtl);
 		redisTemplate.opsForValue().set(buildKey(email) + FIELD_ATTEMPT, "0", codeTtl);
-		redisTemplate.opsForValue().set(cooldownKey, "1", Duration.ofSeconds(COOLDOWN_SECONDS));
+	}
+
+	/**
+	 * 코드·시도 횟수·쿨타임을 모두 지워 즉시 재발송이 가능한 상태로 되돌린다.
+	 *
+	 * <p>메일 발송 실패의 보상 처리와 시도 횟수 초과 잠금에서 쓴다 — 어느 쪽이든
+	 * 사용자의 다음 행동이 "재발송"이므로 쿨타임이 남아 있으면 안 된다.
+	 *
+	 * @param email 인증 코드를 받을 이메일 (소문자 정규화된 값)
+	 */
+	public void discardCode(String email) {
+		redisTemplate.delete(List.of(
+			buildKey(email) + FIELD_CODE,
+			buildKey(email) + FIELD_ATTEMPT,
+			buildKey(email) + FIELD_COOLDOWN));
 	}
 
 	/**
@@ -124,8 +144,9 @@ public class EmailVerificationCodeManager {
 		Long current = redisTemplate.opsForValue().increment(buildKey(email) + FIELD_ATTEMPT);
 		if (current == null || current >= MAX_ATTEMPT) {
 			log.warn("이메일 인증 시도 횟수 초과 - email: {}", email);
-			redisTemplate.delete(buildKey(email) + FIELD_CODE);
-			redisTemplate.delete(buildKey(email) + FIELD_ATTEMPT);
+			// 에러 메시지가 재발송을 안내하므로 쿨타임까지 함께 지운다.
+			// 코드만 지우면 쿨타임이 남아 최대 60초간 재발송도 못 하는 막다른 구간이 생긴다.
+			discardCode(email);
 			throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
 		}
 	}

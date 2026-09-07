@@ -2,6 +2,7 @@ package com.bana.dotori.auth.service;
 
 import java.util.Locale;
 
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,14 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 		message.setSubject("[도토리타운] 이메일 인증 코드");
 		message.setText("인증 코드: " + code + "\n"
 			+ (codeManager.codeTtlSeconds() / 60) + "분 안에 입력해 주세요.");
-		mailSender.send(message);
+		try {
+			mailSender.send(message);
+		} catch (MailException e) {
+			// 메일이 못 나갔는데 코드·쿨타임만 남으면 사용자는 받지도 못한 코드에
+			// 60초간 재시도조차 막힌다 → 저장한 것을 되돌려 즉시 재시도할 수 있게 한다
+			codeManager.discardCode(normalizedEmail);
+			throw e;
+		}
 	}
 
 	@Override
