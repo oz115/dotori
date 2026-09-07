@@ -75,7 +75,7 @@ class PointWalletQueryServiceTest {
 		@DisplayName("아이 본인은 자기 잔액을 조회한다")
 		void 본인_조회() {
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-			given(pointWalletRepository.findByUserId(CHILD_ID))
+			given(pointWalletRepository.findByChildId(CHILD_ID))
 					.willReturn(Optional.of(PointWallet.openWithBalance(CHILD_ID, 12_000)));
 
 			PointBalanceResponse response =
@@ -91,7 +91,7 @@ class PointWalletQueryServiceTest {
 		void 부모가_자녀를_조회한다() {
 			given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-			given(pointWalletRepository.findByUserId(CHILD_ID))
+			given(pointWalletRepository.findByChildId(CHILD_ID))
 					.willReturn(Optional.of(PointWallet.openWithBalance(CHILD_ID, 8_000)));
 
 			PointBalanceResponse response =
@@ -104,7 +104,7 @@ class PointWalletQueryServiceTest {
 		@DisplayName("지갑이 아직 없으면 오류 대신 잔액 0을 돌려준다")
 		void 지갑이_없으면_0이다() {
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-			given(pointWalletRepository.findByUserId(CHILD_ID)).willReturn(Optional.empty());
+			given(pointWalletRepository.findByChildId(CHILD_ID)).willReturn(Optional.empty());
 
 			PointBalanceResponse response =
 					pointWalletQueryService.getBalance(FAMILY_ID, CHILD_ID, CHILD_ID);
@@ -122,14 +122,12 @@ class PointWalletQueryServiceTest {
 	@DisplayName("거래내역을 조회할 때")
 	class GetTransactions {
 
-		private static final int WALLET_ID = 10;
 
 		@BeforeEach
 		void 본인_조회를_허용한다() {
 			PointWallet wallet = PointWallet.openWithBalance(CHILD_ID, 6_000);
-			ReflectionTestUtils.setField(wallet, "walletId", WALLET_ID);
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-			given(pointWalletRepository.findByUserId(CHILD_ID)).willReturn(Optional.of(wallet));
+			given(pointWalletRepository.findByChildId(CHILD_ID)).willReturn(Optional.of(wallet));
 		}
 
 		@Test
@@ -143,7 +141,7 @@ class PointWalletQueryServiceTest {
 
 			ArgumentCaptor<OffsetDateTime> startAt = ArgumentCaptor.forClass(OffsetDateTime.class);
 			ArgumentCaptor<OffsetDateTime> endAt = ArgumentCaptor.forClass(OffsetDateTime.class);
-			verify(pointTransactionRepository).search(eq(WALLET_ID), startAt.capture(), endAt.capture(),
+			verify(pointTransactionRepository).search(eq(CHILD_ID), startAt.capture(), endAt.capture(),
 					eq(PointTransactionReason.CHARGE), isNull(), eq(Sort.Direction.ASC), anyInt());
 
 			assertThat(startAt.getValue())
@@ -175,7 +173,7 @@ class PointWalletQueryServiceTest {
 			pointWalletQueryService.getTransactions(FAMILY_ID, CHILD_ID, CHILD_ID,
 					null, null, null, null, null, 20);
 
-			verify(pointTransactionRepository).search(eq(WALLET_ID), isNull(), isNull(), isNull(),
+			verify(pointTransactionRepository).search(eq(CHILD_ID), isNull(), isNull(), isNull(),
 					isNull(), eq(Sort.Direction.DESC), anyInt());
 		}
 
@@ -283,7 +281,7 @@ class PointWalletQueryServiceTest {
 		private PointTransaction transaction(int id, PointTransactionReason reason,
 				int amount, int balanceAfter) {
 			PointTransaction transaction = PointTransaction.record(
-					WALLET_ID, reason, amount, balanceAfter, reason.name(), "key-" + id);
+					CHILD_ID, reason, amount, balanceAfter, reason.name(), "key-" + id);
 			ReflectionTestUtils.setField(transaction, "pointTransactionId", id);
 			return transaction;
 		}
@@ -307,7 +305,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_DATE_RANGE);
 
-			verify(pointWalletRepository, never()).findByUserId(any());
+			verify(pointWalletRepository, never()).findByChildId(any());
 		}
 
 		@Test
@@ -319,7 +317,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_CURSOR);
 
-			verify(pointWalletRepository, never()).findByUserId(any());
+			verify(pointWalletRepository, never()).findByChildId(any());
 		}
 
 		@Test
@@ -351,7 +349,7 @@ class PointWalletQueryServiceTest {
 		@DisplayName("거래내역은 조회하지 않고 빈 목록과 잔액 0을 돌려준다")
 		void 지갑이_없으면_조회하지_않는다() {
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
-			given(pointWalletRepository.findByUserId(CHILD_ID)).willReturn(Optional.empty());
+			given(pointWalletRepository.findByChildId(CHILD_ID)).willReturn(Optional.empty());
 
 			PointTransactionHistoryResponse response = pointWalletQueryService.getTransactions(
 					FAMILY_ID, CHILD_ID, CHILD_ID, null, null, null, null, null, 20);
@@ -379,7 +377,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_ACCESS_DENIED);
 
-			verify(pointWalletRepository, never()).findByUserId(any());
+			verify(pointWalletRepository, never()).findByChildId(any());
 		}
 	}
 
@@ -398,7 +396,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_ACCESS_DENIED);
 
-			verify(pointWalletRepository, never()).findByUserId(OTHER_CHILD_ID);
+			verify(pointWalletRepository, never()).findByChildId(OTHER_CHILD_ID);
 		}
 
 		@Test
@@ -411,7 +409,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_ACCESS_DENIED);
 
-			verify(pointWalletRepository, never()).findByUserId(CHILD_ID);
+			verify(pointWalletRepository, never()).findByChildId(CHILD_ID);
 		}
 
 		@Test
@@ -438,7 +436,7 @@ class PointWalletQueryServiceTest {
 					.isInstanceOf(BusinessException.class)
 					.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_ACCESS_DENIED);
 
-			verify(pointWalletRepository, never()).findByUserId(CHILD_ID);
+			verify(pointWalletRepository, never()).findByChildId(CHILD_ID);
 		}
 
 		@Test

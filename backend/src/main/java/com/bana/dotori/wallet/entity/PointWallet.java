@@ -32,9 +32,9 @@ import lombok.NoArgsConstructor;
 @Getter
 @Table(name = "point_wallets", uniqueConstraints = {
 		// 한 사용자에게 지갑이 두 개 생기면 잔액 조회가 어느 쪽을 골라야 할지 알 수 없다.
-		@UniqueConstraint(name = "uk_point_wallets_user_id", columnNames = "user_id")
+		@UniqueConstraint(name = "UQ_POINT_WALLETS_CHILD_ID", columnNames = "child_id")
 })
-@Check(name = "ck_point_wallets_balance_not_negative", constraints = "balance >= 0")
+@Check(name = "CK_POINT_WALLETS_BALANCE_NON_NEGATIVE", constraints = "balance >= 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PointWallet {
 
@@ -45,8 +45,8 @@ public class PointWallet {
 	@Column(name = "wallet_id")
 	private Integer walletId;
 
-	@Column(name = "user_id", nullable = false, unique = true, updatable = false)
-	private Integer userId;
+	@Column(name = "child_id", nullable = false, unique = true, updatable = false)
+	private Integer childId;
 
 	@Column(name = "balance", nullable = false)
 	private int balance;
@@ -57,9 +57,9 @@ public class PointWallet {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
-	private PointWallet(Integer userId, int balance) {
+	private PointWallet(Integer childId, int balance) {
 		OffsetDateTime now = OffsetDateTime.now(KST);
-		this.userId = userId;
+		this.childId = childId;
 		this.balance = balance;
 		this.createdAt = now;
 		this.updatedAt = now;
@@ -68,15 +68,15 @@ public class PointWallet {
 	/**
 	 * 잔액 0인 새 지갑을 만든다. 회원가입 또는 가족 합류 시점에 호출한다.
 	 */
-	public static PointWallet openFor(Integer userId) {
-		return new PointWallet(userId, 0);
+	public static PointWallet openFor(Integer childId) {
+		return new PointWallet(childId, 0);
 	}
 
 	/**
 	 * 테스트에서 초기 잔액이 있는 지갑이 필요할 때 쓴다.
 	 */
-	public static PointWallet openWithBalance(Integer userId, int initialBalance) {
-		return new PointWallet(userId, initialBalance);
+	public static PointWallet openWithBalance(Integer childId, int initialBalance) {
+		return new PointWallet(childId, initialBalance);
 	}
 
 	/**

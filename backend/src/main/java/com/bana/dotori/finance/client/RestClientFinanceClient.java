@@ -1,5 +1,7 @@
 package com.bana.dotori.finance.client;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -20,6 +22,9 @@ import com.bana.dotori.finance.dto.member.SearchMemberResponse;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRequest;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListResponse;
+import com.bana.dotori.finance.dto.transfer.TransferAccountRec;
+import com.bana.dotori.finance.dto.transfer.UpdateDemandDepositAccountTransferRequest;
+import com.bana.dotori.finance.dto.transfer.UpdateDemandDepositAccountTransferResponse;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.finance.util.FinanceHeaderGenerator;
 
@@ -35,6 +40,7 @@ public class RestClientFinanceClient implements FinanceClient {
 	private static final String API_CHECK_AUTH_CODE = "checkAuthCode";
 	private static final String API_INQUIRE_TRANSACTION_HISTORY_LIST = "inquireTransactionHistoryList";
 	private static final String API_INQUIRE_DEMAND_DEPOSIT_ACCOUNT = "inquireDemandDepositAccount";
+	private static final String API_UPDATE_DEMAND_DEPOSIT_ACCOUNT_TRANSFER = "updateDemandDepositAccountTransfer";
 
 	private final RestClient financeRestClient;
 	private final FinanceProperties properties;
@@ -170,6 +176,37 @@ public class RestClientFinanceClient implements FinanceClient {
 		} catch (RestClientException ex) {
 			log.error("금융망 계좌 정보 조회 실패: {}", ex.getMessage());
 			throw new FinanceApiException("금융망 계좌 정보 조회 중 통신 오류가 발생했습니다", ex);
+		}
+	}
+
+	// 출금 계좌에서 입금 계좌로 이체한다
+	@Override
+	public List<TransferAccountRec> updateDemandDepositAccountTransfer(String userKey, String withdrawalAccountNo,
+		String depositAccountNo, long amount, String withdrawalSummary, String depositSummary) {
+		FinanceCommonHeader header = headerGenerator.createHeader(API_UPDATE_DEMAND_DEPOSIT_ACCOUNT_TRANSFER, userKey);
+		UpdateDemandDepositAccountTransferRequest request = UpdateDemandDepositAccountTransferRequest.builder()
+			.header(header)
+			.depositAccountNo(depositAccountNo)
+			.depositTransactionSummary(depositSummary)
+			.transactionBalance(String.valueOf(amount))
+			.withdrawalAccountNo(withdrawalAccountNo)
+			.withdrawalTransactionSummary(withdrawalSummary)
+			.build();
+
+		try {
+			UpdateDemandDepositAccountTransferResponse response = financeRestClient.post()
+				.uri("/edu/demandDeposit/updateDemandDepositAccountTransfer")
+				.body(request)
+				.retrieve()
+				.body(UpdateDemandDepositAccountTransferResponse.class);
+
+			validateResponse(response != null ? response.header() : null, "계좌 이체");
+			return response.rec();
+		} catch (FinanceApiException ex) {
+			throw ex;
+		} catch (RestClientException ex) {
+			log.error("금융망 계좌 이체 실패: {}", ex.getMessage());
+			throw new FinanceApiException("금융망 계좌 이체 중 통신 오류가 발생했습니다", ex);
 		}
 	}
 

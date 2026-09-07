@@ -35,6 +35,8 @@ import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.AccountTransactionResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
+import com.bana.dotori.account.dto.TransferRequest;
+import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.service.AccountService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
@@ -62,7 +64,16 @@ class AccountControllerTest {
 	private static final String VERIFY_URL = "/api/v1/accounts/auth/verify";
 	private static final String ME_URL = "/api/v1/accounts/me";
 	private static final String TRANSACTIONS_URL = "/api/v1/accounts/transactions";
+	private static final String TRANSFER_URL = "/api/v1/accounts/transfer";
 	private static final String ACCESS_TOKEN = "valid-access-token";
+
+	private static final String TRANSFER_BODY = """
+		{
+			"toAccountNo": "1102123456789",
+			"amount": 10000,
+			"memo": "용돈"
+		}
+		""";
 
 	private static final String AUTH_BODY = """
 		{
@@ -150,7 +161,7 @@ class AccountControllerTest {
 	void verifyAuth_success() throws Exception {
 		authenticateAs(1);
 		given(accountService.verifyAuth(eq(1), any(AccountAuthVerifyRequest.class)))
-			.willReturn(new AccountResponse(1L, "003", "국민은행", "0011214764051239", OffsetDateTime.now()));
+			.willReturn(new AccountResponse(1, "003", "국민은행", "0011214764051239", OffsetDateTime.now()));
 
 		mockMvc.perform(post(VERIFY_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
@@ -369,6 +380,97 @@ class AccountControllerTest {
 	@DisplayName("인증 헤더 없이 거래내역을 요청하면 401을 반환한다")
 	void getTransactionHistory_withoutAuth() throws Exception {
 		mockMvc.perform(get(TRANSACTIONS_URL))
+			.andExpect(status().isUnauthorized());
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("이체 성공 시 200과 이체 결과를 반환한다")
+	void transfer_success() throws Exception {
+		authenticateAs(1);
+		given(accountService.transfer(eq(1), any(TransferRequest.class), isNull())).willReturn(
+			new TransferResponse("0011214764051239", "1102123456789", 10000L, OffsetDateTime.now()));
+
+		mockMvc.perform(post(TRANSFER_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(TRANSFER_BODY))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.fromAccountNo").value("0011214764051239"))
+			.andExpect(jsonPath("$.toAccountNo").value("1102123456789"))
+			.andExpect(jsonPath("$.amount").value(10000));
+	}
+
+	@Test
+	@DisplayName("Idempotency-Key 헤더가 있으면 그대로 서비스에 전달한다")
+	void transfer_idempotencyKey() throws Exception {
+		authenticateAs(1);
+		given(accountService.transfer(eq(1), any(TransferRequest.class), eq("key-1"))).willReturn(
+			new TransferResponse("0011214764051239", "1102123456789", 10000L, OffsetDateTime.now()));
+
+		mockMvc.perform(post(TRANSFER_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.header("Idempotency-Key", "key-1")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(TRANSFER_BODY))
+			.andExpect(status().isOk());
+
+		then(accountService).should().transfer(eq(1), any(TransferRequest.class), eq("key-1"));
+	}
+
+	@Test
+	@DisplayName("필수 값이 누락되면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void transfer_invalidRequest() throws Exception {
+		authenticateAs(1);
+
+		mockMvc.perform(post(TRANSFER_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"amount\": 0}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("잔액이 부족하면 400과 INSUFFICIENT_ACCOUNT_BALANCE 에러를 반환한다")
+	void transfer_insufficientBalance() throws Exception {
+		authenticateAs(1);
+		given(accountService.transfer(eq(1), any(TransferRequest.class), isNull()))
+			.willThrow(new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE));
+
+		mockMvc.perform(post(TRANSFER_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(TRANSFER_BODY))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INSUFFICIENT_ACCOUNT_BALANCE"));
+	}
+
+	@Test
+	@DisplayName("중복된 이체 요청이면 409와 DUPLICATE_TRANSFER_REQUEST 에러를 반환한다")
+	void transfer_duplicateRequest() throws Exception {
+		authenticateAs(1);
+		given(accountService.transfer(eq(1), any(TransferRequest.class), eq("key-1")))
+			.willThrow(new BusinessException(ErrorCode.DUPLICATE_TRANSFER_REQUEST));
+
+		mockMvc.perform(post(TRANSFER_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN)
+				.header("Idempotency-Key", "key-1")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(TRANSFER_BODY))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("DUPLICATE_TRANSFER_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 이체를 요청하면 401을 반환한다")
+	void transfer_withoutAuth() throws Exception {
+		mockMvc.perform(post(TRANSFER_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(TRANSFER_BODY))
 			.andExpect(status().isUnauthorized());
 
 		then(accountService).shouldHaveNoInteractions();

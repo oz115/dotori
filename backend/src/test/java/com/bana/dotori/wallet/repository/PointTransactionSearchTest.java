@@ -57,13 +57,12 @@ class PointTransactionSearchTest {
 	private JdbcTemplate jdbcTemplate;
 
 	private Integer childId;
-	private Integer walletId;
 
 	@BeforeEach
 	void setUp() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
 		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-search");
-		walletId = pointWalletRepository.save(PointWallet.openWithBalance(childId, 10_000)).getWalletId();
+		pointWalletRepository.save(PointWallet.openWithBalance(childId, 10_000));
 	}
 
 	@Test
@@ -236,7 +235,7 @@ class PointTransactionSearchTest {
 
 		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-search-other");
 		Integer otherWalletId = pointWalletRepository.save(
-				PointWallet.openWithBalance(otherChildId, 0)).getWalletId();
+				PointWallet.openWithBalance(otherChildId, 0)).getChildId();
 		insertFor(otherWalletId, PointTransactionReason.GRANT, 999, "2026-09-02T10:00:00+09:00");
 
 		assertThat(search(null, null, null, null, NO_LIMIT))
@@ -262,7 +261,7 @@ class PointTransactionSearchTest {
 	private List<PointTransaction> search(LocalDate startDate, LocalDate endDate,
 			PointTransactionReason reason, TransactionCursor cursor, int limit, Sort.Direction direction) {
 		return pointTransactionRepository.search(
-				walletId,
+				childId,
 				startDate == null ? null : startDate.atStartOfDay(KST).toOffsetDateTime(),
 				endDate == null ? null : endDate.plusDays(1).atStartOfDay(KST).toOffsetDateTime(),
 				reason,
@@ -272,15 +271,15 @@ class PointTransactionSearchTest {
 	}
 
 	private void insert(PointTransactionReason reason, int amount, String createdAt) {
-		insertFor(walletId, reason, amount, createdAt);
+		insertFor(childId, reason, amount, createdAt);
 	}
 
-	private void insertFor(Integer targetWalletId, PointTransactionReason reason, int amount, String createdAt) {
+	private void insertFor(Integer targetChildId, PointTransactionReason reason, int amount, String createdAt) {
 		jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, amount, balance_after, description, created_at)
+					(child_id, transaction_type, amount, balance_after, description, created_at)
 				VALUES (?, ?, ?, ?, ?, ?)
-				""", targetWalletId, reason.name(), amount, 10_000, reason.name() + " " + amount,
+				""", targetChildId, reason.name(), amount, 10_000, reason.name() + " " + amount,
 				OffsetDateTime.parse(createdAt));
 	}
 }

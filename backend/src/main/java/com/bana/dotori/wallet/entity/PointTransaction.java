@@ -36,8 +36,8 @@ import lombok.NoArgsConstructor;
 		// 지갑까지 묶어야 한다. 멱등키만으로 유일하게 두면 서로 다른 두 사용자가 우연히 같은
 		// Idempotency-Key 를 보냈을 때 뒤에 온 요청이 남의 거래를 자기 것으로 착각한다.
 		// 키는 클라이언트가 정하는 값이라 충돌을 막을 방법이 없으므로, 유일성 범위를 지갑 안으로 좁힌다.
-		@UniqueConstraint(name = "uk_point_transactions_wallet_idempotency_key",
-				columnNames = {"wallet_id", "idempotency_key"})
+		@UniqueConstraint(name = "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY",
+				columnNames = {"child_id", "idempotency_key"})
 }, indexes = {
 		// WLT-06 거래내역 조회가 쓰는 인덱스. 정렬 키와 순서가 같아야 한다.
 		// 커서 페이징은 "이 지점 이후"를 인덱스에서 바로 찾아 limit 만큼 읽고 멈추는 것이
@@ -45,10 +45,10 @@ import lombok.NoArgsConstructor;
 		//
 		// 방향은 ASC 로만 만든다. PostgreSQL 은 인덱스를 역방향으로도 스캔하므로
 		// 최신순(DESC) 조회도 같은 인덱스를 쓴다.
-		@Index(name = "ix_point_transactions_wallet_created_at",
-				columnList = "wallet_id, created_at, point_transaction_id")
+		@Index(name = "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT",
+				columnList = "child_id, created_at, point_transaction_id")
 })
-@Check(name = "ck_point_transactions_amount_positive", constraints = "amount > 0")
+@Check(name = "CK_POINT_TRANSACTIONS_AMOUNT_POSITIVE", constraints = "amount > 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PointTransaction {
 
@@ -63,8 +63,8 @@ public class PointTransaction {
 	 * 지갑은 다른 애그리거트라 연관관계 대신 식별자만 들고 있는다.
 	 * 회원가입 담당자가 만드는 User 엔티티와의 결합도 함께 피한다.
 	 */
-	@Column(name = "wallet_id", nullable = false, updatable = false)
-	private Integer walletId;
+	@Column(name = "child_id", nullable = false, updatable = false)
+	private Integer childId;
 
 	/**
 	 * 거래 사유. API 명세의 {@code transactionType} 필드가 이 값을 그대로 내보낸다.
@@ -102,9 +102,9 @@ public class PointTransaction {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
-	private PointTransaction(Integer walletId, PointTransactionReason reason,
+	private PointTransaction(Integer childId, PointTransactionReason reason,
 			int amount, int balanceAfter, String description, String idempotencyKey) {
-		this.walletId = walletId;
+		this.childId = childId;
 		this.reason = reason;
 		this.amount = amount;
 		this.balanceAfter = balanceAfter;
@@ -113,8 +113,8 @@ public class PointTransaction {
 		this.createdAt = OffsetDateTime.now(KST);
 	}
 
-	public static PointTransaction record(Integer walletId, PointTransactionReason reason,
+	public static PointTransaction record(Integer childId, PointTransactionReason reason,
 			int amount, int balanceAfter, String description, String idempotencyKey) {
-		return new PointTransaction(walletId, reason, amount, balanceAfter, description, idempotencyKey);
+		return new PointTransaction(childId, reason, amount, balanceAfter, description, idempotencyKey);
 	}
 }

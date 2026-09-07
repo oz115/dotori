@@ -7,6 +7,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.springframework.web.client.RestClient;
 import com.bana.dotori.finance.config.FinanceProperties;
 import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
+import com.bana.dotori.finance.dto.transfer.TransferAccountRec;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.finance.util.FinanceHeaderGenerator;
 
@@ -356,6 +359,92 @@ class RestClientFinanceClientTest {
 			.isInstanceOf(FinanceApiException.class)
 			.hasMessageContaining("A1003")
 			.hasMessageContaining("계좌번호가 유효하지 않습니다.");
+
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("updateDemandDepositAccountTransfer_정상_응답이면_REC_목록을_반환한다")
+	void updateDemandDepositAccountTransfer_성공() {
+		// given
+		String userKey = "test-user-key";
+		String withdrawalAccountNo = "0016174648358792";
+		String depositAccountNo = "0011214764051239";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "H0000",
+					"responseMessage": "정상처리 되었습니다.",
+					"apiName": "updateDemandDepositAccountTransfer"
+				},
+				"REC": [
+					{
+						"transactionUniqueNo": "101",
+						"accountNo": "0016174648358792",
+						"transactionDate": "20240401",
+						"transactionType": "2",
+						"transactionTypeName": "출금(이체)",
+						"transactionAccountNo": "0011214764051239",
+						"transactionBalance": "10000"
+					},
+					{
+						"transactionUniqueNo": "102",
+						"accountNo": "0011214764051239",
+						"transactionDate": "20240401",
+						"transactionType": "1",
+						"transactionTypeName": "입금(이체)",
+						"transactionAccountNo": "0016174648358792",
+						"transactionBalance": "10000"
+					}
+				]
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/updateDemandDepositAccountTransfer"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when
+		List<TransferAccountRec> rec = client.updateDemandDepositAccountTransfer(userKey, withdrawalAccountNo,
+			depositAccountNo, 10000L, "계좌 이체", "계좌 이체 입금");
+
+		// then
+		assertThat(rec).hasSize(2);
+		assertThat(rec.get(0).accountNo()).isEqualTo(withdrawalAccountNo);
+		assertThat(rec.get(0).transactionBalance()).isEqualTo("10000");
+		assertThat(rec.get(1).accountNo()).isEqualTo(depositAccountNo);
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("updateDemandDepositAccountTransfer_금융망_오류코드_반환시_FinanceApiException이_발생한다")
+	void updateDemandDepositAccountTransfer_금융망오류_예외발생() {
+		// given
+		String userKey = "test-user-key";
+		String withdrawalAccountNo = "0016174648358792";
+		String depositAccountNo = "0011214764051239";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "A1024",
+					"responseMessage": "계좌 잔액이 부족합니다.",
+					"apiName": "updateDemandDepositAccountTransfer"
+				}
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/updateDemandDepositAccountTransfer"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when & then
+		assertThatThrownBy(() -> client.updateDemandDepositAccountTransfer(userKey, withdrawalAccountNo,
+			depositAccountNo, 10000L, "계좌 이체", "계좌 이체 입금"))
+			.isInstanceOf(FinanceApiException.class)
+			.hasMessageContaining("A1024")
+			.hasMessageContaining("계좌 잔액이 부족합니다.");
 
 		mockServer.verify();
 	}

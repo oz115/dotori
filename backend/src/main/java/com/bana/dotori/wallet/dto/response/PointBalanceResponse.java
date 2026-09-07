@@ -31,7 +31,7 @@ public record PointBalanceResponse(
 
 	public static PointBalanceResponse from(PointWallet wallet) {
 		return new PointBalanceResponse(
-				wallet.getUserId(),
+				wallet.getChildId(),
 				wallet.getBalance(),
 				// DB 에서 읽어온 timestamptz 는 드라이버가 UTC 로 돌려주므로 KST 로 맞춘다.
 				// 거래 응답(PointTransactionResponse)과 같은 이유다.

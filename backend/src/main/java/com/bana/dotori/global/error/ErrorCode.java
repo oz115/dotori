@@ -67,10 +67,13 @@ public enum ErrorCode {
 	INVALID_CURSOR(HttpStatus.BAD_REQUEST, "조회 커서가 올바르지 않습니다"),
 	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "거래 사유와 방향이 맞지 않습니다"),
 
-	// 계좌 (ACC) - 계좌 연동이 구현되면 그쪽에서 함께 쓴다
+	// 계좌 (ACC)
 	BANK_TRANSFER_FAILED(HttpStatus.BAD_GATEWAY, "계좌 송금에 실패했습니다"),
 	INSUFFICIENT_ACCOUNT_BALANCE(HttpStatus.BAD_REQUEST, "계좌 잔액이 부족합니다"),
 	ACCOUNT_NOT_LINKED(HttpStatus.NOT_FOUND, "연동된 계좌가 없습니다"),
+	SELF_TRANSFER_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "동일한 계좌로는 이체할 수 없습니다"),
+	TRANSFER_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "1회 이체 한도를 초과했습니다"),
+	DUPLICATE_TRANSFER_REQUEST(HttpStatus.CONFLICT, "이미 처리된 이체 요청입니다"),
 
 	// 상점 (SHOP)
 	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다"),

@@ -13,7 +13,7 @@ import com.bana.dotori.wallet.entity.PointWallet;
 
 public interface PointWalletRepository extends JpaRepository<PointWallet, Integer> {
 
-	Optional<PointWallet> findByUserId(Integer userId);
+	Optional<PointWallet> findByChildId(Integer childId);
 
 	/**
 	 * 잔액을 바꾸기 전에 지갑 행을 {@code SELECT ... FOR UPDATE} 로 잠근다.
@@ -23,8 +23,8 @@ public interface PointWalletRepository extends JpaRepository<PointWallet, Intege
 	 * 멱등성 확인도 반드시 이 락을 잡은 뒤에 해야 한다.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("select w from PointWallet w where w.userId = :userId")
-	Optional<PointWallet> findByUserIdForUpdate(@Param("userId") Integer userId);
+	@Query("select w from PointWallet w where w.childId = :childId")
+	Optional<PointWallet> findByChildIdForUpdate(@Param("childId") Integer childId);
 
-	boolean existsByUserId(Integer userId);
+	boolean existsByChildId(Integer childId);
 }

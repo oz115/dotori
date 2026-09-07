@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.service;
 
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,7 +42,7 @@ public class PointWalletService {
 	 *
 	 * <p>제약 이름 전체가 아니라 컬럼명만 본다. 이미 만들어진 DB 에는 단일 컬럼 제약
 	 * ({@code uk_point_transactions_idempotency_key})이 남아 있을 수 있고,
-	 * 새로 만든 DB 에는 복합 제약({@code uk_point_transactions_wallet_idempotency_key})이 있는데
+	 * 새로 만든 DB 에는 복합 제약({@code UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY})이 있는데
 	 * 둘 다 잡아야 하기 때문이다. CHECK·외래키 위반 메시지에는 이 문자열이 없다.
 	 */
 	private static final String IDEMPOTENCY_KEY_CONSTRAINT = "idempotency_key";
@@ -69,7 +70,7 @@ public class PointWalletService {
 	 * 지갑이 없으면 잔액 0으로 만들어 준다. 첫 충전·지급 직전에 호출한다.
 	 *
 	 * <p><b>별도 트랜잭션에서 돈다.</b> 동시에 첫 거래가 두 건 들어오면 한 쪽이
-	 * {@code uk_point_wallets_user_id} 제약에 걸리는데, 호출자와 같은 트랜잭션이라면
+	 * {@code UQ_POINT_WALLETS_CHILD_ID} 제약에 걸리는데, 호출자와 같은 트랜잭션이라면
 	 * PostgreSQL 이 그 트랜잭션을 abort 상태로 만들어 뒤이은 쿼리가 전부 실패한다.
 	 * 트랜잭션을 분리해 두면 실패한 쪽만 되돌아가고, 호출자는 상대가 커밋한 지갑을 보게 된다.
 	 *
@@ -77,17 +78,17 @@ public class PointWalletService {
 	 * 재사용하므로 되돌릴 필요가 없다.
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public PointWallet createWalletIfAbsent(Integer userId) {
-		return pointWalletRepository.findByUserId(userId)
-				.orElseGet(() -> pointWalletRepository.save(PointWallet.openFor(userId)));
+	public PointWallet createWalletIfAbsent(Integer childId) {
+		return pointWalletRepository.findByChildId(childId)
+				.orElseGet(() -> pointWalletRepository.save(PointWallet.openFor(childId)));
 	}
 
 	private PointChangeResult changeBalance(PointChangeCommand command, PointTransactionType transactionType) {
 		// 1. 먼저 지갑 행을 잠근다.
 		//    같은 지갑에 대한 모든 잔액 변경이 이 지점에서 직렬화되므로,
 		//    잔액 검사와 차감 사이에 다른 트랜잭션이 끼어들 수 없다.
-		PointWallet wallet = pointWalletRepository.findByUserIdForUpdate(command.userId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. userId=" + command.userId()));
+		PointWallet wallet = pointWalletRepository.findByChildIdForUpdate(command.childId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. childId=" + command.childId()));
 
 		// 2. 멱등성 확인은 반드시 락을 잡은 뒤에, 그리고 이 지갑 안에서만 한다.
 		//    락 이전에 확인하면 동시에 들어온 같은 요청이 둘 다 "없음"으로 판정해 중복 반영된다.
@@ -96,10 +97,10 @@ public class PointWalletService {
 		//    이번 요청이 반영되지 않은 채 남의 거래를 성공 응답으로 돌려주게 된다.
 		if (command.hasIdempotencyKey()) {
 			Optional<PointTransaction> alreadyProcessed = pointTransactionRepository
-					.findByWalletIdAndIdempotencyKey(wallet.getWalletId(), command.idempotencyKey());
+					.findByChildIdAndIdempotencyKey(wallet.getChildId(), command.idempotencyKey());
 			if (alreadyProcessed.isPresent()) {
-				log.info("duplicate point request ignored: key={}, userId={}",
-						command.idempotencyKey(), command.userId());
+				log.info("duplicate point request ignored: key={}, childId={}",
+						command.idempotencyKey(), command.childId());
 				return PointChangeResult.replayed(alreadyProcessed.get());
 			}
 		}
@@ -112,7 +113,7 @@ public class PointWalletService {
 		// 4. 잔액 변경과 이력 저장이 같은 트랜잭션 안에 있다.
 		//    둘 중 하나라도 실패하면 전체가 롤백되어 잔액과 이력이 어긋나지 않는다.
 		PointTransaction transaction = PointTransaction.record(
-				wallet.getWalletId(), command.reason(),
+				wallet.getChildId(), command.reason(),
 				command.amount(), balanceAfter, command.description(), command.idempotencyKey());
 
 		try {
@@ -129,7 +130,7 @@ public class PointWalletService {
 				throw e;
 			}
 			throw new BusinessException(ErrorCode.DUPLICATE_POINT_REQUEST,
-					"이미 처리된 요청 키입니다. walletId=" + wallet.getWalletId()
+					"이미 처리된 요청 키입니다. childId=" + wallet.getChildId()
 							+ ", idempotencyKey=" + command.idempotencyKey(), e);
 		}
 
@@ -137,6 +138,10 @@ public class PointWalletService {
 	}
 
 	private boolean isIdempotencyKeyViolation(DataIntegrityViolationException e) {
-		return String.valueOf(e.getMostSpecificCause().getMessage()).contains(IDEMPOTENCY_KEY_CONSTRAINT);
+		// 제약 이름의 대소문자는 만든 쪽에 따라 다르다. DDL 스크립트는 대문자
+		// (UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY), Hibernate 는 소문자로 만든다.
+		return String.valueOf(e.getMostSpecificCause().getMessage())
+				.toLowerCase(Locale.ROOT)
+				.contains(IDEMPOTENCY_KEY_CONSTRAINT);
 	}
 }

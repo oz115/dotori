@@ -33,14 +33,11 @@ public class Account {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "account_id")
-	private Long id;
+	private Integer id;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
-
-	@Column(name = "external_account_id", length = 255)
-	private String externalAccountId;
 
 	@Column(name = "bank_code", length = 50, nullable = false)
 	private String bankCode;
@@ -51,11 +48,9 @@ public class Account {
 	@Column(name = "account_number", length = 100, nullable = false)
 	private String accountNumber;
 
+	/** 금융망이 계좌 예금주명을 안 내려주는 경우가 있어 nullable 로 둔다. */
 	@Column(name = "account_name", length = 100)
 	private String accountName;
-
-	@Column(name = "balance")
-	private Integer balance;
 
 	@Column(name = "finance_user_key", length = 100, nullable = false)
 	private String financeUserKey;
@@ -69,15 +64,13 @@ public class Account {
 	private OffsetDateTime updatedAt;
 
 	@Builder
-	private Account(User user, String externalAccountId, String bankCode, String bankName, String accountNumber,
-		String accountName, Integer balance, String financeUserKey) {
+	private Account(User user, String bankCode, String bankName, String accountNumber,
+		String accountName, String financeUserKey) {
 		this.user = user;
-		this.externalAccountId = externalAccountId;
 		this.bankCode = bankCode;
 		this.bankName = bankName;
 		this.accountNumber = accountNumber;
 		this.accountName = accountName;
-		this.balance = balance;
 		this.financeUserKey = financeUserKey;
 	}
 

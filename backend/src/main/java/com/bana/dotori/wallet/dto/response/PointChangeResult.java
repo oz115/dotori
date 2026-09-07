@@ -13,7 +13,7 @@ import com.bana.dotori.wallet.entity.PointTransactionReason;
  */
 public record PointChangeResult(
 		Integer pointTransactionId,
-		Integer walletId,
+		Integer childId,
 		PointTransactionReason reason,
 		int amount,
 		int balanceAfter,
@@ -31,7 +31,7 @@ public record PointChangeResult(
 	private static PointChangeResult from(PointTransaction transaction, boolean replayed) {
 		return new PointChangeResult(
 				transaction.getPointTransactionId(),
-				transaction.getWalletId(),
+				transaction.getChildId(),
 				transaction.getReason(),
 				transaction.getAmount(),
 				transaction.getBalanceAfter(),
