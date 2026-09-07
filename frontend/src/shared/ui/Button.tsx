@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, type PressableProps, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+
+import { useTheme } from '@/shared/theme';
 
 type ButtonVariant = 'primary' | 'secondary';
 
@@ -8,31 +10,40 @@ type ButtonProps = PressableProps & {
 };
 
 /**
- * shared/ui 의 가장 기본적인 버튼 예시.
- * 모든 레이어(entities/features/widgets/pages)에서 공용으로 가져다 씁니다.
+ * shared/ui 의 가장 기본적인 버튼.
+ * 색·간격·모서리·타이포는 전부 shared/theme 토큰에서 가져온다.
+ * 모든 레이어(features/widgets)에서 공용으로 가져다 쓴다.
  */
 export function Button({ label, variant = 'primary', style, ...pressableProps }: ButtonProps) {
-  const isDark = useColorScheme() === 'dark';
+  const theme = useTheme();
+  const isPrimary = variant === 'primary';
 
   return (
     <Pressable
       {...pressableProps}
       style={(state) => [
         styles.container,
-        variant === 'primary' ? styles.primary : isDark ? styles.secondaryDark : styles.secondary,
-        state.pressed &&
-          (variant === 'primary'
-            ? styles.primaryPressed
-            : isDark
-              ? styles.secondaryPressedDark
-              : styles.secondaryPressed),
+        {
+          borderRadius: theme.radius.md,
+          paddingHorizontal: theme.space.lg,
+          paddingVertical: theme.space.md,
+        },
+        {
+          backgroundColor: isPrimary
+            ? state.pressed
+              ? theme.color.brand.solidPressed
+              : theme.color.brand.solid
+            : state.pressed
+              ? theme.color.background.surfaceSunken
+              : theme.palette.neutral[100],
+        },
         typeof style === 'function' ? style(state) : style,
       ]}
     >
       <Text
         style={[
-          styles.label,
-          variant === 'primary' || isDark ? styles.labelLight : styles.labelDark,
+          theme.typography.button,
+          { color: isPrimary ? theme.color.text.onBrand : theme.color.text.default },
         ]}
       >
         {label}
@@ -44,36 +55,6 @@ export function Button({ label, variant = 'primary', style, ...pressableProps }:
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  primary: {
-    backgroundColor: '#2563eb',
-  },
-  primaryPressed: {
-    backgroundColor: '#1d4ed8',
-  },
-  secondary: {
-    backgroundColor: '#e5e7eb',
-  },
-  secondaryPressed: {
-    backgroundColor: '#d1d5db',
-  },
-  secondaryDark: {
-    backgroundColor: '#374151',
-  },
-  secondaryPressedDark: {
-    backgroundColor: '#4b5563',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  labelLight: {
-    color: '#ffffff',
-  },
-  labelDark: {
-    color: '#111827',
+    justifyContent: 'center',
   },
 });
