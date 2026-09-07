@@ -1,11 +1,12 @@
 package com.bana.dotori.auth.service;
 
-import java.security.SecureRandom;
 import java.util.Locale;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import com.bana.dotori.global.util.RandomCodeGenerator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -13,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EmailVerificationServiceImpl implements EmailVerificationService {
 
-	private static final SecureRandom RANDOM = new SecureRandom();
+	private static final int CODE_LENGTH = 6;
 
 	private final EmailVerificationCodeManager codeManager;
 	private final JavaMailSender mailSender;
@@ -23,7 +24,8 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 		// 회원가입(UserServiceImpl.normalizeEmail)과 같은 기준으로 소문자 정규화한다.
 		// 발송과 확인이 다른 대소문자로 들어와도 같은 Redis 키를 보게 하려는 것이다.
 		String normalizedEmail = email.toLowerCase(Locale.ROOT);
-		String code = String.format("%06d", RANDOM.nextInt(1_000_000));
+		// 가족 초대 코드와 같은 문자셋(혼동 문자를 뺀 대문자·숫자)의 6자리 코드
+		String code = RandomCodeGenerator.generate(CODE_LENGTH);
 
 		// 쿨타임 검사를 겸하므로 저장이 먼저다. 저장이 거부되면 메일도 나가지 않는다.
 		codeManager.saveCode(normalizedEmail, code);
@@ -38,6 +40,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
 	@Override
 	public String confirmCode(String email, String code) {
-		return codeManager.verifyCode(email.toLowerCase(Locale.ROOT), code);
+		// 가족 초대 코드 입력(FamilyServiceImpl.connect)과 같은 정규화 — 소문자로 입력해도 통과시킨다
+		return codeManager.verifyCode(email.toLowerCase(Locale.ROOT), code.strip().toUpperCase(Locale.ROOT));
 	}
 }
