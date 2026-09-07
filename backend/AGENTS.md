@@ -58,11 +58,23 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
   - **service**: Mockito 단위 테스트 — `@ExtendWith(MockitoExtension.class)`, repository/encoder는 `@Mock`, mapper는 `@Spy`
   - **controller**: `@WebMvcTest` 슬라이스 테스트 — service는 `@MockitoBean`, `SecurityConfig`를 `@Import`해서 시큐리티 규칙 포함, MockMvc로 상태 코드·응답 JSON·에러 형식 검증
 - 테스트 클래스명은 `{대상 클래스}Test`, 메서드명은 `{기능}_{시나리오}` 형식으로 작성한다.
-- DB가 필요한 테스트(`@SpringBootTest`, `@DataJpaTest`)는 **애플리케이션과 같은 DB**를 쓴다.
-  `application-test.yaml`이 `application.yaml`의 datasource를 물려받고, 스키마는
-  `src/test/resources/schema.sql`이 `CREATE TABLE IF NOT EXISTS` + 제약조건 재적용으로 맞춘다.
-  - **주의**: 뒷정리(`WalletTestFixture.cleanUp`)가 `users`/`families`까지 DELETE 하므로
-    테스트를 돌리면 그 DB의 회원·가족 데이터가 비워진다. 보존할 데이터가 있는 DB를 가리키지 말 것.
+### 테스트 DB
+
+- 테스트는 H2 같은 인메모리 DB를 쓰지 않고 **애플리케이션과 같은 PostgreSQL**을 쓴다.
+  행 잠금(`SELECT ... FOR UPDATE`), `TIMESTAMPTZ` 환산, 커서 정렬, CHECK·부분 유니크 제약처럼
+  H2의 PostgreSQL MODE가 흉내 내지 못하는 동작이 검증 대상이라, H2로 통과해도 배포에서 깨진다.
+- 설정은 `src/test/resources/application.yaml` **하나**다. 테스트 클래스패스가 메인 설정보다
+  앞서므로 이 파일이 테스트 전체의 설정이 된다. 프로파일 전용 파일은 없다
+  (일부 테스트의 `@ActiveProfiles("test")`는 통합 테스트를 표시하는 관례로 남아 있다).
+- 실행 전에 DB로 가는 터널을 먼저 연다: `ssh -N A505`
+- 스키마는 `src/test/resources/schema.sql`이 `CREATE TABLE IF NOT EXISTS` + 제약조건 재적용으로 맞춘다.
+  `ddl-auto: none`이므로 **자기 도메인 테이블이 필요하면 이 파일에 직접 추가한다.**
+  지금은 지갑 범위 테이블만 있어서, 다른 도메인은 EC2 DB에 이미 만들어진 테이블에 의존한다
+  (= 완전히 새 DB에서는 깨진다).
+- `@DataJpaTest`는 기본적으로 데이터소스를 임베디드 DB로 갈아끼운다. 임베디드 드라이버가
+  클래스패스에 없으므로 `@AutoConfigureTestDatabase(replace = NONE)`을 붙인다.
+- **주의**: 뒷정리(`WalletTestFixture.cleanUp`)가 `users`/`families`까지 DELETE 하므로
+  테스트를 돌리면 그 DB의 회원·가족 데이터가 비워진다. 보존할 데이터가 있는 DB를 가리키지 말 것.
 
 ## 규칙
 
