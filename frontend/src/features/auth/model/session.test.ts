@@ -45,12 +45,10 @@ describe('signOut', () => {
       accessToken: 'a',
       user: { userId: 7, role: 'PARENT' },
     });
-    mockedStorage.get.mockResolvedValue('refresh-1');
     mockedApi.logout.mockRejectedValue(new Error('network'));
 
     await signOut();
 
-    expect(mockedApi.logout).toHaveBeenCalledWith('refresh-1');
     expect(mockedStorage.clear).toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({
       status: 'guest',

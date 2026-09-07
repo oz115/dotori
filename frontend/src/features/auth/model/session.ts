@@ -22,10 +22,7 @@ export async function signIn(body: LoginBody): Promise<void> {
 /** 로그아웃: 서버 무효화(실패 무시) + 로컬 정리 */
 export async function signOut(): Promise<void> {
   try {
-    const refreshToken = await tokenStorage.get();
-    if (refreshToken) {
-      await authApi.logout(refreshToken);
-    }
+    await authApi.logout();
   } catch {
     // 네트워크 문제 등으로 서버 로그아웃이 실패해도 로컬은 정리한다.
   }
