@@ -3,3 +3,20 @@
 import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 
 jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
+
+// expo-secure-store 는 네이티브 모듈이라 테스트 환경에서 인메모리로 대체한다.
+jest.mock('expo-secure-store', () => {
+  const store = new Map();
+  return {
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+    getItemAsync: jest.fn((key) => Promise.resolve(store.has(key) ? store.get(key) : null)),
+    setItemAsync: jest.fn((key, value) => {
+      store.set(key, value);
+      return Promise.resolve();
+    }),
+    deleteItemAsync: jest.fn((key) => {
+      store.delete(key);
+      return Promise.resolve();
+    }),
+  };
+});
