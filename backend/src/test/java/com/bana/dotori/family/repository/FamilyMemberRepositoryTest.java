@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.user.entity.UserRole;
+import com.bana.dotori.wallet.support.WalletTestFixture;
 
 /**
  * 3계층 - MYPAGE-06 의 자녀 조회 쿼리가 실제 스키마에서 맞게 걸러 내는지 검증한다.
@@ -123,9 +124,10 @@ class FamilyMemberRepositoryTest {
 	private Integer insertUser(String loginId, String role) {
 		return jdbcTemplate.queryForObject("""
 			INSERT INTO users (login_id, password, name, email, role)
-			VALUES (?, 'test-encoded-password', ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?)
 			RETURNING user_id
-			""", Integer.class, loginId, loginId, loginId + "@dotori.test", role);
+			""", Integer.class, loginId, WalletTestFixture.ENCODED_PASSWORD, loginId,
+			loginId + "@dotori.test", role);
 	}
 
 	private Integer insertFamily(Integer createdBy) {
