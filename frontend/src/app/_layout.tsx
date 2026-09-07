@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AppProviders } from '@/shared/lib/providers';
+import { useAppFonts } from '@/shared/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -12,9 +13,17 @@ SplashScreen.preventAutoHideAsync();
  * 실제 화면 UI는 전부 src/pages/* 로 위임합니다.
  */
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useAppFonts();
+
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <AppProviders>
