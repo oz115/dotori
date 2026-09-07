@@ -71,8 +71,7 @@ class StorePurchaseIntegrationTest {
 		assertThat(result.totalPrice()).isEqualTo(3_000);
 		assertThat(result.pointBalanceAfter()).isEqualTo(17_000);
 		assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(17_000);
-		assertThat(jdbcTemplate.queryForObject(
-				"SELECT transaction_type FROM point_transactions", String.class))
+		assertThat(WalletTestFixture.selectOnlyTransactionColumn(jdbcTemplate, childId, "transaction_type"))
 				.isEqualTo("PURCHASE");
 	}
 

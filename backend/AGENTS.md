@@ -73,8 +73,14 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
   (= 완전히 새 DB에서는 깨진다).
 - `@DataJpaTest`는 기본적으로 데이터소스를 임베디드 DB로 갈아끼운다. 임베디드 드라이버가
   클래스패스에 없으므로 `@AutoConfigureTestDatabase(replace = NONE)`을 붙인다.
-- **주의**: 뒷정리(`WalletTestFixture.cleanUp`)가 `users`/`families`까지 DELETE 하므로
-  테스트를 돌리면 그 DB의 회원·가족 데이터가 비워진다. 보존할 데이터가 있는 DB를 가리키지 말 것.
+- 뒷정리(`WalletTestFixture.cleanUp`)는 **테스트가 만든 회원과 거기 딸린 행만** 지운다.
+  판별 기준은 이메일 `{loginId}@dotori.test`이고, 집계(`countTransactions`)도 같은 범위다.
+  DB를 공유하므로 테이블을 통째로 비우면 안 된다 — 예전에는 `DELETE FROM users`로 싹 지웠는데,
+  그러려면 `users`를 참조하는 테이블을 전부 먼저 비워야 해서 남의 도메인 데이터(연동 계좌 등)까지
+  딸려 나갔고, 다른 도메인이 `users` 참조 테이블을 추가할 때마다 삭제 목록이 낡아
+  FK 위반(23503)으로 지갑 테스트가 통째로 깨졌다.
+  - **DB에 붙는 테스트를 새로 쓸 때는 회원 이메일을 `@dotori.test`로 맞춘다.**
+    그래야 뒷정리 대상에 들어가고, 남의 데이터와 섞이지 않는다.
 
 ## 규칙
 
