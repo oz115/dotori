@@ -18,6 +18,21 @@ public final class WalletTestFixture {
 	 */
 	private static final String TEST_USER_IDS = "SELECT user_id FROM users WHERE email LIKE '%@dotori.test'";
 
+	/**
+	 * fixture 가 만드는 회원의 비밀번호 원문. 로그인까지 태워야 하는 테스트가 쓴다.
+	 */
+	public static final String RAW_PASSWORD = "TestP@ss1";
+
+	/**
+	 * {@link #RAW_PASSWORD} 의 BCrypt 해시(strength 10). 애플리케이션이 저장하는 것과 같은 형식이라,
+	 * 이 회원으로도 로그인이 된다.
+	 *
+	 * <p>예전에는 여기에 {@code 'test-encoded-password'} 라는 글자를 그대로 넣었다. 로그인은 어차피
+	 * 안 되는 값이라 문제는 없었지만, 테스트가 도는 동안 공유 DB 를 열어 보면 password 컬럼에 해시가
+	 * 아닌 값이 든 행으로 보여서 평문 저장으로 오해를 샀다.
+	 */
+	public static final String ENCODED_PASSWORD = "$2a$10$S2Lp1at18Xstot5/3YlWj.fq7U3/t3Qg18sfQoMEKjiAgwGcigdm2";
+
 	private WalletTestFixture() {
 	}
 
@@ -32,9 +47,9 @@ public final class WalletTestFixture {
 	private static Integer insertUser(JdbcTemplate jdbcTemplate, String loginId, String role) {
 		return jdbcTemplate.queryForObject("""
 				INSERT INTO users (login_id, password, name, email, role)
-				VALUES (?, 'test-encoded-password', ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?)
 				RETURNING user_id
-				""", Integer.class, loginId, loginId, loginId + "@dotori.test", role);
+				""", Integer.class, loginId, ENCODED_PASSWORD, loginId, loginId + "@dotori.test", role);
 	}
 
 	/**
