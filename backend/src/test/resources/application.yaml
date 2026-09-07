@@ -44,6 +44,13 @@ spring:
       idle-timeout: 10000
       max-lifetime: 60000
 
+  # 실제 발송은 하지 않는다. EmailVerificationServiceImpl 이 JavaMailSender 빈을
+  # 생성자로 요구하는데, 자동구성은 spring.mail.host 가 있어야 빈을 만들므로
+  # 이 블록이 없으면 @SpringBootTest 컨텍스트가 통째로 못 뜬다.
+  mail:
+    host: localhost
+    port: 3025
+
   jpa:
     hibernate:
       # 스키마는 아래 schema.sql 이 책임진다. 테스트가 엔티티로 DDL 을 만들지 않게 한다.

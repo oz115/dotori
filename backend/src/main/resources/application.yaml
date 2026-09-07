@@ -26,9 +26,13 @@ spring:
           auth: true
           starttls:
             enable: true
+          # 미설정 시 무한 대기라, SMTP 장애가 요청 스레드를 계속 붙잡는다
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     open-in-view: false
     properties:
       hibernate:
