@@ -61,8 +61,8 @@ class PointChargeServiceTest {
 	void 포인트_발행_후_송금한다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
-		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
-				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.willReturn(new BankTransferResult("MOCK-1", 10_000));
 
 		PointChangeResult result = pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
@@ -78,7 +78,7 @@ class PointChargeServiceTest {
 		// 검증을 모두 통과한 뒤에 돈을 움직여야 한다.
 		InOrder inOrder = inOrder(pointWalletService, bankTransferClient);
 		inOrder.verify(pointWalletService).deposit(any());
-		inOrder.verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
+		inOrder.verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY);
 	}
 
 	@Test
@@ -91,7 +91,7 @@ class PointChargeServiceTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.WALLET_NOT_FOUND);
 
-		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -100,7 +100,7 @@ class PointChargeServiceTest {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
 		willThrow(new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE, "계좌 잔액 부족"))
-				.given(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
+				.given(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
 				.as("여기서 예외를 삼키면 포인트만 발행되고 돈은 안 옮겨진다")
@@ -117,7 +117,7 @@ class PointChargeServiceTest {
 		PointChangeResult result = pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
 		assertThat(result.replayed()).isTrue();
-		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -125,8 +125,8 @@ class PointChargeServiceTest {
 	void 부분_송금은_실패다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
-		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
-				.willReturn(new BankTransferResult("MOCK-1", 9_000, null, null));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.willReturn(new BankTransferResult("MOCK-1", 9_000));
 
 		assertThatThrownBy(() -> pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY))
 				.as("발행한 포인트와 옮겨진 돈이 다르면 성공이 아니다")
@@ -158,7 +158,7 @@ class PointChargeServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.NOT_FAMILY_CHILD);
 
 		verify(pointWalletService, never()).deposit(any());
-		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -166,8 +166,8 @@ class PointChargeServiceTest {
 	void 환전_10원당_1포인트로_발행한다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(5, 5));
-		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 50))
-				.willReturn(new BankTransferResult("MOCK-1", 50, null, null));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 50, KEY))
+				.willReturn(new BankTransferResult("MOCK-1", 50));
 
 		pointChargeService.charge(FAMILY_ID, CHILD_ID, 50, KEY);
 
@@ -176,7 +176,7 @@ class PointChargeServiceTest {
 		assertThat(captor.getValue().amount()).as("50원 → 5포인트").isEqualTo(5);
 
 		// 송금은 포인트가 아니라 현금 금액으로 나가야 한다. 여기가 뒤바뀌면 10분의 1만 빠진다.
-		verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 50);
+		verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 50, KEY);
 	}
 
 	@Test
@@ -188,7 +188,7 @@ class PointChargeServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_CHARGE_UNIT);
 
 		verify(pointWalletService, never()).deposit(any());
-		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt());
+		verify(bankTransferClient, never()).transferFromChildToParent(any(), any(), anyInt(), any());
 	}
 
 	@Test
@@ -207,8 +207,8 @@ class PointChargeServiceTest {
 	void 첫_충전이면_지갑을_먼저_만든다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 1_000));
-		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
-				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.willReturn(new BankTransferResult("MOCK-1", 10_000));
 
 		pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
@@ -236,14 +236,14 @@ class PointChargeServiceTest {
 	void 충전_순서_가족_확인을_포인트_발행보다_먼저_한다() {
 		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 		given(pointWalletService.deposit(any())).willReturn(applied(1_000, 6_000));
-		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000))
-				.willReturn(new BankTransferResult("MOCK-1", 10_000, null, null));
+		given(bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY))
+				.willReturn(new BankTransferResult("MOCK-1", 10_000));
 
 		pointChargeService.charge(FAMILY_ID, CHILD_ID, 10_000, KEY);
 
 		InOrder inOrder = inOrder(familyMembershipReader, pointWalletService, bankTransferClient);
 		inOrder.verify(familyMembershipReader).isChildOfFamily(FAMILY_ID, CHILD_ID);
 		inOrder.verify(pointWalletService).deposit(any());
-		inOrder.verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000);
+		inOrder.verify(bankTransferClient).transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY);
 	}
 }
