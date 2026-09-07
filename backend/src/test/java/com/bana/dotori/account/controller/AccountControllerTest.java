@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
+import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.AccountTransactionResponse;
@@ -59,6 +60,7 @@ class AccountControllerTest {
 
 	private static final String AUTH_URL = "/api/v1/accounts/auth";
 	private static final String VERIFY_URL = "/api/v1/accounts/auth/verify";
+	private static final String ME_URL = "/api/v1/accounts/me";
 	private static final String TRANSACTIONS_URL = "/api/v1/accounts/transactions";
 	private static final String ACCESS_TOKEN = "valid-access-token";
 
@@ -227,6 +229,45 @@ class AccountControllerTest {
 		mockMvc.perform(post(VERIFY_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(VERIFY_BODY))
+			.andExpect(status().isUnauthorized());
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("계좌 정보 조회 성공 시 200과 계좌 상세 정보를 반환한다")
+	void getAccountInfo_success() throws Exception {
+		authenticateAs(1);
+		given(accountService.getAccountInfo(1)).willReturn(
+			new AccountInfoResponse("003", "국민은행", "0011214764051239", "국민은행 수시입출금 상품명", "수시입출금", 50000L,
+				100000000L, 20000000L, "KRW"));
+
+		mockMvc.perform(get(ME_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.bankCode").value("003"))
+			.andExpect(jsonPath("$.bankName").value("국민은행"))
+			.andExpect(jsonPath("$.accountNo").value("0011214764051239"))
+			.andExpect(jsonPath("$.accountBalance").value(50000))
+			.andExpect(jsonPath("$.currency").value("KRW"));
+	}
+
+	@Test
+	@DisplayName("연동된 계좌가 없으면 404와 ACCOUNT_NOT_LINKED 에러를 반환한다")
+	void getAccountInfo_notLinked() throws Exception {
+		authenticateAs(1);
+		given(accountService.getAccountInfo(1)).willThrow(new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		mockMvc.perform(get(ME_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("ACCOUNT_NOT_LINKED"));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 계좌 정보를 요청하면 401을 반환한다")
+	void getAccountInfo_withoutAuth() throws Exception {
+		mockMvc.perform(get(ME_URL))
 			.andExpect(status().isUnauthorized());
 
 		then(accountService).shouldHaveNoInteractions();

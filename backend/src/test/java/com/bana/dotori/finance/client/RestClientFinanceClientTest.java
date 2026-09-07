@@ -17,6 +17,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 import com.bana.dotori.finance.exception.FinanceApiException;
 import com.bana.dotori.finance.util.FinanceHeaderGenerator;
@@ -274,6 +275,84 @@ class RestClientFinanceClientTest {
 		// when & then
 		assertThatThrownBy(() -> client.inquireTransactionHistoryList(userKey, accountNo, "20240101", "20241231",
 			"A", "DESC"))
+			.isInstanceOf(FinanceApiException.class)
+			.hasMessageContaining("A1003")
+			.hasMessageContaining("계좌번호가 유효하지 않습니다.");
+
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("inquireDemandDepositAccount_정상_응답이면_REC를_반환한다")
+	void inquireDemandDepositAccount_성공() {
+		// given
+		String userKey = "test-user-key";
+		String accountNo = "0016174648358792";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "H0000",
+					"responseMessage": "정상처리 되었습니다.",
+					"apiName": "inquireDemandDepositAccount"
+				},
+				"REC": {
+					"bankCode": "001",
+					"bankName": "한국은행",
+					"userName": "USER",
+					"accountNo": "0016174648358792",
+					"accountName": "한국은행 수시입출금 상품명",
+					"accountTypeCode": "1",
+					"accountTypeName": "수시입출금",
+					"accountCreatedDate": "20240401",
+					"accountExpiryDate": "20290401",
+					"dailyTransferLimit": "100000000",
+					"oneTimeTransferLimit": "20000000",
+					"accountBalance": "0",
+					"lastTransactionDate": "",
+					"currency": "KRW"
+				}
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/inquireDemandDepositAccount"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when
+		InquireDemandDepositAccountRec rec = client.inquireDemandDepositAccount(userKey, accountNo);
+
+		// then
+		assertThat(rec.bankName()).isEqualTo("한국은행");
+		assertThat(rec.accountNo()).isEqualTo(accountNo);
+		assertThat(rec.accountBalance()).isEqualTo("0");
+		assertThat(rec.currency()).isEqualTo("KRW");
+		mockServer.verify();
+	}
+
+	@Test
+	@DisplayName("inquireDemandDepositAccount_금융망_오류코드_반환시_FinanceApiException이_발생한다")
+	void inquireDemandDepositAccount_금융망오류_예외발생() {
+		// given
+		String userKey = "test-user-key";
+		String accountNo = "0016174648358792";
+		String responseJson = """
+			{
+				"Header": {
+					"responseCode": "A1003",
+					"responseMessage": "계좌번호가 유효하지 않습니다.",
+					"apiName": "inquireDemandDepositAccount"
+				}
+			}
+			""";
+
+		mockServer.expect(
+				requestTo("https://finopenapi.ssafy.io/ssafy/api/v1/edu/demandDeposit/inquireDemandDepositAccount"))
+			.andExpect(method(HttpMethod.POST))
+			.andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+
+		// when & then
+		assertThatThrownBy(() -> client.inquireDemandDepositAccount(userKey, accountNo))
 			.isInstanceOf(FinanceApiException.class)
 			.hasMessageContaining("A1003")
 			.hasMessageContaining("계좌번호가 유효하지 않습니다.");

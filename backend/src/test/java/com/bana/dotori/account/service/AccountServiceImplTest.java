@@ -27,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.bana.dotori.account.dto.AccountAuthRequest;
 import com.bana.dotori.account.dto.AccountAuthResponse;
 import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
+import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
@@ -35,6 +36,7 @@ import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
 import com.bana.dotori.finance.client.FinanceClient;
 import com.bana.dotori.finance.config.FinanceProperties;
+import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.InquireTransactionHistoryListRec;
 import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
 import com.bana.dotori.finance.exception.FinanceApiException;
@@ -265,6 +267,67 @@ class AccountServiceImplTest {
 			.isEqualTo(ErrorCode.AUTH_ATTEMPT_EXCEEDED);
 
 		then(accountRepository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("getAccountInfo_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생한다")
+	void getAccountInfo_연동계좌없음() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> accountService.getAccountInfo(USER_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ACCOUNT_NOT_LINKED);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getAccountInfo_성공시_금융망_조회_결과를_반환한다")
+	void getAccountInfo_success() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		InquireDemandDepositAccountRec rec = InquireDemandDepositAccountRec.builder()
+			.bankCode("003")
+			.bankName("국민은행")
+			.userName("김도토")
+			.accountNo(ACCOUNT_NO)
+			.accountName("국민은행 수시입출금 상품명")
+			.accountTypeCode("1")
+			.accountTypeName("수시입출금")
+			.accountCreatedDate("20240401")
+			.accountExpiryDate("20290401")
+			.dailyTransferLimit("100000000")
+			.oneTimeTransferLimit("20000000")
+			.accountBalance("50000")
+			.lastTransactionDate("")
+			.currency("KRW")
+			.build();
+		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO)).willReturn(rec);
+
+		AccountInfoResponse response = accountService.getAccountInfo(USER_ID);
+
+		assertThat(response.bankCode()).isEqualTo("003");
+		assertThat(response.bankName()).isEqualTo("국민은행");
+		assertThat(response.accountNo()).isEqualTo(ACCOUNT_NO);
+		assertThat(response.accountName()).isEqualTo("국민은행 수시입출금 상품명");
+		assertThat(response.accountTypeName()).isEqualTo("수시입출금");
+		assertThat(response.accountBalance()).isEqualTo(50000L);
+		assertThat(response.dailyTransferLimit()).isEqualTo(100000000L);
+		assertThat(response.oneTimeTransferLimit()).isEqualTo(20000000L);
+		assertThat(response.currency()).isEqualTo("KRW");
+	}
+
+	@Test
+	@DisplayName("getAccountInfo_금융망_오류시_FINANCE_API_ERROR_예외가_발생한다")
+	void getAccountInfo_금융망오류() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		willThrow(new FinanceApiException("A1003", "계좌번호가 유효하지 않습니다."))
+			.given(financeClient).inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO);
+
+		assertThatThrownBy(() -> accountService.getAccountInfo(USER_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FINANCE_API_ERROR);
 	}
 
 	@Test
