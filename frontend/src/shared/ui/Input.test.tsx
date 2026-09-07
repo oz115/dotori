@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { Input } from './Input';
 
@@ -31,5 +31,28 @@ describe('Input', () => {
     );
 
     expect(screen.getByText('형식이 올바르지 않아요')).toBeTruthy();
+  });
+
+  it('toggles password visibility in box variant', async () => {
+    await render(
+      <Input
+        variant="box"
+        placeholder="비밀번호를 입력하세요"
+        secureTextEntry
+        value="secret"
+        onChangeText={() => {}}
+      />,
+    );
+
+    const field = screen.getByPlaceholderText('비밀번호를 입력하세요');
+    expect(field.props.secureTextEntry).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('비밀번호 표시'));
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('비밀번호를 입력하세요').props.secureTextEntry).toBe(
+        false,
+      ),
+    );
   });
 });

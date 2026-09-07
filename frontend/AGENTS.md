@@ -122,6 +122,7 @@ widgets/   child-home/ parent-home/ asset-summary/ goal-progress/
 
 - jest-expo + React Native Testing Library(RNTL v14).
 - 테스트 파일은 대상 코드 **바로 옆**에 `*.test.ts` / `*.test.tsx`로 둔다 (`store.ts` ↔ `store.test.ts`).
+  - **예외: `src/app/` 아래엔 테스트 파일 금지.** expo-router가 `.test.tsx`도 라우트로 스캔해 테스트 라이브러리가 앱 번들에 섞여 빌드가 깨진다. 화면 로직은 `features/*/lib` 등으로 빼서 테스트한다.
 - 컴포넌트 테스트는 `render` / `screen` / `fireEvent`. RNTL v14는 `render`가 비동기이므로 `await render(...)`.
 - Zustand 상태는 `useXStore.getState()`로 직접 검증한다.
 - 구현 세부사항보다 사용자의 행동과 화면 결과를 검증한다.

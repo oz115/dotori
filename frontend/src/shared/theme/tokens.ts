@@ -6,6 +6,13 @@ import { fontFamily } from '@/shared/theme/fonts';
  * 레이아웃 primitive 토큰 (색 제외). 화면에서 raw 숫자를 반복하지 말고 여기를 통해 쓴다.
  */
 
+/** 화면 공통 레이아웃 값. */
+export const layout = {
+  screenX: 27, // 화면 좌우 여백 (Screen 컴포넌트)
+  screenY: 16, // 스크롤 콘텐츠 상하 여백 (Screen 컴포넌트)
+  inputHeight: 55, // 박스형 입력·셀렉트 등 폼 컨트롤 높이
+} as const;
+
 /** 간격 스케일 (4의 배수). margin/padding/gap 공통. */
 export const space = {
   none: 0,
@@ -29,6 +36,20 @@ export const radius = {
   xl: 20,
   '2xl': 28,
   full: 999,
+} as const;
+
+/**
+ * 그림자. Figma drop shadow: X0 Y8 Blur24 #272C26 4%.
+ * 박스형 인풋·카드 등 떠 있는 표면에 얹는다. (iOS: shadow*, Android: elevation)
+ */
+export const shadow = {
+  card: {
+    shadowColor: '#272C26',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 24,
+    elevation: 3,
+  },
 } as const;
 
 /**
@@ -78,7 +99,7 @@ export const typography = {
   },
   button: {
     fontFamily: fontFamily.semibold,
-    fontSize: 16,
+    fontSize: 18,
     lineHeight: 20,
     letterSpacing: 0.3,
   },

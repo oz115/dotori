@@ -1,6 +1,6 @@
 import { palette } from '@/shared/theme/palette';
 import { colorLight } from '@/shared/theme/semantic';
-import { radius, space, typography } from '@/shared/theme/tokens';
+import { layout, radius, shadow, space, typography } from '@/shared/theme/tokens';
 
 /**
  * shared/theme public API.
@@ -19,7 +19,9 @@ export const theme = {
   color: colorLight,
   space,
   radius,
+  shadow,
   typography,
+  layout,
 } as const;
 
 export type Theme = typeof theme;
