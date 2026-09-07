@@ -36,12 +36,22 @@ src/
 각 슬라이스는 `index.ts`(public API)를 통해서만 외부에 노출하고, 다른 슬라이스는
 내부 파일을 직접 import하지 않습니다.
 
-### 지금 실제로 있는 폴더 (예시)
+### 지금 실제로 있는 폴더
 
-`src/features/counter`, `src/widgets/counter-widget` 는 레이어별 패턴을 보여주기 위한
-예시 슬라이스입니다. 실제 도메인 기능을 만들면서 지우고 교체하세요.
-(`npm run fsd-lint` 실행 시 "참조가 하나뿐이니 합쳐라"라는 경고가 뜨는데, 예시라서
-재사용처가 하나뿐이라 생기는 정상적인 경고입니다. 실제 기능으로 교체되면 사라집니다.)
+```
+app/
+  _layout.tsx     폰트 로딩 · 세션 복원 · 인증 상태별 라우트 그룹 노출
+  (auth)/         비로그인 (로그인/회원가입)
+  (parent)/       부모 계정 (role=PARENT)
+  (child)/        자녀 계정 (role=CHILD)
+features/
+  auth/           인증 상태·토큰·API·라우팅 기반
+shared/
+  theme/ ui/ api/ config/ lib/
+```
+
+레이어 패턴 예시였던 `features/counter`·`widgets/counter-widget` 은 인증 기반이
+들어오면서 제거했습니다.
 
 ### 앞으로 생길 폴더 (참고용 — 지금 다 만들어두지 않음)
 
