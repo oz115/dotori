@@ -66,14 +66,14 @@ class PointTransactionRepositoryTest {
 	}
 
 	@Test
-	@DisplayName("가장 긴 사유(INVESTMENT, 10자)도 VARCHAR(10) 컬럼에 들어간다")
+	@DisplayName("가장 긴 사유(SAVINGS_WITHDRAWAL, 18자)도 ENUM 컬럼에 들어간다")
 	void 가장_긴_사유도_저장된다() {
 		PointTransaction saved = pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				childId, PointTransactionReason.INVESTMENT,
-				100, 900, "투자 매수", "invest-0001"));
+				childId, PointTransactionReason.SAVINGS_WITHDRAWAL,
+				100, 900, "예적금 만기 수령", "invest-0001"));
 
 		assertThat(pointTransactionRepository.findById(saved.getPointTransactionId()).orElseThrow().getReason())
-				.isEqualTo(PointTransactionReason.INVESTMENT);
+				.isEqualTo(PointTransactionReason.SAVINGS_WITHDRAWAL);
 	}
 
 	@Test

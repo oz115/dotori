@@ -45,7 +45,7 @@ class PointDeductionServiceTest {
 
 	@ParameterizedTest(name = "{0} 사유는 차감할 수 있다")
 	@EnumSource(value = PointTransactionReason.class,
-			names = {"PURCHASE", "CASHOUT", "SAVINGS", "INVESTMENT"})
+			names = {"PURCHASE", "CASHOUT", "SAVINGS_DEPOSIT", "INVESTMENT_BUY"})
 	@DisplayName("차감이 허용된 사유는 공통 서비스로 넘긴다")
 	void 허용된_사유는_차감된다(PointTransactionReason reason) {
 		given(pointWalletService.withdraw(any())).willReturn(result(3_000, 17_000));
@@ -62,7 +62,8 @@ class PointDeductionServiceTest {
 
 	@ParameterizedTest(name = "{0} 사유로는 차감할 수 없다")
 	@EnumSource(value = PointTransactionReason.class,
-			names = {"CHARGE", "GRANT", "ALLOWANCE", "QUIZ", "CHORE", "REFUND"})
+			names = {"CHARGE", "GRANT", "ALLOWANCE", "QUIZ_REWARD", "CHORE_REWARD", "REFUND",
+				"SAVINGS_WITHDRAWAL", "INVESTMENT_SELL"})
 	@DisplayName("지급 전용 사유로 차감을 요청하면 잔액을 건드리지 않고 막는다")
 	void 지급_사유로는_차감할_수_없다(PointTransactionReason depositOnlyReason) {
 		assertThatThrownBy(() -> pointDeductionService.deduct(
@@ -102,11 +103,15 @@ class PointDeductionServiceTest {
 	@Test
 	@DisplayName("사유의 허용 방향 정의가 실제 업무와 맞는다")
 	void 사유별_방향_정의가_맞는다() {
-		// 예적금과 투자는 양방향이다. 가입·매수는 차감이고 만기 수령·매도는 지급이기 때문이다.
-		assertThat(PointTransactionReason.SAVINGS.isDepositAllowed()).isTrue();
-		assertThat(PointTransactionReason.SAVINGS.isWithdrawalAllowed()).isTrue();
-		assertThat(PointTransactionReason.INVESTMENT.isDepositAllowed()).isTrue();
-		assertThat(PointTransactionReason.INVESTMENT.isWithdrawalAllowed()).isTrue();
+		// 예적금과 투자는 방향별로 사유가 갈린다. 가입·매수는 차감, 수령·매도는 지급이다.
+		assertThat(PointTransactionReason.SAVINGS_DEPOSIT.isWithdrawalAllowed()).isTrue();
+		assertThat(PointTransactionReason.SAVINGS_DEPOSIT.isDepositAllowed()).isFalse();
+		assertThat(PointTransactionReason.SAVINGS_WITHDRAWAL.isDepositAllowed()).isTrue();
+		assertThat(PointTransactionReason.SAVINGS_WITHDRAWAL.isWithdrawalAllowed()).isFalse();
+		assertThat(PointTransactionReason.INVESTMENT_BUY.isWithdrawalAllowed()).isTrue();
+		assertThat(PointTransactionReason.INVESTMENT_BUY.isDepositAllowed()).isFalse();
+		assertThat(PointTransactionReason.INVESTMENT_SELL.isDepositAllowed()).isTrue();
+		assertThat(PointTransactionReason.INVESTMENT_SELL.isWithdrawalAllowed()).isFalse();
 
 		// 나머지는 한 방향만 허용한다.
 		assertThat(PointTransactionReason.CHARGE.isWithdrawalAllowed()).isFalse();
