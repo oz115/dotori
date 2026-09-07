@@ -6,6 +6,8 @@ import java.util.Locale;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.bana.dotori.auth.dto.FindIdRequest;
 import com.bana.dotori.auth.dto.FindIdResponse;
@@ -19,6 +21,7 @@ import com.bana.dotori.auth.repository.RefreshTokenRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.global.util.PasswordPolicy;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.repository.UserRepository;
 
@@ -28,10 +31,6 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-
-	// 회원가입(SignupRequest)·비밀번호 변경(UserServiceImpl)과 같은 정책이다.
-	private static final int PASSWORD_MIN_LENGTH = 8;
-	private static final int PASSWORD_MAX_LENGTH = 64;
 
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
@@ -99,7 +98,8 @@ public class AuthServiceImpl implements AuthService {
 		// 소모(1회용 처리)는 비밀번호 재설정 성공 시점에만 한다.
 		emailVerificationCodeManager.requireValidToken(email, request.verificationToken());
 
-		User user = userRepository.findByNameAndEmail(request.name(), email)
+		// 이름 뒤에 붙는 공백(모바일 키보드가 자주 만든다) 때문에 404가 나지 않게 다듬는다
+		User user = userRepository.findByNameAndEmail(request.name().strip(), email)
 			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		return new FindIdResponse(maskLoginId(user.getLoginId()));
@@ -124,7 +124,7 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	@Transactional
 	public void resetPassword(PasswordResetRequest request) {
-		validatePasswordPolicy(request.newPassword());
+		PasswordPolicy.validate(request.newPassword());
 
 		String email = request.email().toLowerCase(Locale.ROOT);
 		emailVerificationCodeManager.requireValidToken(email, request.verificationToken());
@@ -137,17 +137,18 @@ public class AuthServiceImpl implements AuthService {
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
 		// 비밀번호가 바뀌면 기존 세션은 전부 끊는다 (탈취된 세션 차단)
 		revokeAllRefreshTokens(user.getId());
-		// verificationToken 은 1회용이므로 성공한 뒤에만 소모한다
-		emailVerificationCodeManager.deleteToken(email);
-	}
 
-	private void validatePasswordPolicy(String newPassword) {
-		if (newPassword == null || newPassword.isBlank()
-			|| newPassword.length() < PASSWORD_MIN_LENGTH
-			|| newPassword.length() > PASSWORD_MAX_LENGTH) {
-
-			throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT,
-				"비밀번호는 공백 없이 " + PASSWORD_MIN_LENGTH + "자 이상 " + PASSWORD_MAX_LENGTH + "자 이하여야 합니다");
+		// verificationToken(1회용) 소모는 커밋이 확정된 뒤에만 한다. 커밋 전에 지우면
+		// 커밋 실패(롤백) 시 비밀번호는 안 바뀌었는데 토큰만 사라져 인증을 처음부터 다시 해야 한다.
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					emailVerificationCodeManager.deleteToken(email);
+				}
+			});
+		} else {
+			emailVerificationCodeManager.deleteToken(email);
 		}
 	}
 
