@@ -9,6 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +20,8 @@ import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.TransferRequest;
+import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.service.AccountService;
 
 import jakarta.validation.Valid;
@@ -63,5 +66,13 @@ public class AccountController {
 		@RequestParam(required = false) String transactionType) {
 		return ResponseEntity.ok(
 			accountService.getTransactionHistory(userId, period, startDate, endDate, cursor, size, transactionType));
+	}
+
+	// 연동 계좌 간 이체 API
+	@PostMapping("/transfer")
+	public ResponseEntity<TransferResponse> transfer(@AuthenticationPrincipal Integer userId,
+		@Valid @RequestBody TransferRequest request,
+		@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+		return ResponseEntity.ok(accountService.transfer(userId, request, idempotencyKey));
 	}
 }

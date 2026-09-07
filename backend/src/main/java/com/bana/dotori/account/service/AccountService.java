@@ -8,6 +8,8 @@ import com.bana.dotori.account.dto.AccountAuthVerifyRequest;
 import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
+import com.bana.dotori.account.dto.TransferRequest;
+import com.bana.dotori.account.dto.TransferResponse;
 
 public interface AccountService {
 
@@ -24,4 +26,7 @@ public interface AccountService {
 	// period(상대 기간) 또는 startDate/endDate(절대 기간) 중 하나만 지정할 수 있고, 조회 기간은 최대 3개월이다
 	AccountTransactionHistoryResponse getTransactionHistory(Integer userId, String period, LocalDate startDate,
 		LocalDate endDate, String cursor, Integer size, String transactionType);
+
+	// 연동 계좌 간 이체를 수행한다
+	TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey);
 }
