@@ -3,7 +3,7 @@ package com.bana.dotori.account.dto;
 import java.time.OffsetDateTime;
 
 public record AccountResponse(
-	Long id,
+	Integer id,
 	String bankCode,
 	String bankName,
 	String accountNo,
