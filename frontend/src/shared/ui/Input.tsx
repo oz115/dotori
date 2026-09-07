@@ -18,11 +18,14 @@ export function Input({ label, error, onFocus, onBlur, style, ...textInputProps 
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
 
+  const active = focused && !error;
   const underline = error
     ? theme.color.status.danger.solid
     : focused
       ? theme.color.border.focus
       : theme.color.border.strong;
+  // Figma: 포커스 시 입력 텍스트도 브랜드 그린으로 바뀐다.
+  const textColor = active ? theme.color.brand.solid : theme.color.text.strong;
 
   return (
     <View style={styles.container}>
@@ -30,7 +33,7 @@ export function Input({ label, error, onFocus, onBlur, style, ...textInputProps 
         <Text style={[theme.typography.label, { color: theme.color.text.muted }]}>{label}</Text>
       ) : null}
       <TextInput
-        placeholderTextColor={theme.color.text.muted}
+        placeholderTextColor={active ? theme.color.brand.solid : theme.color.text.muted}
         {...textInputProps}
         onFocus={(e) => {
           setFocused(true);
@@ -44,7 +47,7 @@ export function Input({ label, error, onFocus, onBlur, style, ...textInputProps 
           theme.typography.body,
           styles.input,
           {
-            color: theme.color.text.strong,
+            color: textColor,
             borderBottomColor: underline,
             paddingVertical: theme.space.sm,
           },
