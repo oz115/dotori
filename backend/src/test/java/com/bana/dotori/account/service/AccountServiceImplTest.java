@@ -595,7 +595,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_성공시_금융망_이체를_호출하고_이체_결과를_반환한다")
 	void transfer_success() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
 			.willReturn(accountInfo("50000", "20000000"));
 
@@ -627,7 +627,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_본인의_동일_계좌로_이체하면_SELF_TRANSFER_NOT_ALLOWED_예외가_발생한다")
 	void transfer_본인동일계좌() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 
 		assertThatThrownBy(
 			() -> accountService.transfer(USER_ID, new TransferRequest(ACCOUNT_NO, 10000L, null), null))
@@ -642,9 +642,9 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_중복된_idempotencyKey면_DUPLICATE_TRANSFER_REQUEST_예외가_그대로_전파된다")
 	void transfer_중복요청() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		willThrow(new BusinessException(ErrorCode.DUPLICATE_TRANSFER_REQUEST))
-			.given(transferIdempotencyGuard).reserve(1L, "key-1");
+			.given(transferIdempotencyGuard).reserve(1, "key-1");
 
 		assertThatThrownBy(
 			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), "key-1"))
@@ -658,7 +658,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_1회_이체한도를_초과하면_TRANSFER_LIMIT_EXCEEDED_예외가_발생한다")
 	void transfer_한도초과() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
 			.willReturn(accountInfo("50000000", "1000000"));
 
@@ -675,7 +675,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_잔액이_부족하면_INSUFFICIENT_ACCOUNT_BALANCE_예외가_발생한다")
 	void transfer_잔액부족() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
 			.willReturn(accountInfo("5000", "20000000"));
 
@@ -692,7 +692,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_잔액_조회시_금융망_오류가_발생하면_FINANCE_API_ERROR_예외가_발생한다")
 	void transfer_잔액조회_금융망오류() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		willThrow(new FinanceApiException("A1003", "계좌번호가 유효하지 않습니다."))
 			.given(financeClient).inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO);
 
@@ -706,7 +706,7 @@ class AccountServiceImplTest {
 	@Test
 	@DisplayName("transfer_금융망_이체_요청이_실패하면_BANK_TRANSFER_FAILED_예외가_발생한다")
 	void transfer_이체실패() {
-		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
 		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
 			.willReturn(accountInfo("50000", "20000000"));
 		willThrow(new FinanceApiException("A1004", "이체할 수 없습니다."))
