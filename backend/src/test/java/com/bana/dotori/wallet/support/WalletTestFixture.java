@@ -12,11 +12,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public final class WalletTestFixture {
 
 	/**
-	 * 테스트가 만든 회원을 가려내는 표식. 여기서 네이티브 SQL 로 넣는 회원도,
-	 * 마이페이지 E2E 가 회원가입 API 로 만드는 회원도 이메일을 {@code {loginId}@dotori.test} 로 맞춘다.
+	 * 자동 테스트가 만든 회원을 가려내는 표식. 여기서 네이티브 SQL 로 넣는 회원도,
+	 * 마이페이지 E2E 가 회원가입 API 로 만드는 회원도 이메일을 {@code {loginId}@autotest.local} 로 맞춘다.
 	 * 뒷정리와 집계는 전부 이 범위 안에서만 이루어진다.
+	 *
+	 * <p>{@code @dotori.test} 를 쓰다가 옮겼다. 팀이 개발용으로 넣어 둔 시드 회원이 같은 도메인을
+	 * 쓰고 있어서, 테스트를 돌릴 때마다 그 시드가 지워지려 했다. 시드 가족을 참조하는
+	 * store_products 가 삭제를 막아 FK 위반으로 지갑 테스트가 통째로 깨지기도 했다.
+	 * 표식은 자동 테스트만 쓰는 값이어야 한다.
 	 */
-	private static final String TEST_USER_IDS = "SELECT user_id FROM users WHERE email LIKE '%@dotori.test'";
+	private static final String TEST_USER_IDS = "SELECT user_id FROM users WHERE email LIKE '%@autotest.local'";
 
 	/**
 	 * fixture 가 만드는 회원의 비밀번호 원문. 로그인까지 태워야 하는 테스트가 쓴다.
@@ -49,7 +54,7 @@ public final class WalletTestFixture {
 				INSERT INTO users (login_id, password, name, email, role)
 				VALUES (?, ?, ?, ?, ?)
 				RETURNING user_id
-				""", Integer.class, loginId, ENCODED_PASSWORD, loginId, loginId + "@dotori.test", role);
+				""", Integer.class, loginId, ENCODED_PASSWORD, loginId, loginId + "@autotest.local", role);
 	}
 
 	/**
@@ -73,7 +78,7 @@ public final class WalletTestFixture {
 	/**
 	 * 트랜잭션 롤백에 기대지 않는 테스트(동시성 등)가 직접 뒷정리할 때 쓴다.
 	 *
-	 * <p>테스트가 만든 회원({@code @dotori.test})과 거기 딸린 행만 지운다. 테이블을 통째로
+	 * <p>테스트가 만든 회원({@code @autotest.local})과 거기 딸린 행만 지운다. 테이블을 통째로
 	 * 비우지 않는 이유는, 이 DB 를 팀 전체가 공유하기 때문이다. 예전에는 {@code DELETE FROM users}
 	 * 로 싹 지웠는데, 그러면 users 를 참조하는 테이블을 전부 먼저 비워야 해서 남의 도메인 데이터
 	 * (연동 계좌 등)까지 딸려 나갔고, 다른 도메인이 users 참조 테이블을 추가할 때마다 삭제 목록이
@@ -91,7 +96,7 @@ public final class WalletTestFixture {
 				+ " OR family_id IN (SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM families WHERE created_by IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM refresh_tokens WHERE user_id IN (" + TEST_USER_IDS + ")");
-		jdbcTemplate.update("DELETE FROM users WHERE email LIKE '%@dotori.test'");
+		jdbcTemplate.update("DELETE FROM users WHERE email LIKE '%@autotest.local'");
 	}
 
 	public static int selectBalance(JdbcTemplate jdbcTemplate, Integer childId) {

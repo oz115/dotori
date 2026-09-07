@@ -190,7 +190,7 @@ class PointWalletServiceTest {
 		willThrow(new DataIntegrityViolationException(
 				"""
 				could not execute statement; SQL [n/a]; \
-				constraint [uk_point_transactions_wallet_idempotency_key]"""))
+				constraint [UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY]"""))
 				.given(pointTransactionRepository).saveAndFlush(any(PointTransaction.class));
 
 		assertThatThrownBy(() -> pointWalletService.deposit(command(500)))

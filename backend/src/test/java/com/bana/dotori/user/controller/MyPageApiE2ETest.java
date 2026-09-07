@@ -338,7 +338,7 @@ class MyPageApiE2ETest {
 		mockMvc.perform(post("/api/v1/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@dotori.test", "role": "%s"}
+					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@autotest.local", "role": "%s"}
 					""".formatted(loginId, password, name, loginId, role)))
 			.andExpect(status().isCreated());
 		return jdbcTemplate.queryForObject(

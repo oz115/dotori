@@ -127,7 +127,7 @@ class FamilyMemberRepositoryTest {
 			VALUES (?, ?, ?, ?, ?)
 			RETURNING user_id
 			""", Integer.class, loginId, WalletTestFixture.ENCODED_PASSWORD, loginId,
-			loginId + "@dotori.test", role);
+			loginId + "@autotest.local", role);
 	}
 
 	private Integer insertFamily(Integer createdBy) {

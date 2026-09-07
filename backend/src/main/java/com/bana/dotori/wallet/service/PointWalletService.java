@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.service;
 
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,7 +42,7 @@ public class PointWalletService {
 	 *
 	 * <p>제약 이름 전체가 아니라 컬럼명만 본다. 이미 만들어진 DB 에는 단일 컬럼 제약
 	 * ({@code uk_point_transactions_idempotency_key})이 남아 있을 수 있고,
-	 * 새로 만든 DB 에는 복합 제약({@code uk_point_transactions_wallet_idempotency_key})이 있는데
+	 * 새로 만든 DB 에는 복합 제약({@code UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY})이 있는데
 	 * 둘 다 잡아야 하기 때문이다. CHECK·외래키 위반 메시지에는 이 문자열이 없다.
 	 */
 	private static final String IDEMPOTENCY_KEY_CONSTRAINT = "idempotency_key";
@@ -69,7 +70,7 @@ public class PointWalletService {
 	 * 지갑이 없으면 잔액 0으로 만들어 준다. 첫 충전·지급 직전에 호출한다.
 	 *
 	 * <p><b>별도 트랜잭션에서 돈다.</b> 동시에 첫 거래가 두 건 들어오면 한 쪽이
-	 * {@code uk_point_wallets_user_id} 제약에 걸리는데, 호출자와 같은 트랜잭션이라면
+	 * {@code UQ_POINT_WALLETS_CHILD_ID} 제약에 걸리는데, 호출자와 같은 트랜잭션이라면
 	 * PostgreSQL 이 그 트랜잭션을 abort 상태로 만들어 뒤이은 쿼리가 전부 실패한다.
 	 * 트랜잭션을 분리해 두면 실패한 쪽만 되돌아가고, 호출자는 상대가 커밋한 지갑을 보게 된다.
 	 *
@@ -137,6 +138,10 @@ public class PointWalletService {
 	}
 
 	private boolean isIdempotencyKeyViolation(DataIntegrityViolationException e) {
-		return String.valueOf(e.getMostSpecificCause().getMessage()).contains(IDEMPOTENCY_KEY_CONSTRAINT);
+		// 제약 이름의 대소문자는 만든 쪽에 따라 다르다. DDL 스크립트는 대문자
+		// (UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY), Hibernate 는 소문자로 만든다.
+		return String.valueOf(e.getMostSpecificCause().getMessage())
+				.toLowerCase(Locale.ROOT)
+				.contains(IDEMPOTENCY_KEY_CONSTRAINT);
 	}
 }

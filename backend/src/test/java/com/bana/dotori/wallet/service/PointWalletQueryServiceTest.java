@@ -122,12 +122,10 @@ class PointWalletQueryServiceTest {
 	@DisplayName("거래내역을 조회할 때")
 	class GetTransactions {
 
-		private static final int WALLET_ID = 10;
 
 		@BeforeEach
 		void 본인_조회를_허용한다() {
 			PointWallet wallet = PointWallet.openWithBalance(CHILD_ID, 6_000);
-			ReflectionTestUtils.setField(wallet, "walletId", WALLET_ID);
 			given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
 			given(pointWalletRepository.findByChildId(CHILD_ID)).willReturn(Optional.of(wallet));
 		}
@@ -143,7 +141,7 @@ class PointWalletQueryServiceTest {
 
 			ArgumentCaptor<OffsetDateTime> startAt = ArgumentCaptor.forClass(OffsetDateTime.class);
 			ArgumentCaptor<OffsetDateTime> endAt = ArgumentCaptor.forClass(OffsetDateTime.class);
-			verify(pointTransactionRepository).search(eq(WALLET_ID), startAt.capture(), endAt.capture(),
+			verify(pointTransactionRepository).search(eq(CHILD_ID), startAt.capture(), endAt.capture(),
 					eq(PointTransactionReason.CHARGE), isNull(), eq(Sort.Direction.ASC), anyInt());
 
 			assertThat(startAt.getValue())
@@ -175,7 +173,7 @@ class PointWalletQueryServiceTest {
 			pointWalletQueryService.getTransactions(FAMILY_ID, CHILD_ID, CHILD_ID,
 					null, null, null, null, null, 20);
 
-			verify(pointTransactionRepository).search(eq(WALLET_ID), isNull(), isNull(), isNull(),
+			verify(pointTransactionRepository).search(eq(CHILD_ID), isNull(), isNull(), isNull(),
 					isNull(), eq(Sort.Direction.DESC), anyInt());
 		}
 
@@ -283,7 +281,7 @@ class PointWalletQueryServiceTest {
 		private PointTransaction transaction(int id, PointTransactionReason reason,
 				int amount, int balanceAfter) {
 			PointTransaction transaction = PointTransaction.record(
-					WALLET_ID, reason, amount, balanceAfter, reason.name(), "key-" + id);
+					CHILD_ID, reason, amount, balanceAfter, reason.name(), "key-" + id);
 			ReflectionTestUtils.setField(transaction, "pointTransactionId", id);
 			return transaction;
 		}

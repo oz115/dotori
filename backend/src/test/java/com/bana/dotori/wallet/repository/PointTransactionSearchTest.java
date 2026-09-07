@@ -277,7 +277,7 @@ class PointTransactionSearchTest {
 	private void insertFor(Integer targetChildId, PointTransactionReason reason, int amount, String createdAt) {
 		jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, amount, balance_after, description, created_at)
+					(child_id, transaction_type, amount, balance_after, description, created_at)
 				VALUES (?, ?, ?, ?, ?, ?)
 				""", targetChildId, reason.name(), amount, 10_000, reason.name() + " " + amount,
 				OffsetDateTime.parse(createdAt));

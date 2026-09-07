@@ -106,7 +106,7 @@ public class PointWalletQueryService {
 		// 한 건을 더 요청해서 "다음이 있는지"를 판단한다.
 		// COUNT(*) 를 따로 실행하지 않기 위한 방법이고, 그 한 건은 응답에서 잘라낸다.
 		List<PointTransaction> found = pointTransactionRepository.search(
-				wallet.get().getWalletId(),
+				childId,
 				startOfDay(startDate),
 				startOfNextDay(endDate),
 				reason,
