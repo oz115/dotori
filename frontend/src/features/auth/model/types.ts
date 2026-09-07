@@ -15,7 +15,7 @@ export type AuthUser = {
  */
 export type AuthStatus = 'loading' | 'authenticated' | 'guest';
 
-/** POST /api/v1/auth/login — BE가 모바일용으로 refreshToken을 body에 포함 (예정) */
+/** POST /api/v1/auth/login — refreshToken도 body로 내려온다 (모바일이라 쿠키 대신 body 방식) */
 export type LoginResponse = {
   accessToken: string;
   tokenType: string;

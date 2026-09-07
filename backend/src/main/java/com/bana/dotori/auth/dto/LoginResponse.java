@@ -4,6 +4,7 @@ import com.bana.dotori.user.entity.UserRole;
 
 public record LoginResponse(
 	String accessToken,
+	String refreshToken,
 	String tokenType,
 	long expiresIn,
 	UserSummary user

@@ -17,7 +17,7 @@ export const authApi = {
   signup: (body: SignupBody) =>
     httpClient.post('/api/v1/auth/signup', body).then((res) => res.data),
 
-  logout: () => httpClient.post('/api/v1/auth/logout'),
+  logout: (refreshToken: string) => httpClient.post('/api/v1/auth/logout', { refreshToken }),
 
   refresh: (refreshToken: string) =>
     httpClient

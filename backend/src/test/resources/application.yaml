@@ -69,7 +69,6 @@ jwt:
   secret: Kfc5n4etu9b908ckpMRCOJ/3qahjHYwXp0wwFX0BXuUH9hVaubZyTXxc0qYr6Q+S
   access-token-validity-seconds: 1800
   refresh-token-validity-seconds: 1209600
-  cookie-secure: false
 
 logging:
   level:

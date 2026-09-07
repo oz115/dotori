@@ -7,8 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.auth.dto.LoginRequest;
-import com.bana.dotori.auth.dto.LoginResult;
-import com.bana.dotori.auth.dto.TokenRefreshResult;
+import com.bana.dotori.auth.dto.LoginResponse;
+import com.bana.dotori.auth.dto.TokenRefreshResponse;
 import com.bana.dotori.auth.entity.RefreshToken;
 import com.bana.dotori.auth.mapper.AuthMapper;
 import com.bana.dotori.auth.repository.RefreshTokenRepository;
@@ -33,7 +33,7 @@ public class AuthServiceImpl implements AuthService {
 
 	@Override
 	@Transactional
-	public LoginResult login(LoginRequest request) {
+	public LoginResponse login(LoginRequest request) {
 		User user = userRepository.findByLoginId(request.loginId())
 			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
@@ -44,13 +44,13 @@ public class AuthServiceImpl implements AuthService {
 		String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole());
 		String refreshToken = issueRefreshToken(user);
 
-		return authMapper.toLoginResult(accessToken, refreshToken,
+		return authMapper.toLoginResponse(accessToken, refreshToken,
 			jwtTokenProvider.getAccessTokenValiditySeconds(), user);
 	}
 
 	@Override
 	@Transactional
-	public TokenRefreshResult refresh(String refreshToken) {
+	public TokenRefreshResponse refresh(String refreshToken) {
 		RefreshToken stored = findUsableToken(refreshToken, ErrorCode.INVALID_REFRESH_TOKEN);
 		User user = stored.getUser();
 		if (user.getDeletedAt() != null) {
@@ -61,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
 		String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole());
 		String newRefreshToken = issueRefreshToken(user);
 
-		return authMapper.toTokenRefreshResult(accessToken, newRefreshToken,
+		return authMapper.toTokenRefreshResponse(accessToken, newRefreshToken,
 			jwtTokenProvider.getAccessTokenValiditySeconds());
 	}
 
