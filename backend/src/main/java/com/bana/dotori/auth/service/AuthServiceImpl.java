@@ -94,7 +94,12 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	@Transactional(readOnly = true)
 	public FindIdResponse findLoginId(FindIdRequest request) {
-		User user = userRepository.findByNameAndEmail(request.name(), request.email().toLowerCase(Locale.ROOT))
+		String email = request.email().toLowerCase(Locale.ROOT);
+		// 검증만 하고 소모하지 않는다 — 같은 토큰으로 이어서 비밀번호 재설정까지 할 수 있어야 한다.
+		// 소모(1회용 처리)는 비밀번호 재설정 성공 시점에만 한다.
+		emailVerificationCodeManager.requireValidToken(email, request.verificationToken());
+
+		User user = userRepository.findByNameAndEmail(request.name(), email)
 			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		return new FindIdResponse(maskLoginId(user.getLoginId()));

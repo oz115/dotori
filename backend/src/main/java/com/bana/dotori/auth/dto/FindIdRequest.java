@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record FindIdRequest(
 	@NotBlank String name,
-	@NotBlank @Email String email
+	@NotBlank @Email String email,
+	@NotBlank String verificationToken
 ) {
 }
