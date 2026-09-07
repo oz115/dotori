@@ -395,8 +395,7 @@ class PointWalletApiE2ETest {
 					.andExpect(jsonPath("$.balanceAfter").value(8_000));
 
 			assertThat(WalletTestFixture.selectBalance(jdbcTemplate, childId)).isEqualTo(8_000);
-			assertThat(jdbcTemplate.queryForObject(
-					"SELECT description FROM point_transactions", String.class))
+			assertThat(WalletTestFixture.selectOnlyTransactionColumn(jdbcTemplate, childId, "description"))
 					.isEqualTo("용돈");
 		}
 
