@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,12 +17,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
@@ -66,6 +69,22 @@ class StoreProductServiceImplTest {
 		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(true);
 	}
 
+	private StoreProduct productWithId(Integer id, String name, StoreProductCategory category,
+			BigDecimal value, Integer price, int quantity) {
+		StoreProduct product = StoreProduct.builder()
+			.familyId(FAMILY_ID)
+			.createdBy(USER_ID)
+			.name(name)
+			.description("설명")
+			.category(category)
+			.value(value)
+			.price(price)
+			.quantity(quantity)
+			.build();
+		ReflectionTestUtils.setField(product, "id", id);
+		return product;
+	}
+
 	@Test
 	@DisplayName("가족 구성원이면 상품 목록을 반환한다")
 	void getProducts_success() {
@@ -106,6 +125,63 @@ class StoreProductServiceImplTest {
 		StoreProductListResponse response = storeProductService.getProducts(USER_ID, FAMILY_ID);
 
 		assertThat(response.products().get(0).price()).isNull();
+	}
+
+	@Test
+	@DisplayName("상품 상세 조회 성공 시 전체 필드를 반환한다")
+	void getProduct_success() {
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY,
+			new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyId(5, FAMILY_ID)).willReturn(Optional.of(product));
+
+		StoreProductDetailResponse response = storeProductService.getProduct(USER_ID, FAMILY_ID, 5);
+
+		assertThat(response.storeProductId()).isEqualTo(5);
+		assertThat(response.name()).isEqualTo("자전거");
+		assertThat(response.description()).isEqualTo("설명");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.TOY);
+		assertThat(response.value()).isEqualByComparingTo("90.00");
+		assertThat(response.price()).isEqualTo(900000);
+		assertThat(response.quantity()).isEqualTo(1);
+		assertThat(response.createdBy()).isEqualTo(USER_ID);
+	}
+
+	@Test
+	@DisplayName("AI 가치 산정 전 상품은 value와 price가 null로 나간다")
+	void getProduct_notEvaluatedYet() {
+		givenActiveMember();
+		StoreProduct product = productWithId(6, "자전거", StoreProductCategory.TOY, null, null, 1);
+		given(storeProductRepository.findByIdAndFamilyId(6, FAMILY_ID)).willReturn(Optional.of(product));
+
+		StoreProductDetailResponse response = storeProductService.getProduct(USER_ID, FAMILY_ID, 6);
+
+		assertThat(response.value()).isNull();
+		assertThat(response.price()).isNull();
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void getProduct_notFound() {
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyId(999, FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.getProduct(USER_ID, FAMILY_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("다른 가족의 상품이면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void getProduct_otherFamilyProduct() {
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.getProduct(USER_ID, FAMILY_ID, 7))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
 	}
 
 	@Test
