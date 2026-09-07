@@ -3,6 +3,7 @@ package com.bana.dotori.account.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -31,6 +32,8 @@ import com.bana.dotori.account.dto.AccountInfoResponse;
 import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
+import com.bana.dotori.account.dto.TransferRequest;
+import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
@@ -61,6 +64,9 @@ class AccountServiceImplTest {
 	@Mock
 	private AccountAuthSessionManager accountAuthSessionManager;
 
+	@Mock
+	private TransferIdempotencyGuard transferIdempotencyGuard;
+
 	@Spy
 	private AccountMapper accountMapper;
 
@@ -72,11 +78,12 @@ class AccountServiceImplTest {
 	private static final Integer USER_ID = 1;
 	private static final String ACCOUNT_NO = "0011214764051239";
 	private static final String USER_KEY = "633d65a0-67c4-48b2-9bbf-94b948d8e141";
+	private static final String OTHER_ACCOUNT_NO = "1102123456789";
 
 	@BeforeEach
 	void setUp() {
 		accountService = new AccountServiceImpl(accountRepository, userRepository, financeClient,
-			financeProperties, accountAuthSessionManager, accountMapper);
+			financeProperties, accountAuthSessionManager, transferIdempotencyGuard, accountMapper);
 	}
 
 	private User user(Integer id) {
@@ -101,6 +108,25 @@ class AccountServiceImplTest {
 			.build();
 		ReflectionTestUtils.setField(account, "id", id);
 		return account;
+	}
+
+	private InquireDemandDepositAccountRec accountInfo(String accountBalance, String oneTimeTransferLimit) {
+		return InquireDemandDepositAccountRec.builder()
+			.bankCode("003")
+			.bankName("국민은행")
+			.userName("김도토")
+			.accountNo(ACCOUNT_NO)
+			.accountName("국민은행 수시입출금 상품명")
+			.accountTypeCode("1")
+			.accountTypeName("수시입출금")
+			.accountCreatedDate("20240401")
+			.accountExpiryDate("20290401")
+			.dailyTransferLimit("100000000")
+			.oneTimeTransferLimit(oneTimeTransferLimit)
+			.accountBalance(accountBalance)
+			.lastTransactionDate("")
+			.currency("KRW")
+			.build();
 	}
 
 	private TransactionHistoryItem transactionItem(String uniqueNo, String type, String typeName, String balance,
@@ -564,5 +590,134 @@ class AccountServiceImplTest {
 			.isEqualTo(ErrorCode.INVALID_REQUEST);
 
 		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("transfer_성공시_금융망_이체를_호출하고_이체_결과를_반환한다")
+	void transfer_success() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
+			.willReturn(accountInfo("50000", "20000000"));
+
+		TransferResponse response = accountService.transfer(USER_ID,
+			new TransferRequest(OTHER_ACCOUNT_NO, 10000L, "용돈"), null);
+
+		assertThat(response.fromAccountNo()).isEqualTo(ACCOUNT_NO);
+		assertThat(response.toAccountNo()).isEqualTo(OTHER_ACCOUNT_NO);
+		assertThat(response.amount()).isEqualTo(10000L);
+		then(financeClient).should()
+			.updateDemandDepositAccountTransfer(USER_KEY, ACCOUNT_NO, OTHER_ACCOUNT_NO, 10000L, "용돈", "계좌 이체 입금");
+	}
+
+	@Test
+	@DisplayName("transfer_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생한다")
+	void transfer_연동계좌없음() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ACCOUNT_NOT_LINKED);
+
+		then(financeClient).shouldHaveNoInteractions();
+		then(transferIdempotencyGuard).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("transfer_본인의_동일_계좌로_이체하면_SELF_TRANSFER_NOT_ALLOWED_예외가_발생한다")
+	void transfer_본인동일계좌() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(ACCOUNT_NO, 10000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.SELF_TRANSFER_NOT_ALLOWED);
+
+		then(financeClient).shouldHaveNoInteractions();
+		then(transferIdempotencyGuard).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("transfer_중복된_idempotencyKey면_DUPLICATE_TRANSFER_REQUEST_예외가_그대로_전파된다")
+	void transfer_중복요청() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		willThrow(new BusinessException(ErrorCode.DUPLICATE_TRANSFER_REQUEST))
+			.given(transferIdempotencyGuard).reserve(1L, "key-1");
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), "key-1"))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.DUPLICATE_TRANSFER_REQUEST);
+
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("transfer_1회_이체한도를_초과하면_TRANSFER_LIMIT_EXCEEDED_예외가_발생한다")
+	void transfer_한도초과() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
+			.willReturn(accountInfo("50000000", "1000000"));
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 2000000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.TRANSFER_LIMIT_EXCEEDED);
+
+		then(financeClient).should(never())
+			.updateDemandDepositAccountTransfer(any(), any(), any(), anyLong(), any(), any());
+	}
+
+	@Test
+	@DisplayName("transfer_잔액이_부족하면_INSUFFICIENT_ACCOUNT_BALANCE_예외가_발생한다")
+	void transfer_잔액부족() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
+			.willReturn(accountInfo("5000", "20000000"));
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE);
+
+		then(financeClient).should(never())
+			.updateDemandDepositAccountTransfer(any(), any(), any(), anyLong(), any(), any());
+	}
+
+	@Test
+	@DisplayName("transfer_잔액_조회시_금융망_오류가_발생하면_FINANCE_API_ERROR_예외가_발생한다")
+	void transfer_잔액조회_금융망오류() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		willThrow(new FinanceApiException("A1003", "계좌번호가 유효하지 않습니다."))
+			.given(financeClient).inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO);
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FINANCE_API_ERROR);
+	}
+
+	@Test
+	@DisplayName("transfer_금융망_이체_요청이_실패하면_BANK_TRANSFER_FAILED_예외가_발생한다")
+	void transfer_이체실패() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1L)));
+		given(financeClient.inquireDemandDepositAccount(USER_KEY, ACCOUNT_NO))
+			.willReturn(accountInfo("50000", "20000000"));
+		willThrow(new FinanceApiException("A1004", "이체할 수 없습니다."))
+			.given(financeClient)
+			.updateDemandDepositAccountTransfer(eq(USER_KEY), eq(ACCOUNT_NO), eq(OTHER_ACCOUNT_NO), eq(10000L),
+				anyString(), anyString());
+
+		assertThatThrownBy(
+			() -> accountService.transfer(USER_ID, new TransferRequest(OTHER_ACCOUNT_NO, 10000L, null), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.BANK_TRANSFER_FAILED);
 	}
 }

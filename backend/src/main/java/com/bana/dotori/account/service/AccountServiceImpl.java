@@ -1,6 +1,7 @@
 package com.bana.dotori.account.service;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -15,6 +16,8 @@ import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
 import com.bana.dotori.account.dto.TransactionPeriod;
+import com.bana.dotori.account.dto.TransferRequest;
+import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.account.mapper.AccountMapper;
 import com.bana.dotori.account.repository.AccountRepository;
@@ -44,12 +47,15 @@ public class AccountServiceImpl implements AccountService {
 	private static final String FINANCE_TRANSACTION_TYPE_WITHDRAWAL = "D";
 	private static final String ORDER_BY_DESC = "DESC";
 	private static final DateTimeFormatter FINANCE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+	private static final String DEFAULT_TRANSFER_SUMMARY = "계좌 이체";
+	private static final String DEFAULT_DEPOSIT_SUMMARY = "계좌 이체 입금";
 
 	private final AccountRepository accountRepository;
 	private final UserRepository userRepository;
 	private final FinanceClient financeClient;
 	private final FinanceProperties financeProperties;
 	private final AccountAuthSessionManager accountAuthSessionManager;
+	private final TransferIdempotencyGuard transferIdempotencyGuard;
 	private final AccountMapper accountMapper;
 
 	// 금융망 userKey를 조회해 1원 송금을 요청하고 인증 세션을 생성한다
@@ -151,6 +157,51 @@ public class AccountServiceImpl implements AccountService {
 		String nextCursor = hasNext ? page.get(page.size() - 1).transactionUniqueNo() : null;
 
 		return accountMapper.toAccountTransactionHistoryResponse(page, nextCursor, hasNext);
+	}
+
+	// 이체를 수행한다 (송금 계좌는 호출자 본인의 연동 계좌, 수신 계좌는 연동 여부와 무관하게 계좌번호로 지정)
+	@Override
+	@Transactional(readOnly = true)
+	public TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey) {
+		Account fromAccount = accountRepository.findFirstByUserId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		if (fromAccount.getAccountNumber().equals(request.toAccountNo())) {
+			throw new BusinessException(ErrorCode.SELF_TRANSFER_NOT_ALLOWED);
+		}
+
+		transferIdempotencyGuard.reserve(fromAccount.getId(), idempotencyKey);
+
+		InquireDemandDepositAccountRec fromAccountInfo;
+		try {
+			fromAccountInfo = financeClient.inquireDemandDepositAccount(fromAccount.getFinanceUserKey(),
+				fromAccount.getAccountNumber());
+		} catch (FinanceApiException ex) {
+			throw new BusinessException(ErrorCode.FINANCE_API_ERROR);
+		}
+
+		long oneTimeTransferLimit = Long.parseLong(fromAccountInfo.oneTimeTransferLimit());
+		long accountBalance = Long.parseLong(fromAccountInfo.accountBalance());
+		if (request.amount() > oneTimeTransferLimit) {
+			throw new BusinessException(ErrorCode.TRANSFER_LIMIT_EXCEEDED);
+		}
+		if (request.amount() > accountBalance) {
+			throw new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE);
+		}
+
+		String summary = (request.memo() != null && !request.memo().isBlank())
+			? request.memo()
+			: DEFAULT_TRANSFER_SUMMARY;
+		try {
+			financeClient.updateDemandDepositAccountTransfer(fromAccount.getFinanceUserKey(),
+				fromAccount.getAccountNumber(), request.toAccountNo(), request.amount(),
+				summary, DEFAULT_DEPOSIT_SUMMARY);
+		} catch (FinanceApiException ex) {
+			throw new BusinessException(ErrorCode.BANK_TRANSFER_FAILED);
+		}
+
+		return accountMapper.toTransferResponse(fromAccount, request.toAccountNo(), request.amount(),
+			OffsetDateTime.now());
 	}
 
 	private int indexOfTransaction(List<TransactionHistoryItem> items, String transactionUniqueNo) {

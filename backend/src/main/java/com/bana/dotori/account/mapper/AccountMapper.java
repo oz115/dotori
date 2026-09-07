@@ -15,6 +15,7 @@ import com.bana.dotori.account.dto.AccountResponse;
 import com.bana.dotori.account.dto.AccountTransactionHistoryResponse;
 import com.bana.dotori.account.dto.AccountTransactionResponse;
 import com.bana.dotori.account.dto.TransactionDirection;
+import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.entity.Account;
 import com.bana.dotori.finance.dto.account.InquireDemandDepositAccountRec;
 import com.bana.dotori.finance.dto.transaction.TransactionHistoryItem;
@@ -71,6 +72,11 @@ public class AccountMapper {
 			Integer.parseInt(item.transactionAfterBalance()),
 			item.transactionSummary(),
 			toTransactedAt(item.transactionDate(), item.transactionTime()));
+	}
+
+	public TransferResponse toTransferResponse(Account fromAccount, String toAccountNo, Long amount,
+		OffsetDateTime transactedAt) {
+		return new TransferResponse(fromAccount.getAccountNumber(), toAccountNo, amount, transactedAt);
 	}
 
 	private TransactionDirection toTransactionDirection(String code) {
