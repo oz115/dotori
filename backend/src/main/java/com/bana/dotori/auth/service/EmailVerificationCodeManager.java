@@ -93,6 +93,33 @@ public class EmailVerificationCodeManager {
 		return token;
 	}
 
+	/**
+	 * verificationToken 이 유효한지 확인한다. 만료되었거나 값이 다르면
+	 * INVALID_VERIFICATION_TOKEN 예외를 발생시킨다.
+	 *
+	 * <p>여기서 지우지 않는 이유: 후속 검증(회원 조회 등)이 실패해도 토큰은 살아 있어야
+	 * 사용자가 인증을 처음부터 다시 하지 않는다. 1회용 처리는 성공 시점에
+	 * {@link #deleteToken}으로 한다.
+	 *
+	 * @param email 인증을 완료한 이메일 (소문자 정규화된 값)
+	 * @param token 클라이언트가 제출한 verificationToken
+	 */
+	public void requireValidToken(String email, String token) {
+		String stored = redisTemplate.opsForValue().get(buildKey(email) + FIELD_TOKEN);
+		if (stored == null || !stored.equals(token)) {
+			throw new BusinessException(ErrorCode.INVALID_VERIFICATION_TOKEN);
+		}
+	}
+
+	/**
+	 * verificationToken 을 삭제한다 (1회용 소모, 후속 API 성공 시 호출).
+	 *
+	 * @param email 인증을 완료한 이메일 (소문자 정규화된 값)
+	 */
+	public void deleteToken(String email) {
+		redisTemplate.delete(buildKey(email) + FIELD_TOKEN);
+	}
+
 	private void incrementAttempt(String email) {
 		Long current = redisTemplate.opsForValue().increment(buildKey(email) + FIELD_ATTEMPT);
 		if (current == null || current >= MAX_ATTEMPT) {

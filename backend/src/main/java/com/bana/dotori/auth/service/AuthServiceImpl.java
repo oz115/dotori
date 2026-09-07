@@ -11,6 +11,7 @@ import com.bana.dotori.auth.dto.FindIdRequest;
 import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResult;
+import com.bana.dotori.auth.dto.PasswordResetRequest;
 import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.entity.RefreshToken;
 import com.bana.dotori.auth.mapper.AuthMapper;
@@ -28,11 +29,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+	// 회원가입(SignupRequest)·비밀번호 변경(UserServiceImpl)과 같은 정책이다.
+	private static final int PASSWORD_MIN_LENGTH = 8;
+	private static final int PASSWORD_MAX_LENGTH = 64;
+
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final AuthMapper authMapper;
+	private final EmailVerificationCodeManager emailVerificationCodeManager;
 
 	@Override
 	@Transactional
@@ -108,6 +114,36 @@ public class AuthServiceImpl implements AuthService {
 		return loginId.substring(0, 4)
 			+ "*".repeat(loginId.length() - 6)
 			+ loginId.substring(loginId.length() - 2);
+	}
+
+	@Override
+	@Transactional
+	public void resetPassword(PasswordResetRequest request) {
+		validatePasswordPolicy(request.newPassword());
+
+		String email = request.email().toLowerCase(Locale.ROOT);
+		emailVerificationCodeManager.requireValidToken(email, request.verificationToken());
+
+		User user = userRepository.findByLoginId(request.loginId())
+			.filter(found -> found.getDeletedAt() == null)
+			.filter(found -> found.getEmail().toLowerCase(Locale.ROOT).equals(email))
+			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		// 비밀번호가 바뀌면 기존 세션은 전부 끊는다 (탈취된 세션 차단)
+		revokeAllRefreshTokens(user.getId());
+		// verificationToken 은 1회용이므로 성공한 뒤에만 소모한다
+		emailVerificationCodeManager.deleteToken(email);
+	}
+
+	private void validatePasswordPolicy(String newPassword) {
+		if (newPassword == null || newPassword.isBlank()
+			|| newPassword.length() < PASSWORD_MIN_LENGTH
+			|| newPassword.length() > PASSWORD_MAX_LENGTH) {
+
+			throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT,
+				"비밀번호는 공백 없이 " + PASSWORD_MIN_LENGTH + "자 이상 " + PASSWORD_MAX_LENGTH + "자 이하여야 합니다");
+		}
 	}
 
 	private RefreshToken findUsableToken(String refreshToken, ErrorCode errorCode) {

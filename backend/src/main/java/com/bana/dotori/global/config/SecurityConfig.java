@@ -35,7 +35,7 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
 				.requestMatchers("/api/v1/auth/email-verification/**").permitAll()
-				.requestMatchers("/api/v1/auth/find-id").permitAll()
+				.requestMatchers("/api/v1/auth/find-id", "/api/v1/auth/password-reset").permitAll()
 				.requestMatchers("/actuator/health").permitAll()
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 				.anyRequest().authenticated())

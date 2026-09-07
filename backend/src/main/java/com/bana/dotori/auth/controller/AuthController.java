@@ -17,6 +17,7 @@ import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
 import com.bana.dotori.auth.dto.LoginResult;
+import com.bana.dotori.auth.dto.PasswordResetRequest;
 import com.bana.dotori.auth.dto.TokenRefreshResponse;
 import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.service.AuthService;
@@ -74,6 +75,12 @@ public class AuthController {
 	@PostMapping("/find-id")
 	public ResponseEntity<FindIdResponse> findId(@Valid @RequestBody FindIdRequest request) {
 		return ResponseEntity.ok(authService.findLoginId(request));
+	}
+
+	@PostMapping("/password-reset")
+	public ResponseEntity<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+		authService.resetPassword(request);
+		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/logout")
