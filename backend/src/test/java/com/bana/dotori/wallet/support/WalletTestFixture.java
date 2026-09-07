@@ -83,9 +83,8 @@ public final class WalletTestFixture {
 	 * 남는다. 범위를 좁혀 둔 덕에 그 피해도 테스트 데이터 안에서 끝난다.
 	 */
 	public static void cleanUp(JdbcTemplate jdbcTemplate) {
-		jdbcTemplate.update("DELETE FROM point_transactions WHERE wallet_id IN ("
-				+ "SELECT wallet_id FROM point_wallets WHERE user_id IN (" + TEST_USER_IDS + "))");
-		jdbcTemplate.update("DELETE FROM point_wallets WHERE user_id IN (" + TEST_USER_IDS + ")");
+		jdbcTemplate.update("DELETE FROM point_transactions WHERE child_id IN (" + TEST_USER_IDS + ")");
+		jdbcTemplate.update("DELETE FROM point_wallets WHERE child_id IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM family_codes WHERE family_id IN ("
 				+ "SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM family_members WHERE user_id IN (" + TEST_USER_IDS + ")"
@@ -95,9 +94,9 @@ public final class WalletTestFixture {
 		jdbcTemplate.update("DELETE FROM users WHERE email LIKE '%@dotori.test'");
 	}
 
-	public static int selectBalance(JdbcTemplate jdbcTemplate, Integer userId) {
+	public static int selectBalance(JdbcTemplate jdbcTemplate, Integer childId) {
 		Integer balance = jdbcTemplate.queryForObject(
-				"SELECT balance FROM point_wallets WHERE user_id = ?", Integer.class, userId);
+				"SELECT balance FROM point_wallets WHERE child_id = ?", Integer.class, childId);
 		return balance == null ? 0 : balance;
 	}
 
@@ -106,17 +105,16 @@ public final class WalletTestFixture {
 	 * 잡히므로 범위를 좁힌다. {@link #cleanUp(JdbcTemplate)} 과 같은 범위여야 한다.
 	 */
 	public static int countTransactions(JdbcTemplate jdbcTemplate) {
-		Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM point_transactions WHERE wallet_id IN ("
-				+ "SELECT wallet_id FROM point_wallets WHERE user_id IN (" + TEST_USER_IDS + "))", Integer.class);
+		Integer count = jdbcTemplate.queryForObject(
+				"SELECT count(*) FROM point_transactions WHERE child_id IN (" + TEST_USER_IDS + ")", Integer.class);
 		return count == null ? 0 : count;
 	}
 
 	/**
 	 * 테스트가 만든 회원의 원장에서 컬럼 하나를 읽는다. 행이 정확히 하나일 때만 쓴다.
 	 */
-	public static String selectOnlyTransactionColumn(JdbcTemplate jdbcTemplate, Integer userId, String column) {
-		return jdbcTemplate.queryForObject("SELECT " + column + " FROM point_transactions"
-				+ " WHERE wallet_id = (SELECT wallet_id FROM point_wallets WHERE user_id = ?)",
-				String.class, userId);
+	public static String selectOnlyTransactionColumn(JdbcTemplate jdbcTemplate, Integer childId, String column) {
+		return jdbcTemplate.queryForObject(
+				"SELECT " + column + " FROM point_transactions WHERE child_id = ?", String.class, childId);
 	}
 }

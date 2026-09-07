@@ -33,7 +33,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <ol>
  *   <li>조회는 락을 잡지 않는다. 변경 경로와 같은 클래스에 두면 실수로
- *       {@code findByUserIdForUpdate} 를 조회에 쓰거나 그 반대가 되기 쉽다.</li>
+ *       {@code findByChildIdForUpdate} 를 조회에 쓰거나 그 반대가 되기 쉽다.</li>
  *   <li>권한 규칙이 다르다. 충전·지급은 "본인 또는 그 가족 부모가 잔액을 바꾼다"지만
  *       조회는 부모가 자녀 지갑을 들여다볼 수 있다.</li>
  * </ol>
@@ -70,7 +70,7 @@ public class PointWalletQueryService {
 	public PointBalanceResponse getBalance(Integer familyId, Integer childId, Integer loginUserId) {
 		validateReadAccess(familyId, childId, loginUserId);
 
-		return pointWalletRepository.findByUserId(childId)
+		return pointWalletRepository.findByChildId(childId)
 				.map(PointBalanceResponse::from)
 				.orElseGet(() -> PointBalanceResponse.empty(childId));
 	}
@@ -97,7 +97,7 @@ public class PointWalletQueryService {
 		TransactionCursor cursor = TransactionCursor.decode(encodedCursor);
 		Sort.Direction resolved = direction == null ? Sort.Direction.DESC : direction;
 
-		Optional<PointWallet> wallet = pointWalletRepository.findByUserId(childId);
+		Optional<PointWallet> wallet = pointWalletRepository.findByChildId(childId);
 		if (wallet.isEmpty()) {
 			// 지갑이 없으면 원장도 없다. 404 대신 빈 목록으로 응답한다.
 			return PointTransactionHistoryResponse.empty(childId);

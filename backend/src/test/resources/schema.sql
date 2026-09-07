@@ -81,18 +81,18 @@ CREATE TABLE IF NOT EXISTS "family_codes" (
 
 CREATE TABLE IF NOT EXISTS "point_wallets" (
 	"wallet_id"	SERIAL	NOT NULL,
-	"user_id"	INTEGER	NOT NULL,
+	"child_id"	INTEGER	NOT NULL,
 	"balance"	INTEGER	DEFAULT 0	NOT NULL,
 	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	"updated_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	CONSTRAINT "PK_POINT_WALLETS" PRIMARY KEY ("wallet_id"),
-	CONSTRAINT "FK_POINT_WALLETS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id")
+	CONSTRAINT "FK_POINT_WALLETS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id")
 );
 
 
 CREATE TABLE IF NOT EXISTS "point_transactions" (
 	"point_transaction_id"	SERIAL	NOT NULL,
-	"wallet_id"	INTEGER	NOT NULL,
+	"child_id"	INTEGER	NOT NULL,
 	"transaction_type"	VARCHAR(20)	NOT NULL,
 	"amount"	INTEGER	NOT NULL,
 	"balance_after"	INTEGER	NOT NULL,
@@ -100,8 +100,8 @@ CREATE TABLE IF NOT EXISTS "point_transactions" (
 	"idempotency_key"	VARCHAR(100)	NULL,
 	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	CONSTRAINT "PK_POINT_TRANSACTIONS" PRIMARY KEY ("point_transaction_id"),
-	CONSTRAINT "FK_POINT_TRANSACTIONS_WALLET" FOREIGN KEY ("wallet_id")
-		REFERENCES "point_wallets" ("wallet_id")
+	CONSTRAINT "FK_POINT_TRANSACTIONS_CHILD" FOREIGN KEY ("child_id")
+		REFERENCES "users" ("user_id")
 );
 
 
@@ -127,33 +127,33 @@ ALTER TABLE "family_codes"
 	ADD CONSTRAINT "uk_family_codes_code" UNIQUE ("code");
 
 ALTER TABLE "point_wallets"
-	DROP CONSTRAINT IF EXISTS "uk_point_wallets_user_id";
+	DROP CONSTRAINT IF EXISTS "UQ_POINT_WALLETS_CHILD_ID";
 ALTER TABLE "point_wallets"
-	ADD CONSTRAINT "uk_point_wallets_user_id" UNIQUE ("user_id");
+	ADD CONSTRAINT "UQ_POINT_WALLETS_CHILD_ID" UNIQUE ("child_id");
 
 ALTER TABLE "point_wallets"
-	DROP CONSTRAINT IF EXISTS "ck_point_wallets_balance_not_negative";
+	DROP CONSTRAINT IF EXISTS "CK_POINT_WALLETS_BALANCE_NON_NEGATIVE";
 ALTER TABLE "point_wallets"
-	ADD CONSTRAINT "ck_point_wallets_balance_not_negative" CHECK ("balance" >= 0);
+	ADD CONSTRAINT "CK_POINT_WALLETS_BALANCE_NON_NEGATIVE" CHECK ("balance" >= 0);
 
 ALTER TABLE "point_transactions"
-	DROP CONSTRAINT IF EXISTS "ck_point_transactions_amount_positive";
+	DROP CONSTRAINT IF EXISTS "CK_POINT_TRANSACTIONS_AMOUNT_POSITIVE";
 ALTER TABLE "point_transactions"
-	ADD CONSTRAINT "ck_point_transactions_amount_positive" CHECK ("amount" > 0);
+	ADD CONSTRAINT "CK_POINT_TRANSACTIONS_AMOUNT_POSITIVE" CHECK ("amount" > 0);
 
-/* 멱등키는 전역이 아니라 (지갑, 키) 단위로 유일해야 한다.
+/* 멱등키는 전역이 아니라 (자녀, 키) 단위로 유일해야 한다.
    전역 유일이던 구버전 제약이 남아 있으면 다른 사용자가 같은 키를 쓸 때 막힌다. */
 ALTER TABLE "point_transactions"
 	DROP CONSTRAINT IF EXISTS "uk_point_transactions_idempotency_key";
 ALTER TABLE "point_transactions"
-	DROP CONSTRAINT IF EXISTS "uk_point_transactions_wallet_idempotency_key";
+	DROP CONSTRAINT IF EXISTS "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY";
 ALTER TABLE "point_transactions"
-	ADD CONSTRAINT "uk_point_transactions_wallet_idempotency_key"
-	UNIQUE ("wallet_id", "idempotency_key");
+	ADD CONSTRAINT "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY"
+	UNIQUE ("child_id", "idempotency_key");
 
 /* WLT-06 거래내역 조회용 인덱스.
    커서 페이징은 정렬 키와 같은 순서의 인덱스가 있어야 "이 지점 이후"부터
-   limit 만큼만 읽고 멈춘다. 없으면 지갑의 거래를 전부 읽어 정렬한 뒤 잘라낸다.
+   limit 만큼만 읽고 멈춘다. 없으면 그 자녀의 거래를 전부 읽어 정렬한 뒤 잘라낸다.
    방향은 ASC 하나만 만든다. PostgreSQL 은 역방향 스캔도 하므로 최신순도 이 인덱스를 쓴다. */
-CREATE INDEX IF NOT EXISTS "ix_point_transactions_wallet_created_at"
-	ON "point_transactions" ("wallet_id", "created_at", "point_transaction_id");
+CREATE INDEX IF NOT EXISTS "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT"
+	ON "point_transactions" ("child_id", "created_at", "point_transaction_id");

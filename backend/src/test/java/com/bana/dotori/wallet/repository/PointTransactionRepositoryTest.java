@@ -42,19 +42,19 @@ class PointTransactionRepositoryTest {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	private Integer walletId;
+	private Integer childId;
 
 	@BeforeEach
 	void setUp() {
-		Integer childId = WalletTestFixture.insertChild(jdbcTemplate, "child-persistence");
-		walletId = pointWalletRepository.save(PointWallet.openWithBalance(childId, 1_000)).getWalletId();
+		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-persistence");
+		pointWalletRepository.save(PointWallet.openWithBalance(childId, 1_000));
 	}
 
 	@Test
 	@DisplayName("네이티브 ENUM 컬럼에 거래 유형이 저장되고 그대로 읽힌다")
 	void 거래유형_ENUM이_왕복한다() {
 		PointTransaction saved = pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.PURCHASE,
+				childId, PointTransactionReason.PURCHASE,
 				300, 700, "상점 구매", "purchase-0001"));
 
 		PointTransaction found = pointTransactionRepository.findById(saved.getPointTransactionId()).orElseThrow();
@@ -69,7 +69,7 @@ class PointTransactionRepositoryTest {
 	@DisplayName("가장 긴 사유(INVESTMENT, 10자)도 VARCHAR(10) 컬럼에 들어간다")
 	void 가장_긴_사유도_저장된다() {
 		PointTransaction saved = pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.INVESTMENT,
+				childId, PointTransactionReason.INVESTMENT,
 				100, 900, "투자 매수", "invest-0001"));
 
 		assertThat(pointTransactionRepository.findById(saved.getPointTransactionId()).orElseThrow().getReason())
@@ -80,11 +80,11 @@ class PointTransactionRepositoryTest {
 	@DisplayName("같은 멱등키로 두 건을 저장하려 하면 유니크 인덱스가 막는다")
 	void 멱등키는_중복될_수_없다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.CHARGE,
+				childId, PointTransactionReason.CHARGE,
 				500, 1_500, "충전", "duplicated-key"));
 
 		assertThatThrownBy(() -> pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.CHARGE,
+				childId, PointTransactionReason.CHARGE,
 				500, 2_000, "충전", "duplicated-key")))
 				.as("애플리케이션 락이 뚫려도 DB 가 마지막으로 막아야 한다")
 				.isInstanceOf(DataIntegrityViolationException.class);
@@ -94,13 +94,13 @@ class PointTransactionRepositoryTest {
 	@DisplayName("멱등키가 없는 거래는 여러 건 저장할 수 있다")
 	void 멱등키가_없으면_여러건_허용된다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.ALLOWANCE,
+				childId, PointTransactionReason.ALLOWANCE,
 				100, 1_100, "정기 지급", null));
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.ALLOWANCE,
+				childId, PointTransactionReason.ALLOWANCE,
 				100, 1_200, "정기 지급", null));
 
-		assertThat(pointTransactionRepository.findAllByWalletIdOrderByPointTransactionIdAsc(walletId))
+		assertThat(pointTransactionRepository.findAllByChildIdOrderByPointTransactionIdAsc(childId))
 				.as("NULL 멱등키는 부분 유니크 인덱스 대상이 아니다")
 				.hasSize(2);
 	}
@@ -109,11 +109,11 @@ class PointTransactionRepositoryTest {
 	@DisplayName("멱등키로 이 지갑의 이전 거래를 찾을 수 있다")
 	void 멱등키로_조회된다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.GRANT,
+				childId, PointTransactionReason.GRANT,
 				700, 1_700, "부모 지급", "grant-0001"));
 
 		Optional<PointTransaction> found =
-				pointTransactionRepository.findByWalletIdAndIdempotencyKey(walletId, "grant-0001");
+				pointTransactionRepository.findByChildIdAndIdempotencyKey(childId, "grant-0001");
 
 		assertThat(found).isPresent();
 		assertThat(found.orElseThrow().getAmount()).isEqualTo(700);
@@ -123,16 +123,16 @@ class PointTransactionRepositoryTest {
 	@DisplayName("같은 멱등키라도 다른 지갑의 거래는 걸리지 않는다")
 	void 다른_지갑의_멱등키는_조회되지_않는다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.GRANT,
+				childId, PointTransactionReason.GRANT,
 				700, 1_700, "부모 지급", "shared-key"));
 
 		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-ledger");
 		Integer otherWalletId = pointWalletRepository.saveAndFlush(
-				PointWallet.openWithBalance(otherChildId, 0)).getWalletId();
+				PointWallet.openWithBalance(otherChildId, 0)).getChildId();
 
 		// 멱등키는 클라이언트가 정하는 값이라 사용자끼리 겹칠 수 있다.
 		// 전역으로 조회하면 남의 거래가 걸려 나와 이번 요청이 조용히 삼켜진다.
-		assertThat(pointTransactionRepository.findByWalletIdAndIdempotencyKey(otherWalletId, "shared-key"))
+		assertThat(pointTransactionRepository.findByChildIdAndIdempotencyKey(otherWalletId, "shared-key"))
 				.isEmpty();
 	}
 
@@ -140,12 +140,12 @@ class PointTransactionRepositoryTest {
 	@DisplayName("다른 지갑이면 같은 멱등키로도 거래를 남길 수 있다")
 	void 다른_지갑이면_같은_멱등키를_쓸_수_있다() {
 		pointTransactionRepository.saveAndFlush(PointTransaction.record(
-				walletId, PointTransactionReason.CHARGE,
+				childId, PointTransactionReason.CHARGE,
 				500, 1_500, "충전", "collision-key"));
 
 		Integer otherChildId = WalletTestFixture.insertChild(jdbcTemplate, "child-other-key");
 		Integer otherWalletId = pointWalletRepository.saveAndFlush(
-				PointWallet.openWithBalance(otherChildId, 0)).getWalletId();
+				PointWallet.openWithBalance(otherChildId, 0)).getChildId();
 
 		assertThatCode(() -> pointTransactionRepository.saveAndFlush(PointTransaction.record(
 				otherWalletId, PointTransactionReason.CHARGE,

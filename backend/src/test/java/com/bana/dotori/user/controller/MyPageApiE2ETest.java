@@ -287,7 +287,7 @@ class MyPageApiE2ETest {
 		@DisplayName("포인트가 남아 있으면 409 로 막고 계정은 살아 있다")
 		void 잔여_포인트가_있으면_409() throws Exception {
 			detachChild();
-			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 1_000);
+			jdbcTemplate.update("INSERT INTO point_wallets (child_id, balance) VALUES (?, ?)", parentId, 1_000);
 
 			withdraw(PARENT_PASSWORD)
 				.andExpect(status().isConflict())
@@ -300,7 +300,7 @@ class MyPageApiE2ETest {
 		@DisplayName("잔액이 0 이면 지갑이 있어도 탈퇴된다")
 		void 잔액_0_이면_탈퇴된다() throws Exception {
 			detachChild();
-			jdbcTemplate.update("INSERT INTO point_wallets (user_id, balance) VALUES (?, ?)", parentId, 0);
+			jdbcTemplate.update("INSERT INTO point_wallets (child_id, balance) VALUES (?, ?)", parentId, 0);
 
 			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
 		}

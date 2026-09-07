@@ -56,13 +56,12 @@ class PointWalletServiceConcurrencyTest {
 	private JdbcTemplate jdbcTemplate;
 
 	private Integer childId;
-	private Integer walletId;
 
 	@BeforeEach
 	void setUp() {
 		WalletTestFixture.cleanUp(jdbcTemplate);
 		childId = WalletTestFixture.insertChild(jdbcTemplate, "child-concurrency");
-		walletId = pointWalletRepository.save(PointWallet.openWithBalance(childId, INITIAL_BALANCE)).getWalletId();
+		pointWalletRepository.save(PointWallet.openWithBalance(childId, INITIAL_BALANCE));
 	}
 
 	@AfterEach
@@ -167,7 +166,7 @@ class PointWalletServiceConcurrencyTest {
 		// 증감 방향은 따로 저장하지 않으므로 balance_after 의 변화량으로 판단한다.
 		// 변화량의 절댓값이 amount 와 다르면 어딘가에서 갱신 손실이 난 것이다.
 		List<PointTransaction> ledger =
-				pointTransactionRepository.findAllByWalletIdOrderByPointTransactionIdAsc(walletId);
+				pointTransactionRepository.findAllByChildIdOrderByPointTransactionIdAsc(childId);
 		int previousBalance = INITIAL_BALANCE;
 		for (PointTransaction transaction : ledger) {
 			int delta = transaction.getBalanceAfter() - previousBalance;

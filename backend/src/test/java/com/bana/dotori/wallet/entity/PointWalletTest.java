@@ -132,6 +132,6 @@ class PointWalletTest {
 		PointWallet wallet = PointWallet.openFor(USER_ID);
 
 		assertThat(wallet.getBalance()).isZero();
-		assertThat(wallet.getUserId()).isEqualTo(USER_ID);
+		assertThat(wallet.getChildId()).isEqualTo(USER_ID);
 	}
 }

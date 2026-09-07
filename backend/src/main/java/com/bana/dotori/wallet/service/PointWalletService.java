@@ -77,17 +77,17 @@ public class PointWalletService {
 	 * 재사용하므로 되돌릴 필요가 없다.
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public PointWallet createWalletIfAbsent(Integer userId) {
-		return pointWalletRepository.findByUserId(userId)
-				.orElseGet(() -> pointWalletRepository.save(PointWallet.openFor(userId)));
+	public PointWallet createWalletIfAbsent(Integer childId) {
+		return pointWalletRepository.findByChildId(childId)
+				.orElseGet(() -> pointWalletRepository.save(PointWallet.openFor(childId)));
 	}
 
 	private PointChangeResult changeBalance(PointChangeCommand command, PointTransactionType transactionType) {
 		// 1. 먼저 지갑 행을 잠근다.
 		//    같은 지갑에 대한 모든 잔액 변경이 이 지점에서 직렬화되므로,
 		//    잔액 검사와 차감 사이에 다른 트랜잭션이 끼어들 수 없다.
-		PointWallet wallet = pointWalletRepository.findByUserIdForUpdate(command.userId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. userId=" + command.userId()));
+		PointWallet wallet = pointWalletRepository.findByChildIdForUpdate(command.childId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND, "포인트 지갑을 찾을 수 없습니다. childId=" + command.childId()));
 
 		// 2. 멱등성 확인은 반드시 락을 잡은 뒤에, 그리고 이 지갑 안에서만 한다.
 		//    락 이전에 확인하면 동시에 들어온 같은 요청이 둘 다 "없음"으로 판정해 중복 반영된다.
@@ -96,10 +96,10 @@ public class PointWalletService {
 		//    이번 요청이 반영되지 않은 채 남의 거래를 성공 응답으로 돌려주게 된다.
 		if (command.hasIdempotencyKey()) {
 			Optional<PointTransaction> alreadyProcessed = pointTransactionRepository
-					.findByWalletIdAndIdempotencyKey(wallet.getWalletId(), command.idempotencyKey());
+					.findByChildIdAndIdempotencyKey(wallet.getChildId(), command.idempotencyKey());
 			if (alreadyProcessed.isPresent()) {
-				log.info("duplicate point request ignored: key={}, userId={}",
-						command.idempotencyKey(), command.userId());
+				log.info("duplicate point request ignored: key={}, childId={}",
+						command.idempotencyKey(), command.childId());
 				return PointChangeResult.replayed(alreadyProcessed.get());
 			}
 		}
@@ -112,7 +112,7 @@ public class PointWalletService {
 		// 4. 잔액 변경과 이력 저장이 같은 트랜잭션 안에 있다.
 		//    둘 중 하나라도 실패하면 전체가 롤백되어 잔액과 이력이 어긋나지 않는다.
 		PointTransaction transaction = PointTransaction.record(
-				wallet.getWalletId(), command.reason(),
+				wallet.getChildId(), command.reason(),
 				command.amount(), balanceAfter, command.description(), command.idempotencyKey());
 
 		try {
@@ -129,7 +129,7 @@ public class PointWalletService {
 				throw e;
 			}
 			throw new BusinessException(ErrorCode.DUPLICATE_POINT_REQUEST,
-					"이미 처리된 요청 키입니다. walletId=" + wallet.getWalletId()
+					"이미 처리된 요청 키입니다. childId=" + wallet.getChildId()
 							+ ", idempotencyKey=" + command.idempotencyKey(), e);
 		}
 

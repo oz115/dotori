@@ -65,7 +65,7 @@ public class PointChargeService {
 		}
 
 		// 첫 충전이면 지갑이 아직 없다. 가족 소속을 확인한 뒤에 만들어야
-		// 아무 userId 나 넣어 지갑을 양산하는 것을 막을 수 있다.
+		// 아무 childId 나 넣어 지갑을 양산하는 것을 막을 수 있다.
 		pointWalletService.createWalletIfAbsent(childId);
 
 		PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(

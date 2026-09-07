@@ -19,8 +19,8 @@ public class PointRemainingAssetReader implements RemainingAssetReader {
 	private final PointWalletRepository pointWalletRepository;
 
 	@Override
-	public boolean hasRemainingAsset(Integer userId) {
-		return pointWalletRepository.findByUserId(userId)
+	public boolean hasRemainingAsset(Integer childId) {
+		return pointWalletRepository.findByChildId(childId)
 			.map(wallet -> wallet.getBalance() > 0)
 			.orElse(false);
 	}
