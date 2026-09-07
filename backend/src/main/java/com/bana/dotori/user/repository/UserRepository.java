@@ -19,6 +19,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 	Optional<User> findByLoginId(String loginId);
 
+	Optional<User> findByNameAndEmail(String name, String email);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select u from User u where u.id = :userId")
 	Optional<User> findByIdForUpdate(@Param("userId") Integer userId);

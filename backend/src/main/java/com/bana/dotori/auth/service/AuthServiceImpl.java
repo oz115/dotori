@@ -1,11 +1,14 @@
 package com.bana.dotori.auth.service;
 
 import java.time.OffsetDateTime;
+import java.util.Locale;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.auth.dto.FindIdRequest;
+import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResult;
 import com.bana.dotori.auth.dto.TokenRefreshResult;
@@ -80,6 +83,31 @@ public class AuthServiceImpl implements AuthService {
 	public void revokeAllRefreshTokens(Integer userId) {
 		// 폐기 시각을 찍는 규칙은 엔티티가 갖고 있다. 로그아웃·재발급과 같은 경로를 타게 둔다.
 		refreshTokenRepository.findAllByUser_IdAndRevokedAtIsNull(userId).forEach(RefreshToken::revoke);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public FindIdResponse findLoginId(FindIdRequest request) {
+		User user = userRepository.findByNameAndEmail(request.name(), request.email().toLowerCase(Locale.ROOT))
+			.filter(found -> found.getDeletedAt() == null)
+			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+		return new FindIdResponse(maskLoginId(user.getLoginId()));
+	}
+
+	/**
+	 * 아이디를 마스킹한다. 앞 4자·뒤 2자만 남기고 가운데를 '*' 로 가린다 (예: dotori123 → doto***23).
+	 * 6자 이하로 짧으면 앞 2자만 남긴다. 전부 노출하면 마스킹의 의미가 없어서다.
+	 */
+	private String maskLoginId(String loginId) {
+		if (loginId.length() <= 2) {
+			return loginId.charAt(0) + "*".repeat(loginId.length() - 1);
+		}
+		if (loginId.length() <= 6) {
+			return loginId.substring(0, 2) + "*".repeat(loginId.length() - 2);
+		}
+		return loginId.substring(0, 4)
+			+ "*".repeat(loginId.length() - 6)
+			+ loginId.substring(loginId.length() - 2);
 	}
 
 	private RefreshToken findUsableToken(String refreshToken, ErrorCode errorCode) {

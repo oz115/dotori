@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bana.dotori.auth.dto.EmailVerificationConfirmRequest;
 import com.bana.dotori.auth.dto.EmailVerificationConfirmResponse;
 import com.bana.dotori.auth.dto.EmailVerificationSendRequest;
+import com.bana.dotori.auth.dto.FindIdRequest;
+import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
 import com.bana.dotori.auth.dto.LoginResult;
@@ -67,6 +69,11 @@ public class AuthController {
 		@Valid @RequestBody EmailVerificationConfirmRequest request) {
 		String verificationToken = emailVerificationService.confirmCode(request.email(), request.code());
 		return ResponseEntity.ok(new EmailVerificationConfirmResponse(true, verificationToken));
+	}
+
+	@PostMapping("/find-id")
+	public ResponseEntity<FindIdResponse> findId(@Valid @RequestBody FindIdRequest request) {
+		return ResponseEntity.ok(authService.findLoginId(request));
 	}
 
 	@PostMapping("/logout")
