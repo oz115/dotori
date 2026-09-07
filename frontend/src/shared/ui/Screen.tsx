@@ -13,11 +13,13 @@ import { useTheme } from '@/shared/theme';
 
 type ScreenProps = {
   children: ReactNode;
+  /** 스크롤 영역 위에 고정으로 붙는 헤더 (Header 컴포넌트). 넘기면 top safe-area 는 헤더가 처리 */
+  header?: ReactNode;
   /** 콘텐츠를 세로 스크롤로 감싼다 (폼·긴 화면) */
   scroll?: boolean;
   /** 키보드가 올라올 때 콘텐츠를 밀어올린다 (입력 화면) */
   keyboardAvoiding?: boolean;
-  /** safe-area 적용 가장자리. 기본 top + bottom */
+  /** safe-area 적용 가장자리. 기본 top + bottom (header 있으면 bottom 만) */
   edges?: readonly Edge[];
   /** 좌우 화면 여백 적용. 기본 true */
   padded?: boolean;
@@ -32,14 +34,16 @@ type ScreenProps = {
  */
 export function Screen({
   children,
+  header,
   scroll = false,
   keyboardAvoiding = false,
-  edges = ['top', 'bottom'],
+  edges,
   padded = true,
   fill = true,
   style,
 }: ScreenProps) {
   const theme = useTheme();
+  const safeEdges = edges ?? (header ? (['bottom'] as const) : (['top', 'bottom'] as const));
 
   const padding: ViewStyle = {
     paddingHorizontal: padded ? theme.layout.screenX : 0,
@@ -71,9 +75,10 @@ export function Screen({
 
   return (
     <SafeAreaView
-      edges={edges}
+      edges={safeEdges}
       style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
     >
+      {header}
       {body}
     </SafeAreaView>
   );
