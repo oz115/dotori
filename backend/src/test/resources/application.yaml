@@ -26,7 +26,9 @@ spring:
     # 경고: WalletTestFixture.cleanUp() 이 users·families·family_members 까지 DELETE 한다.
     # 테스트를 돌리면 이 DB 의 회원·가족 데이터가 비워지므로,
     # 보존해야 할 데이터가 있는 DB 를 가리키게 두면 안 된다.
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}
+    # stringtype=unspecified 는 메인 설정과 같은 이유다. 네이티브 ENUM 컬럼에
+    # @Enumerated(EnumType.STRING) 값을 넣으려면 필요하다.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}?stringtype=unspecified
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
