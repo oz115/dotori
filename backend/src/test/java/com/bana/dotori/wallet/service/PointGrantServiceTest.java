@@ -66,7 +66,7 @@ class PointGrantServiceTest {
 		ArgumentCaptor<PointChangeCommand> captor = ArgumentCaptor.forClass(PointChangeCommand.class);
 		verify(pointWalletService).deposit(captor.capture());
 		assertThat(captor.getValue().reason()).isEqualTo(PointTransactionReason.GRANT);
-		assertThat(captor.getValue().userId()).isEqualTo(CHILD_ID);
+		assertThat(captor.getValue().childId()).isEqualTo(CHILD_ID);
 		assertThat(captor.getValue().amount()).isEqualTo(5_000);
 		assertThat(captor.getValue().description()).isEqualTo("용돈");
 		assertThat(captor.getValue().idempotencyKey()).isEqualTo(KEY);

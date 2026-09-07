@@ -106,11 +106,11 @@ class PointLedgerConstraintTest {
 	}
 
 	@Test
-	@DisplayName("존재하지 않는 지갑의 거래는 외래키가 막는다")
-	void 없는_지갑의_거래는_넣을_수_없다() {
+	@DisplayName("존재하지 않는 자녀의 거래는 외래키가 막는다")
+	void 없는_자녀의_거래는_넣을_수_없다() {
 		assertThatThrownBy(() -> jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, amount, balance_after, idempotency_key)
+					(child_id, transaction_type, amount, balance_after, idempotency_key)
 				VALUES (?, ?, ?, ?, ?)
 				""", 999_999, "GRANT", 100, 100, "orphan"))
 				.isInstanceOf(DataAccessException.class);
@@ -120,15 +120,15 @@ class PointLedgerConstraintTest {
 	@DisplayName("한 사용자에게 지갑을 두 개 만들 수 없다")
 	void 지갑은_사용자당_하나다() {
 		assertThatThrownBy(() -> jdbcTemplate.update(
-				"INSERT INTO point_wallets (user_id, balance) VALUES (?, 0)", childId))
+				"INSERT INTO point_wallets (child_id, balance) VALUES (?, 0)", childId))
 				.isInstanceOf(DataAccessException.class);
 	}
 
 	private void insertTransaction(int amount, int balanceAfter, String idempotencyKey) {
 		jdbcTemplate.update("""
 				INSERT INTO point_transactions
-					(wallet_id, transaction_type, amount, balance_after, idempotency_key)
+					(child_id, transaction_type, amount, balance_after, idempotency_key)
 				VALUES (?, ?, ?, ?, ?)
-				""", walletId, "GRANT", amount, balanceAfter, idempotencyKey);
+				""", childId, "GRANT", amount, balanceAfter, idempotencyKey);
 	}
 }

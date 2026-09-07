@@ -27,7 +27,7 @@ public class TransferIdempotencyGuard {
 	 * @param fromAccountId 출금 계좌 ID
 	 * @param idempotencyKey 클라이언트가 전달한 idempotency 키
 	 */
-	public void reserve(Long fromAccountId, String idempotencyKey) {
+	public void reserve(Integer fromAccountId, String idempotencyKey) {
 		if (idempotencyKey == null || idempotencyKey.isBlank()) {
 			return;
 		}

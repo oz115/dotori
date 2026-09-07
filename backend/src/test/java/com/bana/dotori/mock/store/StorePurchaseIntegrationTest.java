@@ -165,7 +165,7 @@ class StorePurchaseIntegrationTest {
 		// 그날은 그 상품을 살 수 없게 된다.
 		pointWalletRepository.save(PointWallet.openWithBalance(
 				WalletTestFixture.insertChild(jdbcTemplate, "child-unused"), 0));
-		jdbcTemplate.update("UPDATE point_wallets SET balance = 50000 WHERE user_id = ?", childId);
+		jdbcTemplate.update("UPDATE point_wallets SET balance = 50000 WHERE child_id = ?", childId);
 
 		StorePurchaseResult retried = storePurchaseService.purchase(
 				FAMILY_ID, childId, product.storeProductId(), 1);

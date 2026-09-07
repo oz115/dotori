@@ -28,9 +28,9 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
 	 * {@code Idempotency-Key} 를 보냈을 때 남의 거래가 걸려 나와, 이번 요청이 반영되지 않은 채
 	 * 남의 거래 정보를 성공 응답으로 돌려주게 된다.
 	 */
-	Optional<PointTransaction> findByWalletIdAndIdempotencyKey(Integer walletId, String idempotencyKey);
+	Optional<PointTransaction> findByChildIdAndIdempotencyKey(Integer childId, String idempotencyKey);
 
-	List<PointTransaction> findAllByWalletIdOrderByPointTransactionIdAsc(Integer walletId);
+	List<PointTransaction> findAllByChildIdOrderByPointTransactionIdAsc(Integer childId);
 
 	/**
 	 * WLT-06 거래내역 조회. 커서 지점 이후를 기간·사유로 걸러 {@code limit} 건까지 가져온다.
@@ -52,7 +52,7 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
 	 * <p>정렬은 항상 {@code (createdAt, pointTransactionId)} 이다. 커서 비교가
 	 * 이 순서에 기대고 있어 호출부가 바꿀 수 없게 안에서 정한다.
 	 */
-	default List<PointTransaction> search(Integer walletId, OffsetDateTime startAt,
+	default List<PointTransaction> search(Integer childId, OffsetDateTime startAt,
 			OffsetDateTime endAt, PointTransactionReason reason,
 			TransactionCursor cursor, Sort.Direction direction, int limit) {
 
@@ -61,7 +61,7 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
 		return findBy(
 				(root, query, builder) -> {
 					List<Predicate> conditions = new ArrayList<>();
-					conditions.add(builder.equal(root.get("walletId"), walletId));
+					conditions.add(builder.equal(root.get("childId"), childId));
 					if (startAt != null) {
 						conditions.add(builder.greaterThanOrEqualTo(root.get("createdAt"), startAt));
 					}
