@@ -151,8 +151,7 @@ public class Chore {
 	 *
 	 * <p>childId 는 여기 없다. 담당을 옮기면 이미 쌓인 완료 이력이 누구 것인지 모호해진다.
 	 */
-	public void update(String title, String description, ChoreDifficulty difficulty, Integer rewardPoints,
-			ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
+	public void update(String title, String description, ChoreDifficulty difficulty, Integer rewardPoints) {
 		if (title != null) {
 			this.title = title;
 		}
@@ -165,21 +164,25 @@ public class Chore {
 		if (rewardPoints != null) {
 			this.rewardPoints = rewardPoints;
 		}
-		if (repeatType != null) {
-			this.repeatType = repeatType;
-		}
-		if (startDate != null) {
-			this.startDate = startDate;
-		}
-		if (endDate != null) {
-			this.endDate = endDate;
-		}
+	}
 
-		// 한쪽만 바꾸면 기간이 뒤집힐 수 있다. 요청 DTO 는 상대편의 현재 값을 모르므로
-		// 합쳐진 최종 상태를 아는 여기서 본다.
-		if (this.endDate != null && this.endDate.isBefore(this.startDate)) {
+	/**
+	 * 주기와 기간을 함께 바꾼다 (CHORE-05).
+	 *
+	 * <p>셋을 따로 바꿀 수 없게 묶은 이유는, 주기만 바꾸면 기간이 예전 주기의 값으로
+	 * 남기 때문이다. 일회성(9/10~9/20)을 매일로 바꾸면 "매일 반복인데 9/20 에 끝나는"
+	 * 상태가 되고, 크론은 end_date &lt; today 만 밀기 때문에 9/21 이 돼야 정상으로 돌아온다.
+	 *
+	 * <p>어떤 기간을 넣을지는 서비스가 정한다 — 반복으로 바꾸면 오늘 기준으로 계산하고,
+	 * 일회성으로 바꾸면 부모가 보낸 날짜를 쓴다.
+	 */
+	public void changePeriod(ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
+		if (endDate != null && endDate.isBefore(startDate)) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "종료일은 시작일과 같거나 이후여야 합니다");
 		}
+		this.repeatType = repeatType;
+		this.startDate = startDate;
+		this.endDate = endDate;
 	}
 
 	/**

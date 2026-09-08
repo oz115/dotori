@@ -11,6 +11,7 @@ import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
 import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.Chore;
+import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.event.ChoreCreatedEvent;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
@@ -102,8 +103,8 @@ public class ChoreServiceImpl implements ChoreService {
 			ChoreUpdateRequest request) {
 		Chore chore = findForParent(userId, familyId, childId, choreId);
 
-		chore.update(request.title(), request.description(), request.difficulty(), request.rewardPoints(),
-			request.repeatType(), request.startDate(), request.endDate());
+		chore.update(request.title(), request.description(), request.difficulty(), request.rewardPoints());
+		applyPeriod(chore, request);
 
 		return choreMapper.toDetailResponse(chore);
 	}
@@ -112,6 +113,53 @@ public class ChoreServiceImpl implements ChoreService {
 	@Transactional
 	public void deleteChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
 		findForParent(userId, familyId, childId, choreId).softDelete();
+	}
+
+	/**
+	 * 수정 요청의 주기·기간을 반영한다 (CHORE-05).
+	 *
+	 * <p>주기를 바꾸면 기간을 다시 정한다. 주기만 바꾸고 기간을 그대로 두면 예전 주기의
+	 * 날짜가 남아, 일회성(9/10~9/20)을 매일로 바꿨을 때 "매일 반복인데 9/20 에 끝나는"
+	 * 상태가 된다. 크론은 end_date 가 지난 것만 밀기 때문에 그날이 와야 정상으로 돌아온다.
+	 *
+	 * <ul>
+	 *   <li>반복으로 바꿈 → 오늘 기준으로 계산한다. 요청의 날짜는 쓰지 않는다.</li>
+	 *   <li>일회성으로 바꿈 → 날짜를 함께 받아야 한다. 종료일을 계산할 근거가 없다.</li>
+	 *   <li>주기를 그대로 둠
+	 *     <ul>
+	 *       <li>반복이면 손대지 않는다. 기간은 크론이 관리한다.</li>
+	 *       <li>일회성이면 보낸 날짜만 반영한다.</li>
+	 *     </ul>
+	 *   </li>
+	 * </ul>
+	 */
+	private void applyPeriod(Chore chore, ChoreUpdateRequest request) {
+		ChoreRepeatType target = request.repeatType() != null ? request.repeatType() : chore.getRepeatType();
+		boolean typeChanged = request.repeatType() != null && request.repeatType() != chore.getRepeatType();
+
+		if (target.isRepeating()) {
+			if (typeChanged) {
+				LocalDate today = LocalDate.now();
+				chore.changePeriod(target, today, target.endDateFrom(today));
+			}
+			return;
+		}
+
+		if (typeChanged) {
+			if (request.startDate() == null || request.endDate() == null) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST,
+					"반복하지 않는 할 일로 바꿀 때는 시작일과 종료일이 필요합니다");
+			}
+			chore.changePeriod(ChoreRepeatType.ONCE, request.startDate(), request.endDate());
+			return;
+		}
+
+		if (request.startDate() != null || request.endDate() != null) {
+			// 한쪽만 보낼 수 있다. 보내지 않은 쪽은 지금 값을 그대로 쓴다.
+			chore.changePeriod(ChoreRepeatType.ONCE,
+				request.startDate() != null ? request.startDate() : chore.getStartDate(),
+				request.endDate() != null ? request.endDate() : chore.getEndDate());
+		}
 	}
 
 	/**

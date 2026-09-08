@@ -321,6 +321,108 @@ class ChoreServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("일회성을 반복으로 바꾸면 기간을 오늘 기준으로 다시 계산한다")
+	void 일회성에서_반복으로_바꾸면_기간_재계산() {
+		Chore once = onceChore(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 20));
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(once));
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.DAY, null, null));
+
+		// 기간을 그대로 두면 "매일 반복인데 9/20 에 끝나는" 상태가 되고,
+		// 크론은 end_date 가 지난 것만 밀기 때문에 그날이 와야 정상으로 돌아온다.
+		LocalDate today = LocalDate.now();
+		assertThat(response.repeatType()).isEqualTo(ChoreRepeatType.DAY);
+		assertThat(response.startDate()).isEqualTo(today);
+		assertThat(response.endDate()).isEqualTo(today);
+	}
+
+	@Test
+	@DisplayName("반복 주기를 다른 반복으로 바꾸면 새 주기로 다시 계산한다")
+	void 반복에서_다른_반복으로_바꾸면_기간_재계산() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, CHILD_ID)));
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.MONTH, null, null));
+
+		LocalDate today = LocalDate.now();
+		assertThat(response.startDate()).isEqualTo(today);
+		assertThat(response.endDate()).isEqualTo(today.with(TemporalAdjusters.lastDayOfMonth()));
+	}
+
+	@Test
+	@DisplayName("반복으로 바꿀 때 보낸 날짜는 무시한다")
+	void 반복으로_바꿀_때_받은_날짜는_무시() {
+		Chore once = onceChore(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 20));
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(once));
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.DAY,
+				LocalDate.of(2020, 1, 1), LocalDate.of(2030, 12, 31)));
+
+		assertThat(response.startDate()).isEqualTo(LocalDate.now());
+	}
+
+	@Test
+	@DisplayName("반복을 일회성으로 바꿀 때 기간을 안 주면 400이다")
+	void 일회성으로_바꿀_때_기간이_없으면_400() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, CHILD_ID)));
+
+		// 시작일은 오늘로 둘 수 있지만 종료일은 계산할 근거가 없다.
+		assertThatThrownBy(() -> choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.ONCE, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
+	}
+
+	@Test
+	@DisplayName("반복을 일회성으로 바꾸면서 기간을 주면 그 기간을 쓴다")
+	void 일회성으로_바꾸면_받은_기간을_쓴다() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, CHILD_ID)));
+		LocalDate start = LocalDate.of(2026, 10, 1);
+		LocalDate end = LocalDate.of(2026, 10, 5);
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.ONCE, start, end));
+
+		assertThat(response.repeatType()).isEqualTo(ChoreRepeatType.ONCE);
+		assertThat(response.startDate()).isEqualTo(start);
+		assertThat(response.endDate()).isEqualTo(end);
+	}
+
+	@Test
+	@DisplayName("반복 주기를 그대로 두면 기간을 건드리지 않는다")
+	void 주기가_같으면_기간은_그대로() {
+		Chore chore = chore(CHORE_ID, CHILD_ID);
+		LocalDate before = chore.getStartDate();
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+
+		// 기간은 크론이 관리한다. 보상만 고쳤는데 기간이 바뀌면 안 된다.
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, 700, ChoreRepeatType.DAY,
+				LocalDate.of(2020, 1, 1), LocalDate.of(2030, 12, 31)));
+
+		assertThat(response.startDate()).isEqualTo(before);
+		assertThat(response.rewardPoints()).isEqualTo(700);
+	}
+
+	@Test
+	@DisplayName("일회성의 기간만 고칠 수 있고 한쪽만 보내도 된다")
+	void 일회성_기간만_고친다() {
+		Chore once = onceChore(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 20));
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(once));
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, null, null, LocalDate.of(2026, 9, 25)));
+
+		assertThat(response.startDate()).isEqualTo(LocalDate.of(2026, 9, 10));
+		assertThat(response.endDate()).isEqualTo(LocalDate.of(2026, 9, 25));
+	}
+
+	@Test
 	@DisplayName("아이는 수정할 수 없다")
 	void 아이는_수정할_수_없다() {
 		assertThatThrownBy(() -> choreService.updateChore(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
@@ -330,17 +432,13 @@ class ChoreServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("종료일만 앞으로 당겨 기간이 뒤집히면 400이다")
+	@DisplayName("일회성의 종료일만 앞으로 당겨 기간이 뒤집히면 400이다")
 	void 수정으로_기간이_뒤집히면_400() {
-		Chore chore = Chore.builder()
-			.familyId(FAMILY_ID).parentId(PARENT_ID).childId(CHILD_ID)
-			.title("설거지").difficulty(ChoreDifficulty.NORMAL).rewardPoints(500).repeatType(ChoreRepeatType.DAY)
-			.startDate(LocalDate.of(2026, 9, 10))
-			.build();
-		ReflectionTestUtils.setField(chore, "id", CHORE_ID);
-		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+		Chore once = onceChore(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 20));
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(once));
 
 		// 요청 DTO 는 시작일의 현재 값을 모르므로 합쳐진 상태를 아는 엔티티가 잡는다.
+		// 반복은 기간을 계산으로 정하므로 뒤집힐 수 없어 이 검사가 필요 없다.
 		assertThatThrownBy(() -> choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
 			new ChoreUpdateRequest(null, null, null, null, null, null, LocalDate.of(2026, 9, 9))))
 			.isInstanceOf(BusinessException.class)
@@ -383,6 +481,21 @@ class ChoreServiceImplTest {
 
 	private ChoreCreateRequest request() {
 		return new ChoreCreateRequest("설거지", "저녁 먹고 나서", ChoreDifficulty.NORMAL, ChoreRepeatType.DAY, null, null);
+	}
+
+	private Chore onceChore(LocalDate startDate, LocalDate endDate) {
+		Chore chore = Chore.builder()
+			.familyId(FAMILY_ID)
+			.parentId(PARENT_ID)
+			.childId(CHILD_ID)
+			.title("대청소")
+			.difficulty(ChoreDifficulty.HARD)
+			.repeatType(ChoreRepeatType.ONCE)
+			.startDate(startDate)
+			.endDate(endDate)
+			.build();
+		ReflectionTestUtils.setField(chore, "id", CHORE_ID);
+		return chore;
 	}
 
 	private Chore chore(Integer choreId, Integer childId) {
