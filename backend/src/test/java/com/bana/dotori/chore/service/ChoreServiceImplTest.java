@@ -149,6 +149,113 @@ class ChoreServiceImplTest {
 		assertThat(response.endDate()).isNull();
 	}
 
+	@Test
+	@DisplayName("부모는 가족 전체의 집안일을 본다")
+	void 부모는_가족_전체를_본다() {
+		givenUser(PARENT_ID, UserRole.PARENT);
+		givenMyFamily(PARENT_ID);
+		given(choreRepository.findAllByFamilyIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(FAMILY_ID))
+			.willReturn(List.of(chore(1, CHILD_ID), chore(2, 3)));
+
+		assertThat(choreService.getChores(PARENT_ID, null).chores()).hasSize(2);
+	}
+
+	@Test
+	@DisplayName("부모가 childId를 넘기면 그 자녀 몫만 본다")
+	void 부모는_자녀별로_걸러_본다() {
+		givenUser(PARENT_ID, UserRole.PARENT);
+		givenMyFamily(PARENT_ID);
+		given(choreRepository.findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(
+			FAMILY_ID, CHILD_ID)).willReturn(List.of(chore(1, CHILD_ID)));
+
+		assertThat(choreService.getChores(PARENT_ID, CHILD_ID).chores())
+			.extracting(summary -> summary.childId())
+			.containsExactly(CHILD_ID);
+	}
+
+	@Test
+	@DisplayName("아이는 남의 childId를 넘겨도 자기 몫만 본다")
+	void 아이는_자기_몫만_본다() {
+		givenUser(CHILD_ID, UserRole.CHILD);
+		givenMyFamily(CHILD_ID);
+		given(choreRepository.findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(
+			FAMILY_ID, CHILD_ID)).willReturn(List.of(chore(1, CHILD_ID)));
+
+		// 쿼리 파라미터로 형제 ID 를 넣어도 자기 것만 나와야 한다.
+		assertThat(choreService.getChores(CHILD_ID, 3).chores()).hasSize(1);
+		verify(choreRepository, never())
+			.findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(FAMILY_ID, 3);
+	}
+
+	@Test
+	@DisplayName("가족에 속하지 않으면 목록을 볼 수 없다")
+	void 가족이_없으면_목록도_없다() {
+		givenUser(PARENT_ID, UserRole.PARENT);
+		given(familyMemberRepository.findActiveFamilyIdByUserId(PARENT_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> choreService.getChores(PARENT_ID, null))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("부모는 가족의 집안일 상세를 본다")
+	void 부모는_상세를_본다() {
+		givenUser(PARENT_ID, UserRole.PARENT);
+		givenMyFamily(PARENT_ID);
+		given(choreRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.of(chore(7, CHILD_ID)));
+
+		assertThat(choreService.getChore(PARENT_ID, 7).choreId()).isEqualTo(7);
+	}
+
+	@Test
+	@DisplayName("다른 가족의 집안일 상세는 404다")
+	void 남의_가족_상세는_404() {
+		givenUser(PARENT_ID, UserRole.PARENT);
+		givenMyFamily(PARENT_ID);
+		given(choreRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> choreService.getChore(PARENT_ID, 7))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("아이는 형제에게 배정된 집안일 상세를 볼 수 없다")
+	void 아이는_형제_것을_볼_수_없다() {
+		givenUser(CHILD_ID, UserRole.CHILD);
+		givenMyFamily(CHILD_ID);
+		given(choreRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.of(chore(7, 3)));
+
+		// 403 이면 그 choreId 가 존재한다는 사실이 새어 나간다.
+		assertThatThrownBy(() -> choreService.getChore(CHILD_ID, 7))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("아이는 자기에게 배정된 집안일 상세는 볼 수 있다")
+	void 아이는_자기_것은_본다() {
+		givenUser(CHILD_ID, UserRole.CHILD);
+		givenMyFamily(CHILD_ID);
+		given(choreRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.of(chore(7, CHILD_ID)));
+
+		assertThat(choreService.getChore(CHILD_ID, 7).childId()).isEqualTo(CHILD_ID);
+	}
+
+	private Chore chore(Integer choreId, Integer childId) {
+		Chore chore = Chore.builder()
+			.familyId(FAMILY_ID)
+			.parentId(PARENT_ID)
+			.childId(childId)
+			.title("설거지")
+			.rewardPoints(500)
+			.repeatType(ChoreRepeatType.DAY)
+			.build();
+		ReflectionTestUtils.setField(chore, "id", choreId);
+		return chore;
+	}
+
 	private ChoreCreateRequest request(Integer childId) {
 		return new ChoreCreateRequest(childId, "설거지", "저녁 먹고 나서", 500, ChoreRepeatType.DAY,
 			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
@@ -156,6 +263,16 @@ class ChoreServiceImplTest {
 
 	private void givenParent() {
 		given(userRepository.findById(PARENT_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+	}
+
+	private void givenUser(Integer userId, UserRole role) {
+		User target = user(role);
+		ReflectionTestUtils.setField(target, "id", userId);
+		given(userRepository.findById(userId)).willReturn(Optional.of(target));
+	}
+
+	private void givenMyFamily(Integer userId) {
+		given(familyMemberRepository.findActiveFamilyIdByUserId(userId)).willReturn(Optional.of(FAMILY_ID));
 	}
 
 	private void givenMyChildren(Integer... childIds) {

@@ -3,13 +3,17 @@ package com.bana.dotori.chore.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
+import com.bana.dotori.chore.dto.ChoreListResponse;
 import com.bana.dotori.chore.service.ChoreService;
 
 import jakarta.validation.Valid;
@@ -27,6 +31,22 @@ import lombok.RequiredArgsConstructor;
 public class ChoreController {
 
 	private final ChoreService choreService;
+
+	/**
+	 * childId 는 부모가 특정 자녀만 보려고 넘기는 필터다.
+	 * 아이가 넘겨도 자기 몫만 나온다 (서비스에서 무시한다).
+	 */
+	@GetMapping
+	public ResponseEntity<ChoreListResponse> getChores(@AuthenticationPrincipal Integer userId,
+		@RequestParam(required = false) Integer childId) {
+		return ResponseEntity.ok(choreService.getChores(userId, childId));
+	}
+
+	@GetMapping("/{choreId}")
+	public ResponseEntity<ChoreDetailResponse> getChore(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer choreId) {
+		return ResponseEntity.ok(choreService.getChore(userId, choreId));
+	}
 
 	@PostMapping
 	public ResponseEntity<ChoreDetailResponse> createChore(@AuthenticationPrincipal Integer userId,
