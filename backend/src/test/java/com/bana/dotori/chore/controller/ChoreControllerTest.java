@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -28,6 +29,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
+import com.bana.dotori.chore.dto.ChoreListResponse;
+import com.bana.dotori.chore.dto.ChoreSummary;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.service.ChoreService;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -78,6 +81,95 @@ class ChoreControllerTest {
 
 	private String validBody() {
 		return body("2", "\"설거지\"", "500", "\"DAY\"");
+	}
+
+	private ChoreDetailResponse detail() {
+		return new ChoreDetailResponse(7, 10, 1, 2, "설거지", "저녁 먹고 나서", 500, ChoreRepeatType.DAY,
+			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), true,
+			OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+	}
+
+	@Test
+	@DisplayName("목록 조회 성공 시 200과 집안일 목록을 반환한다")
+	void getChores_success() throws Exception {
+		givenAuthenticated(1);
+		OffsetDateTime createdAt = OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9));
+		given(choreService.getChores(1, null)).willReturn(new ChoreListResponse(List.of(
+			new ChoreSummary(7, 2, "설거지", 500, ChoreRepeatType.DAY,
+				LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), createdAt),
+			new ChoreSummary(8, 3, "방 청소", 300, ChoreRepeatType.WEEK,
+				LocalDate.of(2026, 9, 1), null, createdAt))));
+
+		mockMvc.perform(get(CHORES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.chores.length()").value(2))
+			.andExpect(jsonPath("$.chores[0].choreId").value(7))
+			.andExpect(jsonPath("$.chores[0].childId").value(2))
+			.andExpect(jsonPath("$.chores[0].title").value("설거지"))
+			.andExpect(jsonPath("$.chores[0].repeatType").value("DAY"))
+			.andExpect(jsonPath("$.chores[1].endDate").doesNotExist());
+	}
+
+	@Test
+	@DisplayName("childId 파라미터를 그대로 서비스에 전달한다")
+	void getChores_childFilter() throws Exception {
+		givenAuthenticated(1);
+		given(choreService.getChores(1, 2)).willReturn(new ChoreListResponse(List.of()));
+
+		mockMvc.perform(get(CHORES_URL).param("childId", "2")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk());
+
+		verify(choreService).getChores(1, 2);
+	}
+
+	@Test
+	@DisplayName("가족에 속하지 않으면 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void getChores_familyNotFound() throws Exception {
+		givenAuthenticated(1);
+		given(choreService.getChores(1, null)).willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(get(CHORES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("상세 조회 성공 시 200과 상세 정보를 반환한다")
+	void getChore_success() throws Exception {
+		givenAuthenticated(1);
+		given(choreService.getChore(1, 7)).willReturn(detail());
+
+		mockMvc.perform(get(CHORES_URL + "/7")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.choreId").value(7))
+			.andExpect(jsonPath("$.description").value("저녁 먹고 나서"))
+			.andExpect(jsonPath("$.isActive").value(true));
+	}
+
+	@Test
+	@DisplayName("없거나 볼 권한이 없는 집안일이면 404와 CHORE_NOT_FOUND 에러를 반환한다")
+	void getChore_notFound() throws Exception {
+		givenAuthenticated(1);
+		given(choreService.getChore(1, 7)).willThrow(new BusinessException(ErrorCode.CHORE_NOT_FOUND));
+
+		mockMvc.perform(get(CHORES_URL + "/7")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("CHORE_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 목록을 조회하면 401을 반환한다")
+	void getChores_unauthorized() throws Exception {
+		mockMvc.perform(get(CHORES_URL))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+		verify(choreService, never()).getChores(any(), any());
 	}
 
 	@Test

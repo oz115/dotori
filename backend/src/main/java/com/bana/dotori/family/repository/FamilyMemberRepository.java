@@ -58,6 +58,21 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 	List<FamilyMember> findAllByFamilyIdAndDeletedAtIsNull(Integer familyId);
 
 	/**
+	 * 그 사람이 지금 속한 살아 있는 가족의 ID.
+	 *
+	 * <p>경로에 familyId 를 두지 않는 API(집안일 등)가 인증 주체만으로 가족을 찾을 때 쓴다.
+	 * 소프트 삭제를 users·family_members·families 세 군데 모두 본다.
+	 *
+	 * <p>한 사람은 한 가족에만 속한다(가족 생성·합류에서 existsActiveMembership 으로 막는다).
+	 * 그 불변이 깨지면 여기서 결과가 여러 건이 되어 예외가 난다 — 조용히 하나만 고르는 것보다
+	 * 그때 시끄럽게 터지는 편이 낫다.
+	 */
+	@Query("select fm.family.id from FamilyMember fm "
+		+ "where fm.user.id = :userId "
+		+ "and fm.deletedAt is null and fm.user.deletedAt is null and fm.family.deletedAt is null")
+	Optional<Integer> findActiveFamilyIdByUserId(@Param("userId") Integer userId);
+
+	/**
 	 * 그 가족의 특정 구성원. 탈퇴한 회원은 찾지 않는다.
 	 */
 	@Query("select fm from FamilyMember fm join fetch fm.user "
