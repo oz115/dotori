@@ -1,5 +1,7 @@
 package com.bana.dotori.wallet.repository;
 
+import java.util.List;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -50,6 +52,23 @@ public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 			)
 			""";
 
+	/**
+	 * 부모가 여럿이면 먼저 합류한 사람을 쓴다. 포인트 충전 시 돈을 받을 부모 계좌를
+	 * 하나로 정해야 하는데, 가족 도메인에 "대표 부모" 개념이 없어 여기서 임시로 정한다.
+	 */
+	private static final String FIND_PARENT_USER_ID_OF_FAMILY = """
+			SELECT fm.user_id
+			FROM family_members fm
+			JOIN users u ON u.user_id = fm.user_id
+			JOIN families f ON f.family_id = fm.family_id
+			WHERE fm.family_id = ?
+			  AND u.role = 'PARENT'
+			  AND u.deleted_at IS NULL
+			  AND fm.deleted_at IS NULL
+			  AND f.deleted_at IS NULL
+			ORDER BY fm.joined_at
+			""";
+
 	private final JdbcTemplate jdbcTemplate;
 
 	@Override
@@ -68,5 +87,15 @@ public class JdbcFamilyMembershipReader implements FamilyMembershipReader {
 		}
 		return Boolean.TRUE.equals(
 				jdbcTemplate.queryForObject(IS_PARENT_OF_FAMILY, Boolean.class, familyId, parentId));
+	}
+
+	@Override
+	public Integer findParentUserId(Integer familyId) {
+		if (familyId == null) {
+			return null;
+		}
+		List<Integer> parentUserIds = jdbcTemplate.query(FIND_PARENT_USER_ID_OF_FAMILY,
+				(rs, rowNum) -> rs.getInt("user_id"), familyId);
+		return parentUserIds.isEmpty() ? null : parentUserIds.get(0);
 	}
 }

@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import com.bana.dotori.global.error.BusinessException;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
+@Profile("test")
 public class MockBankTransferClient implements BankTransferClient {
 
 	/** 명세 예시(500000원)를 그대로 쓴다. */
@@ -42,7 +44,8 @@ public class MockBankTransferClient implements BankTransferClient {
 	private final AtomicInteger accountIdSequence = new AtomicInteger(1);
 
 	@Override
-	public synchronized BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount) {
+	public synchronized BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount,
+			String idempotencyKey) {
 		Integer parentId = mockParentIdOf(familyId);
 
 		LinkedAccountSnapshot childAccount = requireAccount("child", childId);
@@ -65,7 +68,7 @@ public class MockBankTransferClient implements BankTransferClient {
 						+ " familyId={}, childId={}, amount={}, externalTransactionId={}",
 				familyId, childId, amount, externalTransactionId);
 
-		return new BankTransferResult(externalTransactionId, amount, debited, credited);
+		return new BankTransferResult(externalTransactionId, amount);
 	}
 
 	/**

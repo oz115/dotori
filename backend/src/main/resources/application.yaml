@@ -11,6 +11,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   datasource:
     # stringtype=unspecified: 문자열 파라미터를 타입 미지정으로 보내 PostgreSQL 이 대상 컬럼에서
     # 타입을 정하게 한다. users.role, point_transactions.transaction_type 처럼 네이티브 ENUM 인
@@ -20,16 +25,24 @@ spring:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}?stringtype=unspecified
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          # 미설정 시 무한 대기라, SMTP 장애가 요청 스레드를 계속 붙잡는다
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   jpa:
     hibernate:
-      # 스키마는 DDL 스크립트(노션)가 책임진다. Hibernate 는 건드리지 않는다.
-      #
-      # 예전에는 update 였다. 그 상태로 앱을 띄우면 DDL 로 만든 스키마 위에 엔티티 모양대로
-      # 컬럼을 덧붙여, point_wallets 에 child_id(DDL)와 user_id(엔티티)가 함께 생기고
-      # 지웠던 linked_accounts.balance 가 되살아나는 사고가 났다.
-      #
-      # 엔티티가 DDL 과 완전히 맞은 뒤에는 validate 로 올린다. 그러면 둘이 어긋날 때
-      # 런타임이 아니라 기동 단계에서 걸린다.
+
       ddl-auto: none
     open-in-view: false
     properties:

@@ -357,6 +357,28 @@ class AccountServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("getLinkedAccountNumber_성공시_계좌번호를_반환한다")
+	void getLinkedAccountNumber_success() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));
+
+		String accountNo = accountService.getLinkedAccountNumber(USER_ID);
+
+		assertThat(accountNo).isEqualTo(ACCOUNT_NO);
+		then(financeClient).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("getLinkedAccountNumber_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생한다")
+	void getLinkedAccountNumber_연동계좌없음() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> accountService.getLinkedAccountNumber(USER_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ACCOUNT_NOT_LINKED);
+	}
+
+	@Test
 	@DisplayName("getTransactionHistory_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생한다")
 	void getTransactionHistory_연동계좌없음() {
 		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());

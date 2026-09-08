@@ -7,9 +7,9 @@ import { palette } from '@/shared/theme/palette';
  */
 export const colorLight = {
   background: {
-    canvas: palette.neutral[200], // 페이지 기본 배경 (#F2F5ED)
+    canvas: palette.neutral[0], // 페이지 기본 배경 (흰색)
     surface: palette.neutral[0], // 카드/시트
-    surfaceSunken: palette.neutral[100], // 살짝 눌린 영역
+    surfaceSunken: palette.neutral[200], // 섹션 구분용 연회색 영역 (#F2F5ED)
     overlay: 'rgba(39, 44, 38, 0.45)', // 모달 딤
   },
   text: {
@@ -20,7 +20,7 @@ export const colorLight = {
     link: palette.green[600],
   },
   border: {
-    default: '#E4E4E7', // 카드/디바이더
+    default: '#E6E6E6', // 카드/인풋/디바이더 hairline
     strong: palette.neutral[400],
     focus: palette.green[500], // 인풋 포커스
   },
@@ -29,6 +29,7 @@ export const colorLight = {
     solidPressed: palette.green[600],
     solidActive: palette.green[700],
     subtle: palette.green[50], // 연한 브랜드 배경 (배지 등)
+    tint: 'rgba(233, 246, 229, 0.4)', // green.50 40% — 회원가입 유도 등 은은한 배너
     subtleText: palette.green[700],
     border: palette.green[500],
   },

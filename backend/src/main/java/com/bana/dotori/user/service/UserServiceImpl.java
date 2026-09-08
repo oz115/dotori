@@ -11,6 +11,7 @@ import com.bana.dotori.auth.service.AuthService;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.PasswordPolicy;
 import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
@@ -29,10 +30,6 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-
-	// 회원가입(SignupRequest)의 @Size 와 같은 정책이다. 한쪽만 바뀌면 가입과 변경의 기준이 갈린다.
-	private static final int PASSWORD_MIN_LENGTH = 8;
-	private static final int PASSWORD_MAX_LENGTH = 64;
 
 	private final UserRepository userRepository;
 	private final UserMapper userMapper;
@@ -100,23 +97,13 @@ public class UserServiceImpl implements UserService {
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
 		}
-		validatePasswordPolicy(request.newPassword());
+		PasswordPolicy.validate(request.newPassword());
 
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
 
 		// 비밀번호를 바꾸는 이유가 유출일 수 있다. 기존 Refresh Token 을 남겨두면
 		// 훔쳐간 쪽이 계속 Access Token 을 재발급받으므로 전부 끊는다.
 		authService.revokeAllRefreshTokens(targetUserId);
-	}
-
-	private void validatePasswordPolicy(String newPassword) {
-		if (newPassword == null || newPassword.isBlank()
-			|| newPassword.length() < PASSWORD_MIN_LENGTH
-			|| newPassword.length() > PASSWORD_MAX_LENGTH) {
-
-			throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT,
-				"비밀번호는 공백 없이 " + PASSWORD_MIN_LENGTH + "자 이상 " + PASSWORD_MAX_LENGTH + "자 이하여야 합니다");
-		}
 	}
 
 	@Override

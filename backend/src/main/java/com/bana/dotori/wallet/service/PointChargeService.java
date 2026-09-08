@@ -79,7 +79,8 @@ public class PointChargeService {
 		}
 
 		// 송금은 현금 금액으로 한다. 발행한 포인트가 아니라 아이가 실제로 보낸 돈이다.
-		BankTransferResult transfer = bankTransferClient.transferFromChildToParent(familyId, childId, cashAmount);
+		BankTransferResult transfer = bankTransferClient.transferFromChildToParent(familyId, childId, cashAmount,
+				idempotencyKey);
 		if (transfer.transferredAmount() != cashAmount) {
 			// 부분 송금은 발행한 포인트와 금액이 어긋나므로 성공으로 볼 수 없다. 롤백시킨다.
 			throw new BusinessException(ErrorCode.BANK_TRANSFER_FAILED,

@@ -1,7 +1,10 @@
 package com.bana.dotori.auth.service;
 
+import com.bana.dotori.auth.dto.FindIdRequest;
+import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
+import com.bana.dotori.auth.dto.PasswordResetRequest;
 import com.bana.dotori.auth.dto.TokenRefreshResponse;
 
 public interface AuthService {
@@ -18,4 +21,15 @@ public interface AuthService {
 	 * <p>비밀번호 변경(MYPAGE-04)처럼 기존 세션을 전부 끊어야 할 때 쓴다.
 	 */
 	void revokeAllRefreshTokens(Integer userId);
+
+	/**
+	 * AUTH-05 아이디 찾기. 이름+이메일이 일치하는 회원의 마스킹된 로그인 아이디를 안내한다.
+	 */
+	FindIdResponse findLoginId(FindIdRequest request);
+
+	/**
+	 * AUTH-06 비밀번호 재설정. 이메일 인증(verificationToken) 확인 후 새 비밀번호로 바꾸고
+	 * 기존 Refresh Token 을 전부 폐기한다.
+	 */
+	void resetPassword(PasswordResetRequest request);
 }
