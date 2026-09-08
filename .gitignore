@@ -29,5 +29,15 @@ docker-compose.override.yml
 .claude/settings.local.json
 .claude/*.local.json
 
-# === AI 기획/설계 ===
-AI/
+# === AI 기획/설계 (개인 작업공간, backend/AI-docs) ===
+# AI 서버 코드(AI/)는 커밋 대상이므로 이 패턴에 걸리지 않게 이름을 분리했다.
+AI-docs/
+
+# === Python (AI/) ===
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 프로젝트 개요·기획은 docs/Idea.md, 아키텍처는 docs/ARCHITECTURE.md 참고.
-하위 폴더 규칙은 frontend/AGENTS.md, backend/AGENTS.md 우선 적용.
+하위 폴더 규칙은 frontend/AGENTS.md, backend/AGENTS.md, AI/AGENTS.md 우선 적용.
 
 ## Jira 워크플로우
 
