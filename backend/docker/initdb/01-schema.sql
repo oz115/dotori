@@ -15,7 +15,7 @@
 
    [공용 EC2 DB]
    공용 DB 는 QA 용이라 여기서 자동으로 돌지 않는다.
-   반영이 필요하면 인프라 담당자와 협의해 수동으로 실행한다.
+   핵심 기능(에픽)이 모두 마무리된 뒤에 인프라 담당자와 협의해 한 번에 반영한다.
    맨 위 DROP 문이 데이터를 전부 날리므로 그냥 붙여넣지 않는다.
 
    [주의]
@@ -23,10 +23,13 @@
    엔티티에 컬럼을 추가했으면 이 파일에도 추가해야 한다.
    ========================================================= */
 
+
+/* =========================================================
+1. TABLE INITIALIZATION
+========================================================= */
+
 DROP TABLE IF EXISTS
-"account_transactions",
 "point_transactions",
-"point_allowance_policies",
 "point_cashout_requests",
 "investment_transactions",
 "savings_transactions",
@@ -43,9 +46,7 @@ DROP TABLE IF EXISTS
 "family_members",
 "linked_accounts",
 "point_wallets",
-"password_reset_tokens",
 "refresh_tokens",
-"email_verifications",
 "investment_news",
 "investment_products",
 "savings_products",
@@ -54,10 +55,13 @@ DROP TABLE IF EXISTS
 "users"
 CASCADE;
 
+
+/* =========================================================
+2. ENUM TYPE INITIALIZATION
+========================================================= */
+
 DROP TYPE IF EXISTS
-account_transactions_transaction_type,
 point_transactions_transaction_type,
-point_allowance_policies_period_type,
 point_cashout_requests_status,
 users_role,
 investment_transactions_transaction_type,
@@ -66,41 +70,159 @@ savings_products_product_type,
 savings_subscriptions_status,
 savings_transactions_transaction_type,
 chores_repeat_type,
+task_difficulty,
 chore_completion_requests_status,
 store_products_category,
 words_category
 CASCADE;
 
-CREATE TYPE account_transactions_transaction_type AS ENUM ('DEPOSIT', 'WITHDRAWAL');
 
+/* =========================================================
+3. ENUM TYPE CREATION
+========================================================= */
+
+/* 포인트 거래 발생 사유
+   입출금 방향이 아닌 "왜 포인트가 변했는지"를 저장 */
 CREATE TYPE point_transactions_transaction_type AS ENUM (
-    'CHARGE', 'GRANT', 'ALLOWANCE', 'CHORE_REWARD', 'QUIZ_REWARD', 'PURCHASE',
-    'SAVINGS_DEPOSIT', 'SAVINGS_WITHDRAWAL', 'INVESTMENT_BUY', 'INVESTMENT_SELL',
-    'CASHOUT', 'REFUND');
+    'CHARGE',
+    'GRANT',
+    'ALLOWANCE',
+    'CHORE_REWARD',
+    'QUIZ_REWARD',
+    'PURCHASE',
+    'SAVINGS_DEPOSIT',
+    'SAVINGS_WITHDRAWAL',
+    'INVESTMENT_BUY',
+    'INVESTMENT_SELL',
+    'CASHOUT',
+    'REFUND'
+);
 
-CREATE TYPE point_cashout_requests_status AS ENUM ('PENDING', 'PROGRESS', 'CANCELLED', 'SUCCEED', 'FAILED');
 
-CREATE TYPE users_role AS ENUM ('PARENT', 'CHILD');
+/* 포인트 현금화 요청 상태 */
+CREATE TYPE point_cashout_requests_status AS ENUM (
+    'PENDING',
+    'PROGRESS',
+    'CANCELLED',
+    'SUCCEED',
+    'FAILED'
+);
 
-CREATE TYPE investment_transactions_transaction_type AS ENUM ('BUY', 'SELL');
 
-CREATE TYPE investment_products_category AS ENUM ('STOCK', 'BOND', 'ETF', 'FUND', 'OTHER');
+/* 사용자 역할 */
+CREATE TYPE users_role AS ENUM (
+    'PARENT',
+    'CHILD'
+);
 
-CREATE TYPE savings_products_product_type AS ENUM ('INSTALLMENT', 'DEPOSIT');
 
-CREATE TYPE savings_subscriptions_status AS ENUM ('ACTIVE', 'PROGRESS', 'EXPIRED', 'CANCELLED');
+/* 투자 거래 유형 */
+CREATE TYPE investment_transactions_transaction_type AS ENUM (
+    'BUY',
+    'SELL'
+);
 
+
+/* 투자 상품 카테고리 */
+CREATE TYPE investment_products_category AS ENUM (
+    'STOCK',
+    'BOND',
+    'ETF',
+    'FUND',
+    'OTHER'
+);
+
+
+/* 예적금 상품 유형 */
+CREATE TYPE savings_products_product_type AS ENUM (
+    'INSTALLMENT',
+    'DEPOSIT'
+);
+
+
+/* 예적금 가입 상태 */
+CREATE TYPE savings_subscriptions_status AS ENUM (
+    'ACTIVE',
+    'PROGRESS',
+    'EXPIRED',
+    'CANCELLED'
+);
+
+
+/* 예적금 거래 유형 */
 CREATE TYPE savings_transactions_transaction_type AS ENUM (
-    'INITIAL_DEPOSIT', 'CONTRIBUTION', 'INTEREST', 'EARLY_TERMINATION_PAYOUT', 'MATURITY_PAYOUT');
+    'INITIAL_DEPOSIT',
+    'CONTRIBUTION',
+    'INTEREST',
+    'EARLY_TERMINATION_PAYOUT',
+    'MATURITY_PAYOUT'
+);
 
-CREATE TYPE chores_repeat_type AS ENUM ('DAY', 'WEEK', 'MONTH');
 
-CREATE TYPE chore_completion_requests_status AS ENUM ('PENDING', 'PROGRESS', 'CANCELLED', 'SUCCEED', 'REJECTED');
+/* 할 일 반복 주기
 
-CREATE TYPE store_products_category AS ENUM ('GAME', 'SNACK', 'TOY', 'OUTING', 'PRIVILEGE', 'ETC');
+   ONCE 는 반복하지 않는 일회성이다. 화면의 "반복" 체크를 끄면 이 값이 되고,
+   그때는 부모가 시작일과 종료일을 직접 넣는다.
 
+   나머지 셋은 반복이다. 부모는 주기만 고르고, 기간은 등록한 날에서 계산한다
+   (일간은 그날, 주간은 그 주 일요일, 월간은 그 달 말일).
+   주기가 끝나면 크론이 다음 주기로 기간을 밀어 준다. */
+CREATE TYPE chores_repeat_type AS ENUM (
+    'ONCE',
+    'DAY',
+    'WEEK',
+    'MONTH'
+);
+
+
+/* 할 일 난이도
+   AI 가 제목·설명을 보고 판정하며, 주간 기본 용돈(families.weekly_allowance)
+   대비 보상 가중치(chores.value)를 매기는 근거가 된다.
+   집안일 외의 할 일에도 쓸 수 있도록 테이블명을 앞에 붙이지 않았다. */
+CREATE TYPE task_difficulty AS ENUM (
+    'EASY',
+    'NORMAL',
+    'HARD'
+);
+
+
+/* 집안일 완료 요청 상태 */
+CREATE TYPE chore_completion_requests_status AS ENUM (
+    'PENDING',
+    'PROGRESS',
+    'CANCELLED',
+    'SUCCEED',
+    'REJECTED'
+);
+
+
+/* 상점 상품 카테고리
+   카테고리별 이미지는 S3에 미리 준비해 두고, 상품에는 카테고리만 저장한다 */
+CREATE TYPE store_products_category AS ENUM (
+    'GAME',
+    'SNACK',
+    'TOY',
+    'OUTING',
+    'PRIVILEGE',
+    'ETC'
+);
+
+
+/* 경제 용어 카테고리 */
 CREATE TYPE words_category AS ENUM (
-    'INCOME', 'CONSUMPTION', 'SAVINGS', 'INVESTMENT', 'BANKING', 'ECONOMY', 'OTHER');
+    'INCOME',
+    'CONSUMPTION',
+    'SAVINGS',
+    'INVESTMENT',
+    'BANKING',
+    'ECONOMY',
+    'OTHER'
+);
+
+
+/* =========================================================
+4. TABLE CREATION
+========================================================= */
 
 CREATE TABLE "savings_products" (
     "savings_product_id"    SERIAL          NOT NULL,
@@ -116,6 +238,7 @@ CREATE TABLE "savings_products" (
     "updated_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "linked_accounts" (
     "account_id"            SERIAL          NOT NULL,
     "user_id"               INTEGER         NOT NULL,
@@ -127,6 +250,7 @@ CREATE TABLE "linked_accounts" (
     "linked_at"             TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
 
 CREATE TABLE "users" (
     "user_id"               SERIAL          NOT NULL,
@@ -141,6 +265,7 @@ CREATE TABLE "users" (
     "deleted_at"            TIMESTAMPTZ     NULL
 );
 
+
 CREATE TABLE "point_transactions" (
     "point_transaction_id"  SERIAL          NOT NULL,
     "child_id"              INTEGER         NOT NULL,
@@ -152,14 +277,35 @@ CREATE TABLE "point_transactions" (
     "created_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
+/* deleted_at: 가족 소프트 삭제. Family 엔티티가 사용한다.
+
+   아래 세 값은 가족 생성 온보딩에서 정한다.
+   weekly_allowance:          B — 주간 기본 용돈(포인트 환산).
+                              할 일 보상 산정의 기준값이다 (chores.reward_points = value * B).
+   weekly_reward_limit:       A — 예적금·투자·퀴즈로 주당 벌 수 있는 최대 포인트 (할 일 제외).
+   financial_knowledge_level: 아이의 금융 이해도. AI 가 보상·퀴즈 난이도를 정할 때 참고한다.
+
+   셋 다 NOT NULL 이지만 DEFAULT 를 둔다. Family 엔티티가 아직 이 컬럼들을 매핑하지 않아
+   Hibernate 의 INSERT 문에 컬럼이 실리지 않는데, DEFAULT 가 없으면 그 INSERT 가
+   NOT NULL 위반으로 실패해 가족 생성 API 가 통째로 깨진다.
+   엔티티가 세 필드를 갖게 되면 DEFAULT 는 쓰이지 않는다.
+
+   financial_knowledge_level 은 이 스키마에서 유일하게 네이티브 ENUM 이 아닌 열거형이다.
+   엔티티가 @Enumerated(EnumType.STRING) + length=20 으로 잡혀 있어 그쪽에 맞췄고,
+   대신 CHECK 로 값을 제한해 네이티브 ENUM 과 같은 보호를 준다. */
 CREATE TABLE "families" (
-    "family_id"             SERIAL          NOT NULL,
-    "name"                  VARCHAR(100)    NOT NULL,
-    "created_by"            INTEGER         NOT NULL,
-    "created_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updated_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "deleted_at"            TIMESTAMPTZ     NULL
+    "family_id"                 SERIAL          NOT NULL,
+    "name"                      VARCHAR(100)    NOT NULL,
+    "created_by"                INTEGER         NOT NULL,
+    "weekly_allowance"          INTEGER         DEFAULT 0 NOT NULL,
+    "weekly_reward_limit"       INTEGER         DEFAULT 0 NOT NULL,
+    "financial_knowledge_level" VARCHAR(20)     DEFAULT 'BEGINNER' NOT NULL,
+    "created_at"                TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at"                TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "deleted_at"                TIMESTAMPTZ     NULL
 );
+
 
 CREATE TABLE "savings_subscriptions" (
     "savings_subscription_id"   SERIAL      NOT NULL,
@@ -175,6 +321,7 @@ CREATE TABLE "savings_subscriptions" (
     "received_at"               TIMESTAMPTZ NULL
 );
 
+
 CREATE TABLE "chore_completion_requests" (
     "chore_completion_request_id"   SERIAL      NOT NULL,
     "chore_id"                      INTEGER     NOT NULL,
@@ -186,15 +333,6 @@ CREATE TABLE "chore_completion_requests" (
     "processed_at"                  TIMESTAMPTZ NULL
 );
 
-CREATE TABLE "account_transactions" (
-    "account_transaction_id"    SERIAL      NOT NULL,
-    "account_id"                INTEGER     NOT NULL,
-    "transaction_type"          account_transactions_transaction_type NOT NULL,
-    "amount"                    INTEGER     NOT NULL,
-    "balance_after"             INTEGER     NULL,
-    "description"               VARCHAR(255) NULL,
-    "transacted_at"             TIMESTAMPTZ NOT NULL
-);
 
 CREATE TABLE "investment_transactions" (
     "investment_transaction_id" SERIAL      NOT NULL,
@@ -208,14 +346,6 @@ CREATE TABLE "investment_transactions" (
     "created_at"                TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE TABLE "password_reset_tokens" (
-    "password_reset_token_id"   SERIAL      NOT NULL,
-    "user_id"                   INTEGER     NOT NULL,
-    "token"                     VARCHAR(255) NOT NULL,
-    "expires_at"                TIMESTAMPTZ NOT NULL,
-    "used_at"                   TIMESTAMPTZ NULL,
-    "created_at"                TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
 
 CREATE TABLE "investment_products" (
     "investment_product_id" SERIAL      NOT NULL,
@@ -228,6 +358,7 @@ CREATE TABLE "investment_products" (
     "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "point_cashout_requests" (
     "cashout_request_id"    SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -239,12 +370,14 @@ CREATE TABLE "point_cashout_requests" (
     "processed_at"          TIMESTAMPTZ NULL
 );
 
+
 CREATE TABLE "investment_price_history" (
     "investment_price_history_id"  SERIAL      NOT NULL,
     "investment_product_id"        INTEGER     NOT NULL,
     "price"                        INTEGER     NOT NULL,
     "recorded_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
 
 CREATE TABLE "refresh_tokens" (
     "refresh_token_id"      SERIAL      NOT NULL,
@@ -255,6 +388,7 @@ CREATE TABLE "refresh_tokens" (
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "family_codes" (
     "family_code_id"        SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -262,6 +396,7 @@ CREATE TABLE "family_codes" (
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "expired_at"            TIMESTAMPTZ NOT NULL
 );
+
 
 CREATE TABLE "savings_transactions" (
     "savings_transaction_id"    SERIAL      NOT NULL,
@@ -271,6 +406,7 @@ CREATE TABLE "savings_transactions" (
     "created_at"                TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "investment_news" (
     "investment_news_id"    SERIAL      NOT NULL,
     "title"                 VARCHAR(255) NOT NULL,
@@ -279,6 +415,11 @@ CREATE TABLE "investment_news" (
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
+/* category: 상품 이미지는 카테고리별로 S3에 준비되므로 카테고리만 저장한다.
+   value: AI 서버가 비동기로 산정하는 상품 가치 가중치(아이 하루 소득 D의 배수).
+          등록 직후에는 아직 산정 전이므로 NULL, price = value * D.
+   price: value 산정이 끝나야 계산할 수 있으므로 NULL 허용(NULL = 가격 산정 중). */
 CREATE TABLE "store_products" (
     "store_product_id"      SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -290,8 +431,10 @@ CREATE TABLE "store_products" (
     "price"                 INTEGER     NULL,
     "quantity"              INTEGER     DEFAULT 0 NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "deleted_at"            TIMESTAMPTZ NULL
 );
+
 
 CREATE TABLE "words" (
     "word_id"               SERIAL      NOT NULL,
@@ -303,21 +446,15 @@ CREATE TABLE "words" (
     "category"              words_category NULL
 );
 
+
 CREATE TABLE "investment_news_products" (
     "investment_news_product_id"  SERIAL  NOT NULL,
     "investment_news_id"          INTEGER NOT NULL,
     "investment_product_id"       INTEGER NOT NULL
 );
 
-CREATE TABLE "email_verifications" (
-    "email_verification_id" SERIAL       NOT NULL,
-    "user_id"               INTEGER      NOT NULL,
-    "token"                 VARCHAR(255) NOT NULL,
-    "expires_at"            TIMESTAMPTZ  NOT NULL,
-    "verified_at"           TIMESTAMPTZ  NULL,
-    "created_at"            TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
 
+/* deleted_at: 가족 구성원 소프트 삭제. FamilyMember 엔티티가 사용한다. */
 CREATE TABLE "family_members" (
     "family_member_id"      SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -325,6 +462,7 @@ CREATE TABLE "family_members" (
     "joined_at"             TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "deleted_at"            TIMESTAMPTZ NULL
 );
+
 
 CREATE TABLE "quizzes" (
     "quiz_id"               SERIAL       NOT NULL,
@@ -339,6 +477,7 @@ CREATE TABLE "quizzes" (
     "created_at"            TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "purchases" (
     "purchase_id"           SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -350,6 +489,7 @@ CREATE TABLE "purchases" (
     "purchased_at"          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "quiz_attempts" (
     "quiz_attempt_id"       SERIAL       NOT NULL,
     "quiz_id"               INTEGER      NOT NULL,
@@ -360,6 +500,7 @@ CREATE TABLE "quiz_attempts" (
     "submitted_at"          TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
 CREATE TABLE "point_wallets" (
     "wallet_id"             SERIAL      NOT NULL,
     "child_id"              INTEGER     NOT NULL,
@@ -368,6 +509,19 @@ CREATE TABLE "point_wallets" (
     "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
+/* difficulty: AI 가 제목·설명을 보고 판정한 난이도. 보상 산정의 근거로 남긴다.
+   value: AI 서버가 비동기로 산정하는 할 일 가치 가중치(주간 기본 용돈 B의 배수).
+          등록 직후에는 아직 산정 전이므로 NULL, reward_points = value * B.
+   reward_points: value 산정이 끝나야 계산할 수 있으므로 NULL 허용(NULL = 보상 산정 중).
+                  승인 시점의 이 값을 지급한다. 요청 시점 값을 따로 스냅샷하지 않는다.
+   deleted_at: 집안일 소프트 삭제. 완료 이력이 chore_id 를 참조하므로 행을 지우면
+               이미 지급한 보상의 근거가 사라진다.
+               목록에서는 빠지지만 상세 조회와 대기 중인 완료 요청 처리는 계속 된다.
+
+   is_active 는 두지 않는다. 삭제 표시를 deleted_at 하나로 통일했다.
+   둘을 함께 두면 "비활성이지만 삭제는 아닌" 상태가 생겨 목록 조회 조건이
+   두 갈래로 갈리고, 어느 쪽이 삭제인지 코드마다 달라진다. */
 CREATE TABLE "chores" (
     "chore_id"              SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -375,103 +529,560 @@ CREATE TABLE "chores" (
     "child_id"              INTEGER     NOT NULL,
     "title"                 VARCHAR(100) NOT NULL,
     "description"           VARCHAR(255) NULL,
-    "reward_points"         INTEGER     NOT NULL,
+    "difficulty"            task_difficulty NOT NULL,
+    "value"                 NUMERIC(10, 2) NULL,
+    "reward_points"         INTEGER     NULL,
     "repeat_type"           chores_repeat_type NOT NULL,
     "start_date"            DATE        DEFAULT CURRENT_DATE NOT NULL,
     "end_date"              DATE        NULL,
-    "is_active"             BOOLEAN     DEFAULT TRUE NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "deleted_at"            TIMESTAMPTZ NULL
 );
 
-ALTER TABLE "savings_products" ADD CONSTRAINT "PK_SAVINGS_PRODUCTS" PRIMARY KEY ("savings_product_id");
-ALTER TABLE "linked_accounts" ADD CONSTRAINT "PK_LINKED_ACCOUNTS" PRIMARY KEY ("account_id");
-ALTER TABLE "users" ADD CONSTRAINT "PK_USERS" PRIMARY KEY ("user_id");
-ALTER TABLE "point_transactions" ADD CONSTRAINT "PK_POINT_TRANSACTIONS" PRIMARY KEY ("point_transaction_id");
-ALTER TABLE "families" ADD CONSTRAINT "PK_FAMILIES" PRIMARY KEY ("family_id");
-ALTER TABLE "savings_subscriptions" ADD CONSTRAINT "PK_SAVINGS_SUBSCRIPTIONS" PRIMARY KEY ("savings_subscription_id");
-ALTER TABLE "chore_completion_requests" ADD CONSTRAINT "PK_CHORE_COMPLETION_REQUESTS" PRIMARY KEY ("chore_completion_request_id");
-ALTER TABLE "account_transactions" ADD CONSTRAINT "PK_ACCOUNT_TRANSACTIONS" PRIMARY KEY ("account_transaction_id");
-ALTER TABLE "investment_transactions" ADD CONSTRAINT "PK_INVESTMENT_TRANSACTIONS" PRIMARY KEY ("investment_transaction_id");
-ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "PK_PASSWORD_RESET_TOKENS" PRIMARY KEY ("password_reset_token_id");
-ALTER TABLE "investment_products" ADD CONSTRAINT "PK_INVESTMENT_PRODUCTS" PRIMARY KEY ("investment_product_id");
-ALTER TABLE "point_cashout_requests" ADD CONSTRAINT "PK_POINT_CASHOUT_REQUESTS" PRIMARY KEY ("cashout_request_id");
-ALTER TABLE "investment_price_history" ADD CONSTRAINT "PK_INVESTMENT_PRICE_HISTORY" PRIMARY KEY ("investment_price_history_id");
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "PK_REFRESH_TOKENS" PRIMARY KEY ("refresh_token_id");
-ALTER TABLE "family_codes" ADD CONSTRAINT "PK_FAMILY_CODES" PRIMARY KEY ("family_code_id");
-ALTER TABLE "savings_transactions" ADD CONSTRAINT "PK_SAVINGS_TRANSACTIONS" PRIMARY KEY ("savings_transaction_id");
-ALTER TABLE "investment_news" ADD CONSTRAINT "PK_INVESTMENT_NEWS" PRIMARY KEY ("investment_news_id");
-ALTER TABLE "store_products" ADD CONSTRAINT "PK_STORE_PRODUCTS" PRIMARY KEY ("store_product_id");
-ALTER TABLE "words" ADD CONSTRAINT "PK_WORDS" PRIMARY KEY ("word_id");
-ALTER TABLE "investment_news_products" ADD CONSTRAINT "PK_INVESTMENT_NEWS_PRODUCTS" PRIMARY KEY ("investment_news_product_id");
-ALTER TABLE "email_verifications" ADD CONSTRAINT "PK_EMAIL_VERIFICATIONS" PRIMARY KEY ("email_verification_id");
-ALTER TABLE "family_members" ADD CONSTRAINT "PK_FAMILY_MEMBERS" PRIMARY KEY ("family_member_id");
-ALTER TABLE "quizzes" ADD CONSTRAINT "PK_QUIZZES" PRIMARY KEY ("quiz_id");
-ALTER TABLE "purchases" ADD CONSTRAINT "PK_PURCHASES" PRIMARY KEY ("purchase_id");
-ALTER TABLE "quiz_attempts" ADD CONSTRAINT "PK_QUIZ_ATTEMPTS" PRIMARY KEY ("quiz_attempt_id");
-ALTER TABLE "point_wallets" ADD CONSTRAINT "PK_POINT_WALLETS" PRIMARY KEY ("wallet_id");
-ALTER TABLE "chores" ADD CONSTRAINT "PK_CHORES" PRIMARY KEY ("chore_id");
 
-ALTER TABLE "linked_accounts" ADD CONSTRAINT "FK_LINKED_ACCOUNTS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id");
-ALTER TABLE "point_wallets" ADD CONSTRAINT "FK_POINT_WALLETS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "point_transactions" ADD CONSTRAINT "FK_POINT_TRANSACTIONS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "families" ADD CONSTRAINT "FK_FAMILIES_CREATED_BY" FOREIGN KEY ("created_by") REFERENCES "users" ("user_id");
-ALTER TABLE "family_members" ADD CONSTRAINT "FK_FAMILY_MEMBERS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "family_members" ADD CONSTRAINT "FK_FAMILY_MEMBERS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id");
-ALTER TABLE "family_codes" ADD CONSTRAINT "FK_FAMILY_CODES_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "FK_PASSWORD_RESET_TOKENS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id");
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "FK_REFRESH_TOKENS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id");
-ALTER TABLE "email_verifications" ADD CONSTRAINT "FK_EMAIL_VERIFICATIONS_USER" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id");
-ALTER TABLE "account_transactions" ADD CONSTRAINT "FK_ACCOUNT_TRANSACTIONS_ACCOUNT" FOREIGN KEY ("account_id") REFERENCES "linked_accounts" ("account_id");
-ALTER TABLE "point_cashout_requests" ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "point_cashout_requests" ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "point_cashout_requests" ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_PARENT" FOREIGN KEY ("parent_id") REFERENCES "users" ("user_id");
-ALTER TABLE "savings_subscriptions" ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "savings_subscriptions" ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "savings_subscriptions" ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_PRODUCT" FOREIGN KEY ("savings_product_id") REFERENCES "savings_products" ("savings_product_id");
-ALTER TABLE "savings_transactions" ADD CONSTRAINT "FK_SAVINGS_TRANSACTIONS_SUBSCRIPTION" FOREIGN KEY ("savings_subscription_id") REFERENCES "savings_subscriptions" ("savings_subscription_id");
-ALTER TABLE "investment_transactions" ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "investment_transactions" ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "investment_transactions" ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_PRODUCT" FOREIGN KEY ("investment_product_id") REFERENCES "investment_products" ("investment_product_id");
-ALTER TABLE "investment_price_history" ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_PRODUCT" FOREIGN KEY ("investment_product_id") REFERENCES "investment_products" ("investment_product_id");
-ALTER TABLE "investment_news_products" ADD CONSTRAINT "FK_INVESTMENT_NEWS_PRODUCTS_NEWS" FOREIGN KEY ("investment_news_id") REFERENCES "investment_news" ("investment_news_id");
-ALTER TABLE "investment_news_products" ADD CONSTRAINT "FK_INVESTMENT_NEWS_PRODUCTS_PRODUCT" FOREIGN KEY ("investment_product_id") REFERENCES "investment_products" ("investment_product_id");
-ALTER TABLE "store_products" ADD CONSTRAINT "FK_STORE_PRODUCTS_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "store_products" ADD CONSTRAINT "FK_STORE_PRODUCTS_CREATED_BY" FOREIGN KEY ("created_by") REFERENCES "users" ("user_id");
-ALTER TABLE "purchases" ADD CONSTRAINT "FK_PURCHASES_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "purchases" ADD CONSTRAINT "FK_PURCHASES_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "purchases" ADD CONSTRAINT "FK_PURCHASES_STORE_PRODUCT" FOREIGN KEY ("store_product_id") REFERENCES "store_products" ("store_product_id");
-ALTER TABLE "quizzes" ADD CONSTRAINT "FK_QUIZZES_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "quizzes" ADD CONSTRAINT "FK_QUIZZES_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "quizzes" ADD CONSTRAINT "FK_QUIZZES_WORD" FOREIGN KEY ("word_id") REFERENCES "words" ("word_id");
-ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_QUIZ_ATTEMPTS_QUIZ" FOREIGN KEY ("quiz_id") REFERENCES "quizzes" ("quiz_id");
-ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_QUIZ_ATTEMPTS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "chores" ADD CONSTRAINT "FK_CHORES_FAMILY" FOREIGN KEY ("family_id") REFERENCES "families" ("family_id");
-ALTER TABLE "chores" ADD CONSTRAINT "FK_CHORES_PARENT" FOREIGN KEY ("parent_id") REFERENCES "users" ("user_id");
-ALTER TABLE "chores" ADD CONSTRAINT "FK_CHORES_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
-ALTER TABLE "chore_completion_requests" ADD CONSTRAINT "FK_CHORE_COMPLETION_REQUESTS_CHORE" FOREIGN KEY ("chore_id") REFERENCES "chores" ("chore_id");
-ALTER TABLE "chore_completion_requests" ADD CONSTRAINT "FK_CHORE_COMPLETION_REQUESTS_CHILD" FOREIGN KEY ("child_id") REFERENCES "users" ("user_id");
+/* =========================================================
+5. PRIMARY KEY
+========================================================= */
 
-ALTER TABLE "users" ADD CONSTRAINT "UQ_USERS_LOGIN_ID" UNIQUE ("login_id");
-ALTER TABLE "users" ADD CONSTRAINT "UQ_USERS_EMAIL" UNIQUE ("email");
-ALTER TABLE "linked_accounts" ADD CONSTRAINT "UQ_LINKED_ACCOUNTS_USER_ACCOUNT" UNIQUE ("user_id", "account_number");
-ALTER TABLE "point_transactions" ADD CONSTRAINT "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY" UNIQUE ("child_id", "idempotency_key");
-ALTER TABLE "point_transactions" ADD CONSTRAINT "CK_POINT_TRANSACTIONS_AMOUNT_POSITIVE" CHECK ("amount" > 0);
-ALTER TABLE "point_wallets" ADD CONSTRAINT "UQ_POINT_WALLETS_CHILD_ID" UNIQUE ("child_id");
-ALTER TABLE "point_wallets" ADD CONSTRAINT "CK_POINT_WALLETS_BALANCE_NON_NEGATIVE" CHECK ("balance" >= 0);
-ALTER TABLE "family_codes" ADD CONSTRAINT "UQ_FAMILY_CODES_CODE" UNIQUE ("code");
-ALTER TABLE "store_products" ADD CONSTRAINT "CK_STORE_PRODUCTS_VALUE_POSITIVE" CHECK ("value" IS NULL OR "value" > 0);
-ALTER TABLE "store_products" ADD CONSTRAINT "CK_STORE_PRODUCTS_PRICE_POSITIVE" CHECK ("price" IS NULL OR "price" > 0);
+ALTER TABLE "savings_products"
+ADD CONSTRAINT "PK_SAVINGS_PRODUCTS"
+PRIMARY KEY ("savings_product_id");
 
-CREATE INDEX "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT" ON "point_transactions" ("child_id", "created_at", "point_transaction_id");
 
-/* FK 는 인덱스를 만들어 주지 않는다. 인덱스가 없으면 아래 조회가 매번 풀스캔이다.
+ALTER TABLE "linked_accounts"
+ADD CONSTRAINT "PK_LINKED_ACCOUNTS"
+PRIMARY KEY ("account_id");
 
-   CHILD_ACTIVE: 집안일 목록 조회(CHORE-01). 경로가 가족과 아이를 지목하므로
-   (family_id, child_id) 로 좁히고 활성만 본다. 맨 뒤 created_at·chore_id 는
-   목록 정렬(created_at DESC, chore_id DESC)을 인덱스로 처리해 별도 sort 를 없앤다.
 
-   FAMILY: 완료 요청 목록(CHORE-08)이 chore_completion_requests 와 chores 를 조인해
-   family_id 로 좁힌다. 그쪽은 활성 여부를 보지 않으므로 family_id 만 걸어 둔다. */
-CREATE INDEX "IX_CHORES_CHILD_ACTIVE" ON "chores" ("family_id", "child_id", "is_active", "created_at", "chore_id");
-CREATE INDEX "IX_CHORES_FAMILY" ON "chores" ("family_id");
+ALTER TABLE "users"
+ADD CONSTRAINT "PK_USERS"
+PRIMARY KEY ("user_id");
+
+
+ALTER TABLE "point_transactions"
+ADD CONSTRAINT "PK_POINT_TRANSACTIONS"
+PRIMARY KEY ("point_transaction_id");
+
+
+ALTER TABLE "families"
+ADD CONSTRAINT "PK_FAMILIES"
+PRIMARY KEY ("family_id");
+
+
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "PK_SAVINGS_SUBSCRIPTIONS"
+PRIMARY KEY ("savings_subscription_id");
+
+
+ALTER TABLE "chore_completion_requests"
+ADD CONSTRAINT "PK_CHORE_COMPLETION_REQUESTS"
+PRIMARY KEY ("chore_completion_request_id");
+
+
+ALTER TABLE "investment_transactions"
+ADD CONSTRAINT "PK_INVESTMENT_TRANSACTIONS"
+PRIMARY KEY ("investment_transaction_id");
+
+
+ALTER TABLE "investment_products"
+ADD CONSTRAINT "PK_INVESTMENT_PRODUCTS"
+PRIMARY KEY ("investment_product_id");
+
+
+ALTER TABLE "point_cashout_requests"
+ADD CONSTRAINT "PK_POINT_CASHOUT_REQUESTS"
+PRIMARY KEY ("cashout_request_id");
+
+
+ALTER TABLE "investment_price_history"
+ADD CONSTRAINT "PK_INVESTMENT_PRICE_HISTORY"
+PRIMARY KEY ("investment_price_history_id");
+
+
+ALTER TABLE "refresh_tokens"
+ADD CONSTRAINT "PK_REFRESH_TOKENS"
+PRIMARY KEY ("refresh_token_id");
+
+
+ALTER TABLE "family_codes"
+ADD CONSTRAINT "PK_FAMILY_CODES"
+PRIMARY KEY ("family_code_id");
+
+
+ALTER TABLE "savings_transactions"
+ADD CONSTRAINT "PK_SAVINGS_TRANSACTIONS"
+PRIMARY KEY ("savings_transaction_id");
+
+
+ALTER TABLE "investment_news"
+ADD CONSTRAINT "PK_INVESTMENT_NEWS"
+PRIMARY KEY ("investment_news_id");
+
+
+ALTER TABLE "store_products"
+ADD CONSTRAINT "PK_STORE_PRODUCTS"
+PRIMARY KEY ("store_product_id");
+
+
+ALTER TABLE "words"
+ADD CONSTRAINT "PK_WORDS"
+PRIMARY KEY ("word_id");
+
+
+ALTER TABLE "investment_news_products"
+ADD CONSTRAINT "PK_INVESTMENT_NEWS_PRODUCTS"
+PRIMARY KEY ("investment_news_product_id");
+
+
+ALTER TABLE "family_members"
+ADD CONSTRAINT "PK_FAMILY_MEMBERS"
+PRIMARY KEY ("family_member_id");
+
+
+ALTER TABLE "quizzes"
+ADD CONSTRAINT "PK_QUIZZES"
+PRIMARY KEY ("quiz_id");
+
+
+ALTER TABLE "purchases"
+ADD CONSTRAINT "PK_PURCHASES"
+PRIMARY KEY ("purchase_id");
+
+
+ALTER TABLE "quiz_attempts"
+ADD CONSTRAINT "PK_QUIZ_ATTEMPTS"
+PRIMARY KEY ("quiz_attempt_id");
+
+
+ALTER TABLE "point_wallets"
+ADD CONSTRAINT "PK_POINT_WALLETS"
+PRIMARY KEY ("wallet_id");
+
+
+ALTER TABLE "chores"
+ADD CONSTRAINT "PK_CHORES"
+PRIMARY KEY ("chore_id");
+
+
+/* =========================================================
+6. FOREIGN KEY
+========================================================= */
+
+/* linked_accounts */
+ALTER TABLE "linked_accounts"
+ADD CONSTRAINT "FK_LINKED_ACCOUNTS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* point_wallets */
+ALTER TABLE "point_wallets"
+ADD CONSTRAINT "FK_POINT_WALLETS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+
+/* point_transactions */
+ALTER TABLE "point_transactions"
+ADD CONSTRAINT "FK_POINT_TRANSACTIONS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+
+/* families */
+ALTER TABLE "families"
+ADD CONSTRAINT "FK_FAMILIES_CREATED_BY"
+FOREIGN KEY ("created_by")
+REFERENCES "users" ("user_id");
+
+
+/* family_members */
+ALTER TABLE "family_members"
+ADD CONSTRAINT "FK_FAMILY_MEMBERS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "family_members"
+ADD CONSTRAINT "FK_FAMILY_MEMBERS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* family_codes */
+ALTER TABLE "family_codes"
+ADD CONSTRAINT "FK_FAMILY_CODES_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+
+/* refresh_tokens */
+ALTER TABLE "refresh_tokens"
+ADD CONSTRAINT "FK_REFRESH_TOKENS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* point_cashout_requests */
+ALTER TABLE "point_cashout_requests"
+ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "point_cashout_requests"
+ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "point_cashout_requests"
+ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_PARENT"
+FOREIGN KEY ("parent_id")
+REFERENCES "users" ("user_id");
+
+
+/* savings_subscriptions */
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "FK_SAVINGS_SUBSCRIPTIONS_PRODUCT"
+FOREIGN KEY ("savings_product_id")
+REFERENCES "savings_products" ("savings_product_id");
+
+
+/* savings_transactions */
+ALTER TABLE "savings_transactions"
+ADD CONSTRAINT "FK_SAVINGS_TRANSACTIONS_SUBSCRIPTION"
+FOREIGN KEY ("savings_subscription_id")
+REFERENCES "savings_subscriptions" ("savings_subscription_id");
+
+
+/* investment_transactions */
+ALTER TABLE "investment_transactions"
+ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "investment_transactions"
+ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "investment_transactions"
+ADD CONSTRAINT "FK_INVESTMENT_TRANSACTIONS_PRODUCT"
+FOREIGN KEY ("investment_product_id")
+REFERENCES "investment_products" ("investment_product_id");
+
+
+/* investment_price_history */
+ALTER TABLE "investment_price_history"
+ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_PRODUCT"
+FOREIGN KEY ("investment_product_id")
+REFERENCES "investment_products" ("investment_product_id");
+
+
+/* investment_news_products */
+ALTER TABLE "investment_news_products"
+ADD CONSTRAINT "FK_INVESTMENT_NEWS_PRODUCTS_NEWS"
+FOREIGN KEY ("investment_news_id")
+REFERENCES "investment_news" ("investment_news_id");
+
+ALTER TABLE "investment_news_products"
+ADD CONSTRAINT "FK_INVESTMENT_NEWS_PRODUCTS_PRODUCT"
+FOREIGN KEY ("investment_product_id")
+REFERENCES "investment_products" ("investment_product_id");
+
+
+/* store_products */
+ALTER TABLE "store_products"
+ADD CONSTRAINT "FK_STORE_PRODUCTS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "store_products"
+ADD CONSTRAINT "FK_STORE_PRODUCTS_CREATED_BY"
+FOREIGN KEY ("created_by")
+REFERENCES "users" ("user_id");
+
+
+/* purchases */
+ALTER TABLE "purchases"
+ADD CONSTRAINT "FK_PURCHASES_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "purchases"
+ADD CONSTRAINT "FK_PURCHASES_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "purchases"
+ADD CONSTRAINT "FK_PURCHASES_STORE_PRODUCT"
+FOREIGN KEY ("store_product_id")
+REFERENCES "store_products" ("store_product_id");
+
+
+/* quizzes */
+ALTER TABLE "quizzes"
+ADD CONSTRAINT "FK_QUIZZES_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "quizzes"
+ADD CONSTRAINT "FK_QUIZZES_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "quizzes"
+ADD CONSTRAINT "FK_QUIZZES_WORD"
+FOREIGN KEY ("word_id")
+REFERENCES "words" ("word_id");
+
+
+/* quiz_attempts */
+ALTER TABLE "quiz_attempts"
+ADD CONSTRAINT "FK_QUIZ_ATTEMPTS_QUIZ"
+FOREIGN KEY ("quiz_id")
+REFERENCES "quizzes" ("quiz_id");
+
+ALTER TABLE "quiz_attempts"
+ADD CONSTRAINT "FK_QUIZ_ATTEMPTS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+
+/* chores */
+ALTER TABLE "chores"
+ADD CONSTRAINT "FK_CHORES_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "chores"
+ADD CONSTRAINT "FK_CHORES_PARENT"
+FOREIGN KEY ("parent_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "chores"
+ADD CONSTRAINT "FK_CHORES_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+
+/* chore_completion_requests */
+ALTER TABLE "chore_completion_requests"
+ADD CONSTRAINT "FK_CHORE_COMPLETION_REQUESTS_CHORE"
+FOREIGN KEY ("chore_id")
+REFERENCES "chores" ("chore_id");
+
+ALTER TABLE "chore_completion_requests"
+ADD CONSTRAINT "FK_CHORE_COMPLETION_REQUESTS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+
+/* =========================================================
+7. UNIQUE / CHECK CONSTRAINT
+========================================================= */
+
+/* ---------------------------------------------------------
+users
+
+로그인 아이디와 이메일은 전체 시스템에서 유일해야 함
+--------------------------------------------------------- */
+
+ALTER TABLE "users"
+ADD CONSTRAINT "UQ_USERS_LOGIN_ID"
+UNIQUE ("login_id");
+
+
+ALTER TABLE "users"
+ADD CONSTRAINT "UQ_USERS_EMAIL"
+UNIQUE ("email");
+
+
+/* ---------------------------------------------------------
+linked_accounts
+
+같은 사용자가 같은 계좌번호를 두 번 연동할 수 없음
+--------------------------------------------------------- */
+
+ALTER TABLE "linked_accounts"
+ADD CONSTRAINT "UQ_LINKED_ACCOUNTS_USER_ACCOUNT"
+UNIQUE ("user_id", "account_number");
+
+
+/* ---------------------------------------------------------
+point_transactions
+
+1. 동일 요청 재시도로 인한 이중 충전 방지
+2. 포인트 거래 금액은 반드시 양수
+
+멱등키만으로 유일하게 두면, 키는 클라이언트가 정하는 값이라
+서로 다른 두 자녀가 우연히 같은 Idempotency-Key 를 보냈을 때
+뒤에 온 요청이 남의 거래를 자기 것으로 착각한다.
+유일성 범위를 자녀 안으로 좁힌다.
+
+PostgreSQL 은 NULL 을 서로 다른 값으로 보므로,
+멱등키 없는 내부 거래는 여러 건 허용된다.
+--------------------------------------------------------- */
+
+ALTER TABLE "point_transactions"
+ADD CONSTRAINT "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY"
+UNIQUE ("child_id", "idempotency_key");
+
+
+ALTER TABLE "point_transactions"
+ADD CONSTRAINT "CK_POINT_TRANSACTIONS_AMOUNT_POSITIVE"
+CHECK ("amount" > 0);
+
+
+/* ---------------------------------------------------------
+point_wallets
+
+1. 하나의 자녀는 하나의 포인트 지갑만 보유
+2. 지갑 잔액은 음수가 될 수 없음
+
+V1.0의 UNIQUE(user_id)는
+V1.1에서 컬럼명이 child_id로 변경되었으므로
+UNIQUE(child_id)로 적용
+--------------------------------------------------------- */
+
+ALTER TABLE "point_wallets"
+ADD CONSTRAINT "UQ_POINT_WALLETS_CHILD_ID"
+UNIQUE ("child_id");
+
+
+ALTER TABLE "point_wallets"
+ADD CONSTRAINT "CK_POINT_WALLETS_BALANCE_NON_NEGATIVE"
+CHECK ("balance" >= 0);
+
+
+/* ---------------------------------------------------------
+family_codes
+
+하나의 가족 초대 코드는 전체 시스템에서 유일해야 함
+--------------------------------------------------------- */
+
+ALTER TABLE "family_codes"
+ADD CONSTRAINT "UQ_FAMILY_CODES_CODE"
+UNIQUE ("code");
+
+
+/* ---------------------------------------------------------
+families
+
+1. 주간 기본 용돈과 주간 획득 한도는 음수가 될 수 없음
+   (온보딩 전 기본값 0 은 허용)
+2. 금융 이해도는 정해진 세 값 중 하나
+
+financial_knowledge_level 은 네이티브 ENUM 이 아니라 VARCHAR 이므로
+DB 가 값을 걸러 주지 않는다. CHECK 로 같은 보호를 준다.
+FinancialKnowledgeLevel 열거형에 값을 추가하면 이 CHECK 도 같이 고쳐야 한다.
+--------------------------------------------------------- */
+
+ALTER TABLE "families"
+ADD CONSTRAINT "CK_FAMILIES_WEEKLY_ALLOWANCE_NON_NEGATIVE"
+CHECK ("weekly_allowance" >= 0);
+
+
+ALTER TABLE "families"
+ADD CONSTRAINT "CK_FAMILIES_WEEKLY_REWARD_LIMIT_NON_NEGATIVE"
+CHECK ("weekly_reward_limit" >= 0);
+
+
+ALTER TABLE "families"
+ADD CONSTRAINT "CK_FAMILIES_FINANCIAL_KNOWLEDGE_LEVEL"
+CHECK ("financial_knowledge_level" IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED'));
+
+
+/* ---------------------------------------------------------
+store_products
+
+1. 가치 가중치는 양수 (AI 산정 전 NULL 은 허용)
+2. 가격은 양수 (value 산정 전 NULL 은 허용)
+--------------------------------------------------------- */
+
+ALTER TABLE "store_products"
+ADD CONSTRAINT "CK_STORE_PRODUCTS_VALUE_POSITIVE"
+CHECK ("value" IS NULL OR "value" > 0);
+
+
+ALTER TABLE "store_products"
+ADD CONSTRAINT "CK_STORE_PRODUCTS_PRICE_POSITIVE"
+CHECK ("price" IS NULL OR "price" > 0);
+
+
+/* ---------------------------------------------------------
+chores
+
+1. 가치 가중치는 양수 (AI 산정 전 NULL 은 허용)
+2. 보상 포인트는 양수 (value 산정 전 NULL 은 허용)
+
+상점 상품과 같은 기준이다. 0 을 허용하면 "해도 아무것도 안 주는"
+할 일이 만들어진다.
+--------------------------------------------------------- */
+
+ALTER TABLE "chores"
+ADD CONSTRAINT "CK_CHORES_VALUE_POSITIVE"
+CHECK ("value" IS NULL OR "value" > 0);
+
+
+ALTER TABLE "chores"
+ADD CONSTRAINT "CK_CHORES_REWARD_POINTS_POSITIVE"
+CHECK ("reward_points" IS NULL OR "reward_points" > 0);
+
+
+/* =========================================================
+8. INDEX
+========================================================= */
+
+/* ---------------------------------------------------------
+point_transactions
+
+거래내역 커서 페이징이 쓰는 인덱스. 정렬 키와 순서가 같아야 한다.
+"이 지점 이후"를 인덱스에서 바로 찾아 limit 만큼 읽고 멈추는 것이
+핵심이라, 이 인덱스가 없으면 자녀의 거래를 전부 읽고 정렬한 뒤 잘라낸다.
+
+방향은 ASC 로만 만든다. PostgreSQL 은 인덱스를 역방향으로도
+스캔하므로 최신순(DESC) 조회도 같은 인덱스를 쓴다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT"
+ON "point_transactions" ("child_id", "created_at", "point_transaction_id");
+
+
+/* ---------------------------------------------------------
+chores
+
+FK 제약은 인덱스를 만들어 주지 않는다. PostgreSQL 은 참조받는 쪽(users.user_id)에만
+인덱스를 요구하고 참조하는 쪽(chores.family_id)은 그냥 둔다. 없으면 아래 조회가
+매번 테이블 전체를 훑고 정렬까지 따로 한다.
+
+FAMILY_CHILD: 할 일 목록 조회(CHORE-01)가 쓴다.
+경로가 가족과 아이를 지목하므로 (family_id, child_id) 로 좁힌다. 앞머리가 등호
+조건이어야 인덱스를 타고, 뒤의 created_at·chore_id 는 목록 정렬
+(created_at DESC, chore_id DESC)을 인덱스로 처리해 별도 sort 를 없앤다.
+
+삭제 조건은 컬럼에 넣지 않고 WHERE 절(부분 인덱스)로 둔다. 목록은 살아 있는 것만
+보므로 지워진 행은 인덱스에 담을 이유가 없다. 컬럼으로 넣는 것보다 인덱스가 작아지고
+조회 조건과 모양이 정확히 같아진다.
+
+FAMILY: 완료 요청 목록(CHORE-08)이 chore_completion_requests 와 chores 를
+조인해 family_id 로 좁힐 때 쓴다. 그쪽은 삭제 여부를 보지 않으므로 family_id 만 건다.
+아직 그 API 가 없어 지금은 쓰이지 않는다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_CHORES_FAMILY_CHILD"
+ON "chores" ("family_id", "child_id", "created_at", "chore_id")
+WHERE "deleted_at" IS NULL;
+
+
+CREATE INDEX "IX_CHORES_FAMILY"
+ON "chores" ("family_id");

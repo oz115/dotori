@@ -2,10 +2,10 @@ package com.bana.dotori.chore.dto;
 
 import java.time.LocalDate;
 
+import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,32 +13,53 @@ import jakarta.validation.constraints.Size;
 /**
  * 집안일 생성 요청 (CHORE-04).
  *
- * <p>childId·familyId 는 본문에 없다. 경로가 이미 지목하고 있어 두 군데서 받으면
- * 서로 다른 값이 올 때 무엇을 믿을지 정해야 한다. parentId 도 인증 주체에서 채운다.
+ * <p>화면의 "반복" 체크가 repeatType 으로 온다.
+ * <ul>
+ *   <li>체크 안 함 → {@code ONCE}. 부모가 startDate·endDate 를 직접 넣는다.</li>
+ *   <li>체크 함 → {@code DAY}/{@code WEEK}/{@code MONTH}. 날짜는 보내지 않아도 되고,
+ *       보내도 무시한다. 시작일은 등록한 날, 종료일은 주기에서 계산한다.</li>
+ * </ul>
  *
- * <p>startDate 를 비우면 오늘부터, endDate 를 비우면 기한 없이 반복한다.
+ * <p>보상은 받지 않는다. AI 가 등록 직후 비동기로 가치 가중치(value)를 산정하고
+ * 주간 기본 용돈(families.weekly_allowance)을 곱해 정한다. 부모가 직접 정하게 하면
+ * 비현실적인 보상으로 포인트 체계가 무너지므로 의도적으로 막았다
+ * (상점 상품의 price 와 같은 기준).
+ *
+ * <p>childId·familyId 는 경로가 이미 지목하고 있어 본문에 두지 않는다.
  */
 public record ChoreCreateRequest(
 	@NotBlank @Size(max = 100) String title,
 	@Size(max = 255) String description,
-	@NotNull @Min(1) Integer rewardPoints,
+	@NotNull ChoreDifficulty difficulty,
 	@NotNull ChoreRepeatType repeatType,
 	LocalDate startDate,
 	LocalDate endDate
 ) {
 
 	/**
-	 * 종료일이 시작일보다 앞서면 애초에 수행할 수 없는 집안일이 된다.
+	 * 일회성이면 기간을 반드시 받아야 한다.
 	 *
-	 * <p>필드 하나만 보는 제약으로는 잡을 수 없어 요청 전체를 보고 판정한다.
-	 * startDate 를 비운 경우는 엔티티가 오늘로 채우므로 여기서도 오늘로 보고 비교한다.
+	 * <p>반복은 주기에서 계산하지만 일회성은 계산할 근거가 없다. 비워 두면
+	 * "언제부터 언제까지인지 아무도 모르는 할 일"이 만들어진다.
 	 */
-	@AssertTrue(message = "종료일은 시작일과 같거나 이후여야 합니다")
-	public boolean isPeriodOrdered() {
-		if (endDate == null) {
+	@AssertTrue(message = "반복하지 않는 할 일은 시작일과 종료일이 필요합니다")
+	public boolean isOncePeriodPresent() {
+		if (repeatType == null || repeatType.isRepeating()) {
 			return true;
 		}
-		LocalDate from = startDate != null ? startDate : LocalDate.now();
-		return !endDate.isBefore(from);
+		return startDate != null && endDate != null;
+	}
+
+	/**
+	 * 일회성의 종료일이 시작일보다 앞설 수 없다.
+	 *
+	 * <p>반복은 계산으로 나오므로 뒤집힐 수 없어 검사하지 않는다.
+	 */
+	@AssertTrue(message = "종료일은 시작일과 같거나 이후여야 합니다")
+	public boolean isOncePeriodOrdered() {
+		if (repeatType == null || repeatType.isRepeating() || startDate == null || endDate == null) {
+			return true;
+		}
+		return !endDate.isBefore(startDate);
 	}
 }

@@ -1,12 +1,18 @@
 package com.bana.dotori.chore.service;
 
+import java.time.LocalDate;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
+import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.Chore;
+import com.bana.dotori.chore.entity.ChoreRepeatType;
+import com.bana.dotori.chore.event.ChoreCreatedEvent;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.family.entity.FamilyMember;
@@ -29,6 +35,7 @@ public class ChoreServiceImpl implements ChoreService {
 	private final FamilyMemberRepository familyMemberRepository;
 	private final UserRepository userRepository;
 	private final ChoreMapper choreMapper;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -39,17 +46,28 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 
+		// 반복이면 오늘부터 주기 끝까지, 일회성이면 부모가 넣은 기간을 쓴다.
+		// 반복에서 요청의 날짜를 무시하는 이유는 크론이 주기마다 기간을 다시 계산해 밀기 때문이다.
+		// 부모가 넣은 날짜를 그대로 두면 첫 주기만 다르게 굴러간다.
+		boolean repeating = request.repeatType().isRepeating();
+		LocalDate startDate = repeating ? LocalDate.now() : request.startDate();
+		LocalDate endDate = repeating ? request.repeatType().endDateFrom(startDate) : request.endDate();
+
 		Chore chore = choreRepository.save(Chore.builder()
 			.familyId(familyId)
 			.parentId(userId)
 			.childId(childId)
 			.title(request.title())
 			.description(request.description())
-			.rewardPoints(request.rewardPoints())
+			.difficulty(request.difficulty())
 			.repeatType(request.repeatType())
-			.startDate(request.startDate())
-			.endDate(request.endDate())
+			.startDate(startDate)
+			.endDate(endDate)
 			.build());
+
+		// value·rewardPoints 는 AI 서버가 비동기로 채운다 — 커밋 이후에만 발행되도록 이벤트로 넘긴다.
+		eventPublisher.publishEvent(new ChoreCreatedEvent(chore.getId(), familyId, childId,
+			chore.getTitle(), chore.getDescription(), chore.getDifficulty(), chore.getRepeatType()));
 
 		return choreMapper.toDetailResponse(chore);
 	}
@@ -59,7 +77,7 @@ public class ChoreServiceImpl implements ChoreService {
 	public ChoreListResponse getChores(Integer userId, Integer familyId, Integer childId) {
 		validateAccess(userId, familyId, childId);
 		return choreMapper.toListResponse(
-			choreRepository.findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(familyId, childId));
+			choreRepository.findAllByFamilyIdAndChildIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(familyId, childId));
 	}
 
 	@Override
@@ -77,6 +95,91 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.CHORE_NOT_FOUND);
 		}
 		return choreMapper.toDetailResponse(chore);
+	}
+
+	@Override
+	@Transactional
+	public ChoreDetailResponse updateChore(Integer userId, Integer familyId, Integer childId, Integer choreId,
+			ChoreUpdateRequest request) {
+		Chore chore = findForParent(userId, familyId, childId, choreId);
+
+		chore.update(request.title(), request.description(), request.difficulty(), request.rewardPoints());
+		applyPeriod(chore, request);
+
+		return choreMapper.toDetailResponse(chore);
+	}
+
+	@Override
+	@Transactional
+	public void deleteChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
+		findForParent(userId, familyId, childId, choreId).softDelete();
+	}
+
+	/**
+	 * 수정 요청의 주기·기간을 반영한다 (CHORE-05).
+	 *
+	 * <p>주기를 바꾸면 기간을 다시 정한다. 주기만 바꾸고 기간을 그대로 두면 예전 주기의
+	 * 날짜가 남아, 일회성(9/10~9/20)을 매일로 바꿨을 때 "매일 반복인데 9/20 에 끝나는"
+	 * 상태가 된다. 크론은 end_date 가 지난 것만 밀기 때문에 그날이 와야 정상으로 돌아온다.
+	 *
+	 * <ul>
+	 *   <li>반복으로 바꿈 → 오늘 기준으로 계산한다. 요청의 날짜는 쓰지 않는다.</li>
+	 *   <li>일회성으로 바꿈 → 날짜를 함께 받아야 한다. 종료일을 계산할 근거가 없다.</li>
+	 *   <li>주기를 그대로 둠
+	 *     <ul>
+	 *       <li>반복이면 손대지 않는다. 기간은 크론이 관리한다.</li>
+	 *       <li>일회성이면 보낸 날짜만 반영한다.</li>
+	 *     </ul>
+	 *   </li>
+	 * </ul>
+	 */
+	private void applyPeriod(Chore chore, ChoreUpdateRequest request) {
+		ChoreRepeatType target = request.repeatType() != null ? request.repeatType() : chore.getRepeatType();
+		boolean typeChanged = request.repeatType() != null && request.repeatType() != chore.getRepeatType();
+
+		if (target.isRepeating()) {
+			if (typeChanged) {
+				LocalDate today = LocalDate.now();
+				chore.changePeriod(target, today, target.endDateFrom(today));
+			}
+			return;
+		}
+
+		if (typeChanged) {
+			if (request.startDate() == null || request.endDate() == null) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST,
+					"반복하지 않는 할 일로 바꿀 때는 시작일과 종료일이 필요합니다");
+			}
+			chore.changePeriod(ChoreRepeatType.ONCE, request.startDate(), request.endDate());
+			return;
+		}
+
+		if (request.startDate() != null || request.endDate() != null) {
+			// 한쪽만 보낼 수 있다. 보내지 않은 쪽은 지금 값을 그대로 쓴다.
+			chore.changePeriod(ChoreRepeatType.ONCE,
+				request.startDate() != null ? request.startDate() : chore.getStartDate(),
+				request.endDate() != null ? request.endDate() : chore.getEndDate());
+		}
+	}
+
+	/**
+	 * 부모만 할 수 있는 변경(CHORE-05·06)의 공통 진입점.
+	 *
+	 * <p>이미 지운 집안일도 찾는다. 이미 지운 것을 고치는 일은 드물지만, 걸려 있는 완료 요청 때문에
+	 * 보상 금액을 바로잡아야 하는 경우가 있다.
+	 */
+	private Chore findForParent(Integer userId, Integer familyId, Integer childId, Integer choreId) {
+		validateAccess(userId, familyId, childId);
+		if (findUser(userId).getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+
+		Chore chore = choreRepository.findByIdAndFamilyId(choreId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_NOT_FOUND));
+		if (!chore.getChildId().equals(childId)) {
+			throw new BusinessException(ErrorCode.CHORE_NOT_FOUND);
+		}
+		return chore;
 	}
 
 	/**

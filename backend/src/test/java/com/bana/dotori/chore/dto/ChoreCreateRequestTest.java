@@ -10,9 +10,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 
@@ -31,99 +31,100 @@ class ChoreCreateRequestTest {
 			.collect(Collectors.toSet());
 	}
 
-	private ChoreCreateRequest request(String title, String description, Integer rewardPoints,
-			ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
-		return new ChoreCreateRequest(title, description, rewardPoints, repeatType, startDate, endDate);
+	private ChoreCreateRequest request(String title, String description, ChoreDifficulty difficulty,
+			ChoreRepeatType repeatType) {
+		return new ChoreCreateRequest(title, description, difficulty, repeatType, null, null);
 	}
 
-	private ChoreCreateRequest valid() {
-		return request("설거지", "저녁 먹고 나서", 500, ChoreRepeatType.DAY,
-			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
+	private ChoreCreateRequest once(LocalDate startDate, LocalDate endDate) {
+		return new ChoreCreateRequest("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.ONCE,
+			startDate, endDate);
 	}
 
 	@Test
-	@DisplayName("모든 값이 유효하면 위반이 없다")
+	@DisplayName("네 값이 유효하면 위반이 없다")
 	void validate_success() {
-		Set<ConstraintViolation<ChoreCreateRequest>> violations = validator.validate(valid());
-
-		assertThat(violations).isEmpty();
+		assertThat(validator.validate(
+			request("설거지", "저녁 먹고 나서", ChoreDifficulty.NORMAL, ChoreRepeatType.DAY))).isEmpty();
 	}
 
 	@Test
-	@DisplayName("기간을 비워도 위반이 없다")
-	void validate_nullPeriod() {
-		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY, null, null);
-
-		assertThat(validator.validate(request)).isEmpty();
+	@DisplayName("설명은 비워도 위반이 없다")
+	void validate_nullDescription() {
+		assertThat(validator.validate(
+			request("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.DAY))).isEmpty();
 	}
 
 	@Test
 	@DisplayName("title이 비어 있으면 위반이 발생한다")
 	void validate_blankTitle() {
-		ChoreCreateRequest request = request(" ", null, 500, ChoreRepeatType.DAY, null, null);
-
-		assertThat(violatedFields(request)).contains("title");
+		assertThat(violatedFields(request(" ", null, ChoreDifficulty.NORMAL, ChoreRepeatType.DAY)))
+			.contains("title");
 	}
 
 	@Test
 	@DisplayName("title이 100자를 초과하면 위반이 발생한다")
 	void validate_tooLongTitle() {
-		ChoreCreateRequest request = request("가".repeat(101), null, 500, ChoreRepeatType.DAY, null, null);
-
-		assertThat(violatedFields(request)).contains("title");
+		assertThat(violatedFields(
+			request("가".repeat(101), null, ChoreDifficulty.NORMAL, ChoreRepeatType.DAY))).contains("title");
 	}
 
 	@Test
 	@DisplayName("description이 255자를 초과하면 위반이 발생한다")
 	void validate_tooLongDescription() {
-		ChoreCreateRequest request = request("설거지", "가".repeat(256), 500, ChoreRepeatType.DAY, null, null);
-
-		assertThat(violatedFields(request)).contains("description");
+		assertThat(violatedFields(
+			request("설거지", "가".repeat(256), ChoreDifficulty.NORMAL, ChoreRepeatType.DAY)))
+			.contains("description");
 	}
 
 	@Test
-	@DisplayName("rewardPoints가 0 이하면 위반이 발생한다")
-	void validate_nonPositiveRewardPoints() {
-		// 0 을 허용하면 "해도 아무것도 안 주는" 집안일이 만들어진다.
-		assertThat(violatedFields(request("설거지", null, 0, ChoreRepeatType.DAY, null, null)))
-			.contains("rewardPoints");
-		assertThat(violatedFields(request("설거지", null, -1, ChoreRepeatType.DAY, null, null)))
-			.contains("rewardPoints");
+	@DisplayName("난이도가 null이면 위반이 발생한다")
+	void validate_nullDifficulty() {
+		assertThat(violatedFields(request("설거지", null, null, ChoreRepeatType.DAY))).contains("difficulty");
 	}
 
 	@Test
-	@DisplayName("repeatType이 null이면 위반이 발생한다")
+	@DisplayName("반복 주기가 null이면 위반이 발생한다")
 	void validate_nullRepeatType() {
-		ChoreCreateRequest request = request("설거지", null, 500, null, null, null);
-
-		assertThat(violatedFields(request)).contains("repeatType");
+		assertThat(violatedFields(request("설거지", null, ChoreDifficulty.NORMAL, null)))
+			.contains("repeatType");
 	}
 
 	@Test
-	@DisplayName("종료일이 시작일보다 앞서면 위반이 발생한다")
-	void validate_endBeforeStart() {
-		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
-			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 9));
-
-		assertThat(violatedFields(request)).contains("periodOrdered");
+	@DisplayName("반복이면 날짜를 비워도 위반이 없다")
+	void validate_repeatingWithoutDates() {
+		// 반복은 등록한 날에서 주기로 계산하므로 부모가 날짜를 넣을 필요가 없다.
+		assertThat(validator.validate(request("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.WEEK)))
+			.isEmpty();
 	}
 
 	@Test
-	@DisplayName("종료일과 시작일이 같으면 위반이 없다")
-	void validate_sameDay() {
-		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
-			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 10));
-
-		assertThat(validator.validate(request)).isEmpty();
+	@DisplayName("일회성에 기간을 주면 위반이 없다")
+	void validate_onceWithPeriod() {
+		assertThat(validator.validate(once(LocalDate.of(2026, 9, 8), LocalDate.of(2026, 9, 20)))).isEmpty();
 	}
 
 	@Test
-	@DisplayName("시작일을 비운 채 종료일을 과거로 주면 위반이 발생한다")
-	void validate_pastEndWithoutStart() {
-		// startDate 를 비우면 오늘부터 시작하므로, 어제 끝나는 집안일은 성립하지 않는다.
-		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
-			null, LocalDate.now().minusDays(1));
+	@DisplayName("일회성인데 기간이 없으면 위반이 발생한다")
+	void validate_onceWithoutPeriod() {
+		// 반복은 계산으로 나오지만 일회성은 계산할 근거가 없다.
+		assertThat(violatedFields(once(null, null))).contains("oncePeriodPresent");
+		assertThat(violatedFields(once(LocalDate.of(2026, 9, 8), null))).contains("oncePeriodPresent");
+		assertThat(violatedFields(once(null, LocalDate.of(2026, 9, 20)))).contains("oncePeriodPresent");
+	}
 
-		assertThat(violatedFields(request)).contains("periodOrdered");
+	@Test
+	@DisplayName("일회성의 종료일이 시작일보다 앞서면 위반이 발생한다")
+	void validate_onceReversedPeriod() {
+		assertThat(violatedFields(once(LocalDate.of(2026, 9, 20), LocalDate.of(2026, 9, 8))))
+			.contains("oncePeriodOrdered");
+	}
+
+	@Test
+	@DisplayName("일회성의 시작일과 종료일이 같으면 위반이 없다")
+	void validate_onceSameDay() {
+		LocalDate day = LocalDate.of(2026, 9, 8);
+
+		assertThat(validator.validate(once(day, day))).isEmpty();
 	}
 }
