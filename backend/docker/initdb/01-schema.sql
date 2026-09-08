@@ -464,3 +464,9 @@ ALTER TABLE "store_products" ADD CONSTRAINT "CK_STORE_PRODUCTS_VALUE_POSITIVE" C
 ALTER TABLE "store_products" ADD CONSTRAINT "CK_STORE_PRODUCTS_PRICE_POSITIVE" CHECK ("price" IS NULL OR "price" > 0);
 
 CREATE INDEX "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT" ON "point_transactions" ("child_id", "created_at", "point_transaction_id");
+
+/* 집안일 목록 조회(CHORE-01)가 거는 조건. FK 는 인덱스를 만들어 주지 않는다.
+   부모는 가족 전체를, 아이는 자기 몫만 보고, 둘 다 활성만 본다.
+   맨 뒤 chore_id 는 목록 정렬(created_at DESC, chore_id DESC)의 타이브레이커다. */
+CREATE INDEX "IX_CHORES_FAMILY_ACTIVE" ON "chores" ("family_id", "is_active", "created_at", "chore_id");
+CREATE INDEX "IX_CHORES_CHILD_ACTIVE" ON "chores" ("child_id", "is_active", "created_at", "chore_id");

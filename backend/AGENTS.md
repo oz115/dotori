@@ -58,6 +58,12 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
   - **service**: Mockito 단위 테스트 — `@ExtendWith(MockitoExtension.class)`, repository/encoder는 `@Mock`, mapper는 `@Spy`
   - **controller**: `@WebMvcTest` 슬라이스 테스트 — service는 `@MockitoBean`, `SecurityConfig`를 `@Import`해서 시큐리티 규칙 포함, MockMvc로 상태 코드·응답 JSON·에러 형식 검증
 - 테스트 클래스명은 `{대상 클래스}Test`, 메서드명은 `{기능}_{시나리오}` 형식으로 작성한다.
+- **새 기능은 위 세 계층(dto·service·controller)까지만 쓴다.** 리포지토리 테스트와 통합 테스트는
+  기본으로 만들지 않는다 — 테스트가 많아 개발 속도가 떨어진다는 팀 결정이다.
+  DB 를 띄우는 테스트는 그것 없이는 검증이 불가능할 때만 만들고, 만들기 전에 팀에 알린다.
+  - 이미 있는 지갑·가족 쪽 리포지토리·통합 테스트는 그대로 둔다 (동시성·잠금 검증이 목적이라 대체가 없다).
+  - 엔티티에 계산 로직이 있으면 스프링 없는 단위 테스트로 덮는다 (`PointWalletTest`, `ChoreTest`).
+  - 대신 스키마와 엔티티가 어긋나는 것은 테스트가 아니라 `ddl-auto: validate` 로 잡는다.
 ### DB 두 개를 역할로 나눠 쓴다
 
 | | 로컬 도커 DB | 공용 EC2 DB |
