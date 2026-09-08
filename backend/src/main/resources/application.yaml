@@ -56,8 +56,6 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-validity-seconds: 1800
   refresh-token-validity-seconds: 1209600
-  # Refresh Token 쿠키의 Secure 속성. HTTPS를 쓰는 운영 환경에서는 COOKIE_SECURE=true로 주입한다
-  cookie-secure: ${COOKIE_SECURE:false}
 
 finance:
   base-url: ${FINANCE_BASE_URL:https://finopenapi.ssafy.io/ssafy/api/v1}

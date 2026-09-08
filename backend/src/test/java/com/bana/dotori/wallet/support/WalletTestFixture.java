@@ -90,6 +90,8 @@ public final class WalletTestFixture {
 	public static void cleanUp(JdbcTemplate jdbcTemplate) {
 		jdbcTemplate.update("DELETE FROM point_transactions WHERE child_id IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM point_wallets WHERE child_id IN (" + TEST_USER_IDS + ")");
+		jdbcTemplate.update("DELETE FROM store_products WHERE created_by IN (" + TEST_USER_IDS + ")"
+				+ " OR family_id IN (SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM family_codes WHERE family_id IN ("
 				+ "SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM family_members WHERE user_id IN (" + TEST_USER_IDS + ")"

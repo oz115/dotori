@@ -1,12 +1,10 @@
 package com.bana.dotori.auth.controller;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,9 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
-import com.bana.dotori.auth.dto.LoginResult;
 import com.bana.dotori.auth.dto.TokenRefreshResponse;
-import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.service.AuthService;
 import com.bana.dotori.auth.service.EmailVerificationService;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -38,14 +34,11 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
-import com.bana.dotori.global.security.RefreshTokenCookieProvider;
 import com.bana.dotori.user.entity.UserRole;
-
-import jakarta.servlet.http.Cookie;
 
 @WebMvcTest(AuthController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtAuthenticationEntryPoint.class,
-	JwtAccessDeniedHandler.class, RefreshTokenCookieProvider.class})
+	JwtAccessDeniedHandler.class})
 class AuthControllerTest {
 
 	@Autowired
@@ -63,7 +56,6 @@ class AuthControllerTest {
 	private static final String LOGIN_URL = "/api/v1/auth/login";
 	private static final String REFRESH_URL = "/api/v1/auth/refresh";
 	private static final String LOGOUT_URL = "/api/v1/auth/logout";
-	private static final String COOKIE_NAME = RefreshTokenCookieProvider.COOKIE_NAME;
 
 	private static final String LOGIN_BODY = """
 		{
@@ -73,25 +65,21 @@ class AuthControllerTest {
 		""";
 
 	@Test
-	@DisplayName("로그인 성공 시 200과 함께 body에 Access Token, HttpOnly 쿠키에 Refresh Token을 내려준다")
+	@DisplayName("로그인 성공 시 200과 함께 body에 Access Token과 Refresh Token을 내려준다")
 	void login_success() throws Exception {
-		LoginResult result = new LoginResult(
-			new LoginResponse("access-token", "Bearer", 1800,
-				new LoginResponse.UserSummary(1, "김도토", UserRole.PARENT)),
-			"refresh-token");
-		given(authService.login(any(LoginRequest.class))).willReturn(result);
+		LoginResponse response = new LoginResponse("access-token", "refresh-token", "Bearer", 1800,
+			new LoginResponse.UserSummary(1, "김도토", UserRole.PARENT));
+		given(authService.login(any(LoginRequest.class))).willReturn(response);
 
 		mockMvc.perform(post(LOGIN_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(LOGIN_BODY))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.accessToken").value("access-token"))
+			.andExpect(jsonPath("$.refreshToken").value("refresh-token"))
 			.andExpect(jsonPath("$.tokenType").value("Bearer"))
 			.andExpect(jsonPath("$.expiresIn").value(1800))
-			.andExpect(jsonPath("$.refreshToken").doesNotExist())
-			.andExpect(jsonPath("$.user.userId").value(1))
-			.andExpect(header().string(HttpHeaders.SET_COOKIE, containsString(COOKIE_NAME + "=refresh-token")))
-			.andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")));
+			.andExpect(jsonPath("$.user.userId").value(1));
 	}
 
 	@Test
@@ -120,22 +108,34 @@ class AuthControllerTest {
 	}
 
 	@Test
-	@DisplayName("재발급 성공 시 200과 새 Access Token, 새 Refresh Token 쿠키를 내려준다")
+	@DisplayName("재발급 성공 시 200과 새 Access Token, 새 Refresh Token을 body로 내려준다")
 	void refresh_success() throws Exception {
 		given(authService.refresh("old-refresh-token")).willReturn(
-			new TokenRefreshResult(new TokenRefreshResponse("new-access", "Bearer", 1800), "new-refresh"));
+			new TokenRefreshResponse("new-access", "new-refresh", "Bearer", 1800));
 
 		mockMvc.perform(post(REFRESH_URL)
-				.cookie(new Cookie(COOKIE_NAME, "old-refresh-token")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"refreshToken\": \"old-refresh-token\"}"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.accessToken").value("new-access"))
-			.andExpect(jsonPath("$.refreshToken").doesNotExist())
-			.andExpect(header().string(HttpHeaders.SET_COOKIE, containsString(COOKIE_NAME + "=new-refresh")));
+			.andExpect(jsonPath("$.refreshToken").value("new-refresh"));
 	}
 
 	@Test
-	@DisplayName("Refresh Token 쿠키 없이 재발급을 요청하면 401과 INVALID_REFRESH_TOKEN 에러를 반환한다")
-	void refresh_withoutCookie() throws Exception {
+	@DisplayName("Refresh Token 없이 재발급을 요청하면 401과 INVALID_REFRESH_TOKEN 에러를 반환한다")
+	void refresh_withoutToken() throws Exception {
+		mockMvc.perform(post(REFRESH_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+
+		then(authService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("body 없이 재발급을 요청해도 401과 INVALID_REFRESH_TOKEN 에러를 반환한다")
+	void refresh_withoutBody() throws Exception {
 		mockMvc.perform(post(REFRESH_URL))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
@@ -150,13 +150,14 @@ class AuthControllerTest {
 			.willThrow(new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
 
 		mockMvc.perform(post(REFRESH_URL)
-				.cookie(new Cookie(COOKIE_NAME, "forged-token")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"refreshToken\": \"forged-token\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
 	}
 
 	@Test
-	@DisplayName("로그아웃 성공 시 204를 반환하고 Refresh Token 쿠키를 만료시킨다")
+	@DisplayName("로그아웃 성공 시 204를 반환한다")
 	void logout_success() throws Exception {
 		given(jwtTokenProvider.getAuthentication("valid-access-token"))
 			.willReturn(new UsernamePasswordAuthenticationToken(1, null,
@@ -164,16 +165,16 @@ class AuthControllerTest {
 
 		mockMvc.perform(post(LOGOUT_URL)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer valid-access-token")
-				.cookie(new Cookie(COOKIE_NAME, "refresh-token")))
-			.andExpect(status().isNoContent())
-			.andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"refreshToken\": \"refresh-token\"}"))
+			.andExpect(status().isNoContent());
 
 		then(authService).should().logout(eq(1), eq("refresh-token"));
 	}
 
 	@Test
-	@DisplayName("Refresh Token 쿠키 없이 로그아웃하면 401과 UNAUTHORIZED 에러를 반환한다")
-	void logout_withoutCookie() throws Exception {
+	@DisplayName("Refresh Token 없이 로그아웃하면 401과 UNAUTHORIZED 에러를 반환한다")
+	void logout_withoutToken() throws Exception {
 		given(jwtTokenProvider.getAuthentication("valid-access-token"))
 			.willReturn(new UsernamePasswordAuthenticationToken(1, null,
 				List.of(new SimpleGrantedAuthority("ROLE_PARENT"))));
@@ -190,7 +191,8 @@ class AuthControllerTest {
 	@DisplayName("Access Token 없이 로그아웃하면 401과 UNAUTHORIZED 에러를 반환한다")
 	void logout_withoutAccessToken() throws Exception {
 		mockMvc.perform(post(LOGOUT_URL)
-				.cookie(new Cookie(COOKIE_NAME, "refresh-token")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"refreshToken\": \"refresh-token\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
