@@ -16,6 +16,8 @@ import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.dto.StoreProductUpdateRequest;
+import com.bana.dotori.store.dto.StorePurchaseRequest;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.service.StoreProductService;
 
 import jakarta.validation.Valid;
@@ -59,5 +61,14 @@ public class StoreProductController {
 		@PathVariable Integer familyId, @PathVariable Integer productId) {
 		storeProductService.deleteProduct(userId, familyId, productId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{productId}/purchases")
+	public ResponseEntity<StorePurchaseResponse> purchaseProduct(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer productId,
+		@Valid @RequestBody StorePurchaseRequest request) {
+		StorePurchaseResponse response = storeProductService.purchaseProduct(userId, familyId, productId,
+			request.quantity());
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 }
