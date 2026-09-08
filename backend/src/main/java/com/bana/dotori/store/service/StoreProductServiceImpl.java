@@ -38,14 +38,14 @@ public class StoreProductServiceImpl implements StoreProductService {
 	public StoreProductListResponse getProducts(Integer userId, Integer familyId) {
 		validateFamilyMember(userId, familyId);
 		return storeProductMapper.toListResponse(
-			storeProductRepository.findAllByFamilyIdOrderByCreatedAtDescIdDesc(familyId));
+			storeProductRepository.findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(familyId));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public StoreProductDetailResponse getProduct(Integer userId, Integer familyId, Integer productId) {
 		validateFamilyMember(userId, familyId);
-		StoreProduct product = storeProductRepository.findByIdAndFamilyId(productId, familyId)
+		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 		return storeProductMapper.toDetailResponse(product);
 	}
@@ -91,12 +91,27 @@ public class StoreProductServiceImpl implements StoreProductService {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST);
 		}
 
-		StoreProduct product = storeProductRepository.findByIdAndFamilyId(productId, familyId)
+		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 		product.update(request.name(), request.description(), request.category(), request.price(),
 			request.quantity());
 
 		return storeProductMapper.toDetailResponse(product);
+	}
+
+	@Override
+	@Transactional
+	public void deleteProduct(Integer userId, Integer familyId, Integer productId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		validateFamilyMember(userId, familyId);
+
+		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		product.softDelete();
 	}
 
 	/**

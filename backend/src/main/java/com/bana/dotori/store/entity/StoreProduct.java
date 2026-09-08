@@ -70,6 +70,9 @@ public class StoreProduct {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	@Builder
 	private StoreProduct(Integer familyId, Integer createdBy, String name, String description,
 			StoreProductCategory category, BigDecimal value, Integer price, int quantity) {
@@ -107,5 +110,13 @@ public class StoreProduct {
 		if (quantity != null) {
 			this.quantity = quantity;
 		}
+	}
+
+	/**
+	 * 상품 삭제 (SHOP-05). 구매 이력(purchases)이 이 상품을 참조하므로 hard delete 대신
+	 * soft delete 한다 — 이미 팔린 상품을 지워버리면 구매 이력에서 상품 정보를 잃는다.
+	 */
+	public void softDelete() {
+		this.deletedAt = OffsetDateTime.now();
 	}
 }
