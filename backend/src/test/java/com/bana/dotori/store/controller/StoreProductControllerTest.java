@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -266,6 +267,113 @@ class StoreProductControllerTest {
 						"quantity": 1
 					}
 					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("상품 수정 성공 시 200과 수정된 상품을 반환한다")
+	void updateProduct_success() throws Exception {
+		givenAuthenticated(1);
+		OffsetDateTime updatedAt = OffsetDateTime.of(2026, 8, 28, 13, 0, 0, 0, ZoneOffset.ofHours(9));
+		given(storeProductService.updateProduct(eq(1), eq(10), eq(5), any())).willReturn(new StoreProductDetailResponse(
+			5, "게임 1시간 이용권", "주말에만 사용 가능", StoreProductCategory.GAME, new BigDecimal("0.60"),
+			5000, 3, 1, updatedAt));
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"name": "게임 1시간 이용권",
+						"price": 5000,
+						"quantity": 3
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.storeProductId").value(5))
+			.andExpect(jsonPath("$.name").value("게임 1시간 이용권"))
+			.andExpect(jsonPath("$.price").value(5000))
+			.andExpect(jsonPath("$.quantity").value(3));
+	}
+
+	@Test
+	@DisplayName("빈 바디로 수정 요청해도 200을 반환한다 (부분 수정, 아무 필드도 안 바뀜)")
+	void updateProduct_emptyBody() throws Exception {
+		givenAuthenticated(1);
+		OffsetDateTime updatedAt = OffsetDateTime.of(2026, 8, 28, 13, 0, 0, 0, ZoneOffset.ofHours(9));
+		given(storeProductService.updateProduct(eq(1), eq(10), eq(5), any())).willReturn(new StoreProductDetailResponse(
+			5, "자전거", "설명", StoreProductCategory.TOY, null, null, 1, 1, updatedAt));
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("자녀가 수정을 시도하면 403과 FORBIDDEN 에러를 반환한다")
+	void updateProduct_forbidden() throws Exception {
+		givenAuthenticated(2);
+		given(storeProductService.updateProduct(eq(2), eq(10), eq(5), any()))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 3}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 404와 PRODUCT_NOT_FOUND 에러를 반환한다")
+	void updateProduct_notFound() throws Exception {
+		givenAuthenticated(1);
+		given(storeProductService.updateProduct(eq(1), eq(10), eq(999), any()))
+			.willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/999")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 3}"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("가격이 0 이하면 400과 INVALID_REQUEST 에러를 반환한다")
+	void updateProduct_invalidRequest_nonPositivePrice() throws Exception {
+		givenAuthenticated(1);
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"price\": 0}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("수량이 음수면 400과 INVALID_REQUEST 에러를 반환한다")
+	void updateProduct_invalidRequest_negativeQuantity() throws Exception {
+		givenAuthenticated(1);
+
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": -1}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 수정하면 401을 반환한다")
+	void updateProduct_unauthorized() throws Exception {
+		mockMvc.perform(patch(PRODUCTS_URL + "/5")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 3}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}

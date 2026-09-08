@@ -82,4 +82,30 @@ public class StoreProduct {
 		this.price = price;
 		this.quantity = quantity;
 	}
+
+	/**
+	 * 상품 정보 부분 수정 (SHOP-04). null 인 필드는 그대로 둔다.
+	 *
+	 * <p>name/description/category 가 바뀌어도 value 는 건드리지 않는다 — AI 가 이미 산정한 값을
+	 * 무효화하는 재평가 로직은 아직 없다(추후 별도 작업). price 는 AI 산정값이지만 부모가 직접
+	 * 덮어쓸 수 있게 열어 둔다.
+	 */
+	public void update(String name, String description, StoreProductCategory category, Integer price,
+			Integer quantity) {
+		if (name != null) {
+			this.name = name;
+		}
+		if (description != null) {
+			this.description = description;
+		}
+		if (category != null) {
+			this.category = category;
+		}
+		if (price != null) {
+			this.price = price;
+		}
+		if (quantity != null) {
+			this.quantity = quantity;
+		}
+	}
 }
