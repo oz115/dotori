@@ -45,8 +45,13 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 
-		// 부모는 주기만 고른다. 시작일은 오늘, 종료일은 주기에서 계산한다.
-		LocalDate startDate = LocalDate.now();
+		// 반복이면 오늘부터 주기 끝까지, 일회성이면 부모가 넣은 기간을 쓴다.
+		// 반복에서 요청의 날짜를 무시하는 이유는 크론이 주기마다 기간을 다시 계산해 밀기 때문이다.
+		// 부모가 넣은 날짜를 그대로 두면 첫 주기만 다르게 굴러간다.
+		boolean repeating = request.repeatType().isRepeating();
+		LocalDate startDate = repeating ? LocalDate.now() : request.startDate();
+		LocalDate endDate = repeating ? request.repeatType().endDateFrom(startDate) : request.endDate();
+
 		Chore chore = choreRepository.save(Chore.builder()
 			.familyId(familyId)
 			.parentId(userId)
@@ -56,7 +61,7 @@ public class ChoreServiceImpl implements ChoreService {
 			.difficulty(request.difficulty())
 			.repeatType(request.repeatType())
 			.startDate(startDate)
-			.endDate(request.repeatType().endDateFrom(startDate))
+			.endDate(endDate)
 			.build());
 
 		// value·rewardPoints 는 AI 서버가 비동기로 채운다 — 커밋 이후에만 발행되도록 이벤트로 넘긴다.

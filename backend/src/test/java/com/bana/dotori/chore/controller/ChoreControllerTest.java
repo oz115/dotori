@@ -297,6 +297,43 @@ class ChoreControllerTest {
 	}
 
 	@Test
+	@DisplayName("일회성인데 기간을 안 보내면 400을 반환하고 서비스는 호출하지 않는다")
+	void createChore_onceWithoutPeriod() throws Exception {
+		givenAuthenticated(USER_ID);
+
+		mockMvc.perform(post(CHORES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body("\"설거지\"", "\"NORMAL\"", "\"ONCE\"")))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		verify(choreService, never()).createChore(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("일회성에 기간을 보내면 201을 반환한다")
+	void createChore_onceWithPeriod() throws Exception {
+		givenAuthenticated(USER_ID);
+		given(choreService.createChore(eq(USER_ID), eq(FAMILY_ID), eq(CHILD_ID), any(ChoreCreateRequest.class)))
+			.willReturn(detail());
+
+		mockMvc.perform(post(CHORES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "title": "대청소",
+					  "difficulty": "HARD",
+					  "repeatType": "ONCE",
+					  "startDate": "2026-09-10",
+					  "endDate": "2026-09-20"
+					}
+					"""))
+			.andExpect(status().isCreated());
+	}
+
+	@Test
 	@DisplayName("없는 난이도를 보내면 400을 반환한다")
 	void createChore_unknownDifficulty() throws Exception {
 		givenAuthenticated(USER_ID);

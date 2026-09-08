@@ -159,8 +159,16 @@ CREATE TYPE savings_transactions_transaction_type AS ENUM (
 );
 
 
-/* 집안일 반복 주기 */
+/* 할 일 반복 주기
+
+   ONCE 는 반복하지 않는 일회성이다. 화면의 "반복" 체크를 끄면 이 값이 되고,
+   그때는 부모가 시작일과 종료일을 직접 넣는다.
+
+   나머지 셋은 반복이다. 부모는 주기만 고르고, 기간은 등록한 날에서 계산한다
+   (일간은 그날, 주간은 그 주 일요일, 월간은 그 달 말일).
+   주기가 끝나면 크론이 다음 주기로 기간을 밀어 준다. */
 CREATE TYPE chores_repeat_type AS ENUM (
+    'ONCE',
     'DAY',
     'WEEK',
     'MONTH'

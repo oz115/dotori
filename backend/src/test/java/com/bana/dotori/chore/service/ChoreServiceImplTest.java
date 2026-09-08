@@ -149,12 +149,41 @@ class ChoreServiceImplTest {
 		given(choreRepository.save(any(Chore.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		ChoreDetailResponse response = choreService.createChore(PARENT_ID, FAMILY_ID, CHILD_ID,
-			new ChoreCreateRequest("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.MONTH));
+			new ChoreCreateRequest("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.MONTH, null, null));
 
 		LocalDate today = LocalDate.now();
 		assertThat(response.startDate()).isEqualTo(today);
 		// 월간이면 그 달 말일까지다. 부모는 날짜를 직접 넣지 않는다.
 		assertThat(response.endDate()).isEqualTo(today.with(TemporalAdjusters.lastDayOfMonth()));
+	}
+
+	@Test
+	@DisplayName("일회성이면 부모가 넣은 기간을 그대로 쓴다")
+	void 일회성은_받은_기간을_쓴다() {
+		given(choreRepository.save(any(Chore.class))).willAnswer(invocation -> invocation.getArgument(0));
+		LocalDate start = LocalDate.of(2026, 9, 10);
+		LocalDate end = LocalDate.of(2026, 9, 20);
+
+		ChoreDetailResponse response = choreService.createChore(PARENT_ID, FAMILY_ID, CHILD_ID,
+			new ChoreCreateRequest("대청소", null, ChoreDifficulty.HARD, ChoreRepeatType.ONCE, start, end));
+
+		assertThat(response.startDate()).isEqualTo(start);
+		assertThat(response.endDate()).isEqualTo(end);
+	}
+
+	@Test
+	@DisplayName("반복이면 요청에 날짜가 있어도 무시하고 주기로 계산한다")
+	void 반복은_받은_날짜를_무시한다() {
+		given(choreRepository.save(any(Chore.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		ChoreDetailResponse response = choreService.createChore(PARENT_ID, FAMILY_ID, CHILD_ID,
+			new ChoreCreateRequest("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.DAY,
+				LocalDate.of(2020, 1, 1), LocalDate.of(2030, 12, 31)));
+
+		// 크론이 주기마다 기간을 다시 계산해 밀기 때문에, 첫 주기만 다르게 두면 안 된다.
+		LocalDate today = LocalDate.now();
+		assertThat(response.startDate()).isEqualTo(today);
+		assertThat(response.endDate()).isEqualTo(today);
 	}
 
 	@Test
@@ -353,7 +382,7 @@ class ChoreServiceImplTest {
 	}
 
 	private ChoreCreateRequest request() {
-		return new ChoreCreateRequest("설거지", "저녁 먹고 나서", ChoreDifficulty.NORMAL, ChoreRepeatType.DAY);
+		return new ChoreCreateRequest("설거지", "저녁 먹고 나서", ChoreDifficulty.NORMAL, ChoreRepeatType.DAY, null, null);
 	}
 
 	private Chore chore(Integer choreId, Integer childId) {
