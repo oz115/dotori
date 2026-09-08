@@ -2,6 +2,7 @@
 
 프로젝트 개요·기획은 docs/Idea.md, 아키텍처는 docs/ARCHITECTURE.md 참고.
 하위 폴더 규칙은 frontend/AGENTS.md, backend/AGENTS.md, AI/AGENTS.md 우선 적용.
+위에 상기된 문서 외에도 루트 밑에 있는 docs 폴더 안의 문서들을 전부 읽으시오.
 
 ## Jira 워크플로우
 
