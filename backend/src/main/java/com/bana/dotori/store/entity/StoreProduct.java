@@ -70,6 +70,9 @@ public class StoreProduct {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	@Builder
 	private StoreProduct(Integer familyId, Integer createdBy, String name, String description,
 			StoreProductCategory category, BigDecimal value, Integer price, int quantity) {
@@ -81,5 +84,47 @@ public class StoreProduct {
 		this.value = value;
 		this.price = price;
 		this.quantity = quantity;
+	}
+
+	/**
+	 * 상품 정보 부분 수정 (SHOP-04). null 인 필드는 그대로 둔다.
+	 *
+	 * <p>name/description/category 가 바뀌어도 value 는 건드리지 않는다 — AI 가 이미 산정한 값을
+	 * 무효화하는 재평가 로직은 아직 없다(추후 별도 작업). price 는 AI 산정값이지만 부모가 직접
+	 * 덮어쓸 수 있게 열어 둔다.
+	 */
+	public void update(String name, String description, StoreProductCategory category, Integer price,
+			Integer quantity) {
+		if (name != null) {
+			this.name = name;
+		}
+		if (description != null) {
+			this.description = description;
+		}
+		if (category != null) {
+			this.category = category;
+		}
+		if (price != null) {
+			this.price = price;
+		}
+		if (quantity != null) {
+			this.quantity = quantity;
+		}
+	}
+
+	/**
+	 * 상품 삭제 (SHOP-05). 구매 이력(purchases)이 이 상품을 참조하므로 hard delete 대신
+	 * soft delete 한다 — 이미 팔린 상품을 지워버리면 구매 이력에서 상품 정보를 잃는다.
+	 */
+	public void softDelete() {
+		this.deletedAt = OffsetDateTime.now();
+	}
+
+	/**
+	 * 구매 확정 시 재고를 줄인다 (SHOP-06). 호출자(StorePurchaseService)가 구매 전에
+	 * 재고 충분 여부를 이미 확인했으므로 여기서는 다시 검증하지 않는다.
+	 */
+	public void reduceStock(int amount) {
+		this.quantity -= amount;
 	}
 }
