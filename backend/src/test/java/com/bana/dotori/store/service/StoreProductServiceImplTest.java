@@ -29,6 +29,7 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
+import com.bana.dotori.store.dto.StoreProductUpdateRequest;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
@@ -326,5 +327,135 @@ class StoreProductServiceImplTest {
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 		then(storeProductRepository).should(never()).save(any());
 		then(eventPublisher).should(never()).publishEvent(any());
+	}
+
+	@Test
+	@DisplayName("일부 필드만 보내면 그 필드만 바뀌고 나머지는 유지된다")
+	void updateProduct_partial() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyId(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("자전거(중고)", null, null, null, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.name()).isEqualTo("자전거(중고)");
+		assertThat(response.description()).isEqualTo("설명");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.TOY);
+		assertThat(response.price()).isEqualTo(900000);
+		assertThat(response.quantity()).isEqualTo(1);
+	}
+
+	@Test
+	@DisplayName("name/description/category가 바뀌어도 기존 value/price는 그대로 유지된다")
+	void updateProduct_doesNotResetValueOrPrice() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyId(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("전동 자전거", "설명 변경",
+			StoreProductCategory.OUTING, null, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.name()).isEqualTo("전동 자전거");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.OUTING);
+		assertThat(response.value()).isEqualByComparingTo("90.00");
+		assertThat(response.price()).isEqualTo(900000);
+	}
+
+	@Test
+	@DisplayName("부모가 price를 직접 수정하면 반영된다")
+	void updateProduct_priceOverride() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyId(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest(null, null, null, 5000, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.price()).isEqualTo(5000);
+	}
+
+	@Test
+	@DisplayName("이름을 빈 문자열로 보내면 INVALID_REQUEST 예외가 발생한다")
+	void updateProduct_blankName() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("   ", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+		then(storeProductRepository).should(never()).findByIdAndFamilyId(any(), any());
+	}
+
+	@Test
+	@DisplayName("자녀가 수정을 시도하면 FORBIDDEN 예외가 발생한다")
+	void updateProduct_notParent() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 수정을 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void updateProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족에서 수정하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateProduct_familyNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 수정하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void updateProduct_productNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyId(999, FAMILY_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 999, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
 	}
 }

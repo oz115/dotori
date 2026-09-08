@@ -11,6 +11,7 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
+import com.bana.dotori.store.dto.StoreProductUpdateRequest;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
 import com.bana.dotori.store.mapper.StoreProductMapper;
@@ -72,6 +73,28 @@ public class StoreProductServiceImpl implements StoreProductService {
 		// value/price 는 AI 서버가 비동기로 채운다 — 커밋 이후에만 발행되도록 이벤트로 넘긴다
 		eventPublisher.publishEvent(new StoreProductCreatedEvent(product.getId(), familyId, product.getName(),
 			product.getDescription(), product.getCategory()));
+
+		return storeProductMapper.toDetailResponse(product);
+	}
+
+	@Override
+	@Transactional
+	public StoreProductDetailResponse updateProduct(Integer userId, Integer familyId, Integer productId,
+			StoreProductUpdateRequest request) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		validateFamilyMember(userId, familyId);
+		if (request.name() != null && request.name().isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST);
+		}
+
+		StoreProduct product = storeProductRepository.findByIdAndFamilyId(productId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		product.update(request.name(), request.description(), request.category(), request.price(),
+			request.quantity());
 
 		return storeProductMapper.toDetailResponse(product);
 	}
