@@ -3,9 +3,12 @@ package com.bana.dotori.chore.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +34,7 @@ import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
 import com.bana.dotori.chore.dto.ChoreSummary;
+import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.service.ChoreService;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -296,5 +300,99 @@ class ChoreControllerTest {
 			.andExpect(status().isBadRequest());
 
 		verify(choreService, never()).createChore(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("수정 성공 시 200과 수정된 집안일을 반환한다")
+	void updateChore_success() throws Exception {
+		givenAuthenticated(USER_ID);
+		given(choreService.updateChore(eq(USER_ID), eq(FAMILY_ID), eq(CHILD_ID), eq(CHORE_ID),
+			any(ChoreUpdateRequest.class))).willReturn(detail());
+
+		mockMvc.perform(patch(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"rewardPoints\": 700}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.choreId").value(CHORE_ID));
+	}
+
+	@Test
+	@DisplayName("수정 요청이 비어 있어도 200이다")
+	void updateChore_emptyBody() throws Exception {
+		givenAuthenticated(USER_ID);
+		given(choreService.updateChore(eq(USER_ID), eq(FAMILY_ID), eq(CHILD_ID), eq(CHORE_ID),
+			any(ChoreUpdateRequest.class))).willReturn(detail());
+
+		// PATCH 라서 모든 필드가 선택이다. 빈 본문이 400 이 되면 안 된다.
+		mockMvc.perform(patch(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("수정에서 title이 공백이면 400을 반환하고 서비스는 호출하지 않는다")
+	void updateChore_blankTitle() throws Exception {
+		givenAuthenticated(USER_ID);
+
+		mockMvc.perform(patch(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"title\": \" \"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		verify(choreService, never()).updateChore(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("아이가 수정을 호출하면 403을 반환한다")
+	void updateChore_forbidden() throws Exception {
+		givenAuthenticated(USER_ID);
+		given(choreService.updateChore(eq(USER_ID), eq(FAMILY_ID), eq(CHILD_ID), eq(CHORE_ID),
+			any(ChoreUpdateRequest.class))).willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(patch(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"rewardPoints\": 700}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("삭제 성공 시 204를 반환하고 본문이 없다")
+	void deleteChore_success() throws Exception {
+		givenAuthenticated(USER_ID);
+
+		mockMvc.perform(delete(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNoContent());
+
+		verify(choreService).deactivateChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+	}
+
+	@Test
+	@DisplayName("없는 집안일을 삭제하면 404를 반환한다")
+	void deleteChore_notFound() throws Exception {
+		givenAuthenticated(USER_ID);
+		willThrow(new BusinessException(ErrorCode.CHORE_NOT_FOUND))
+			.given(choreService).deactivateChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+
+		mockMvc.perform(delete(CHORES_URL + "/" + CHORE_ID)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("CHORE_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 삭제하면 401을 반환하고 서비스는 호출하지 않는다")
+	void deleteChore_unauthorized() throws Exception {
+		mockMvc.perform(delete(CHORES_URL + "/" + CHORE_ID))
+			.andExpect(status().isUnauthorized());
+
+		verify(choreService, never()).deactivateChore(any(), any(), any(), any());
 	}
 }

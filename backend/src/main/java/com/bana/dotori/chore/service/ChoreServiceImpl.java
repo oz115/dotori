@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
+import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
@@ -77,6 +78,44 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.CHORE_NOT_FOUND);
 		}
 		return choreMapper.toDetailResponse(chore);
+	}
+
+	@Override
+	@Transactional
+	public ChoreDetailResponse updateChore(Integer userId, Integer familyId, Integer childId, Integer choreId,
+			ChoreUpdateRequest request) {
+		Chore chore = findForParent(userId, familyId, childId, choreId);
+
+		chore.update(request.title(), request.description(), request.rewardPoints(), request.repeatType(),
+			request.startDate(), request.endDate());
+
+		return choreMapper.toDetailResponse(chore);
+	}
+
+	@Override
+	@Transactional
+	public void deactivateChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
+		findForParent(userId, familyId, childId, choreId).deactivate();
+	}
+
+	/**
+	 * 부모만 할 수 있는 변경(CHORE-05·06)의 공통 진입점.
+	 *
+	 * <p>비활성 집안일도 찾는다. 이미 지운 것을 고치는 일은 드물지만, 걸려 있는 완료 요청 때문에
+	 * 보상 금액을 바로잡아야 하는 경우가 있다.
+	 */
+	private Chore findForParent(Integer userId, Integer familyId, Integer childId, Integer choreId) {
+		validateAccess(userId, familyId, childId);
+		if (findUser(userId).getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+
+		Chore chore = choreRepository.findByIdAndFamilyId(choreId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_NOT_FOUND));
+		if (!chore.getChildId().equals(childId)) {
+			throw new BusinessException(ErrorCode.CHORE_NOT_FOUND);
+		}
+		return chore;
 	}
 
 	/**

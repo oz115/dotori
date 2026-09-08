@@ -6,6 +6,9 @@ import java.time.OffsetDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -119,5 +122,51 @@ public class Chore {
 			return false;
 		}
 		return endDate == null || !date.isAfter(endDate);
+	}
+
+	/**
+	 * 내용·보상·주기를 고친다 (CHORE-05). null 로 온 값은 그대로 둔다 — PATCH 라서다.
+	 *
+	 * <p>description 과 endDate 는 "비우기"와 "안 바꿈"을 null 하나로 구분할 수 없다.
+	 * 지금은 둘 다 "안 바꿈"으로 본다. 비우는 기능이 필요해지면 그때 별도 표시를 받는다.
+	 *
+	 * <p>childId 는 여기 없다. 담당을 옮기면 이미 쌓인 완료 이력이 누구 것인지 모호해진다.
+	 */
+	public void update(String title, String description, Integer rewardPoints, ChoreRepeatType repeatType,
+			LocalDate startDate, LocalDate endDate) {
+		if (title != null) {
+			this.title = title;
+		}
+		if (description != null) {
+			this.description = description;
+		}
+		if (rewardPoints != null) {
+			this.rewardPoints = rewardPoints;
+		}
+		if (repeatType != null) {
+			this.repeatType = repeatType;
+		}
+		if (startDate != null) {
+			this.startDate = startDate;
+		}
+		if (endDate != null) {
+			this.endDate = endDate;
+		}
+
+		// 한쪽만 바꾸면 기간이 뒤집힐 수 있다. 요청 DTO 는 상대편의 현재 값을 모르므로
+		// 합쳐진 최종 상태를 아는 여기서 본다.
+		if (this.endDate != null && this.endDate.isBefore(this.startDate)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "종료일은 시작일과 같거나 이후여야 합니다");
+		}
+	}
+
+	/**
+	 * 목록에서 감춘다 (CHORE-06). 행을 지우지 않는 이유는 완료 이력이 chore_id 를 참조하기 때문이다.
+	 * 진짜로 지우면 이미 지급한 보상의 근거가 사라진다.
+	 *
+	 * <p>비활성이어도 상세 조회와 대기 중인 완료 요청 처리는 계속 된다.
+	 */
+	public void deactivate() {
+		this.isActive = false;
 	}
 }

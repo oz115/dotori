@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
+import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.mapper.ChoreMapper;
@@ -233,6 +234,81 @@ class ChoreServiceImplTest {
 			.willReturn(Optional.of(chore(CHORE_ID, SIBLING_ID)));
 
 		assertThatThrownBy(() -> choreService.getChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("보낸 필드만 바뀌고 나머지는 그대로다")
+	void 수정은_보낸_필드만_바꾼다() {
+		Chore chore = chore(CHORE_ID, CHILD_ID);
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+
+		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, 700, null, null, null));
+
+		assertThat(response.rewardPoints()).isEqualTo(700);
+		assertThat(response.title()).isEqualTo("설거지");
+		assertThat(response.repeatType()).isEqualTo(ChoreRepeatType.DAY);
+	}
+
+	@Test
+	@DisplayName("아이는 수정할 수 없다")
+	void 아이는_수정할_수_없다() {
+		assertThatThrownBy(() -> choreService.updateChore(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, 700, null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("종료일만 앞으로 당겨 기간이 뒤집히면 400이다")
+	void 수정으로_기간이_뒤집히면_400() {
+		Chore chore = Chore.builder()
+			.familyId(FAMILY_ID).parentId(PARENT_ID).childId(CHILD_ID)
+			.title("설거지").rewardPoints(500).repeatType(ChoreRepeatType.DAY)
+			.startDate(LocalDate.of(2026, 9, 10))
+			.build();
+		ReflectionTestUtils.setField(chore, "id", CHORE_ID);
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+
+		// 요청 DTO 는 시작일의 현재 값을 모르므로 합쳐진 상태를 아는 엔티티가 잡는다.
+		assertThatThrownBy(() -> choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, null, null, LocalDate.of(2026, 9, 9))))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
+	}
+
+	@Test
+	@DisplayName("삭제는 비활성화이고 행을 지우지 않는다")
+	void 삭제는_비활성화다() {
+		Chore chore = chore(CHORE_ID, CHILD_ID);
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+
+		choreService.deactivateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+
+		assertThat(chore.isActive()).isFalse();
+		// 완료 이력이 chore_id 를 참조하므로 진짜로 지우면 지급한 보상의 근거가 사라진다.
+		verify(choreRepository, never()).delete(any());
+		verify(choreRepository, never()).deleteById(any());
+	}
+
+	@Test
+	@DisplayName("아이는 삭제할 수 없다")
+	void 아이는_삭제할_수_없다() {
+		assertThatThrownBy(() -> choreService.deactivateChore(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID))
+			.isInstanceOf(BusinessException.class)
+			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("경로의 childId와 담당이 어긋나면 수정도 404다")
+	void 수정도_경로와_담당을_대조한다() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, SIBLING_ID)));
+
+		assertThatThrownBy(() -> choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, 700, null, null, null)))
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
 	}
