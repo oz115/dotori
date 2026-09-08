@@ -23,10 +23,10 @@ public interface ChoreService {
 		ChoreUpdateRequest request);
 
 	/**
-	 * 집안일을 목록에서 감춘다 (CHORE-06).
+	 * 집안일을 지운다 (CHORE-06).
 	 *
-	 * <p>물리 삭제가 아니라 isActive=false 다. 이미 비활성인 것을 다시 지워도 성공으로 본다 —
+	 * <p>물리 삭제가 아니라 deleted_at 을 채운다. 이미 지운 것을 다시 지워도 성공으로 본다 —
 	 * 결과 상태가 같으므로 재시도가 실패로 보이면 클라이언트가 더 헷갈린다.
 	 */
-	void deactivateChore(Integer userId, Integer familyId, Integer childId, Integer choreId);
+	void deleteChore(Integer userId, Integer familyId, Integer childId, Integer choreId);
 }

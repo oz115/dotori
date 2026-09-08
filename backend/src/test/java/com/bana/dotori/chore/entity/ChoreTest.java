@@ -21,12 +21,12 @@ class ChoreTest {
 	class Create {
 
 		@Test
-		@DisplayName("활성 상태로 시작한다")
-		void 활성_상태로_시작한다() {
+		@DisplayName("지워지지 않은 상태로 시작한다")
+		void 지워지지_않은_상태로_시작한다() {
 			Chore chore = Chore.builder().title("설거지").rewardPoints(500).build();
 
-			// boolean 기본값 false 가 그대로 실려 나가면 등록하자마자 비활성인 집안일이 된다.
-			assertThat(chore.isActive()).isTrue();
+			// 등록 직후에는 deleted_at 이 비어 있어야 목록에 나온다.
+			assertThat(chore.isDeleted()).isFalse();
 		}
 
 		@Test
@@ -47,6 +47,53 @@ class ChoreTest {
 			Chore chore = Chore.builder().title("설거지").rewardPoints(500).startDate(startDate).build();
 
 			assertThat(chore.getStartDate()).isEqualTo(startDate);
+		}
+	}
+
+	@Nested
+	@DisplayName("주기에서 종료일을 정할 때")
+	class EndDate {
+
+		@Test
+		@DisplayName("일간은 그날 하루다")
+		void 일간은_하루() {
+			LocalDate tuesday = LocalDate.of(2026, 9, 8);
+
+			assertThat(ChoreRepeatType.DAY.endDateFrom(tuesday)).isEqualTo(tuesday);
+		}
+
+		@Test
+		@DisplayName("주간은 그 주 일요일까지다")
+		void 주간은_그주_일요일() {
+			// 2026-09-08 은 화요일, 그 주 일요일은 2026-09-13.
+			assertThat(ChoreRepeatType.WEEK.endDateFrom(LocalDate.of(2026, 9, 8)))
+				.isEqualTo(LocalDate.of(2026, 9, 13));
+		}
+
+		@Test
+		@DisplayName("일요일에 주간으로 등록하면 그날 하루다")
+		void 일요일_주간은_하루() {
+			LocalDate sunday = LocalDate.of(2026, 9, 13);
+
+			// nextOrSame 이라 일요일 당일은 그대로 끝난다. 다음 주까지 끌지 않는다.
+			assertThat(ChoreRepeatType.WEEK.endDateFrom(sunday)).isEqualTo(sunday);
+		}
+
+		@Test
+		@DisplayName("월간은 그 달 말일까지다")
+		void 월간은_말일() {
+			assertThat(ChoreRepeatType.MONTH.endDateFrom(LocalDate.of(2026, 7, 8)))
+				.isEqualTo(LocalDate.of(2026, 7, 31));
+		}
+
+		@Test
+		@DisplayName("월간은 달마다 말일이 다르다")
+		void 월간_말일은_달마다_다르다() {
+			assertThat(ChoreRepeatType.MONTH.endDateFrom(LocalDate.of(2026, 2, 1)))
+				.isEqualTo(LocalDate.of(2026, 2, 28));
+			// 2028 은 윤년이다.
+			assertThat(ChoreRepeatType.MONTH.endDateFrom(LocalDate.of(2028, 2, 1)))
+				.isEqualTo(LocalDate.of(2028, 2, 29));
 		}
 	}
 

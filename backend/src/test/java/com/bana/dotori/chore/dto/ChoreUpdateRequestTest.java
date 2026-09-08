@@ -32,7 +32,7 @@ class ChoreUpdateRequestTest {
 
 	private ChoreUpdateRequest request(String title, String description, Integer rewardPoints,
 			ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
-		return new ChoreUpdateRequest(title, description, rewardPoints, repeatType, startDate, endDate);
+		return new ChoreUpdateRequest(title, description, null, rewardPoints, repeatType, startDate, endDate);
 	}
 
 	@Test

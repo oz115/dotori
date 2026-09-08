@@ -1,5 +1,6 @@
 package com.bana.dotori.chore.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -63,7 +64,25 @@ public class Chore {
 	@Column(name = "description", length = 255)
 	private String description;
 
-	@Column(name = "reward_points", nullable = false)
+	/**
+	 * AI 가 제목·설명을 보고 판정한 난이도. 보상 산정의 근거로 남긴다.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "difficulty", nullable = false)
+	private ChoreDifficulty difficulty;
+
+	/**
+	 * AI 서버가 비동기로 산정하는 가치 가중치 (주간 기본 용돈 B의 배수).
+	 * 등록 직후에는 산정 전이므로 null 이다.
+	 */
+	@Column(name = "value", precision = 10, scale = 2)
+	private BigDecimal value;
+
+	/**
+	 * 승인 시점에 지급할 금액. {@code value} 산정이 끝나야 계산할 수 있어
+	 * null 을 허용한다 (null = 보상 산정 중).
+	 */
+	@Column(name = "reward_points")
 	private Integer rewardPoints;
 
 	@Enumerated(EnumType.STRING)
@@ -77,9 +96,6 @@ public class Chore {
 	@Column(name = "end_date")
 	private LocalDate endDate;
 
-	@Column(name = "is_active", nullable = false)
-	private boolean isActive;
-
 	@CreationTimestamp
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
@@ -88,27 +104,30 @@ public class Chore {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
+	/** 소프트 삭제 시각. 목록에서는 빠지지만 상세와 완료 요청 처리는 계속 된다. */
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	/**
 	 * startDate 가 없으면 오늘로 둔다.
 	 *
 	 * <p>DB 에도 DEFAULT CURRENT_DATE 가 걸려 있지만 Hibernate 는 INSERT 에 모든 컬럼을 실으므로
 	 * null 을 그대로 두면 DEFAULT 가 아니라 NOT NULL 위반이 된다.
-	 * isActive 를 여기서 true 로 세우는 이유도 같다. boolean 기본값 false 가 실려 나가면
-	 * 등록하자마자 비활성 상태인 집안일이 만들어진다.
 	 */
 	@Builder
 	private Chore(Integer familyId, Integer parentId, Integer childId, String title, String description,
-			Integer rewardPoints, ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
+			ChoreDifficulty difficulty, Integer rewardPoints, ChoreRepeatType repeatType,
+			LocalDate startDate, LocalDate endDate) {
 		this.familyId = familyId;
 		this.parentId = parentId;
 		this.childId = childId;
 		this.title = title;
 		this.description = description;
+		this.difficulty = difficulty;
 		this.rewardPoints = rewardPoints;
 		this.repeatType = repeatType;
 		this.startDate = startDate != null ? startDate : LocalDate.now();
 		this.endDate = endDate;
-		this.isActive = true;
 	}
 
 	/**
@@ -132,13 +151,16 @@ public class Chore {
 	 *
 	 * <p>childId 는 여기 없다. 담당을 옮기면 이미 쌓인 완료 이력이 누구 것인지 모호해진다.
 	 */
-	public void update(String title, String description, Integer rewardPoints, ChoreRepeatType repeatType,
-			LocalDate startDate, LocalDate endDate) {
+	public void update(String title, String description, ChoreDifficulty difficulty, Integer rewardPoints,
+			ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
 		if (title != null) {
 			this.title = title;
 		}
 		if (description != null) {
 			this.description = description;
+		}
+		if (difficulty != null) {
+			this.difficulty = difficulty;
 		}
 		if (rewardPoints != null) {
 			this.rewardPoints = rewardPoints;
@@ -161,12 +183,27 @@ public class Chore {
 	}
 
 	/**
-	 * 목록에서 감춘다 (CHORE-06). 행을 지우지 않는 이유는 완료 이력이 chore_id 를 참조하기 때문이다.
+	 * 소프트 삭제 (CHORE-06). 행을 지우지 않는 이유는 완료 이력이 chore_id 를 참조하기 때문이다.
 	 * 진짜로 지우면 이미 지급한 보상의 근거가 사라진다.
 	 *
-	 * <p>비활성이어도 상세 조회와 대기 중인 완료 요청 처리는 계속 된다.
+	 * <p>지워도 상세 조회와 대기 중인 완료 요청 처리는 계속 된다.
+	 * 이미 지운 것을 다시 지워도 시각만 갱신되고 실패하지 않는다.
 	 */
-	public void deactivate() {
-		this.isActive = false;
+	public void softDelete() {
+		this.deletedAt = OffsetDateTime.now();
+	}
+
+	public boolean isDeleted() {
+		return deletedAt != null;
+	}
+
+	/**
+	 * AI 산정 결과를 반영한다. 가중치와 그것으로 계산한 보상을 함께 받는다.
+	 *
+	 * <p>둘을 따로 넣을 수 있게 두면 value 와 reward_points 가 어긋난 행이 생긴다.
+	 */
+	public void applyReward(BigDecimal value, Integer rewardPoints) {
+		this.value = value;
+		this.rewardPoints = rewardPoints;
 	}
 }

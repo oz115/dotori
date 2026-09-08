@@ -1,5 +1,8 @@
 package com.bana.dotori.chore.service;
 
+import java.time.LocalDate;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,6 +11,7 @@ import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
 import com.bana.dotori.chore.dto.ChoreUpdateRequest;
 import com.bana.dotori.chore.entity.Chore;
+import com.bana.dotori.chore.event.ChoreCreatedEvent;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.family.entity.FamilyMember;
@@ -30,6 +34,7 @@ public class ChoreServiceImpl implements ChoreService {
 	private final FamilyMemberRepository familyMemberRepository;
 	private final UserRepository userRepository;
 	private final ChoreMapper choreMapper;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -40,17 +45,23 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 
+		// 부모는 주기만 고른다. 시작일은 오늘, 종료일은 주기에서 계산한다.
+		LocalDate startDate = LocalDate.now();
 		Chore chore = choreRepository.save(Chore.builder()
 			.familyId(familyId)
 			.parentId(userId)
 			.childId(childId)
 			.title(request.title())
 			.description(request.description())
-			.rewardPoints(request.rewardPoints())
+			.difficulty(request.difficulty())
 			.repeatType(request.repeatType())
-			.startDate(request.startDate())
-			.endDate(request.endDate())
+			.startDate(startDate)
+			.endDate(request.repeatType().endDateFrom(startDate))
 			.build());
+
+		// value·rewardPoints 는 AI 서버가 비동기로 채운다 — 커밋 이후에만 발행되도록 이벤트로 넘긴다.
+		eventPublisher.publishEvent(new ChoreCreatedEvent(chore.getId(), familyId, childId,
+			chore.getTitle(), chore.getDescription(), chore.getDifficulty(), chore.getRepeatType()));
 
 		return choreMapper.toDetailResponse(chore);
 	}
@@ -60,7 +71,7 @@ public class ChoreServiceImpl implements ChoreService {
 	public ChoreListResponse getChores(Integer userId, Integer familyId, Integer childId) {
 		validateAccess(userId, familyId, childId);
 		return choreMapper.toListResponse(
-			choreRepository.findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(familyId, childId));
+			choreRepository.findAllByFamilyIdAndChildIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(familyId, childId));
 	}
 
 	@Override
@@ -86,22 +97,22 @@ public class ChoreServiceImpl implements ChoreService {
 			ChoreUpdateRequest request) {
 		Chore chore = findForParent(userId, familyId, childId, choreId);
 
-		chore.update(request.title(), request.description(), request.rewardPoints(), request.repeatType(),
-			request.startDate(), request.endDate());
+		chore.update(request.title(), request.description(), request.difficulty(), request.rewardPoints(),
+			request.repeatType(), request.startDate(), request.endDate());
 
 		return choreMapper.toDetailResponse(chore);
 	}
 
 	@Override
 	@Transactional
-	public void deactivateChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
-		findForParent(userId, familyId, childId, choreId).deactivate();
+	public void deleteChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
+		findForParent(userId, familyId, childId, choreId).softDelete();
 	}
 
 	/**
 	 * 부모만 할 수 있는 변경(CHORE-05·06)의 공통 진입점.
 	 *
-	 * <p>비활성 집안일도 찾는다. 이미 지운 것을 고치는 일은 드물지만, 걸려 있는 완료 요청 때문에
+	 * <p>이미 지운 집안일도 찾는다. 이미 지운 것을 고치는 일은 드물지만, 걸려 있는 완료 요청 때문에
 	 * 보상 금액을 바로잡아야 하는 경우가 있다.
 	 */
 	private Chore findForParent(Integer userId, Integer familyId, Integer childId, Integer choreId) {

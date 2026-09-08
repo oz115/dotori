@@ -65,13 +65,13 @@ public class ChoreController {
 	}
 
 	/**
-	 * 물리 삭제가 아니라 비활성화다 (CHORE-06). 완료 이력이 choreId 를 참조하므로
-	 * 행을 지우면 이미 지급한 보상의 근거가 사라진다.
+	 * 물리 삭제가 아니라 deleted_at 을 채우는 소프트 삭제다 (CHORE-06).
+	 * 완료 이력이 choreId 를 참조하므로 행을 지우면 이미 지급한 보상의 근거가 사라진다.
 	 */
 	@DeleteMapping("/{choreId}")
 	public ResponseEntity<Void> deleteChore(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId, @PathVariable Integer childId, @PathVariable Integer choreId) {
-		choreService.deactivateChore(userId, familyId, childId, choreId);
+		choreService.deleteChore(userId, familyId, childId, choreId);
 		return ResponseEntity.noContent().build();
 	}
 }

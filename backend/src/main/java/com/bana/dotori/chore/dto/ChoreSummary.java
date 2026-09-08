@@ -3,6 +3,7 @@ package com.bana.dotori.chore.dto;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 
 /**
@@ -15,6 +16,7 @@ public record ChoreSummary(
 	Integer choreId,
 	Integer childId,
 	String title,
+	ChoreDifficulty difficulty,
 	Integer rewardPoints,
 	ChoreRepeatType repeatType,
 	LocalDate startDate,

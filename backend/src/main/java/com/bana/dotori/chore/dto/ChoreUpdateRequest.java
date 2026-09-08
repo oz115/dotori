@@ -2,6 +2,7 @@ package com.bana.dotori.chore.dto;
 
 import java.time.LocalDate;
 
+import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 
 import jakarta.validation.constraints.Min;
@@ -25,6 +26,7 @@ public record ChoreUpdateRequest(
 	@Pattern(regexp = ".*\\S.*", message = "제목은 공백일 수 없습니다")
 	@Size(max = 100) String title,
 	@Size(max = 255) String description,
+	ChoreDifficulty difficulty,
 	@Min(1) Integer rewardPoints,
 	ChoreRepeatType repeatType,
 	LocalDate startDate,

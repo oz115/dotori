@@ -19,13 +19,15 @@ public class ChoreMapper {
 	}
 
 	public ChoreSummary toSummary(Chore chore) {
-		return new ChoreSummary(chore.getId(), chore.getChildId(), chore.getTitle(), chore.getRewardPoints(),
-			chore.getRepeatType(), chore.getStartDate(), chore.getEndDate(), chore.getCreatedAt());
+		return new ChoreSummary(chore.getId(), chore.getChildId(), chore.getTitle(), chore.getDifficulty(),
+			chore.getRewardPoints(), chore.getRepeatType(), chore.getStartDate(), chore.getEndDate(),
+			chore.getCreatedAt());
 	}
 
 	public ChoreDetailResponse toDetailResponse(Chore chore) {
 		return new ChoreDetailResponse(chore.getId(), chore.getFamilyId(), chore.getParentId(), chore.getChildId(),
-			chore.getTitle(), chore.getDescription(), chore.getRewardPoints(), chore.getRepeatType(),
-			chore.getStartDate(), chore.getEndDate(), chore.isActive(), chore.getCreatedAt());
+			chore.getTitle(), chore.getDescription(), chore.getDifficulty(), chore.getValue(),
+			chore.getRewardPoints(), chore.getRepeatType(), chore.getStartDate(), chore.getEndDate(),
+			chore.getCreatedAt(), chore.getDeletedAt());
 	}
 }

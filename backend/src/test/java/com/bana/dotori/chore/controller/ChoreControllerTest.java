@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,6 +36,7 @@ import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
 import com.bana.dotori.chore.dto.ChoreSummary;
 import com.bana.dotori.chore.dto.ChoreUpdateRequest;
+import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.service.ChoreService;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -73,27 +75,26 @@ class ChoreControllerTest {
 				List.of(new SimpleGrantedAuthority("ROLE_PARENT"))));
 	}
 
-	private String body(String title, String rewardPoints, String repeatType) {
+	private String body(String title, String difficulty, String repeatType) {
 		return """
 			{
 			  "title": %s,
 			  "description": "저녁 먹고 나서",
-			  "rewardPoints": %s,
-			  "repeatType": %s,
-			  "startDate": "2026-09-01",
-			  "endDate": "2026-09-30"
+			  "difficulty": %s,
+			  "repeatType": %s
 			}
-			""".formatted(title, rewardPoints, repeatType);
+			""".formatted(title, difficulty, repeatType);
 	}
 
 	private String validBody() {
-		return body("\"설거지\"", "500", "\"DAY\"");
+		return body("\"설거지\"", "\"NORMAL\"", "\"DAY\"");
 	}
 
 	private ChoreDetailResponse detail() {
-		return new ChoreDetailResponse(CHORE_ID, FAMILY_ID, USER_ID, CHILD_ID, "설거지", "저녁 먹고 나서", 500,
-			ChoreRepeatType.DAY, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), true,
-			OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		return new ChoreDetailResponse(CHORE_ID, FAMILY_ID, USER_ID, CHILD_ID, "설거지", "저녁 먹고 나서",
+			ChoreDifficulty.NORMAL, new BigDecimal("0.50"), 500, ChoreRepeatType.DAY,
+			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
+			OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9)), null);
 	}
 
 	@Test
@@ -102,9 +103,9 @@ class ChoreControllerTest {
 		givenAuthenticated(USER_ID);
 		OffsetDateTime createdAt = OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(choreService.getChores(USER_ID, FAMILY_ID, CHILD_ID)).willReturn(new ChoreListResponse(List.of(
-			new ChoreSummary(CHORE_ID, CHILD_ID, "설거지", 500, ChoreRepeatType.DAY,
+			new ChoreSummary(CHORE_ID, CHILD_ID, "설거지", ChoreDifficulty.NORMAL, 500, ChoreRepeatType.DAY,
 				LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30), createdAt),
-			new ChoreSummary(8, CHILD_ID, "방 청소", 300, ChoreRepeatType.WEEK,
+			new ChoreSummary(8, CHILD_ID, "방 청소", ChoreDifficulty.EASY, 300, ChoreRepeatType.WEEK,
 				LocalDate.of(2026, 9, 1), null, createdAt))));
 
 		mockMvc.perform(get(CHORES_URL)
@@ -191,7 +192,7 @@ class ChoreControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.choreId").value(CHORE_ID))
 			.andExpect(jsonPath("$.description").value("저녁 먹고 나서"))
-			.andExpect(jsonPath("$.isActive").value(true));
+			.andExpect(jsonPath("$.deletedAt").doesNotExist());
 	}
 
 	@Test
@@ -228,7 +229,7 @@ class ChoreControllerTest {
 			.andExpect(jsonPath("$.repeatType").value("DAY"))
 			.andExpect(jsonPath("$.startDate").value("2026-09-01"))
 			.andExpect(jsonPath("$.endDate").value("2026-09-30"))
-			.andExpect(jsonPath("$.isActive").value(true));
+			.andExpect(jsonPath("$.deletedAt").doesNotExist());
 	}
 
 	@Test
@@ -266,7 +267,7 @@ class ChoreControllerTest {
 		mockMvc.perform(post(CHORES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(body("\" \"", "500", "\"DAY\"")))
+				.content(body("\" \"", "\"NORMAL\"", "\"DAY\"")))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
@@ -274,16 +275,37 @@ class ChoreControllerTest {
 	}
 
 	@Test
-	@DisplayName("보상이 0이면 400을 반환하고 서비스는 호출하지 않는다")
-	void createChore_nonPositiveReward() throws Exception {
+	@DisplayName("보상은 요청에 담을 수 없다 — 보내도 무시되고 AI가 정한다")
+	void createChore_ignoresReward() throws Exception {
+		givenAuthenticated(USER_ID);
+		given(choreService.createChore(eq(USER_ID), eq(FAMILY_ID), eq(CHILD_ID), any(ChoreCreateRequest.class)))
+			.willReturn(detail());
+
+		// 요청 스펙에 없는 필드라 역직렬화 단계에서 버려진다. 부모가 보상을 정하지 못하게 막는다.
+		mockMvc.perform(post(CHORES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "title": "설거지",
+					  "difficulty": "NORMAL",
+					  "repeatType": "DAY",
+					  "rewardPoints": 999999
+					}
+					"""))
+			.andExpect(status().isCreated());
+	}
+
+	@Test
+	@DisplayName("없는 난이도를 보내면 400을 반환한다")
+	void createChore_unknownDifficulty() throws Exception {
 		givenAuthenticated(USER_ID);
 
 		mockMvc.perform(post(CHORES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(body("\"설거지\"", "0", "\"DAY\"")))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+				.content(body("\"설거지\"", "\"EXTREME\"", "\"DAY\"")))
+			.andExpect(status().isBadRequest());
 
 		verify(choreService, never()).createChore(any(), any(), any(), any());
 	}
@@ -296,7 +318,7 @@ class ChoreControllerTest {
 		mockMvc.perform(post(CHORES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(body("\"설거지\"", "500", "\"YEAR\"")))
+				.content(body("\"설거지\"", "\"NORMAL\"", "\"YEAR\"")))
 			.andExpect(status().isBadRequest());
 
 		verify(choreService, never()).createChore(any(), any(), any(), any());
@@ -371,7 +393,7 @@ class ChoreControllerTest {
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isNoContent());
 
-		verify(choreService).deactivateChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+		verify(choreService).deleteChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
 	}
 
 	@Test
@@ -379,7 +401,7 @@ class ChoreControllerTest {
 	void deleteChore_notFound() throws Exception {
 		givenAuthenticated(USER_ID);
 		willThrow(new BusinessException(ErrorCode.CHORE_NOT_FOUND))
-			.given(choreService).deactivateChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+			.given(choreService).deleteChore(USER_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
 
 		mockMvc.perform(delete(CHORES_URL + "/" + CHORE_ID)
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
@@ -393,6 +415,6 @@ class ChoreControllerTest {
 		mockMvc.perform(delete(CHORES_URL + "/" + CHORE_ID))
 			.andExpect(status().isUnauthorized());
 
-		verify(choreService, never()).deactivateChore(any(), any(), any(), any());
+		verify(choreService, never()).deleteChore(any(), any(), any(), any());
 	}
 }

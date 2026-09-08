@@ -10,7 +10,7 @@ import com.bana.dotori.chore.entity.Chore;
 public interface ChoreRepository extends JpaRepository<Chore, Integer> {
 
 	/**
-	 * 한 아이에게 배정된 활성 집안일 (CHORE-01).
+	 * 한 아이에게 배정된 살아 있는 집안일 (CHORE-01).
 	 *
 	 * <p>경로가 가족과 아이를 함께 지목하므로 조회도 둘 다로 좁힌다. childId 만으로 찾으면
 	 * 다른 가족의 집안일까지 나온다. 아이가 두 가족에 속하는 경우는 없지만,
@@ -18,7 +18,7 @@ public interface ChoreRepository extends JpaRepository<Chore, Integer> {
 	 *
 	 * <p>방금 등록한 것이 위에 오도록 최신순이고, created_at 이 같은 행은 ID 로 순서를 고정한다.
 	 */
-	List<Chore> findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(
+	List<Chore> findAllByFamilyIdAndChildIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(
 			Integer familyId, Integer childId);
 
 	/**
@@ -28,7 +28,7 @@ public interface ChoreRepository extends JpaRepository<Chore, Integer> {
 	 * 그래야 남의 가족 것을 집었을 때 403 이 아니라 404 가 나가고,
 	 * "그 ID 는 존재한다"는 사실이 새지 않는다.
 	 *
-	 * <p>isActive 는 보지 않는다. 비활성 집안일도 상세는 조회돼야 하고(이미 지급한 보상의 근거),
+	 * <p>isActive 는 보지 않는다. 비살아 있는 집안일도 상세는 조회돼야 하고(이미 지급한 보상의 근거),
 	 * 걸려 있는 완료 요청을 부모가 처리할 수 있어야 한다.
 	 */
 	Optional<Chore> findByIdAndFamilyId(Integer id, Integer familyId);
