@@ -119,4 +119,12 @@ public class StoreProduct {
 	public void softDelete() {
 		this.deletedAt = OffsetDateTime.now();
 	}
+
+	/**
+	 * 구매 확정 시 재고를 줄인다 (SHOP-06). 호출자(StorePurchaseService)가 구매 전에
+	 * 재고 충분 여부를 이미 확인했으므로 여기서는 다시 검증하지 않는다.
+	 */
+	public void reduceStock(int amount) {
+		this.quantity -= amount;
+	}
 }

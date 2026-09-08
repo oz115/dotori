@@ -3,11 +3,13 @@ package com.bana.dotori.store.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +32,7 @@ import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.dto.StoreProductUpdateRequest;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
@@ -59,6 +62,9 @@ class StoreProductServiceImplTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private StorePurchaseService storePurchaseService;
 
 	@Spy
 	private StoreProductMapper storeProductMapper;
@@ -532,5 +538,57 @@ class StoreProductServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("자녀가 구매하면 StorePurchaseService 로 위임하고 결과를 그대로 반환한다")
+	void purchaseProduct_success() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		givenActiveMember();
+		StorePurchaseResponse expected = new StorePurchaseResponse(1, 5, "자전거", 1, 900000, 900000, 100,
+			OffsetDateTime.now());
+		given(storePurchaseService.purchase(FAMILY_ID, USER_ID, 5, 1)).willReturn(expected);
+
+		StorePurchaseResponse response = storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1);
+
+		assertThat(response).isEqualTo(expected);
+	}
+
+	@Test
+	@DisplayName("부모가 구매를 시도하면 FORBIDDEN 예외가 발생한다")
+	void purchaseProduct_notChild() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		then(storePurchaseService).should(never()).purchase(any(), any(), any(), anyInt());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 구매를 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void purchaseProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 구매하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void purchaseProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		then(storePurchaseService).should(never()).purchase(any(), any(), any(), anyInt());
 	}
 }

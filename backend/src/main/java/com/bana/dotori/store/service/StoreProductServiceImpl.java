@@ -12,6 +12,7 @@ import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.dto.StoreProductUpdateRequest;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
 import com.bana.dotori.store.mapper.StoreProductMapper;
@@ -32,6 +33,7 @@ public class StoreProductServiceImpl implements StoreProductService {
 	private final UserRepository userRepository;
 	private final StoreProductMapper storeProductMapper;
 	private final ApplicationEventPublisher eventPublisher;
+	private final StorePurchaseService storePurchaseService;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -112,6 +114,19 @@ public class StoreProductServiceImpl implements StoreProductService {
 		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 		product.softDelete();
+	}
+
+	@Override
+	@Transactional
+	public StorePurchaseResponse purchaseProduct(Integer userId, Integer familyId, Integer productId, int quantity) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+		if (user.getRole() != UserRole.CHILD) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		validateFamilyMember(userId, familyId);
+
+		return storePurchaseService.purchase(familyId, userId, productId, quantity);
 	}
 
 	/**
