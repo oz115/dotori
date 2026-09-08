@@ -23,6 +23,9 @@ public class FamilyMapper {
 		return Family.builder()
 			.name(request.name())
 			.createdBy(createdBy)
+			.weeklyAllowance(request.weeklyAllowance())
+			.weeklyRewardLimit(request.weeklyRewardLimit())
+			.financialKnowledgeLevel(request.financialKnowledgeLevel())
 			.build();
 	}
 

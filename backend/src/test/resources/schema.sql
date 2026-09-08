@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS "families" (
 	"family_id"	SERIAL	NOT NULL,
 	"name"	VARCHAR(100)	NOT NULL,
 	"created_by"	INTEGER	NOT NULL,
+	"weekly_allowance"	INTEGER	NULL,
+	"weekly_reward_limit"	INTEGER	NULL,
+	"financial_knowledge_level"	VARCHAR(20)	NULL,
 	"created_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	"updated_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
 	"deleted_at"	TIMESTAMPTZ	NULL,
@@ -66,6 +69,13 @@ CREATE TABLE IF NOT EXISTS "family_members" (
    CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 컬럼을 붙이지 않으므로 따로 채워 준다. */
 ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
 ALTER TABLE "family_members" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMPTZ NULL;
+
+/* 온보딩 설정 3종 (FAM, S15P21A505-134). 최종 DDL 에서는 NOT NULL 이지만
+   여기서는 기존 행(온보딩 도입 전 가족) 때문에 NULL 허용으로 붙인다.
+   새 행의 NOT NULL 은 엔티티와 요청 검증이 보장한다. */
+ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "weekly_allowance" INTEGER NULL;
+ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "weekly_reward_limit" INTEGER NULL;
+ALTER TABLE "families" ADD COLUMN IF NOT EXISTS "financial_knowledge_level" VARCHAR(20) NULL;
 
 
 CREATE TABLE IF NOT EXISTS "family_codes" (

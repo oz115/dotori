@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -32,6 +33,7 @@ import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.family.entity.FinancialKnowledgeLevel;
 import com.bana.dotori.family.mapper.FamilyMapper;
 import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
@@ -83,6 +85,10 @@ class FamilyServiceImplTest {
 			.build();
 	}
 
+	private FamilyCreateRequest createRequest() {
+		return new FamilyCreateRequest("도토리네 가족", 10000, 5000, FinancialKnowledgeLevel.BEGINNER);
+	}
+
 	@Test
 	@DisplayName("가족 생성 성공 시 생성된 가족 정보를 반환하고 생성자를 구성원으로 등록한다")
 	void create_success() {
@@ -90,7 +96,7 @@ class FamilyServiceImplTest {
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-		FamilyCreateResponse response = familyService.create(1, new FamilyCreateRequest("도토리네 가족"));
+		FamilyCreateResponse response = familyService.create(1, createRequest());
 
 		assertThat(response.name()).isEqualTo("도토리네 가족");
 		assertThat(response.createdBy()).isEqualTo(1);
@@ -98,11 +104,25 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("가족 생성 시 온보딩 설정 3종이 함께 저장된다")
+	void create_savesOnboardingSettings() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.create(1, createRequest());
+
+		verify(familyRepository).save(argThat(family -> family.getWeeklyAllowance() == 10000
+			&& family.getWeeklyRewardLimit() == 5000
+			&& family.getFinancialKnowledgeLevel() == FinancialKnowledgeLevel.BEGINNER));
+	}
+
+	@Test
 	@DisplayName("부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
 	void create_notParent() {
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
 
-		assertThatThrownBy(() -> familyService.create(2, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(2, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
@@ -114,7 +134,7 @@ class FamilyServiceImplTest {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
 
-		assertThatThrownBy(() -> familyService.create(1, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(1, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
@@ -322,7 +342,7 @@ class FamilyServiceImplTest {
 	void create_userNotFound() {
 		given(userRepository.findByIdForUpdate(99)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> familyService.create(99, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(99, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);

@@ -67,7 +67,10 @@ class FamilyControllerTest {
 
 	private static final String CREATE_BODY = """
 		{
-			"name": "도토리네 가족"
+			"name": "도토리네 가족",
+			"weeklyAllowance": 10000,
+			"weeklyRewardLimit": 5000,
+			"financialKnowledgeLevel": "BEGINNER"
 		}
 		""";
 
@@ -140,7 +143,43 @@ class FamilyControllerTest {
 		mockMvc.perform(post(FAMILIES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"name\": \"\"}"))
+				.content("""
+					{"name": "", "weeklyAllowance": 10000, "weeklyRewardLimit": 5000,
+						"financialKnowledgeLevel": "BEGINNER"}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("온보딩 값이 누락되면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void create_missingOnboardingSettings() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(post(FAMILIES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"도토리네 가족\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("금융 지식 수준에 허용되지 않은 값이 오면 400과 INVALID_REQUEST 에러를 반환한다")
+	void create_invalidKnowledgeLevel() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(post(FAMILIES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"name": "도토리네 가족", "weeklyAllowance": 10000, "weeklyRewardLimit": 5000,
+						"financialKnowledgeLevel": "EXPERT"}
+					"""))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
