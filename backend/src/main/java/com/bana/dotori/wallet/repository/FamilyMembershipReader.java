@@ -23,4 +23,11 @@ public interface FamilyMembershipReader {
 	 * 발행을 요청한 사람이 그 가족의 부모인지도 확인해야 한다.
 	 */
 	boolean isParentOfFamily(Integer familyId, Integer parentId);
+
+	/**
+	 * 이 가족의 부모 userId를 찾는다.
+	 *
+	 * <p>부모가 여럿이면 먼저 합류한 부모를 반환한다. 부모가 없으면 {@code null}.
+	 */
+	Integer findParentUserId(Integer familyId);
 }

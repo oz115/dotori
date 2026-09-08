@@ -30,6 +30,7 @@ import com.bana.dotori.auth.dto.LoginResult;
 import com.bana.dotori.auth.dto.TokenRefreshResponse;
 import com.bana.dotori.auth.dto.TokenRefreshResult;
 import com.bana.dotori.auth.service.AuthService;
+import com.bana.dotori.auth.service.EmailVerificationService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -52,6 +53,9 @@ class AuthControllerTest {
 
 	@MockitoBean
 	private AuthService authService;
+
+	@MockitoBean
+	private EmailVerificationService emailVerificationService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
