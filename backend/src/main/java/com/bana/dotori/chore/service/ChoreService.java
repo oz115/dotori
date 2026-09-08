@@ -4,17 +4,17 @@ import com.bana.dotori.chore.dto.ChoreCreateRequest;
 import com.bana.dotori.chore.dto.ChoreDetailResponse;
 import com.bana.dotori.chore.dto.ChoreListResponse;
 
+/**
+ * 집안일 서비스 (CHORE).
+ *
+ * <p>모든 메서드가 familyId·childId 를 함께 받는다. 경로에서 온 값이므로 믿을 수 없고,
+ * 구현체가 매번 호출자의 소속과 아이의 소속을 확인한다.
+ */
 public interface ChoreService {
 
-	ChoreDetailResponse createChore(Integer userId, ChoreCreateRequest request);
+	ChoreDetailResponse createChore(Integer userId, Integer familyId, Integer childId, ChoreCreateRequest request);
 
-	/**
-	 * 집안일 목록 (CHORE-01).
-	 *
-	 * @param childId 부모가 특정 자녀만 보려고 넘기는 필터. 없으면 가족 전체.
-	 *                아이가 호출하면 이 값과 무관하게 자기 몫만 나온다.
-	 */
-	ChoreListResponse getChores(Integer userId, Integer childId);
+	ChoreListResponse getChores(Integer userId, Integer familyId, Integer childId);
 
-	ChoreDetailResponse getChore(Integer userId, Integer choreId);
+	ChoreDetailResponse getChore(Integer userId, Integer familyId, Integer childId, Integer choreId);
 }

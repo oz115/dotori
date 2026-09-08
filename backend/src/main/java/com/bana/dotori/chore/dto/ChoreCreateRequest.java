@@ -13,13 +13,12 @@ import jakarta.validation.constraints.Size;
 /**
  * 집안일 생성 요청 (CHORE-04).
  *
- * <p>familyId·parentId 는 요청에 없다. 인증 주체에서 채운다 —
- * 클라이언트가 보낸 값을 믿으면 남의 가족에 집안일을 심을 수 있다.
+ * <p>childId·familyId 는 본문에 없다. 경로가 이미 지목하고 있어 두 군데서 받으면
+ * 서로 다른 값이 올 때 무엇을 믿을지 정해야 한다. parentId 도 인증 주체에서 채운다.
  *
  * <p>startDate 를 비우면 오늘부터, endDate 를 비우면 기한 없이 반복한다.
  */
 public record ChoreCreateRequest(
-	@NotNull Integer childId,
 	@NotBlank @Size(max = 100) String title,
 	@Size(max = 255) String description,
 	@NotNull @Min(1) Integer rewardPoints,

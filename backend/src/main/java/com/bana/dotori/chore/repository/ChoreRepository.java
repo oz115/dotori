@@ -10,17 +10,13 @@ import com.bana.dotori.chore.entity.Chore;
 public interface ChoreRepository extends JpaRepository<Chore, Integer> {
 
 	/**
-	 * 가족 전체의 활성 집안일 (CHORE-01, 부모). 방금 등록한 것이 위에 오도록 최신순이고,
-	 * created_at 이 같은 행은 ID 로 순서를 고정한다.
-	 */
-	List<Chore> findAllByFamilyIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(Integer familyId);
-
-	/**
-	 * 한 아이에게 배정된 활성 집안일 (CHORE-01, 아이 또는 부모의 childId 필터).
+	 * 한 아이에게 배정된 활성 집안일 (CHORE-01).
 	 *
-	 * <p>familyId 를 함께 거는 이유는 childId 만으로 찾으면 다른 가족의 집안일까지 나오기 때문이다.
-	 * 아이가 두 가족에 속하는 경우는 없지만, 조회 조건에서 가족 경계를 빼면
-	 * 나중에 그런 상황이 생겼을 때 조용히 새어 나간다.
+	 * <p>경로가 가족과 아이를 함께 지목하므로 조회도 둘 다로 좁힌다. childId 만으로 찾으면
+	 * 다른 가족의 집안일까지 나온다. 아이가 두 가족에 속하는 경우는 없지만,
+	 * 조회 조건에서 가족 경계를 빼면 나중에 그런 상황이 생겼을 때 조용히 새어 나간다.
+	 *
+	 * <p>방금 등록한 것이 위에 오도록 최신순이고, created_at 이 같은 행은 ID 로 순서를 고정한다.
 	 */
 	List<Chore> findAllByFamilyIdAndChildIdAndIsActiveTrueOrderByCreatedAtDescIdDesc(
 			Integer familyId, Integer childId);

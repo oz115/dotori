@@ -31,13 +31,13 @@ class ChoreCreateRequestTest {
 			.collect(Collectors.toSet());
 	}
 
-	private ChoreCreateRequest request(Integer childId, String title, String description, Integer rewardPoints,
+	private ChoreCreateRequest request(String title, String description, Integer rewardPoints,
 			ChoreRepeatType repeatType, LocalDate startDate, LocalDate endDate) {
-		return new ChoreCreateRequest(childId, title, description, rewardPoints, repeatType, startDate, endDate);
+		return new ChoreCreateRequest(title, description, rewardPoints, repeatType, startDate, endDate);
 	}
 
 	private ChoreCreateRequest valid() {
-		return request(2, "설거지", "저녁 먹고 나서", 500, ChoreRepeatType.DAY,
+		return request("설거지", "저녁 먹고 나서", 500, ChoreRepeatType.DAY,
 			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
 	}
 
@@ -52,23 +52,15 @@ class ChoreCreateRequestTest {
 	@Test
 	@DisplayName("기간을 비워도 위반이 없다")
 	void validate_nullPeriod() {
-		ChoreCreateRequest request = request(2, "설거지", null, 500, ChoreRepeatType.DAY, null, null);
+		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY, null, null);
 
 		assertThat(validator.validate(request)).isEmpty();
 	}
 
 	@Test
-	@DisplayName("childId가 null이면 위반이 발생한다")
-	void validate_nullChildId() {
-		ChoreCreateRequest request = request(null, "설거지", null, 500, ChoreRepeatType.DAY, null, null);
-
-		assertThat(violatedFields(request)).contains("childId");
-	}
-
-	@Test
 	@DisplayName("title이 비어 있으면 위반이 발생한다")
 	void validate_blankTitle() {
-		ChoreCreateRequest request = request(2, " ", null, 500, ChoreRepeatType.DAY, null, null);
+		ChoreCreateRequest request = request(" ", null, 500, ChoreRepeatType.DAY, null, null);
 
 		assertThat(violatedFields(request)).contains("title");
 	}
@@ -76,7 +68,7 @@ class ChoreCreateRequestTest {
 	@Test
 	@DisplayName("title이 100자를 초과하면 위반이 발생한다")
 	void validate_tooLongTitle() {
-		ChoreCreateRequest request = request(2, "가".repeat(101), null, 500, ChoreRepeatType.DAY, null, null);
+		ChoreCreateRequest request = request("가".repeat(101), null, 500, ChoreRepeatType.DAY, null, null);
 
 		assertThat(violatedFields(request)).contains("title");
 	}
@@ -84,7 +76,7 @@ class ChoreCreateRequestTest {
 	@Test
 	@DisplayName("description이 255자를 초과하면 위반이 발생한다")
 	void validate_tooLongDescription() {
-		ChoreCreateRequest request = request(2, "설거지", "가".repeat(256), 500, ChoreRepeatType.DAY, null, null);
+		ChoreCreateRequest request = request("설거지", "가".repeat(256), 500, ChoreRepeatType.DAY, null, null);
 
 		assertThat(violatedFields(request)).contains("description");
 	}
@@ -93,16 +85,16 @@ class ChoreCreateRequestTest {
 	@DisplayName("rewardPoints가 0 이하면 위반이 발생한다")
 	void validate_nonPositiveRewardPoints() {
 		// 0 을 허용하면 "해도 아무것도 안 주는" 집안일이 만들어진다.
-		assertThat(violatedFields(request(2, "설거지", null, 0, ChoreRepeatType.DAY, null, null)))
+		assertThat(violatedFields(request("설거지", null, 0, ChoreRepeatType.DAY, null, null)))
 			.contains("rewardPoints");
-		assertThat(violatedFields(request(2, "설거지", null, -1, ChoreRepeatType.DAY, null, null)))
+		assertThat(violatedFields(request("설거지", null, -1, ChoreRepeatType.DAY, null, null)))
 			.contains("rewardPoints");
 	}
 
 	@Test
 	@DisplayName("repeatType이 null이면 위반이 발생한다")
 	void validate_nullRepeatType() {
-		ChoreCreateRequest request = request(2, "설거지", null, 500, null, null, null);
+		ChoreCreateRequest request = request("설거지", null, 500, null, null, null);
 
 		assertThat(violatedFields(request)).contains("repeatType");
 	}
@@ -110,7 +102,7 @@ class ChoreCreateRequestTest {
 	@Test
 	@DisplayName("종료일이 시작일보다 앞서면 위반이 발생한다")
 	void validate_endBeforeStart() {
-		ChoreCreateRequest request = request(2, "설거지", null, 500, ChoreRepeatType.DAY,
+		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
 			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 9));
 
 		assertThat(violatedFields(request)).contains("periodOrdered");
@@ -119,7 +111,7 @@ class ChoreCreateRequestTest {
 	@Test
 	@DisplayName("종료일과 시작일이 같으면 위반이 없다")
 	void validate_sameDay() {
-		ChoreCreateRequest request = request(2, "설거지", null, 500, ChoreRepeatType.DAY,
+		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
 			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 10));
 
 		assertThat(validator.validate(request)).isEmpty();
@@ -129,7 +121,7 @@ class ChoreCreateRequestTest {
 	@DisplayName("시작일을 비운 채 종료일을 과거로 주면 위반이 발생한다")
 	void validate_pastEndWithoutStart() {
 		// startDate 를 비우면 오늘부터 시작하므로, 어제 끝나는 집안일은 성립하지 않는다.
-		ChoreCreateRequest request = request(2, "설거지", null, 500, ChoreRepeatType.DAY,
+		ChoreCreateRequest request = request("설거지", null, 500, ChoreRepeatType.DAY,
 			null, LocalDate.now().minusDays(1));
 
 		assertThat(violatedFields(request)).contains("periodOrdered");
