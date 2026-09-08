@@ -13,6 +13,8 @@ public record SignupRequest(
 	@NotBlank @Size(min = PasswordPolicy.MIN_LENGTH, max = PasswordPolicy.MAX_LENGTH) String password,
 	@NotBlank @Size(max = 50) String name,
 	@NotBlank @Email @Size(max = 255) String email,
-	@NotNull UserRole role
+	@NotNull UserRole role,
+	/* 이메일 인증 코드 확인(AUTH-07)에서 발급받은 토큰. 인증된 이메일만 가입할 수 있다. */
+	@NotBlank String verificationToken
 ) {
 }

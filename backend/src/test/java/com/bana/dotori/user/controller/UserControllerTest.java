@@ -55,7 +55,8 @@ class UserControllerTest {
 			"password": "P@ssw0rd!",
 			"name": "김도토",
 			"email": "dotori@example.com",
-			"role": "PARENT"
+			"role": "PARENT",
+			"verificationToken": "vt_a1b2c3d4"
 		}
 		""";
 
@@ -115,13 +116,49 @@ class UserControllerTest {
 				"password": "P@ssw0rd!",
 				"name": "김도토",
 				"email": "dotori@example.com",
-				"role": "PARENT"
+				"role": "PARENT",
+				"verificationToken": "vt_a1b2c3d4"
 			}
 			""";
 
 		mockMvc.perform(post(SIGNUP_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(invalidBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("verificationToken이 유효하지 않으면 401과 INVALID_VERIFICATION_TOKEN 에러를 반환한다")
+	void signup_invalidVerificationToken() throws Exception {
+		given(userService.signup(any(SignupRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INVALID_VERIFICATION_TOKEN));
+
+		mockMvc.perform(post(SIGNUP_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(VALID_BODY))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("INVALID_VERIFICATION_TOKEN"));
+	}
+
+	@Test
+	@DisplayName("verificationToken이 없으면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void signup_missingVerificationToken() throws Exception {
+		String withoutToken = """
+			{
+				"loginId": "dotori123",
+				"password": "P@ssw0rd!",
+				"name": "김도토",
+				"email": "dotori@example.com",
+				"role": "PARENT"
+			}
+			""";
+
+		mockMvc.perform(post(SIGNUP_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(withoutToken))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
@@ -173,7 +210,8 @@ class UserControllerTest {
 				"password": "P@ssw0rd!",
 				"name": "김도토",
 				"email": "dotori@example.com",
-				"role": "ADMIN"
+				"role": "ADMIN",
+				"verificationToken": "vt_a1b2c3d4"
 			}
 			""";
 

@@ -22,10 +22,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import com.bana.dotori.auth.service.EmailVerificationCodeManager;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.global.security.RefreshTokenCookieProvider;
 import com.bana.dotori.user.entity.UserRole;
@@ -62,6 +64,14 @@ class MyPageApiE2ETest {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	/**
+	 * 이메일 인증 토큰 검증만 목으로 대체한다. 회원가입이 verificationToken 을 요구하는데
+	 * 실제 인증은 메일 수신이 필요해 테스트에서 재현할 수 없고, Redis 의존도 생긴다.
+	 * 이 테스트의 관심사는 마이페이지 배선이지 이메일 인증이 아니다.
+	 */
+	@MockitoBean
+	private EmailVerificationCodeManager emailVerificationCodeManager;
 
 	private Integer parentId;
 	private Integer childId;
@@ -338,7 +348,8 @@ class MyPageApiE2ETest {
 		mockMvc.perform(post("/api/v1/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@autotest.local", "role": "%s"}
+					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@autotest.local", "role": "%s",
+					"verificationToken": "vt_autotest"}
 					""".formatted(loginId, password, name, loginId, role)))
 			.andExpect(status().isCreated());
 		return jdbcTemplate.queryForObject(
