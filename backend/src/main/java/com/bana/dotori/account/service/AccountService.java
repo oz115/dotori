@@ -32,4 +32,7 @@ public interface AccountService {
 
 	// 연동 계좌번호만 조회한다 (금융망 호출 없이 로컬 DB만 본다)
 	String getLinkedAccountNumber(Integer userId);
+
+	// 연동된 계좌를 해제한다
+	void unlinkAccount(Integer userId);
 }
