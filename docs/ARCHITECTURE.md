@@ -77,26 +77,40 @@ ERD 상 `users.role` 과 `point_transactions.transaction_type` 은 PG 네이티�
 방향은 `balance_after` 의 변화로 알 수 있어 따로 저장하지 않는다.
 API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` 이 필요해지면 응답에서 계산한다.
 
-#### 스키마를 어디서 관리하나
+#### 이미 만들어진 DB 에 적용해야 하는 변경
 
-원본은 **`backend/docker/initdb/01-schema.sql` 하나**다 (노션 DDL과 동일 내용).
-`ddl-auto: none` 이므로 Hibernate 는 스키마를 만들지도 고치지도 않는다.
-엔티티를 고쳤으면 이 파일도 같은 커밋에서 고친다.
+`ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다.
+그래서 `backend/src/test/resources/schema.sql` 아래쪽이 위 제약들을
+`DROP CONSTRAINT IF EXISTS` → `ADD CONSTRAINT` 로 매번 다시 걸어 준다.
+테스트가 앱과 같은 DB 를 쓰므로, **테스트를 한 번 돌리면 그 DB 에는 자동으로 반영된다.**
 
-DB 는 역할로 두 개를 나눠 쓴다.
+테스트가 닿지 않는 DB(배포 환경 등)에는 손으로 한 번 실행한다.
+`init.sql` 최신화 때 같이 반영한다.
 
-- **로컬 도커 DB** — 테스트 전용. `docker compose -f docker-compose.local.yml up -d` 하면
-  컨테이너가 처음 뜰 때 위 스크립트로 스키마가 만들어진다. 스키마를 고친 뒤에는
-  `down -v` 로 볼륨을 지우고 다시 띄워야 반영된다.
-- **공용 EC2 DB** — QA 전용. 자동 반영이 없다. 인프라 담당자와 협의해 수동으로 실행한다
-  (스크립트 맨 위 `DROP` 이 데이터를 전부 날린다).
+```sql
+-- 멱등키 유일성을 (지갑, 키) 복합으로 좁힌다.
+ALTER TABLE point_transactions
+	DROP CONSTRAINT IF EXISTS uk_point_transactions_idempotency_key;
 
-예전에는 `ddl-auto: update` 가 스키마를 만들고, 그게 못 붙이는 제약을
-`backend/src/test/resources/schema.sql` 이 테스트마다 덧발랐다. 그 구조는 없앴다.
-DDL 로 만든 스키마 위에 Hibernate 가 엔티티 모양대로 컬럼을 덧붙여
-`point_wallets` 에 `child_id`(DDL)와 `user_id`(엔티티)가 함께 생기는 사고가 났고,
-테스트용 파일이 지갑 범위 6개 테이블만 담은 채 enum 컬럼을 `VARCHAR` 로 선언해
-실제 스키마와 어긋나 있었다.
+ALTER TABLE point_transactions
+	ADD CONSTRAINT uk_point_transactions_wallet_idempotency_key
+	UNIQUE (wallet_id, idempotency_key);
+
+-- WLT-06 거래내역 조회(커서 페이징)용 인덱스.
+CREATE INDEX IF NOT EXISTS ix_point_transactions_wallet_created_at
+	ON point_transactions (wallet_id, created_at, point_transaction_id);
+```
+
+이미 서로 다른 지갑에 같은 멱등키가 들어가 있으면 두 번째 문장이 실패한다.
+그런 행이 있는지 먼저 확인한다.
+
+```sql
+SELECT idempotency_key, count(DISTINCT wallet_id)
+FROM point_transactions
+WHERE idempotency_key IS NOT NULL
+GROUP BY idempotency_key
+HAVING count(DISTINCT wallet_id) > 1;
+```
 
 ## API 설계 원칙
 

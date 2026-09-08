@@ -58,59 +58,29 @@ IntelliJ에 적용된 `Naver-coding-convention-v1.2` 스킴 기준. 전체 문�
   - **service**: Mockito 단위 테스트 — `@ExtendWith(MockitoExtension.class)`, repository/encoder는 `@Mock`, mapper는 `@Spy`
   - **controller**: `@WebMvcTest` 슬라이스 테스트 — service는 `@MockitoBean`, `SecurityConfig`를 `@Import`해서 시큐리티 규칙 포함, MockMvc로 상태 코드·응답 JSON·에러 형식 검증
 - 테스트 클래스명은 `{대상 클래스}Test`, 메서드명은 `{기능}_{시나리오}` 형식으로 작성한다.
-- **새 기능은 위 세 계층(dto·service·controller)까지만 쓴다.** 리포지토리 테스트와 통합 테스트는
-  기본으로 만들지 않는다 — 테스트가 많아 개발 속도가 떨어진다는 팀 결정이다.
-  DB 를 띄우는 테스트는 그것 없이는 검증이 불가능할 때만 만들고, 만들기 전에 팀에 알린다.
-  - 이미 있는 지갑·가족 쪽 리포지토리·통합 테스트는 그대로 둔다 (동시성·잠금 검증이 목적이라 대체가 없다).
-  - 엔티티에 계산 로직이 있으면 스프링 없는 단위 테스트로 덮는다 (`PointWalletTest`, `ChoreTest`).
-  - 대신 스키마와 엔티티가 어긋나는 것은 테스트가 아니라 `ddl-auto: validate` 로 잡는다.
-### DB 두 개를 역할로 나눠 쓴다
-
-| | 로컬 도커 DB | 공용 EC2 DB |
-|---|---|---|
-| 용도 | **테스트 전용** (`./gradlew test`) | **QA 전용** — 데이터를 쌓아 두고 실제 기능 확인 |
-| 접속 | `localhost:5433`, 각자 것 | `ssh -N A505` 터널 → `localhost:5432` |
-| 설정 | `src/test/resources/application.yaml` (기본값 내장) | `.env` → `src/main/resources/application.yaml` |
-| 데이터 | 언제 날아가도 됨 | **테스트로 건드리지 않는다** |
-
-테스트 설정은 `.env`를 **일부러 읽지 않는다.** `.env`는 앱을 공용 DB에 붙이는 설정이라,
-물려받으면 테스트 뒷정리가 QA 데이터를 지운다. 그 사고를 구조적으로 막으려고 경로를 끊었다.
-테스트 쪽 접속 정보를 바꿔야 하면 `TEST_POSTGRES_*` 환경변수를 쓴다.
-
-포트가 5433인 이유는 5432를 위 ssh 터널이 쓰기 때문이다. 갈라 둬서 둘을 동시에 켜 둘 수 있다.
-
 ### 테스트 DB
 
-- H2 같은 인메모리 DB를 쓰지 않고 **PostgreSQL**을 쓴다.
+- 테스트는 H2 같은 인메모리 DB를 쓰지 않고 **애플리케이션과 같은 PostgreSQL**을 쓴다.
   행 잠금(`SELECT ... FOR UPDATE`), `TIMESTAMPTZ` 환산, 커서 정렬, CHECK·부분 유니크 제약처럼
   H2의 PostgreSQL MODE가 흉내 내지 못하는 동작이 검증 대상이라, H2로 통과해도 배포에서 깨진다.
 - 설정은 `src/test/resources/application.yaml` **하나**다. 테스트 클래스패스가 메인 설정보다
   앞서므로 이 파일이 테스트 전체의 설정이 된다. 프로파일 전용 파일은 없다
   (일부 테스트의 `@ActiveProfiles("test")`는 통합 테스트를 표시하는 관례로 남아 있다).
-- 실행 전에 로컬 인프라를 띄운다: `docker compose -f docker-compose.local.yml up -d`
+- 실행 전에 DB로 가는 터널을 먼저 연다: `ssh -N A505`
+- 스키마는 `src/test/resources/schema.sql`이 `CREATE TABLE IF NOT EXISTS` + 제약조건 재적용으로 맞춘다.
+  `ddl-auto: none`이므로 **자기 도메인 테이블이 필요하면 이 파일에 직접 추가한다.**
+  지금은 지갑 범위 테이블만 있어서, 다른 도메인은 EC2 DB에 이미 만들어진 테이블에 의존한다
+  (= 완전히 새 DB에서는 깨진다).
 - `@DataJpaTest`는 기본적으로 데이터소스를 임베디드 DB로 갈아끼운다. 임베디드 드라이버가
   클래스패스에 없으므로 `@AutoConfigureTestDatabase(replace = NONE)`을 붙인다.
 - 뒷정리(`WalletTestFixture.cleanUp`)는 **테스트가 만든 회원과 거기 딸린 행만** 지운다.
   판별 기준은 이메일 `{loginId}@autotest.local`이고, 집계(`countTransactions`)도 같은 범위다.
+  DB를 공유하므로 테이블을 통째로 비우면 안 된다 — 예전에는 `DELETE FROM users`로 싹 지웠는데,
+  그러려면 `users`를 참조하는 테이블을 전부 먼저 비워야 해서 남의 도메인 데이터(연동 계좌 등)까지
+  딸려 나갔고, 다른 도메인이 `users` 참조 테이블을 추가할 때마다 삭제 목록이 낡아
+  FK 위반(23503)으로 지갑 테스트가 통째로 깨졌다.
   - **DB에 붙는 테스트를 새로 쓸 때는 회원 이메일을 `@autotest.local`로 맞춘다.**
-
-### 스키마
-
-- 원본은 **`backend/docker/initdb/01-schema.sql` 하나**다. 노션의 DDL과 같은 내용이어야 하고,
-  노션을 고쳤으면 이 파일도 같은 커밋에서 고친다.
-- `ddl-auto: none`이다. Hibernate는 스키마를 만들지도 고치지도 않는다.
-  **엔티티에 컬럼을 추가했으면 이 파일에도 추가한다.**
-- 도커 postgres는 데이터 볼륨이 **비어 있을 때만** 이 스크립트를 실행한다.
-  스키마를 고친 뒤에는 볼륨을 지우고 다시 띄워야 반영된다:
-
-  ```bash
-  docker compose -f docker-compose.local.yml down -v && docker compose -f docker-compose.local.yml up -d
-  ```
-
-- 공용 EC2 DB에는 자동으로 반영되지 않는다. 필요하면 인프라 담당자와 협의해 수동 실행한다
-  (스크립트 맨 위 `DROP`이 데이터를 전부 날리므로 그냥 붙여넣지 않는다).
-- 예전에 있던 `src/test/resources/schema.sql`은 없앴다. `ddl-auto: update` 시절의 잔재로
-  지갑 범위 6개 테이블만 담고 enum 컬럼을 `VARCHAR`로 선언해 실제 스키마와 어긋나 있었다.
+    그래야 뒷정리 대상에 들어가고, 남의 데이터와 섞이지 않는다.
 
 ## 규칙
 
