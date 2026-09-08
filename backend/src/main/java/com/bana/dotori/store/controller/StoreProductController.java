@@ -1,16 +1,21 @@
 package com.bana.dotori.store.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.service.StoreProductService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -30,5 +35,12 @@ public class StoreProductController {
 	public ResponseEntity<StoreProductDetailResponse> getProduct(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId, @PathVariable Integer productId) {
 		return ResponseEntity.ok(storeProductService.getProduct(userId, familyId, productId));
+	}
+
+	@PostMapping
+	public ResponseEntity<StoreProductDetailResponse> createProduct(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @Valid @RequestBody StoreProductCreateRequest request) {
+		StoreProductDetailResponse response = storeProductService.createProduct(userId, familyId, request);
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 }

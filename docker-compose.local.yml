@@ -39,9 +39,31 @@ services:
     networks:
       - dotori-network
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dotori-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      TZ: Asia/Seoul
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - dotori-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
 volumes:
   dotori-postgres-data:
   dotori-redis-data:
+  dotori-rabbitmq-data:
 
 networks:
   dotori-network:
