@@ -40,6 +40,8 @@ public class FamilyServiceImpl implements FamilyService {
 	private static final int CODE_LENGTH = 6;
 	private static final Duration CODE_TTL = Duration.ofMinutes(10);
 	private static final int CODE_GENERATION_MAX_ATTEMPTS = 10;
+	/** 온보딩 금액(기본 용돈·추가 보상 한도)의 최소값이자 입력 단위(원). */
+	private static final int ONBOARDING_AMOUNT_UNIT_WON = 1000;
 
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
@@ -72,16 +74,17 @@ public class FamilyServiceImpl implements FamilyService {
 	}
 
 	/**
-	 * 원을 포인트로 환산한다 (10원 = 1포인트, {@link PointExchangePolicy}).
+	 * 온보딩 금액(원)을 포인트로 환산한다 (10원 = 1포인트, {@link PointExchangePolicy}).
 	 *
-	 * <p>최소 10원(=1포인트)·10원 단위만 받는다. 0원이나 어중간한 금액을 허용하면
-	 * 포인트 환산에서 잔돈이 사라지거나 한도가 0인 가족이 생긴다.
+	 * <p>최소 {@value ONBOARDING_AMOUNT_UNIT_WON}원, {@value ONBOARDING_AMOUNT_UNIT_WON}원 단위만
+	 * 받는다 (기획 정책 — 화면의 금액 프리셋도 천원 단위다). 1000원 단위는 항상 10원 단위이므로
+	 * 포인트 환산에서 잔돈이 사라질 일도 없다.
 	 */
 	private int toPoints(int won, String fieldLabel) {
-		if (won < PointExchangePolicy.KRW_PER_POINT || !PointExchangePolicy.isWonUnit(won)) {
+		if (won < ONBOARDING_AMOUNT_UNIT_WON || won % ONBOARDING_AMOUNT_UNIT_WON != 0) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST,
-				fieldLabel + "은(는) " + PointExchangePolicy.KRW_PER_POINT + "원 이상, "
-					+ PointExchangePolicy.KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + won);
+				fieldLabel + "은(는) " + ONBOARDING_AMOUNT_UNIT_WON + "원 이상, "
+					+ ONBOARDING_AMOUNT_UNIT_WON + "원 단위여야 합니다. 요청 금액=" + won);
 		}
 		return PointExchangePolicy.toPoints(won);
 	}

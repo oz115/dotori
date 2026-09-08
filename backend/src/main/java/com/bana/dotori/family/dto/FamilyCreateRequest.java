@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * 금액 두 개는 부모가 화면에서 입력하는 원(₩) 단위다. 서버가 10원=1포인트로 환산해
- * 포인트로 저장하며, 최소 금액(10원)·10원 단위 검증은 환전 정책이라 서비스에서 한다
+ * 포인트로 저장하며, 최소 1000원·1000원 단위 검증은 정책이라 서비스에서 한다
  * (포인트 충전 PointChargeRequest 와 같은 방식).
  */
 public record FamilyCreateRequest(

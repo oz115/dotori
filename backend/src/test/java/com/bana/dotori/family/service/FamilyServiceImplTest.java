@@ -119,12 +119,12 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("온보딩 금액이 10원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
-	void create_rejectsNonWonUnitAmount() {
+	@DisplayName("온보딩 금액이 1000원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void create_rejectsNonThousandWonUnitAmount() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 
-		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10005, 5000,
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10500, 5000,
 			FinancialKnowledgeLevel.BEGINNER);
 
 		assertThatThrownBy(() -> familyService.create(1, request))
@@ -136,12 +136,12 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("온보딩 금액이 10원 미만이면 INVALID_REQUEST 예외가 발생한다")
+	@DisplayName("온보딩 금액이 1000원 미만이면 INVALID_REQUEST 예외가 발생한다")
 	void create_rejectsBelowMinimumAmount() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 
-		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, 5,
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, 500,
 			FinancialKnowledgeLevel.BEGINNER);
 
 		assertThatThrownBy(() -> familyService.create(1, request))
