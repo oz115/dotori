@@ -19,12 +19,14 @@ import com.bana.dotori.user.entity.User;
 @Component
 public class FamilyMapper {
 
-	public Family toEntity(FamilyCreateRequest request, Integer createdBy) {
+	/** 금액 두 개는 이미 포인트로 환산된 값을 받는다. 원→포인트 환산은 서비스가 한다. */
+	public Family toEntity(FamilyCreateRequest request, Integer createdBy, int allowancePoints,
+		int rewardLimitPoints) {
 		return Family.builder()
 			.name(request.name())
 			.createdBy(createdBy)
-			.weeklyAllowance(request.weeklyAllowance())
-			.weeklyRewardLimit(request.weeklyRewardLimit())
+			.weeklyAllowance(allowancePoints)
+			.weeklyRewardLimit(rewardLimitPoints)
 			.financialKnowledgeLevel(request.financialKnowledgeLevel())
 			.build();
 	}

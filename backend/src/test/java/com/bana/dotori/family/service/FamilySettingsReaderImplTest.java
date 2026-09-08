@@ -30,21 +30,21 @@ class FamilySettingsReaderImplTest {
 	private FamilySettingsReaderImpl familySettingsReader;
 
 	@Test
-	@DisplayName("가족의 온보딩 설정값을 반환한다")
+	@DisplayName("가족의 온보딩 설정값(포인트 단위)을 반환한다")
 	void read_success() {
 		Family family = Family.builder()
 			.name("도토리네 가족")
 			.createdBy(1)
-			.weeklyAllowance(10000)
-			.weeklyRewardLimit(5000)
+			.weeklyAllowance(1000)
+			.weeklyRewardLimit(500)
 			.financialKnowledgeLevel(FinancialKnowledgeLevel.INTERMEDIATE)
 			.build();
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
 
 		FamilySettings settings = familySettingsReader.read(1, 7);
 
-		assertThat(settings.weeklyAllowance()).isEqualTo(10000);
-		assertThat(settings.weeklyRewardLimit()).isEqualTo(5000);
+		assertThat(settings.weeklyAllowance()).isEqualTo(1000);
+		assertThat(settings.weeklyRewardLimit()).isEqualTo(500);
 		assertThat(settings.financialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.INTERMEDIATE);
 	}
 

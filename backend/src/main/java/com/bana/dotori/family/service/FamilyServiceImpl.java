@@ -25,6 +25,7 @@ import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.PointExchangePolicy;
 import com.bana.dotori.global.util.RandomCodeGenerator;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
@@ -57,12 +58,32 @@ public class FamilyServiceImpl implements FamilyService {
 			throw new BusinessException(ErrorCode.ALREADY_IN_FAMILY);
 		}
 
-		Family family = familyRepository.save(familyMapper.toEntity(request, userId));
+		// 온보딩 금액은 원으로 들어와 포인트로 저장한다. DB 를 건드리기 전에 환산부터 한다.
+		int allowancePoints = toPoints(request.weeklyAllowance(), "기본 용돈");
+		int rewardLimitPoints = toPoints(request.weeklyRewardLimit(), "추가 보상 한도");
+
+		Family family = familyRepository.save(
+			familyMapper.toEntity(request, userId, allowancePoints, rewardLimitPoints));
 		familyMemberRepository.save(FamilyMember.builder()
 			.family(family)
 			.user(user)
 			.build());
 		return familyMapper.toCreateResponse(family);
+	}
+
+	/**
+	 * 원을 포인트로 환산한다 (10원 = 1포인트, {@link PointExchangePolicy}).
+	 *
+	 * <p>최소 10원(=1포인트)·10원 단위만 받는다. 0원이나 어중간한 금액을 허용하면
+	 * 포인트 환산에서 잔돈이 사라지거나 한도가 0인 가족이 생긴다.
+	 */
+	private int toPoints(int won, String fieldLabel) {
+		if (won < PointExchangePolicy.KRW_PER_POINT || !PointExchangePolicy.isWonUnit(won)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST,
+				fieldLabel + "은(는) " + PointExchangePolicy.KRW_PER_POINT + "원 이상, "
+					+ PointExchangePolicy.KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + won);
+		}
+		return PointExchangePolicy.toPoints(won);
 	}
 
 	@Override

@@ -79,6 +79,15 @@ class FamilyCreateRequestTest {
 	}
 
 	@Test
+	@DisplayName("기본 용돈이 0원이면 위반이 발생한다")
+	void validate_zeroWeeklyAllowance() {
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 0, 5000,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThat(violatedFields(request)).contains("weeklyAllowance");
+	}
+
+	@Test
 	@DisplayName("추가 보상 한도가 null이면 위반이 발생한다")
 	void validate_nullWeeklyRewardLimit() {
 		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, null,
@@ -91,6 +100,15 @@ class FamilyCreateRequestTest {
 	@DisplayName("추가 보상 한도가 음수면 위반이 발생한다")
 	void validate_negativeWeeklyRewardLimit() {
 		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, -1,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThat(violatedFields(request)).contains("weeklyRewardLimit");
+	}
+
+	@Test
+	@DisplayName("추가 보상 한도가 0원이면 위반이 발생한다")
+	void validate_zeroWeeklyRewardLimit() {
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, 0,
 			FinancialKnowledgeLevel.BEGINNER);
 
 		assertThat(violatedFields(request)).contains("weeklyRewardLimit");

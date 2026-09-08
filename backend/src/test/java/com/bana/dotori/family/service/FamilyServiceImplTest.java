@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
@@ -104,7 +105,7 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가족 생성 시 온보딩 설정 3종이 함께 저장된다")
+	@DisplayName("가족 생성 시 온보딩 금액은 원에서 포인트(10원=1점)로 환산되어 저장된다")
 	void create_savesOnboardingSettings() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
@@ -112,9 +113,43 @@ class FamilyServiceImplTest {
 
 		familyService.create(1, createRequest());
 
-		verify(familyRepository).save(argThat(family -> family.getWeeklyAllowance() == 10000
-			&& family.getWeeklyRewardLimit() == 5000
+		verify(familyRepository).save(argThat(family -> family.getWeeklyAllowance() == 1000
+			&& family.getWeeklyRewardLimit() == 500
 			&& family.getFinancialKnowledgeLevel() == FinancialKnowledgeLevel.BEGINNER));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 10원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void create_rejectsNonWonUnitAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10005, 5000,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThatThrownBy(() -> familyService.create(1, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).save(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 10원 미만이면 INVALID_REQUEST 예외가 발생한다")
+	void create_rejectsBelowMinimumAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, 5,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThatThrownBy(() -> familyService.create(1, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).save(any(Family.class));
 	}
 
 	@Test
