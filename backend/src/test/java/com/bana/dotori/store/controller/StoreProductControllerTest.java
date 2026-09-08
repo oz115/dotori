@@ -3,6 +3,8 @@ package com.bana.dotori.store.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -378,4 +380,47 @@ class StoreProductControllerTest {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
 
+	@Test
+	@DisplayName("상품 삭제 성공 시 204를 반환한다")
+	void deleteProduct_success() throws Exception {
+		givenAuthenticated(1);
+
+		mockMvc.perform(delete(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNoContent());
+	}
+
+	@Test
+	@DisplayName("자녀가 삭제를 시도하면 403과 FORBIDDEN 에러를 반환한다")
+	void deleteProduct_forbidden() throws Exception {
+		givenAuthenticated(2);
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.given(storeProductService).deleteProduct(2, 10, 5);
+
+		mockMvc.perform(delete(PRODUCTS_URL + "/5")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 404와 PRODUCT_NOT_FOUND 에러를 반환한다")
+	void deleteProduct_notFound() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND))
+			.given(storeProductService).deleteProduct(1, 10, 999);
+
+		mockMvc.perform(delete(PRODUCTS_URL + "/999")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 삭제하면 401을 반환한다")
+	void deleteProduct_unauthorized() throws Exception {
+		mockMvc.perform(delete(PRODUCTS_URL + "/5"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
 }

@@ -15,4 +15,6 @@ public interface StoreProductService {
 
 	StoreProductDetailResponse updateProduct(Integer userId, Integer familyId, Integer productId,
 			StoreProductUpdateRequest request);
+
+	void deleteProduct(Integer userId, Integer familyId, Integer productId);
 }

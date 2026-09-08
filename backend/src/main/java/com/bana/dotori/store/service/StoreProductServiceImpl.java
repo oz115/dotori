@@ -99,6 +99,21 @@ public class StoreProductServiceImpl implements StoreProductService {
 		return storeProductMapper.toDetailResponse(product);
 	}
 
+	@Override
+	@Transactional
+	public void deleteProduct(Integer userId, Integer familyId, Integer productId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		validateFamilyMember(userId, familyId);
+
+		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+		product.softDelete();
+	}
+
 	/**
 	 * 살아 있는 가족의 살아 있는 구성원인지 확인한다.
 	 *

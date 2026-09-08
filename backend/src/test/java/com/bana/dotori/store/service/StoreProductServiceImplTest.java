@@ -459,4 +459,78 @@ class StoreProductServiceImplTest {
 			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
 	}
 
+	@Test
+	@DisplayName("부모가 상품을 삭제하면 deletedAt이 채워진다(soft delete)")
+	void deleteProduct_success() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, null, null, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID))
+			.willReturn(Optional.of(product));
+
+		storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5);
+
+		assertThat(product.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀가 삭제를 시도하면 FORBIDDEN 예외가 발생한다")
+	void deleteProduct_notParent() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 삭제를 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void deleteProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족에서 삭제하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_familyNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 삭제하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("상품이 없거나 이미 삭제됐으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_notFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(999, FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
 }

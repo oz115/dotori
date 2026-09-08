@@ -3,6 +3,7 @@ package com.bana.dotori.store.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,5 +52,12 @@ public class StoreProductController {
 		@PathVariable Integer familyId, @PathVariable Integer productId,
 		@Valid @RequestBody StoreProductUpdateRequest request) {
 		return ResponseEntity.ok(storeProductService.updateProduct(userId, familyId, productId, request));
+	}
+
+	@DeleteMapping("/{productId}")
+	public ResponseEntity<Void> deleteProduct(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer productId) {
+		storeProductService.deleteProduct(userId, familyId, productId);
+		return ResponseEntity.noContent().build();
 	}
 }
