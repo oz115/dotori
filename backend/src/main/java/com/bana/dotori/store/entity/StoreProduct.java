@@ -70,6 +70,9 @@ public class StoreProduct {
 	@Column(name = "updated_at", nullable = false)
 	private OffsetDateTime updatedAt;
 
+	@Column(name = "deleted_at")
+	private OffsetDateTime deletedAt;
+
 	@Builder
 	private StoreProduct(Integer familyId, Integer createdBy, String name, String description,
 			StoreProductCategory category, BigDecimal value, Integer price, int quantity) {

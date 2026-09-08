@@ -377,4 +377,5 @@ class StoreProductControllerTest {
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
+
 }
