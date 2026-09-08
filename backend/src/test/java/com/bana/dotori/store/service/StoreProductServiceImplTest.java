@@ -2,6 +2,7 @@ package com.bana.dotori.store.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -17,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.family.entity.Family;
@@ -24,12 +26,17 @@ import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
+import com.bana.dotori.store.event.StoreProductCreatedEvent;
 import com.bana.dotori.store.mapper.StoreProductMapper;
 import com.bana.dotori.store.repository.StoreProductRepository;
+import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.entity.UserRole;
+import com.bana.dotori.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StoreProductServiceImplTest {
@@ -46,11 +53,29 @@ class StoreProductServiceImplTest {
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
 
+	@Mock
+	private UserRepository userRepository;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
+
 	@Spy
 	private StoreProductMapper storeProductMapper;
 
 	@InjectMocks
 	private StoreProductServiceImpl storeProductService;
+
+	private User user(UserRole role) {
+		User user = User.builder()
+			.loginId("login")
+			.password("pw")
+			.name("이름")
+			.email("test@example.com")
+			.role(role)
+			.build();
+		ReflectionTestUtils.setField(user, "id", USER_ID);
+		return user;
+	}
 
 	private StoreProduct product(String name, StoreProductCategory category, Integer price, int quantity) {
 		return StoreProduct.builder()
@@ -208,5 +233,98 @@ class StoreProductServiceImplTest {
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 		then(storeProductRepository).should(never()).findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID);
+	}
+
+	private void givenSavedProductReturnsWithId(Integer id) {
+		given(storeProductRepository.save(any())).willAnswer(invocation -> {
+			StoreProduct saved = invocation.getArgument(0);
+			ReflectionTestUtils.setField(saved, "id", id);
+			return saved;
+		});
+	}
+
+	@Test
+	@DisplayName("부모가 상품을 등록하면 value/price는 null인 상태로 생성되고 등록 이벤트가 발행된다")
+	void createProduct_success() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		givenSavedProductReturnsWithId(99);
+		StoreProductCreateRequest request = new StoreProductCreateRequest("자전거", "3개월 모아야 살 수 있음",
+			StoreProductCategory.TOY, 1);
+
+		StoreProductDetailResponse response = storeProductService.createProduct(USER_ID, FAMILY_ID, request);
+
+		assertThat(response.storeProductId()).isEqualTo(99);
+		assertThat(response.name()).isEqualTo("자전거");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.TOY);
+		assertThat(response.value()).isNull();
+		assertThat(response.price()).isNull();
+		assertThat(response.quantity()).isEqualTo(1);
+
+		var captor = org.mockito.ArgumentCaptor.forClass(StoreProductCreatedEvent.class);
+		then(eventPublisher).should().publishEvent(captor.capture());
+		StoreProductCreatedEvent event = captor.getValue();
+		assertThat(event.storeProductId()).isEqualTo(99);
+		assertThat(event.familyId()).isEqualTo(FAMILY_ID);
+		assertThat(event.name()).isEqualTo("자전거");
+		assertThat(event.category()).isEqualTo(StoreProductCategory.TOY);
+	}
+
+	@Test
+	@DisplayName("자녀가 상품을 등록하려 하면 FORBIDDEN 예외가 발생한다")
+	void createProduct_notParent() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		StoreProductCreateRequest request = new StoreProductCreateRequest("자전거", null, StoreProductCategory.TOY, 1);
+
+		assertThatThrownBy(() -> storeProductService.createProduct(USER_ID, FAMILY_ID, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		then(storeProductRepository).should(never()).save(any());
+		then(eventPublisher).should(never()).publishEvent(any());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 등록을 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void createProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+		StoreProductCreateRequest request = new StoreProductCreateRequest("자전거", null, StoreProductCategory.TOY, 1);
+
+		assertThatThrownBy(() -> storeProductService.createProduct(USER_ID, FAMILY_ID, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+		then(storeProductRepository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족에 등록하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void createProduct_familyNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.empty());
+		StoreProductCreateRequest request = new StoreProductCreateRequest("자전거", null, StoreProductCategory.TOY, 1);
+
+		assertThatThrownBy(() -> storeProductService.createProduct(USER_ID, FAMILY_ID, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		then(storeProductRepository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에 등록하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void createProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+		StoreProductCreateRequest request = new StoreProductCreateRequest("자전거", null, StoreProductCategory.TOY, 1);
+
+		assertThatThrownBy(() -> storeProductService.createProduct(USER_ID, FAMILY_ID, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		then(storeProductRepository).should(never()).save(any());
+		then(eventPublisher).should(never()).publishEvent(any());
 	}
 }

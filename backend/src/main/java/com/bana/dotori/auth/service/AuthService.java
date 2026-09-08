@@ -3,15 +3,15 @@ package com.bana.dotori.auth.service;
 import com.bana.dotori.auth.dto.FindIdRequest;
 import com.bana.dotori.auth.dto.FindIdResponse;
 import com.bana.dotori.auth.dto.LoginRequest;
-import com.bana.dotori.auth.dto.LoginResult;
+import com.bana.dotori.auth.dto.LoginResponse;
 import com.bana.dotori.auth.dto.PasswordResetRequest;
-import com.bana.dotori.auth.dto.TokenRefreshResult;
+import com.bana.dotori.auth.dto.TokenRefreshResponse;
 
 public interface AuthService {
 
-	LoginResult login(LoginRequest request);
+	LoginResponse login(LoginRequest request);
 
-	TokenRefreshResult refresh(String refreshToken);
+	TokenRefreshResponse refresh(String refreshToken);
 
 	void logout(Integer userId, String refreshToken);
 

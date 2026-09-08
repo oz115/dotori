@@ -11,6 +11,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   datasource:
     # stringtype=unspecified: 문자열 파라미터를 타입 미지정으로 보내 PostgreSQL 이 대상 컬럼에서
     # 타입을 정하게 한다. users.role, point_transactions.transaction_type 처럼 네이티브 ENUM 인
@@ -51,8 +56,6 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-validity-seconds: 1800
   refresh-token-validity-seconds: 1209600
-  # Refresh Token 쿠키의 Secure 속성. HTTPS를 쓰는 운영 환경에서는 COOKIE_SECURE=true로 주입한다
-  cookie-secure: ${COOKIE_SECURE:false}
 
 finance:
   base-url: ${FINANCE_BASE_URL:https://finopenapi.ssafy.io/ssafy/api/v1}
