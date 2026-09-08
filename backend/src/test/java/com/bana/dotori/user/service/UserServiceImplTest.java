@@ -109,6 +109,25 @@ class UserServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("아이디 중복 체크: 사용 가능한 아이디면 예외 없이 통과한다")
+	void checkLoginIdAvailable_success() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
+
+		userService.checkLoginIdAvailable("dotori123");
+	}
+
+	@Test
+	@DisplayName("아이디 중복 체크: 사용 중인 아이디면 DUPLICATE_LOGIN_ID 예외가 발생한다")
+	void checkLoginIdAvailable_duplicate() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+
+		assertThatThrownBy(() -> userService.checkLoginIdAvailable("dotori123"))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.DUPLICATE_LOGIN_ID);
+	}
+
+	@Test
 	@DisplayName("이미 사용 중인 아이디면 DUPLICATE_LOGIN_ID 예외가 발생한다")
 	void signup_duplicateLoginId() {
 		given(userRepository.existsByLoginId("dotori123")).willReturn(true);

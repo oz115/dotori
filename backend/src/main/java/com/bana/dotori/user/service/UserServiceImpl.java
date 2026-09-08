@@ -62,6 +62,14 @@ public class UserServiceImpl implements UserService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public void checkLoginIdAvailable(String loginId) {
+		if (userRepository.existsByLoginId(loginId)) {
+			throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
+		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public UserInfoResponse getUserInfo(Integer loginUserId, Integer targetUserId) {
 		accessPolicy.requireSelf(loginUserId, targetUserId);
 
