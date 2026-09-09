@@ -60,11 +60,17 @@ public final class WalletTestFixture {
 	/**
 	 * 가족을 만들고 그 안에 자녀를 넣는다. 지급(WLT-02)의 가족 소속 검증에 필요하다.
 	 *
+	 * <p>온보딩 설정 3종도 함께 넣는다 (S15P21A505-134 이후 실제 가족은 항상 이 값을 갖고
+	 * 만들어지고, 최종 DDL 에서 NOT NULL 이라 빼면 테이블 재생성 시점에 INSERT 가 깨진다).
+	 * 금액 단위는 저장 규칙대로 포인트다 (1000pt = 10,000원).
+	 *
 	 * @return 생성된 familyId
 	 */
 	public static Integer insertFamilyWithChild(JdbcTemplate jdbcTemplate, Integer parentId, Integer childId) {
 		Integer familyId = jdbcTemplate.queryForObject("""
-				INSERT INTO families (name, created_by) VALUES ('테스트 가족', ?) RETURNING family_id
+				INSERT INTO families (name, created_by, weekly_allowance, weekly_reward_limit,
+					financial_knowledge_level)
+				VALUES ('테스트 가족', ?, 1000, 500, 'BEGINNER') RETURNING family_id
 				""", Integer.class, parentId);
 		addFamilyMember(jdbcTemplate, familyId, parentId);
 		addFamilyMember(jdbcTemplate, familyId, childId);

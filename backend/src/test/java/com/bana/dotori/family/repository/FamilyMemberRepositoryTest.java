@@ -131,8 +131,11 @@ class FamilyMemberRepositoryTest {
 	}
 
 	private Integer insertFamily(Integer createdBy) {
+		// 온보딩 설정 3종은 최종 DDL 에서 NOT NULL 이라 함께 넣는다 (금액 단위는 포인트)
 		return jdbcTemplate.queryForObject("""
-			INSERT INTO families (name, created_by) VALUES ('테스트 가족', ?) RETURNING family_id
+			INSERT INTO families (name, created_by, weekly_allowance, weekly_reward_limit,
+				financial_knowledge_level)
+			VALUES ('테스트 가족', ?, 1000, 500, 'BEGINNER') RETURNING family_id
 			""", Integer.class, createdBy);
 	}
 
