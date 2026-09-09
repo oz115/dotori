@@ -3,11 +3,13 @@ package com.bana.dotori.store.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +31,8 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
+import com.bana.dotori.store.dto.StoreProductUpdateRequest;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
@@ -58,6 +62,9 @@ class StoreProductServiceImplTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private StorePurchaseService storePurchaseService;
 
 	@Spy
 	private StoreProductMapper storeProductMapper;
@@ -114,7 +121,7 @@ class StoreProductServiceImplTest {
 	@DisplayName("가족 구성원이면 상품 목록을 반환한다")
 	void getProducts_success() {
 		givenActiveMember();
-		given(storeProductRepository.findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID))
+		given(storeProductRepository.findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(FAMILY_ID))
 			.willReturn(List.of(
 				product("게임 30분 이용권", StoreProductCategory.GAME, 3000, 5),
 				product("아이스크림", StoreProductCategory.SNACK, 1500, 1)));
@@ -132,7 +139,7 @@ class StoreProductServiceImplTest {
 	@DisplayName("상품이 없으면 빈 목록을 반환한다")
 	void getProducts_empty() {
 		givenActiveMember();
-		given(storeProductRepository.findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID))
+		given(storeProductRepository.findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(FAMILY_ID))
 			.willReturn(List.of());
 
 		StoreProductListResponse response = storeProductService.getProducts(USER_ID, FAMILY_ID);
@@ -144,7 +151,7 @@ class StoreProductServiceImplTest {
 	@DisplayName("가격 산정 전(value 미산정) 상품은 price가 null로 나간다")
 	void getProducts_priceNotEvaluatedYet() {
 		givenActiveMember();
-		given(storeProductRepository.findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID))
+		given(storeProductRepository.findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(FAMILY_ID))
 			.willReturn(List.of(product("자전거", StoreProductCategory.TOY, null, 1)));
 
 		StoreProductListResponse response = storeProductService.getProducts(USER_ID, FAMILY_ID);
@@ -158,7 +165,7 @@ class StoreProductServiceImplTest {
 		givenActiveMember();
 		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY,
 			new BigDecimal("90.00"), 900000, 1);
-		given(storeProductRepository.findByIdAndFamilyId(5, FAMILY_ID)).willReturn(Optional.of(product));
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
 
 		StoreProductDetailResponse response = storeProductService.getProduct(USER_ID, FAMILY_ID, 5);
 
@@ -177,7 +184,7 @@ class StoreProductServiceImplTest {
 	void getProduct_notEvaluatedYet() {
 		givenActiveMember();
 		StoreProduct product = productWithId(6, "자전거", StoreProductCategory.TOY, null, null, 1);
-		given(storeProductRepository.findByIdAndFamilyId(6, FAMILY_ID)).willReturn(Optional.of(product));
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(6, FAMILY_ID)).willReturn(Optional.of(product));
 
 		StoreProductDetailResponse response = storeProductService.getProduct(USER_ID, FAMILY_ID, 6);
 
@@ -189,7 +196,7 @@ class StoreProductServiceImplTest {
 	@DisplayName("상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
 	void getProduct_notFound() {
 		givenActiveMember();
-		given(storeProductRepository.findByIdAndFamilyId(999, FAMILY_ID)).willReturn(Optional.empty());
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(999, FAMILY_ID)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> storeProductService.getProduct(USER_ID, FAMILY_ID, 999))
 			.isInstanceOf(BusinessException.class)
@@ -201,7 +208,7 @@ class StoreProductServiceImplTest {
 	@DisplayName("다른 가족의 상품이면 PRODUCT_NOT_FOUND 예외가 발생한다")
 	void getProduct_otherFamilyProduct() {
 		givenActiveMember();
-		given(storeProductRepository.findByIdAndFamilyId(7, FAMILY_ID)).willReturn(Optional.empty());
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(7, FAMILY_ID)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> storeProductService.getProduct(USER_ID, FAMILY_ID, 7))
 			.isInstanceOf(BusinessException.class)
@@ -218,7 +225,7 @@ class StoreProductServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
-		then(storeProductRepository).should(never()).findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID);
+		then(storeProductRepository).should(never()).findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(FAMILY_ID);
 	}
 
 	@Test
@@ -232,7 +239,7 @@ class StoreProductServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
-		then(storeProductRepository).should(never()).findAllByFamilyIdOrderByCreatedAtDescIdDesc(FAMILY_ID);
+		then(storeProductRepository).should(never()).findAllByFamilyIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(FAMILY_ID);
 	}
 
 	private void givenSavedProductReturnsWithId(Integer id) {
@@ -326,5 +333,262 @@ class StoreProductServiceImplTest {
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
 		then(storeProductRepository).should(never()).save(any());
 		then(eventPublisher).should(never()).publishEvent(any());
+	}
+
+	@Test
+	@DisplayName("일부 필드만 보내면 그 필드만 바뀌고 나머지는 유지된다")
+	void updateProduct_partial() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("자전거(중고)", null, null, null, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.name()).isEqualTo("자전거(중고)");
+		assertThat(response.description()).isEqualTo("설명");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.TOY);
+		assertThat(response.price()).isEqualTo(900000);
+		assertThat(response.quantity()).isEqualTo(1);
+	}
+
+	@Test
+	@DisplayName("name/description/category가 바뀌어도 기존 value/price는 그대로 유지된다")
+	void updateProduct_doesNotResetValueOrPrice() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("전동 자전거", "설명 변경",
+			StoreProductCategory.OUTING, null, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.name()).isEqualTo("전동 자전거");
+		assertThat(response.category()).isEqualTo(StoreProductCategory.OUTING);
+		assertThat(response.value()).isEqualByComparingTo("90.00");
+		assertThat(response.price()).isEqualTo(900000);
+	}
+
+	@Test
+	@DisplayName("부모가 price를 직접 수정하면 반영된다")
+	void updateProduct_priceOverride() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest(null, null, null, 5000, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.price()).isEqualTo(5000);
+	}
+
+	@Test
+	@DisplayName("이름을 빈 문자열로 보내면 INVALID_REQUEST 예외가 발생한다")
+	void updateProduct_blankName() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("   ", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+		then(storeProductRepository).should(never()).findByIdAndFamilyIdAndDeletedAtIsNull(any(), any());
+	}
+
+	@Test
+	@DisplayName("자녀가 수정을 시도하면 FORBIDDEN 예외가 발생한다")
+	void updateProduct_notParent() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 수정을 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void updateProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족에서 수정하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateProduct_familyNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 수정하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("상품이 없으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void updateProduct_productNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(999, FAMILY_ID)).willReturn(Optional.empty());
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("이름", null, null, null, null);
+
+		assertThatThrownBy(() -> storeProductService.updateProduct(USER_ID, FAMILY_ID, 999, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("부모가 상품을 삭제하면 deletedAt이 채워진다(soft delete)")
+	void deleteProduct_success() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, null, null, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID))
+			.willReturn(Optional.of(product));
+
+		storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5);
+
+		assertThat(product.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀가 삭제를 시도하면 FORBIDDEN 예외가 발생한다")
+	void deleteProduct_notParent() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 삭제를 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void deleteProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족에서 삭제하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_familyNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 삭제하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 5))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("상품이 없거나 이미 삭제됐으면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void deleteProduct_notFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(999, FAMILY_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.deleteProduct(USER_ID, FAMILY_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("자녀가 구매하면 StorePurchaseService 로 위임하고 결과를 그대로 반환한다")
+	void purchaseProduct_success() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		givenActiveMember();
+		StorePurchaseResponse expected = new StorePurchaseResponse(1, 5, "자전거", 1, 900000, 900000, 100,
+			OffsetDateTime.now());
+		given(storePurchaseService.purchase(FAMILY_ID, USER_ID, 5, 1)).willReturn(expected);
+
+		StorePurchaseResponse response = storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1);
+
+		assertThat(response).isEqualTo(expected);
+	}
+
+	@Test
+	@DisplayName("부모가 구매를 시도하면 FORBIDDEN 예외가 발생한다")
+	void purchaseProduct_notChild() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		then(storePurchaseService).should(never()).purchase(any(), any(), any(), anyInt());
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 사용자가 구매를 시도하면 UNAUTHORIZED 예외가 발생한다")
+	void purchaseProduct_userNotFound() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 구매하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void purchaseProduct_notFamilyMember() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.CHILD)));
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("남의 가족").createdBy(99).build()));
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, USER_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> storeProductService.purchaseProduct(USER_ID, FAMILY_ID, 5, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		then(storePurchaseService).should(never()).purchase(any(), any(), any(), anyInt());
 	}
 }

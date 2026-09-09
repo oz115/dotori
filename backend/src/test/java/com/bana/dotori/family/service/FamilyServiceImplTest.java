@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.OffsetDateTime;
@@ -28,10 +30,13 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.family.entity.FinancialKnowledgeLevel;
 import com.bana.dotori.family.mapper.FamilyMapper;
 import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
@@ -83,6 +88,10 @@ class FamilyServiceImplTest {
 			.build();
 	}
 
+	private FamilyCreateRequest createRequest() {
+		return new FamilyCreateRequest("도토리네 가족", 10000, 5000, FinancialKnowledgeLevel.BEGINNER);
+	}
+
 	@Test
 	@DisplayName("가족 생성 성공 시 생성된 가족 정보를 반환하고 생성자를 구성원으로 등록한다")
 	void create_success() {
@@ -90,7 +99,7 @@ class FamilyServiceImplTest {
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-		FamilyCreateResponse response = familyService.create(1, new FamilyCreateRequest("도토리네 가족"));
+		FamilyCreateResponse response = familyService.create(1, createRequest());
 
 		assertThat(response.name()).isEqualTo("도토리네 가족");
 		assertThat(response.createdBy()).isEqualTo(1);
@@ -98,11 +107,62 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("가족 생성 시 온보딩 금액은 원에서 포인트(10원=1점)로 환산되어 저장된다")
+	void create_savesOnboardingSettings() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.create(1, createRequest());
+
+		verify(familyRepository).save(argThat(family -> family.getWeeklyAllowance() == 1000
+			&& family.getWeeklyRewardLimit() == 500
+			&& family.getFinancialKnowledgeLevel() == FinancialKnowledgeLevel.BEGINNER));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 1000원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void create_rejectsNonThousandWonUnitAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10500, 5000,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThatThrownBy(() -> familyService.create(1, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).save(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 1000원 미만(0원·음수 포함)이면 INVALID_REQUEST 예외가 발생한다")
+	void create_rejectsBelowMinimumAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		// DTO 가 금액을 검증하지 않으므로 0원·음수도 여기(toPoints)가 최종 방어선이다
+		for (int invalidWon : new int[] {500, 0, -1000}) {
+			FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, invalidWon,
+				FinancialKnowledgeLevel.BEGINNER);
+
+			assertThatThrownBy(() -> familyService.create(1, request))
+				.isInstanceOf(BusinessException.class)
+				.extracting(e -> ((BusinessException)e).getErrorCode())
+				.isEqualTo(ErrorCode.INVALID_REQUEST);
+		}
+
+		verify(familyRepository, never()).save(any(Family.class));
+	}
+
+	@Test
 	@DisplayName("부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
 	void create_notParent() {
 		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
 
-		assertThatThrownBy(() -> familyService.create(2, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(2, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
@@ -114,17 +174,124 @@ class FamilyServiceImplTest {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
 
-		assertThatThrownBy(() -> familyService.create(1, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(1, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
 	}
 
+	private Family onboardedFamily() {
+		// 저장 단위는 포인트다 (1000pt = 10,000원, 500pt = 5,000원)
+		return Family.builder()
+			.name("도토리네 가족")
+			.createdBy(1)
+			.weeklyAllowance(1000)
+			.weeklyRewardLimit(500)
+			.financialKnowledgeLevel(FinancialKnowledgeLevel.BEGINNER)
+			.build();
+	}
+
 	@Test
-	@DisplayName("가족 조회 성공 시 가족 정보와 구성원 수를 반환한다")
-	void getFamily_success() {
-		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+	@DisplayName("가족 설정 수정 시 보낸 필드만 바뀌고 금액은 포인트로 환산 저장된다")
+	void updateFamily_success() {
+		Family family = onboardedFamily();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
 		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyRepository.saveAndFlush(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		FamilyUpdateResponse response = familyService.updateFamily(1, 1,
+			new FamilyUpdateRequest("새 가족 이름", 20000, null, FinancialKnowledgeLevel.ADVANCED));
+
+		assertThat(family.getName()).isEqualTo("새 가족 이름");
+		assertThat(family.getWeeklyAllowance()).isEqualTo(2000);
+		assertThat(family.getWeeklyRewardLimit()).isEqualTo(500);
+		assertThat(family.getFinancialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.ADVANCED);
+		// 응답 금액은 요청과 같은 원 단위로 되돌아온다
+		assertThat(response.weeklyAllowance()).isEqualTo(20000);
+		assertThat(response.weeklyRewardLimit()).isEqualTo(5000);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 모든 필드가 null 이면 아무것도 바뀌지 않는다")
+	void updateFamily_allNullKeepsValues() {
+		Family family = onboardedFamily();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyRepository.saveAndFlush(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.updateFamily(1, 1, new FamilyUpdateRequest(null, null, null, null));
+
+		assertThat(family.getName()).isEqualTo("도토리네 가족");
+		assertThat(family.getWeeklyAllowance()).isEqualTo(1000);
+		assertThat(family.getWeeklyRewardLimit()).isEqualTo(500);
+		assertThat(family.getFinancialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 금액이 1000원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void updateFamily_rejectsNonThousandWonUnitAmount() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.updateFamily(1, 1,
+			new FamilyUpdateRequest(null, 10500, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).saveAndFlush(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 구성원이어도 생성자가 아니면 FORBIDDEN 예외가 발생한다")
+	void updateFamily_notCreator() {
+		// onboardedFamily 의 생성자는 1 — 같은 가족의 다른 부모(3)가 수정을 시도한다
+		given(userRepository.findById(3)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 3)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.updateFamily(3, 1,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(familyRepository, never()).saveAndFlush(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
+	void updateFamily_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.updateFamily(2, 1,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 그 가족의 구성원이 아니면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateFamily_notMember() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(9)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(9, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.updateFamily(1, 9,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("가족 조회 성공 시 가족 정보·구성원 수·온보딩 설정(원 단위)을 반환한다")
+	void getFamily_success() {
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
 		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
 
@@ -133,6 +300,25 @@ class FamilyServiceImplTest {
 		assertThat(response.name()).isEqualTo("도토리네 가족");
 		assertThat(response.createdBy()).isEqualTo(1);
 		assertThat(response.memberCount()).isEqualTo(3);
+		// 저장은 포인트(1000pt/500pt)지만 응답은 원으로 환산된다
+		assertThat(response.weeklyAllowance()).isEqualTo(10000);
+		assertThat(response.weeklyRewardLimit()).isEqualTo(5000);
+		assertThat(response.financialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("온보딩 도입 전에 만들어진 가족은 설정값이 null 로 내려간다")
+	void getFamily_legacyFamilyWithoutOnboarding() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
+
+		FamilyResponse response = familyService.getFamily(1, 1);
+
+		assertThat(response.weeklyAllowance()).isNull();
+		assertThat(response.weeklyRewardLimit()).isNull();
+		assertThat(response.financialKnowledgeLevel()).isNull();
 	}
 
 	@Test
@@ -322,7 +508,7 @@ class FamilyServiceImplTest {
 	void create_userNotFound() {
 		given(userRepository.findByIdForUpdate(99)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> familyService.create(99, new FamilyCreateRequest("도토리네 가족")))
+		assertThatThrownBy(() -> familyService.create(99, createRequest()))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.UNAUTHORIZED);

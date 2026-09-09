@@ -3,6 +3,7 @@ package com.bana.dotori.user.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -46,6 +47,7 @@ class UserControllerTest {
 	private JwtTokenProvider jwtTokenProvider;
 
 	private static final String SIGNUP_URL = "/api/v1/auth/signup";
+	private static final String LOGIN_ID_CHECK_URL = "/api/v1/auth/login-id/check";
 
 	private static final String VALID_BODY = """
 		{
@@ -53,7 +55,8 @@ class UserControllerTest {
 			"password": "P@ssw0rd!",
 			"name": "김도토",
 			"email": "dotori@example.com",
-			"role": "PARENT"
+			"role": "PARENT",
+			"verificationToken": "vt_a1b2c3d4"
 		}
 		""";
 
@@ -113,13 +116,85 @@ class UserControllerTest {
 				"password": "P@ssw0rd!",
 				"name": "김도토",
 				"email": "dotori@example.com",
-				"role": "PARENT"
+				"role": "PARENT",
+				"verificationToken": "vt_a1b2c3d4"
 			}
 			""";
 
 		mockMvc.perform(post(SIGNUP_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(invalidBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("verificationToken이 유효하지 않으면 401과 INVALID_VERIFICATION_TOKEN 에러를 반환한다")
+	void signup_invalidVerificationToken() throws Exception {
+		given(userService.signup(any(SignupRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INVALID_VERIFICATION_TOKEN));
+
+		mockMvc.perform(post(SIGNUP_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(VALID_BODY))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("INVALID_VERIFICATION_TOKEN"));
+	}
+
+	@Test
+	@DisplayName("verificationToken이 없으면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void signup_missingVerificationToken() throws Exception {
+		String withoutToken = """
+			{
+				"loginId": "dotori123",
+				"password": "P@ssw0rd!",
+				"name": "김도토",
+				"email": "dotori@example.com",
+				"role": "PARENT"
+			}
+			""";
+
+		mockMvc.perform(post(SIGNUP_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(withoutToken))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(userService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("아이디가 사용 가능하면 토큰 없이 호출해도 204를 반환한다")
+	void checkLoginId_available() throws Exception {
+		mockMvc.perform(post(LOGIN_ID_CHECK_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"loginId\": \"dotori123\"}"))
+			.andExpect(status().isNoContent());
+
+		then(userService).should().checkLoginIdAvailable("dotori123");
+	}
+
+	@Test
+	@DisplayName("아이디가 사용 중이면 409와 DUPLICATE_LOGIN_ID 에러를 반환한다")
+	void checkLoginId_duplicate() throws Exception {
+		willThrow(new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID))
+			.given(userService).checkLoginIdAvailable("dotori123");
+
+		mockMvc.perform(post(LOGIN_ID_CHECK_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"loginId\": \"dotori123\"}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("DUPLICATE_LOGIN_ID"));
+	}
+
+	@Test
+	@DisplayName("아이디가 비어 있으면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void checkLoginId_blank() throws Exception {
+		mockMvc.perform(post(LOGIN_ID_CHECK_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"loginId\": \"\"}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
@@ -135,7 +210,8 @@ class UserControllerTest {
 				"password": "P@ssw0rd!",
 				"name": "김도토",
 				"email": "dotori@example.com",
-				"role": "ADMIN"
+				"role": "ADMIN",
+				"verificationToken": "vt_a1b2c3d4"
 			}
 			""";
 

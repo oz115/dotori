@@ -726,6 +726,30 @@ class AccountServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("unlinkAccount_성공시_연동된_계좌를_삭제한다")
+	void unlinkAccount_success() {
+		Account account = account(1);
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account));
+
+		accountService.unlinkAccount(USER_ID);
+
+		then(accountRepository).should().delete(account);
+	}
+
+	@Test
+	@DisplayName("unlinkAccount_연동된_계좌가_없으면_ACCOUNT_NOT_LINKED_예외가_발생하고_삭제하지_않는다")
+	void unlinkAccount_연동계좌없음() {
+		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> accountService.unlinkAccount(USER_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ACCOUNT_NOT_LINKED);
+
+		then(accountRepository).should(never()).delete(any());
+	}
+
+	@Test
 	@DisplayName("transfer_금융망_이체_요청이_실패하면_BANK_TRANSFER_FAILED_예외가_발생한다")
 	void transfer_이체실패() {
 		given(accountRepository.findFirstByUserId(USER_ID)).willReturn(Optional.of(account(1)));

@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,7 +35,10 @@ import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
+import com.bana.dotori.family.entity.FinancialKnowledgeLevel;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -67,7 +71,10 @@ class FamilyControllerTest {
 
 	private static final String CREATE_BODY = """
 		{
-			"name": "도토리네 가족"
+			"name": "도토리네 가족",
+			"weeklyAllowance": 10000,
+			"weeklyRewardLimit": 5000,
+			"financialKnowledgeLevel": "BEGINNER"
 		}
 		""";
 
@@ -140,7 +147,10 @@ class FamilyControllerTest {
 		mockMvc.perform(post(FAMILIES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"name\": \"\"}"))
+				.content("""
+					{"name": "", "weeklyAllowance": 10000, "weeklyRewardLimit": 5000,
+						"financialKnowledgeLevel": "BEGINNER"}
+					"""))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
@@ -148,11 +158,131 @@ class FamilyControllerTest {
 	}
 
 	@Test
+	@DisplayName("온보딩 값이 누락되면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void create_missingOnboardingSettings() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(post(FAMILIES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"도토리네 가족\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 정책(1000원 이상·1000원 단위)에 어긋나면 400과 INVALID_REQUEST 에러를 반환한다")
+	void create_invalidAmountPolicy() throws Exception {
+		givenParentAuthenticated(1);
+		// 금액 정책 검증은 DTO 가 아니라 서비스(toPoints)가 전담한다
+		given(familyService.create(eq(1), any(FamilyCreateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INVALID_REQUEST));
+
+		mockMvc.perform(post(FAMILIES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"name": "도토리네 가족", "weeklyAllowance": 0, "weeklyRewardLimit": 5000,
+						"financialKnowledgeLevel": "BEGINNER"}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("금융 지식 수준에 허용되지 않은 값이 오면 400과 INVALID_REQUEST 에러를 반환한다")
+	void create_invalidKnowledgeLevel() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(post(FAMILIES_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"name": "도토리네 가족", "weeklyAllowance": 10000, "weeklyRewardLimit": 5000,
+						"financialKnowledgeLevel": "EXPERT"}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정 성공 시 200과 수정된 설정(원 단위)을 반환한다")
+	void updateFamily_success() throws Exception {
+		givenParentAuthenticated(1);
+		FamilyUpdateResponse response = new FamilyUpdateResponse(1, "새 가족 이름", 20000, 5000,
+			FinancialKnowledgeLevel.ADVANCED, OffsetDateTime.of(2026, 9, 9, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		given(familyService.updateFamily(eq(1), eq(1), any(FamilyUpdateRequest.class))).willReturn(response);
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"name": "새 가족 이름", "weeklyAllowance": 20000, "financialKnowledgeLevel": "ADVANCED"}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.familyId").value(1))
+			.andExpect(jsonPath("$.name").value("새 가족 이름"))
+			.andExpect(jsonPath("$.weeklyAllowance").value(20000))
+			.andExpect(jsonPath("$.weeklyRewardLimit").value(5000))
+			.andExpect(jsonPath("$.financialKnowledgeLevel").value("ADVANCED"))
+			.andExpect(jsonPath("$.updatedAt").exists());
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 이름이 공백뿐이면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void updateFamily_blankName() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"   \"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 부모 권한이 아니면 403과 FORBIDDEN 에러를 반환한다")
+	void updateFamily_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		given(familyService.updateFamily(eq(2), eq(1), any(FamilyUpdateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"새 이름\"}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 구성원이 아니면 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void updateFamily_notMember() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.updateFamily(eq(1), eq(9), any(FamilyUpdateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(patch(FAMILIES_URL + "/9")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"새 이름\"}"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
 	@DisplayName("가족 조회 성공 시 200과 가족 정보를 반환한다")
 	void getFamily_success() throws Exception {
 		givenParentAuthenticated(1);
-		FamilyResponse response = new FamilyResponse(1, "도토리네 가족", 1, 3,
-			OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		FamilyResponse response = new FamilyResponse(1, "도토리네 가족", 1, 3, 10000, 5000,
+			FinancialKnowledgeLevel.BEGINNER, OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
 		given(familyService.getFamily(1, 1)).willReturn(response);
 
 		mockMvc.perform(get(FAMILIES_URL + "/1")
@@ -162,6 +292,9 @@ class FamilyControllerTest {
 			.andExpect(jsonPath("$.name").value("도토리네 가족"))
 			.andExpect(jsonPath("$.createdBy").value(1))
 			.andExpect(jsonPath("$.memberCount").value(3))
+			.andExpect(jsonPath("$.weeklyAllowance").value(10000))
+			.andExpect(jsonPath("$.weeklyRewardLimit").value(5000))
+			.andExpect(jsonPath("$.financialKnowledgeLevel").value("BEGINNER"))
 			.andExpect(jsonPath("$.createdAt").exists());
 	}
 

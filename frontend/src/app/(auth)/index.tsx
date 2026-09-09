@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -49,6 +50,7 @@ export default function LoginScreen() {
       <View style={{ marginTop: theme.space['4xl'], gap: theme.space.md }}>
         <Input
           variant="box"
+          elevated
           leftIcon={<IdIcon size={20} color={theme.color.text.muted} />}
           placeholder="아이디를 입력하세요"
           autoCapitalize="none"
@@ -59,6 +61,7 @@ export default function LoginScreen() {
         />
         <Input
           variant="box"
+          elevated
           leftIcon={<PasswordIcon size={20} color={theme.color.text.muted} />}
           placeholder="비밀번호를 입력하세요"
           secureTextEntry
@@ -109,7 +112,7 @@ export default function LoginScreen() {
               label="회원가입"
               variant="outline"
               size="sm"
-              onPress={soon}
+              onPress={() => router.push('/agreement')}
               trailingIcon={
                 <Ionicons name="chevron-forward" size={14} color={theme.color.brand.solid} />
               }
