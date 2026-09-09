@@ -78,7 +78,11 @@ public enum ErrorCode {
 	// 상점 (SHOP)
 	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다"),
 	OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 없습니다"),
-	DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 이미 구매한 상품입니다");
+	DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 이미 구매한 상품입니다"),
+	PRICE_NOT_EVALUATED(HttpStatus.BAD_REQUEST, "아직 가격이 산정되지 않은 상품입니다"),
+
+	// 집안일 (CHORE)
+	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "집안일을 찾을 수 없습니다");
 
 	private final HttpStatus status;
 	private final String message;

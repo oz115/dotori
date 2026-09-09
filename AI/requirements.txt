@@ -1,0 +1,6 @@
+# 직접 의존성만 적고 버전을 고정한다. (전이 의존성은 pip 이 해결)
+# 갱신: pip install -U <패키지> 후 여기 버전을 손으로 맞춘다.
+fastapi[standard]==0.141.1
+pydantic-settings==2.15.0
+sqlalchemy==2.0.52
+psycopg[binary]==3.3.5

@@ -4,6 +4,7 @@ import com.bana.dotori.store.dto.StoreProductCreateRequest;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.dto.StoreProductUpdateRequest;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 
 public interface StoreProductService {
 
@@ -17,4 +18,6 @@ public interface StoreProductService {
 			StoreProductUpdateRequest request);
 
 	void deleteProduct(Integer userId, Integer familyId, Integer productId);
+
+	StorePurchaseResponse purchaseProduct(Integer userId, Integer familyId, Integer productId, int quantity);
 }

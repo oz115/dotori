@@ -96,6 +96,10 @@ public final class WalletTestFixture {
 	public static void cleanUp(JdbcTemplate jdbcTemplate) {
 		jdbcTemplate.update("DELETE FROM point_transactions WHERE child_id IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM point_wallets WHERE child_id IN (" + TEST_USER_IDS + ")");
+		// purchases 가 store_products 를 FK 로 참조하므로, 아래 store_products 삭제보다 먼저 지운다.
+		// 안 그러면 구매 이력이 남아 있는 상품을 지우려다 FK 위반(23503)으로 뒷정리 자체가 깨진다.
+		jdbcTemplate.update("DELETE FROM purchases WHERE child_id IN (" + TEST_USER_IDS + ")"
+				+ " OR family_id IN (SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM store_products WHERE created_by IN (" + TEST_USER_IDS + ")"
 				+ " OR family_id IN (SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM family_codes WHERE family_id IN ("

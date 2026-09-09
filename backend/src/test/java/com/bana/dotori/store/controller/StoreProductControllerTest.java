@@ -38,6 +38,7 @@ import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.store.dto.StoreProductDetailResponse;
 import com.bana.dotori.store.dto.StoreProductListResponse;
 import com.bana.dotori.store.dto.StoreProductSummary;
+import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.service.StoreProductService;
 
@@ -420,6 +421,109 @@ class StoreProductControllerTest {
 	@DisplayName("토큰 없이 삭제하면 401을 반환한다")
 	void deleteProduct_unauthorized() throws Exception {
 		mockMvc.perform(delete(PRODUCTS_URL + "/5"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	@DisplayName("구매 성공 시 201과 구매 결과를 반환한다")
+	void purchaseProduct_success() throws Exception {
+		givenAuthenticated(2);
+		OffsetDateTime purchasedAt = OffsetDateTime.of(2026, 8, 28, 14, 0, 0, 0, ZoneOffset.ofHours(9));
+		given(storeProductService.purchaseProduct(2, 10, 5, 1)).willReturn(new StorePurchaseResponse(
+			1, 5, "게임 30분 이용권", 1, 3000, 3000, 17000, purchasedAt));
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.purchaseId").value(1))
+			.andExpect(jsonPath("$.storeProductId").value(5))
+			.andExpect(jsonPath("$.productName").value("게임 30분 이용권"))
+			.andExpect(jsonPath("$.totalPrice").value(3000))
+			.andExpect(jsonPath("$.pointBalanceAfter").value(17000));
+	}
+
+	@Test
+	@DisplayName("부모가 구매를 시도하면 403과 FORBIDDEN 에러를 반환한다")
+	void purchaseProduct_forbidden() throws Exception {
+		givenAuthenticated(1);
+		given(storeProductService.purchaseProduct(1, 10, 5, 1))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("재고가 없으면 409와 OUT_OF_STOCK 에러를 반환한다")
+	void purchaseProduct_outOfStock() throws Exception {
+		givenAuthenticated(2);
+		given(storeProductService.purchaseProduct(2, 10, 5, 1))
+			.willThrow(new BusinessException(ErrorCode.OUT_OF_STOCK));
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("OUT_OF_STOCK"));
+	}
+
+	@Test
+	@DisplayName("포인트가 부족하면 400과 INSUFFICIENT_POINT 에러를 반환한다")
+	void purchaseProduct_insufficientPoint() throws Exception {
+		givenAuthenticated(2);
+		given(storeProductService.purchaseProduct(2, 10, 5, 1))
+			.willThrow(new BusinessException(ErrorCode.INSUFFICIENT_POINT));
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INSUFFICIENT_POINT"));
+	}
+
+	@Test
+	@DisplayName("오늘 이미 구매했으면 429와 DAILY_LIMIT_EXCEEDED 에러를 반환한다")
+	void purchaseProduct_dailyLimitExceeded() throws Exception {
+		givenAuthenticated(2);
+		given(storeProductService.purchaseProduct(2, 10, 5, 1))
+			.willThrow(new BusinessException(ErrorCode.DAILY_LIMIT_EXCEEDED));
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
+			.andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("DAILY_LIMIT_EXCEEDED"));
+	}
+
+	@Test
+	@DisplayName("수량이 0 이하면 400과 INVALID_REQUEST 에러를 반환한다")
+	void purchaseProduct_invalidQuantity() throws Exception {
+		givenAuthenticated(2);
+
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 0}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("토큰 없이 구매하면 401을 반환한다")
+	void purchaseProduct_unauthorized() throws Exception {
+		mockMvc.perform(post(PRODUCTS_URL + "/5/purchases")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"quantity\": 1}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
