@@ -72,6 +72,26 @@ public class Family {
 		this.financialKnowledgeLevel = financialKnowledgeLevel;
 	}
 
+	/**
+	 * 가족 이름·온보딩 설정 부분 수정. null 인 필드는 그대로 둔다 (회원 정보 수정과 같은 방식).
+	 * 금액 두 개는 이미 포인트로 환산된 값을 받는다 — 원→포인트 환산·검증은 서비스가 한다.
+	 */
+	public void updateSettings(String name, Integer allowancePoints, Integer rewardLimitPoints,
+		FinancialKnowledgeLevel financialKnowledgeLevel) {
+		if (name != null) {
+			this.name = name;
+		}
+		if (allowancePoints != null) {
+			this.weeklyAllowance = allowancePoints;
+		}
+		if (rewardLimitPoints != null) {
+			this.weeklyRewardLimit = rewardLimitPoints;
+		}
+		if (financialKnowledgeLevel != null) {
+			this.financialKnowledgeLevel = financialKnowledgeLevel;
+		}
+	}
+
 	public void softDelete() {
 		this.deletedAt = OffsetDateTime.now();
 	}

@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,7 +35,10 @@ import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
+import com.bana.dotori.family.entity.FinancialKnowledgeLevel;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -202,6 +206,74 @@ class FamilyControllerTest {
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
 		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정 성공 시 200과 수정된 설정(원 단위)을 반환한다")
+	void updateFamily_success() throws Exception {
+		givenParentAuthenticated(1);
+		FamilyUpdateResponse response = new FamilyUpdateResponse(1, "새 가족 이름", 20000, 5000,
+			FinancialKnowledgeLevel.ADVANCED, OffsetDateTime.of(2026, 9, 9, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		given(familyService.updateFamily(eq(1), eq(1), any(FamilyUpdateRequest.class))).willReturn(response);
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"name": "새 가족 이름", "weeklyAllowance": 20000, "financialKnowledgeLevel": "ADVANCED"}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.familyId").value(1))
+			.andExpect(jsonPath("$.name").value("새 가족 이름"))
+			.andExpect(jsonPath("$.weeklyAllowance").value(20000))
+			.andExpect(jsonPath("$.weeklyRewardLimit").value(5000))
+			.andExpect(jsonPath("$.financialKnowledgeLevel").value("ADVANCED"))
+			.andExpect(jsonPath("$.updatedAt").exists());
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 이름이 공백뿐이면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void updateFamily_blankName() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"   \"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(familyService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 부모 권한이 아니면 403과 FORBIDDEN 에러를 반환한다")
+	void updateFamily_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		given(familyService.updateFamily(eq(2), eq(1), any(FamilyUpdateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(patch(FAMILIES_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"새 이름\"}"))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 구성원이 아니면 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void updateFamily_notMember() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.updateFamily(eq(1), eq(9), any(FamilyUpdateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		mockMvc.perform(patch(FAMILIES_URL + "/9")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"새 이름\"}"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
 	}
 
 	@Test

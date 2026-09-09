@@ -15,6 +15,8 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
@@ -87,6 +89,29 @@ public class FamilyServiceImpl implements FamilyService {
 					+ ONBOARDING_AMOUNT_UNIT_WON + "원 단위여야 합니다. 요청 금액=" + won);
 		}
 		return PointExchangePolicy.toPoints(won);
+	}
+
+	@Override
+	@Transactional
+	public FamilyUpdateResponse updateFamily(Integer userId, Integer familyId, FamilyUpdateRequest request) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Family family = findMemberFamily(userId, familyId);
+
+		// 부분 수정이라 안 온(null) 금액은 환산도 하지 않고 그대로 둔다.
+		Integer allowancePoints = request.weeklyAllowance() == null
+			? null : toPoints(request.weeklyAllowance(), "기본 용돈");
+		Integer rewardLimitPoints = request.weeklyRewardLimit() == null
+			? null : toPoints(request.weeklyRewardLimit(), "추가 보상 한도");
+
+		family.updateSettings(request.name(), allowancePoints, rewardLimitPoints,
+			request.financialKnowledgeLevel());
+
+		// updatedAt 은 @UpdateTimestamp 가 flush 시점에 채운다.
+		// 먼저 flush 하지 않으면 응답에 갱신 전 값이 담긴다 (회원 정보 수정과 같은 이유).
+		return familyMapper.toUpdateResponse(familyRepository.saveAndFlush(family));
 	}
 
 	@Override
