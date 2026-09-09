@@ -3,11 +3,13 @@ package com.bana.dotori.chore.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 1계층 - 집안일 생성 기본값과 수행 기간 판정만 검증한다.
@@ -129,6 +131,58 @@ class ChoreTest {
 			Chore openEnded = Chore.builder().startDate(LocalDate.of(2026, 9, 10)).build();
 
 			assertThat(openEnded.isInPeriod(LocalDate.of(2099, 1, 1))).isTrue();
+		}
+	}
+
+	@Nested
+	@DisplayName("주기당 1회 지급을 판정할 때")
+	class RewardPeriod {
+
+		@Test
+		@DisplayName("주기 시작 시각은 KST 자정이다")
+		void 주기_시작은_KST_자정() {
+			Chore chore = Chore.builder().startDate(LocalDate.of(2026, 9, 10)).build();
+
+			// 서버 기본 타임존을 따라가면 UTC 서버에서 아홉 시간 밀려,
+			// 한국 시간 자정 직후 승인이 지난 주기로 분류된다.
+			assertThat(chore.currentPeriodStartedAt())
+				.isEqualTo(OffsetDateTime.parse("2026-09-10T00:00+09:00"));
+		}
+
+		@Test
+		@DisplayName("같은 주기 안에서는 멱등키가 그대로다")
+		void 같은_주기면_같은_키() {
+			Chore chore = Chore.builder().startDate(LocalDate.of(2026, 9, 10)).build();
+
+			assertThat(chore.rewardIdempotencyKey()).isEqualTo(chore.rewardIdempotencyKey());
+		}
+
+		@Test
+		@DisplayName("주기가 다음으로 밀리면 멱등키도 바뀐다")
+		void 주기가_밀리면_키도_바뀐다() {
+			Chore chore = Chore.builder()
+				.startDate(LocalDate.of(2026, 9, 10))
+				.endDate(LocalDate.of(2026, 9, 10))
+				.build();
+			String before = chore.rewardIdempotencyKey();
+
+			// 크론이 하루치 기간을 미는 상황이다. 키가 그대로면 다음 날 보상을 못 받는다.
+			chore.changePeriod(ChoreRepeatType.DAY, LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 11));
+
+			assertThat(chore.rewardIdempotencyKey()).isNotEqualTo(before);
+		}
+
+		@Test
+		@DisplayName("같은 주기라도 할 일이 다르면 멱등키가 다르다")
+		void 할_일이_다르면_다른_키() {
+			LocalDate sameDay = LocalDate.of(2026, 9, 10);
+			Chore one = Chore.builder().startDate(sameDay).build();
+			Chore other = Chore.builder().startDate(sameDay).build();
+			ReflectionTestUtils.setField(one, "id", 1);
+			ReflectionTestUtils.setField(other, "id", 2);
+
+			// 키가 겹치면 한 아이가 같은 날 두 집안일을 끝내도 한 번만 지급된다.
+			assertThat(one.rewardIdempotencyKey()).isNotEqualTo(other.rewardIdempotencyKey());
 		}
 	}
 }

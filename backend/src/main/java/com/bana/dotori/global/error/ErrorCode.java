@@ -82,7 +82,8 @@ public enum ErrorCode {
 	PRICE_NOT_EVALUATED(HttpStatus.BAD_REQUEST, "아직 가격이 산정되지 않은 상품입니다"),
 
 	// 집안일 (CHORE)
-	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "집안일을 찾을 수 없습니다");
+	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "집안일을 찾을 수 없습니다"),
+	CHORE_REQUEST_NOT_PENDING(HttpStatus.CONFLICT, "이미 처리된 완료 요청입니다");
 
 	private final HttpStatus status;
 	private final String message;

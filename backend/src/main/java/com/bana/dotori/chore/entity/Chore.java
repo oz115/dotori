@@ -31,7 +31,7 @@ import lombok.NoArgsConstructor;
  * 여기 있는 rewardPoints 는 "승인 시점에 지급할 금액"이다. 요청 시점 값을 따로
  * 스냅샷하지 않으므로, 대기 중인 요청이 있는 상태에서 금액을 바꾸면 바뀐 값이 지급된다.
  *
- * <p>삭제는 물리 삭제가 아니라 isActive=false 다. 완료 이력이 choreId 를 참조하기 때문에
+ * <p>삭제는 물리 삭제가 아니라 deletedAt 기록이다. 완료 이력이 choreId 를 참조하기 때문에
  * 행을 지우면 이미 지급한 보상의 근거가 사라진다.
  */
 @Entity
@@ -152,6 +152,36 @@ public class Chore {
 			return false;
 		}
 		return endDate == null || !date.isAfter(endDate);
+	}
+
+	/**
+	 * 지금 주기가 시작된 순간 (KST 자정).
+	 *
+	 * <p>"이번 주기에 이미 보상을 받았나" 를 판정할 때 하한으로 쓴다. 크론이 주기가 끝날 때마다
+	 * 기간을 앞으로 밀어 주므로, 이 시각 이후에 승인된 것은 이번 주기의 것뿐이다.
+	 *
+	 * <p>startDate 는 날짜라 시각이 없다. 어느 타임존의 자정인지 정하지 않으면 서버 설정에 따라
+	 * 경계가 아홉 시간씩 밀리고, 한국 시간 자정 직후에 승인한 건이 지난 주기로 분류된다.
+	 */
+	public OffsetDateTime currentPeriodStartedAt() {
+		return startDate.atStartOfDay(KST).toOffsetDateTime();
+	}
+
+	/**
+	 * 이번 주기 보상 지급의 멱등키.
+	 *
+	 * <p>주기당 1회 지급을 실제로 보장하는 장치다. {@code point_transactions} 에
+	 * {@code UNIQUE (child_id, idempotency_key)} 가 걸려 있어, 같은 주기에 두 번째 지급이
+	 * 들어오면 DB 가 거부한다. 부모가 두 기기에서 동시에 승인해도 한 건만 남는다.
+	 *
+	 * <p>키에 startDate 를 넣는 이유는 크론이 기간을 밀면 키도 같이 바뀌어야 다음 주기에
+	 * 다시 받을 수 있기 때문이다. 일회성(ONCE)은 기간이 밀리지 않으므로 영원히 한 번이다.
+	 *
+	 * <p>{@link #currentPeriodStartedAt()} 와 같은 startDate 에서 나온다. 사전 검사와 최종
+	 * 방어가 같은 값을 보게 묶어 둔 것이다 — 따로 계산하면 둘이 어긋나는 날이 온다.
+	 */
+	public String rewardIdempotencyKey() {
+		return "chore:" + id + ":" + startDate;
 	}
 
 	/**

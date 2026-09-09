@@ -1076,7 +1076,7 @@ FAMILY_CHILD: 할 일 목록 조회(CHORE-01)가 쓴다.
 
 FAMILY: 완료 요청 목록(CHORE-08)이 chore_completion_requests 와 chores 를
 조인해 family_id 로 좁힐 때 쓴다. 그쪽은 삭제 여부를 보지 않으므로 family_id 만 건다.
-아직 그 API 가 없어 지금은 쓰이지 않는다.
+지워진 할 일에 걸려 있는 요청도 부모가 처리할 수 있어야 하기 때문이다.
 --------------------------------------------------------- */
 
 CREATE INDEX "IX_CHORES_FAMILY_CHILD"
@@ -1086,3 +1086,25 @@ WHERE "deleted_at" IS NULL;
 
 CREATE INDEX "IX_CHORES_FAMILY"
 ON "chores" ("family_id");
+
+
+/* ---------------------------------------------------------
+chore_completion_requests
+
+FK 는 인덱스를 만들어 주지 않으므로 chore_id 쪽은 비어 있다. 조회가 두 가지다.
+
+1. 주기당 지급 여부(CHORE-09) — chore_id 로 좁히고 status='SUCCEED' 인 것 중
+   processed_at 이 이번 주기 시작 이후인지 본다. 세 컬럼이 앞에서부터 그대로 쓰인다.
+2. 부모 대기함(CHORE-08) — chores 와 조인해 status='PENDING' 만 고른다.
+   (chore_id, status) 까지만 쓰지만 그건 아래 인덱스의 앞머리라 같은 인덱스를 탄다.
+
+그래서 하나로 충분하다. 컬럼 순서는 등호로 좁히는 것(chore_id, status)이 앞이고
+범위로 보는 것(processed_at)이 뒤다. 범위 조건을 앞에 두면 그 뒤 컬럼은
+인덱스로 걸러지지 않고 읽은 뒤 버려진다.
+
+아이별 완료 내역(CHORE-12)은 child_id 로 좁히는 다른 모양이라 이 인덱스를 못 쓴다.
+그 API 를 만들 때 따로 추가한다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHORE_STATUS"
+ON "chore_completion_requests" ("chore_id", "status", "processed_at");
