@@ -280,8 +280,8 @@ class FamilyControllerTest {
 	@DisplayName("가족 조회 성공 시 200과 가족 정보를 반환한다")
 	void getFamily_success() throws Exception {
 		givenParentAuthenticated(1);
-		FamilyResponse response = new FamilyResponse(1, "도토리네 가족", 1, 3,
-			OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
+		FamilyResponse response = new FamilyResponse(1, "도토리네 가족", 1, 3, 10000, 5000,
+			FinancialKnowledgeLevel.BEGINNER, OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9)));
 		given(familyService.getFamily(1, 1)).willReturn(response);
 
 		mockMvc.perform(get(FAMILIES_URL + "/1")
@@ -291,6 +291,9 @@ class FamilyControllerTest {
 			.andExpect(jsonPath("$.name").value("도토리네 가족"))
 			.andExpect(jsonPath("$.createdBy").value(1))
 			.andExpect(jsonPath("$.memberCount").value(3))
+			.andExpect(jsonPath("$.weeklyAllowance").value(10000))
+			.andExpect(jsonPath("$.weeklyRewardLimit").value(5000))
+			.andExpect(jsonPath("$.financialKnowledgeLevel").value("BEGINNER"))
 			.andExpect(jsonPath("$.createdAt").exists());
 	}
 

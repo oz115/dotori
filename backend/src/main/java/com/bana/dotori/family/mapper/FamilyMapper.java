@@ -41,14 +41,23 @@ public class FamilyMapper {
 	/** 저장된 포인트를 요청과 같은 단위(원)로 되돌려 응답한다. */
 	public FamilyUpdateResponse toUpdateResponse(Family family) {
 		return new FamilyUpdateResponse(family.getId(), family.getName(),
-			family.getWeeklyAllowance() * PointExchangePolicy.KRW_PER_POINT,
-			family.getWeeklyRewardLimit() * PointExchangePolicy.KRW_PER_POINT,
+			toWon(family.getWeeklyAllowance()), toWon(family.getWeeklyRewardLimit()),
 			family.getFinancialKnowledgeLevel(), family.getUpdatedAt());
 	}
 
 	public FamilyResponse toFamilyResponse(Family family, int memberCount) {
 		return new FamilyResponse(family.getId(), family.getName(), family.getCreatedBy(), memberCount,
-			family.getCreatedAt());
+			toWon(family.getWeeklyAllowance()), toWon(family.getWeeklyRewardLimit()),
+			family.getFinancialKnowledgeLevel(), family.getCreatedAt());
+	}
+
+	/**
+	 * 저장 단위(포인트)를 화면 단위(원)로 되돌린다.
+	 * 온보딩 도입 전에 만들어진 가족은 값이 없을 수 있어 null 을 그대로 통과시킨다
+	 * (공유 DB 일괄 최신화 전까지의 과도기 방어).
+	 */
+	private Integer toWon(Integer points) {
+		return points == null ? null : points * PointExchangePolicy.KRW_PER_POINT;
 	}
 
 	public FamilyMembersResponse toMembersResponse(List<FamilyMember> members) {

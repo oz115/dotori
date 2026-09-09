@@ -286,10 +286,9 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가족 조회 성공 시 가족 정보와 구성원 수를 반환한다")
+	@DisplayName("가족 조회 성공 시 가족 정보·구성원 수·온보딩 설정(원 단위)을 반환한다")
 	void getFamily_success() {
-		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
-		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
 		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
 		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
 
@@ -298,6 +297,25 @@ class FamilyServiceImplTest {
 		assertThat(response.name()).isEqualTo("도토리네 가족");
 		assertThat(response.createdBy()).isEqualTo(1);
 		assertThat(response.memberCount()).isEqualTo(3);
+		// 저장은 포인트(1000pt/500pt)지만 응답은 원으로 환산된다
+		assertThat(response.weeklyAllowance()).isEqualTo(10000);
+		assertThat(response.weeklyRewardLimit()).isEqualTo(5000);
+		assertThat(response.financialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("온보딩 도입 전에 만들어진 가족은 설정값이 null 로 내려간다")
+	void getFamily_legacyFamilyWithoutOnboarding() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
+
+		FamilyResponse response = familyService.getFamily(1, 1);
+
+		assertThat(response.weeklyAllowance()).isNull();
+		assertThat(response.weeklyRewardLimit()).isNull();
+		assertThat(response.financialKnowledgeLevel()).isNull();
 	}
 
 	@Test
