@@ -173,9 +173,12 @@ class FamilyControllerTest {
 	}
 
 	@Test
-	@DisplayName("온보딩 금액이 0원이면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
-	void create_zeroAmount() throws Exception {
+	@DisplayName("온보딩 금액이 정책(1000원 이상·1000원 단위)에 어긋나면 400과 INVALID_REQUEST 에러를 반환한다")
+	void create_invalidAmountPolicy() throws Exception {
 		givenParentAuthenticated(1);
+		// 금액 정책 검증은 DTO 가 아니라 서비스(toPoints)가 전담한다
+		given(familyService.create(eq(1), any(FamilyCreateRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INVALID_REQUEST));
 
 		mockMvc.perform(post(FAMILIES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT)
@@ -186,8 +189,6 @@ class FamilyControllerTest {
 					"""))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
-
-		then(familyService).shouldHaveNoInteractions();
 	}
 
 	@Test

@@ -58,15 +58,8 @@ class FamilyUpdateRequestTest {
 	}
 
 	@Test
-	@DisplayName("기본 용돈이 0원 이하면 위반이 발생한다")
-	void validate_nonPositiveWeeklyAllowance() {
-		assertThat(violatedFields(new FamilyUpdateRequest(null, 0, null, null))).contains("weeklyAllowance");
-		assertThat(violatedFields(new FamilyUpdateRequest(null, -1000, null, null))).contains("weeklyAllowance");
-	}
-
-	@Test
-	@DisplayName("추가 보상 한도가 0원 이하면 위반이 발생한다")
-	void validate_nonPositiveWeeklyRewardLimit() {
-		assertThat(violatedFields(new FamilyUpdateRequest(null, null, 0, null))).contains("weeklyRewardLimit");
+	@DisplayName("금액은 DTO에서 검증하지 않는다 — 0원이어도 위반 없이 서비스(toPoints)로 넘어간다")
+	void validate_amountsAreServiceConcern() {
+		assertThat(violatedFields(new FamilyUpdateRequest(null, 0, -1000, null))).isEmpty();
 	}
 }

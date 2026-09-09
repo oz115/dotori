@@ -28,4 +28,9 @@ public final class PointExchangePolicy {
 	public static int toPoints(int won) {
 		return won / KRW_PER_POINT;
 	}
+
+	/** 포인트를 화면 표시용 원으로 되돌린다. 역환산도 여기서만 한다 — `* 10` 을 손으로 쓰지 않는다. */
+	public static int toWon(int points) {
+		return points * KRW_PER_POINT;
+	}
 }

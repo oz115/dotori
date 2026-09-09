@@ -43,9 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class PointChargeService {
 
-	/** 팀 환전 정책. 원본은 {@link PointExchangePolicy} — 가족 온보딩 설정과 공유한다. */
-	public static final int KRW_PER_POINT = PointExchangePolicy.KRW_PER_POINT;
-
 	private final PointWalletService pointWalletService;
 	private final BankTransferClient bankTransferClient;
 	private final FamilyMembershipReader familyMembershipReader;
@@ -102,7 +99,7 @@ public class PointChargeService {
 	private int toPoints(int cashAmount) {
 		if (!PointExchangePolicy.isWonUnit(cashAmount)) {
 			throw new BusinessException(ErrorCode.INVALID_CHARGE_UNIT,
-					"충전 금액은 " + KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + cashAmount);
+					"충전 금액은 " + PointExchangePolicy.KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + cashAmount);
 		}
 		return PointExchangePolicy.toPoints(cashAmount);
 	}

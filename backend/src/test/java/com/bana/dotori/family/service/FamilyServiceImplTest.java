@@ -138,18 +138,21 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("온보딩 금액이 1000원 미만이면 INVALID_REQUEST 예외가 발생한다")
+	@DisplayName("온보딩 금액이 1000원 미만(0원·음수 포함)이면 INVALID_REQUEST 예외가 발생한다")
 	void create_rejectsBelowMinimumAmount() {
 		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
 		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
 
-		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, 500,
-			FinancialKnowledgeLevel.BEGINNER);
+		// DTO 가 금액을 검증하지 않으므로 0원·음수도 여기(toPoints)가 최종 방어선이다
+		for (int invalidWon : new int[] {500, 0, -1000}) {
+			FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, invalidWon,
+				FinancialKnowledgeLevel.BEGINNER);
 
-		assertThatThrownBy(() -> familyService.create(1, request))
-			.isInstanceOf(BusinessException.class)
-			.extracting(e -> ((BusinessException)e).getErrorCode())
-			.isEqualTo(ErrorCode.INVALID_REQUEST);
+			assertThatThrownBy(() -> familyService.create(1, request))
+				.isInstanceOf(BusinessException.class)
+				.extracting(e -> ((BusinessException)e).getErrorCode())
+				.isEqualTo(ErrorCode.INVALID_REQUEST);
+		}
 
 		verify(familyRepository, never()).save(any(Family.class));
 	}

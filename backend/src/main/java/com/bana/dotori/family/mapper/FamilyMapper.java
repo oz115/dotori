@@ -52,12 +52,11 @@ public class FamilyMapper {
 	}
 
 	/**
-	 * 저장 단위(포인트)를 화면 단위(원)로 되돌린다.
-	 * 온보딩 도입 전에 만들어진 가족은 값이 없을 수 있어 null 을 그대로 통과시킨다
-	 * (공유 DB 일괄 최신화 전까지의 과도기 방어).
+	 * 저장 단위(포인트)를 화면 단위(원)로 되돌린다. 환산 자체는 {@link PointExchangePolicy#toWon} 이 하고,
+	 * 여기서는 온보딩 도입 전에 만들어진 가족의 null 만 통과시킨다 (공유 DB 재생성 전까지의 과도기 방어).
 	 */
 	private Integer toWon(Integer points) {
-		return points == null ? null : points * PointExchangePolicy.KRW_PER_POINT;
+		return points == null ? null : PointExchangePolicy.toWon(points);
 	}
 
 	public FamilyMembersResponse toMembersResponse(List<FamilyMember> members) {
