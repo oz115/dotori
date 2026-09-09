@@ -101,7 +101,7 @@ class ChoreCompletionRequestTest {
 			// 이 검사가 없으면 부모가 승인 버튼을 두 번 눌렀을 때 보상이 두 번 나간다.
 			assertThatThrownBy(() -> request.approve(PROCESSED_AT))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_REQUEST_NOT_PENDING);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_STATUS);
 		}
 
 		@Test
@@ -112,7 +112,7 @@ class ChoreCompletionRequestTest {
 
 			assertThatThrownBy(() -> request.approve(PROCESSED_AT))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_REQUEST_NOT_PENDING);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_STATUS);
 		}
 
 		@Test
@@ -123,7 +123,7 @@ class ChoreCompletionRequestTest {
 
 			assertThatThrownBy(() -> request.reject(PROCESSED_AT))
 				.isInstanceOf(BusinessException.class)
-				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_REQUEST_NOT_PENDING);
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_STATUS);
 		}
 
 		@Test

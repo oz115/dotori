@@ -1,0 +1,289 @@
+package com.bana.dotori.chore.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Optional;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
+import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.entity.Chore;
+import com.bana.dotori.chore.entity.ChoreCompletionRequest;
+import com.bana.dotori.chore.entity.ChoreCompletionStatus;
+import com.bana.dotori.chore.entity.ChoreDifficulty;
+import com.bana.dotori.chore.entity.ChoreRepeatType;
+import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
+import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
+import com.bana.dotori.chore.repository.ChoreRepository;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
+
+/**
+ * 2계층 - 완료 요청·취소의 규칙만 검증한다 (CHORE-11·12).
+ *
+ * <p>가족·아이 경계 검증은 {@link ChoreAccessValidator} 몫이라 여기서는 모킹한다.
+ * 이 테스트가 실패하면 원인은 완료 요청 규칙 쪽이다.
+ */
+@DisplayName("ChoreCompletionServiceImpl 완료 요청과 취소")
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class ChoreCompletionServiceImplTest {
+
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	private static final Integer FAMILY_ID = 10;
+	private static final Integer CHILD_ID = 2;
+	private static final Integer SIBLING_ID = 3;
+	private static final Integer CHORE_ID = 7;
+	private static final Integer REQUEST_ID = 100;
+
+	@Mock
+	private ChoreRepository choreRepository;
+
+	@Mock
+	private ChoreCompletionRequestRepository completionRequestRepository;
+
+	@Mock
+	private ChoreAccessValidator accessValidator;
+
+	@Spy
+	private ChoreCompletionMapper completionMapper;
+
+	@InjectMocks
+	private ChoreCompletionServiceImpl choreCompletionService;
+
+	private Chore chore(LocalDate startDate, LocalDate endDate, Integer rewardPoints) {
+		Chore chore = Chore.builder()
+			.familyId(FAMILY_ID)
+			.parentId(1)
+			.childId(CHILD_ID)
+			.title("설거지")
+			.difficulty(ChoreDifficulty.NORMAL)
+			.rewardPoints(rewardPoints)
+			.repeatType(ChoreRepeatType.DAY)
+			.startDate(startDate)
+			.endDate(endDate)
+			.build();
+		ReflectionTestUtils.setField(chore, "id", CHORE_ID);
+		return chore;
+	}
+
+	private Chore todayChore() {
+		LocalDate today = LocalDate.now(KST);
+		return chore(today, today, 500);
+	}
+
+	private void givenChore(Chore chore) {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
+		given(completionRequestRepository.save(any())).willAnswer(call -> call.getArgument(0));
+	}
+
+	private ChoreCompletionRequest pendingRequest(Integer ownerId) {
+		return ChoreCompletionRequest.builder().choreId(CHORE_ID).childId(ownerId).build();
+	}
+
+	private ChoreCompletionResponse request() {
+		return choreCompletionService.requestCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreCompletionCreateRequest(null, "다 했어요"));
+	}
+
+	@Nested
+	@DisplayName("완료를 요청할 때")
+	class RequestCompletion {
+
+		@Test
+		@DisplayName("기간 안의 할 일이면 대기 상태로 저장한다")
+		void 정상_요청() {
+			givenChore(todayChore());
+
+			ChoreCompletionResponse response = request();
+
+			assertThat(response.choreId()).isEqualTo(CHORE_ID);
+			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.PENDING);
+			verify(completionRequestRepository).save(any());
+		}
+
+		@Test
+		@DisplayName("아이가 아니면 403으로 막고 저장하지 않는다")
+		void 아이만_요청할_수_있다() {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireChild(CHILD_ID);
+
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+			verify(completionRequestRepository, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("없는 할 일이면 404다")
+		void 없는_할_일() {
+			given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
+		}
+
+		@Test
+		@DisplayName("형제에게 배정된 할 일이면 404다")
+		void 남의_할_일() {
+			Chore siblings = todayChore();
+			ReflectionTestUtils.setField(siblings, "childId", SIBLING_ID);
+			givenChore(siblings);
+
+			// 같은 가족이라도 경로와 어긋나면 없는 것으로 본다.
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_NOT_FOUND);
+		}
+
+		@Test
+		@DisplayName("지워진 할 일에는 새 요청을 받지 않는다")
+		void 지워진_할_일() {
+			Chore deleted = todayChore();
+			deleted.softDelete();
+			givenChore(deleted);
+
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
+
+			verify(completionRequestRepository, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("기간이 지났으면 400이다")
+		void 기간_밖() {
+			LocalDate yesterday = LocalDate.now(KST).minusDays(1);
+			givenChore(chore(yesterday, yesterday, 500));
+
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
+		}
+
+		@Test
+		@DisplayName("보상이 아직 산정되지 않았으면 막는다")
+		void 보상_미산정() {
+			LocalDate today = LocalDate.now(KST);
+			givenChore(chore(today, today, null));
+
+			// 승인해도 줄 금액이 없다. 상점의 PRICE_NOT_EVALUATED 와 같은 자리다.
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.REWARD_NOT_EVALUATED);
+
+			verify(completionRequestRepository, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("이미 대기 중인 요청이 있으면 409다")
+		void 대기_중_요청_존재() {
+			givenChore(todayChore());
+			given(completionRequestRepository.existsByChoreIdAndStatus(CHORE_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(true);
+
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.PENDING_REQUEST_EXISTS);
+		}
+
+		@Test
+		@DisplayName("이번 주기에 이미 받았으면 409다")
+		void 이번_주기에_이미_받음() {
+			givenChore(todayChore());
+			given(completionRequestRepository.hasApprovedSince(eq(CHORE_ID), any())).willReturn(true);
+
+			// 받아 봐야 승인 단계에서 막히므로 부모 대기함에 쌓지 않는다.
+			assertThatThrownBy(() -> request())
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_REWARDED);
+
+			verify(completionRequestRepository, never()).save(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("요청을 취소할 때")
+	class CancelCompletion {
+
+		@Test
+		@DisplayName("자기 대기 요청이면 CANCELLED 로 바꾼다")
+		void 정상_취소() {
+			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+
+			choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
+
+			assertThat(pending.getStatus()).isEqualTo(ChoreCompletionStatus.CANCELLED);
+			assertThat(pending.getProcessedAt()).isNotNull();
+		}
+
+		@Test
+		@DisplayName("행을 지우지 않는다")
+		void 물리_삭제하지_않는다() {
+			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+
+			choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
+
+			// 취소 이력이 남아야 부모가 사라진 요청을 되짚을 수 있다.
+			verify(completionRequestRepository, never()).delete(any());
+		}
+
+		@Test
+		@DisplayName("없는 요청이면 404다")
+		void 없는_요청() {
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);
+		}
+
+		@Test
+		@DisplayName("남의 요청이면 403이다")
+		void 남의_요청() {
+			given(completionRequestRepository.findById(REQUEST_ID))
+				.willReturn(Optional.of(pendingRequest(SIBLING_ID)));
+
+			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+		}
+
+		@Test
+		@DisplayName("이미 처리된 요청이면 409다")
+		void 이미_처리됨() {
+			ChoreCompletionRequest approved = pendingRequest(CHILD_ID);
+			approved.approve(OffsetDateTime.now(KST));
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+
+			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_STATUS);
+		}
+	}
+}

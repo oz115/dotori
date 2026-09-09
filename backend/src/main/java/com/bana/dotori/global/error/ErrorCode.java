@@ -83,7 +83,11 @@ public enum ErrorCode {
 
 	// 집안일 (CHORE)
 	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "집안일을 찾을 수 없습니다"),
-	CHORE_REQUEST_NOT_PENDING(HttpStatus.CONFLICT, "이미 처리된 완료 요청입니다");
+	CHORE_COMPLETION_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "완료 요청을 찾을 수 없습니다"),
+	REWARD_NOT_EVALUATED(HttpStatus.BAD_REQUEST, "아직 보상이 산정되지 않은 할 일입니다"),
+	PENDING_REQUEST_EXISTS(HttpStatus.CONFLICT, "이미 처리 대기 중인 완료 요청이 있습니다"),
+	ALREADY_REWARDED(HttpStatus.CONFLICT, "이번 주기에 이미 보상을 받았습니다"),
+	INVALID_STATUS(HttpStatus.CONFLICT, "이미 처리된 요청입니다");
 
 	private final HttpStatus status;
 	private final String message;

@@ -120,7 +120,7 @@ public class ChoreCompletionRequest {
 	 */
 	private void transitionTo(ChoreCompletionStatus next, OffsetDateTime at) {
 		if (!isPending()) {
-			throw new BusinessException(ErrorCode.CHORE_REQUEST_NOT_PENDING,
+			throw new BusinessException(ErrorCode.INVALID_STATUS,
 					"이미 처리된 요청입니다. requestId=" + id + ", status=" + status);
 		}
 		this.status = next;
