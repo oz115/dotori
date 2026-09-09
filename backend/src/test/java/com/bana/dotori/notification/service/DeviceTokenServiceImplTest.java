@@ -108,4 +108,43 @@ class DeviceTokenServiceImplTest {
 
 		verify(deviceTokenRepository, never()).findByFcmToken(any());
 	}
+
+	@Test
+	@DisplayName("본인 소유 토큰을 해제하면 삭제된다")
+	void unregister_success() {
+		DeviceToken existing = DeviceToken.builder()
+			.user(user(1))
+			.fcmToken("fcm-token-abc")
+			.platform(DeviceTokenPlatform.ANDROID)
+			.build();
+		given(deviceTokenRepository.findByUser_IdAndFcmToken(1, "fcm-token-abc")).willReturn(Optional.of(existing));
+
+		deviceTokenService.unregister(1, "fcm-token-abc");
+
+		verify(deviceTokenRepository).delete(existing);
+	}
+
+	@Test
+	@DisplayName("본인 소유가 아니거나 없는 토큰이면 DEVICE_TOKEN_NOT_FOUND 예외가 발생한다")
+	void unregister_notFound() {
+		given(deviceTokenRepository.findByUser_IdAndFcmToken(1, "fcm-token-abc")).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> deviceTokenService.unregister(1, "fcm-token-abc"))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.DEVICE_TOKEN_NOT_FOUND);
+
+		verify(deviceTokenRepository, never()).delete(any(DeviceToken.class));
+	}
+
+	@Test
+	@DisplayName("fcmToken이 비어 있으면 INVALID_REQUEST 예외가 발생하고 조회하지 않는다")
+	void unregister_blankFcmToken() {
+		assertThatThrownBy(() -> deviceTokenService.unregister(1, " "))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(deviceTokenRepository, never()).findByUser_IdAndFcmToken(any(), any());
+	}
 }

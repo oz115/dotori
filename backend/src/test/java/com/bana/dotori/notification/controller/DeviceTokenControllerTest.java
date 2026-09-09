@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +27,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.global.config.SecurityConfig;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
@@ -132,6 +136,56 @@ class DeviceTokenControllerTest {
 						"platform": "ANDROID"
 					}
 					"""))
+			.andExpect(status().isUnauthorized());
+
+		then(deviceTokenService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("디바이스 토큰 해제 성공 시 204를 반환한다")
+	void unregister_success() throws Exception {
+		givenAuthenticated(1);
+
+		mockMvc.perform(delete(DEVICE_TOKENS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.param("fcmToken", "fcm-token-abc"))
+			.andExpect(status().isNoContent());
+
+		then(deviceTokenService).should().unregister(1, "fcm-token-abc");
+	}
+
+	@Test
+	@DisplayName("fcmToken 파라미터가 없으면 400과 INVALID_REQUEST 에러를 반환한다")
+	void unregister_missingFcmToken() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.INVALID_REQUEST, "fcmToken은 필수입니다"))
+			.given(deviceTokenService).unregister(1, null);
+
+		mockMvc.perform(delete(DEVICE_TOKENS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("본인 소유가 아니거나 없는 토큰이면 404와 DEVICE_TOKEN_NOT_FOUND 에러를 반환한다")
+	void unregister_notFound() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.DEVICE_TOKEN_NOT_FOUND))
+			.given(deviceTokenService).unregister(1, "fcm-token-abc");
+
+		mockMvc.perform(delete(DEVICE_TOKENS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.param("fcmToken", "fcm-token-abc"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("DEVICE_TOKEN_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 해제를 호출하면 401을 반환한다")
+	void unregister_unauthenticated() throws Exception {
+		mockMvc.perform(delete(DEVICE_TOKENS_URL)
+				.param("fcmToken", "fcm-token-abc"))
 			.andExpect(status().isUnauthorized());
 
 		then(deviceTokenService).shouldHaveNoInteractions();

@@ -10,4 +10,10 @@ public interface DeviceTokenService {
 	 * 갈아치우는 upsert 로 동작한다.
 	 */
 	DeviceTokenRegisterResponse register(Integer userId, DeviceTokenRegisterRequest request);
+
+	/**
+	 * 요청 사용자 소유의 디바이스 토큰을 해제(삭제)한다 (NOTI-09). 다른 사용자의 토큰은
+	 * 조회 조건에 사용자를 포함해 애초에 대상이 되지 않는다.
+	 */
+	void unregister(Integer userId, String fcmToken);
 }

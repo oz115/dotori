@@ -40,6 +40,17 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
 		return deviceTokenMapper.toRegisterResponse(deviceToken);
 	}
 
+	@Override
+	@Transactional
+	public void unregister(Integer userId, String fcmToken) {
+		if (fcmToken == null || fcmToken.isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "fcmToken은 필수입니다");
+		}
+		DeviceToken deviceToken = deviceTokenRepository.findByUser_IdAndFcmToken(userId, fcmToken)
+			.orElseThrow(() -> new BusinessException(ErrorCode.DEVICE_TOKEN_NOT_FOUND));
+		deviceTokenRepository.delete(deviceToken);
+	}
+
 	private User findUser(Integer userId) {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "회원을 찾을 수 없습니다. userId=" + userId));

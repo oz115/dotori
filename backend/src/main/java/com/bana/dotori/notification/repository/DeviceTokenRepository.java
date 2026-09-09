@@ -9,4 +9,6 @@ import com.bana.dotori.notification.entity.DeviceToken;
 public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Integer> {
 
 	Optional<DeviceToken> findByFcmToken(String fcmToken);
+
+	Optional<DeviceToken> findByUser_IdAndFcmToken(Integer userId, String fcmToken);
 }
