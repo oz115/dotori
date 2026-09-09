@@ -46,28 +46,39 @@ public class MockBankTransferClient implements BankTransferClient {
 	public synchronized BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount,
 			String idempotencyKey) {
 		Integer parentId = mockParentIdOf(familyId);
+		BankTransferResult result = doTransfer("child", childId, "parent", parentId, amount);
+		log.warn("목업 송금이 실행됐다. 실제 이체는 일어나지 않는다."
+						+ " familyId={}, childId={}, amount={}, externalTransactionId={}",
+				familyId, childId, amount, result.externalTransactionId());
+		return result;
+	}
 
-		LinkedAccountSnapshot childAccount = requireAccount("child", childId);
-		LinkedAccountSnapshot parentAccount = requireAccount("parent", parentId);
+	@Override
+	public synchronized BankTransferResult transferFromParentToChild(Integer parentId, Integer childId, int amount,
+			String idempotencyKey) {
+		BankTransferResult result = doTransfer("parent", parentId, "child", childId, amount);
+		log.warn("목업 환전 송금이 실행됐다. 실제 이체는 일어나지 않는다."
+						+ " parentId={}, childId={}, amount={}, externalTransactionId={}",
+				parentId, childId, amount, result.externalTransactionId());
+		return result;
+	}
 
-		if (childAccount.balance() < amount) {
+	private BankTransferResult doTransfer(String fromOwner, Integer fromUserId, String toOwner, Integer toUserId,
+			int amount) {
+		LinkedAccountSnapshot fromAccount = requireAccount(fromOwner, fromUserId);
+		LinkedAccountSnapshot toAccount = requireAccount(toOwner, toUserId);
+
+		if (fromAccount.balance() < amount) {
 			throw new BusinessException(ErrorCode.INSUFFICIENT_ACCOUNT_BALANCE,
-					"계좌 잔액이 부족합니다. childId=" + childId + ", 계좌 잔액=" + childAccount.balance()
+					"계좌 잔액이 부족합니다. " + fromOwner + "Id=" + fromUserId + ", 계좌 잔액=" + fromAccount.balance()
 							+ ", 송금 요청=" + amount);
 		}
 
 		OffsetDateTime now = OffsetDateTime.now(KST);
-		LinkedAccountSnapshot debited = childAccount.withBalance(childAccount.balance() - amount, now);
-		LinkedAccountSnapshot credited = parentAccount.withBalance(parentAccount.balance() + amount, now);
-		accountsByUserId.put(childId, debited);
-		accountsByUserId.put(parentId, credited);
+		accountsByUserId.put(fromUserId, fromAccount.withBalance(fromAccount.balance() - amount, now));
+		accountsByUserId.put(toUserId, toAccount.withBalance(toAccount.balance() + amount, now));
 
-		String externalTransactionId = "MOCK-" + UUID.randomUUID();
-		log.warn("목업 송금이 실행됐다. 실제 이체는 일어나지 않는다."
-						+ " familyId={}, childId={}, amount={}, externalTransactionId={}",
-				familyId, childId, amount, externalTransactionId);
-
-		return new BankTransferResult(externalTransactionId, amount);
+		return new BankTransferResult("MOCK-" + UUID.randomUUID(), amount);
 	}
 
 	/**

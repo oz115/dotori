@@ -105,6 +105,29 @@ CREATE TABLE IF NOT EXISTS "point_transactions" (
 );
 
 
+/* WLT-07 환전 요청. API 명세의 status 컬럼은 네이티브 ENUM
+   (point_cashout_requests_status) 이지만, 여기서는 다른 enum 컬럼과 같은 이유로
+   VARCHAR 로 둔다: 네이티브 타입을 만들려면 CREATE TYPE 을 DO 블록 없이 멱등하게
+   실행할 방법이 없고(위 안내문 참고, DO 블록은 세미콜론 분할 스크립트 실행기에서 깨진다),
+   엔티티는 @Enumerated(EnumType.STRING) 이라 VARCHAR 든 네이티브 ENUM 이든 똑같이
+   매핑된다. 운영 DB에는 명세대로 네이티브 ENUM 으로 만든다(수동 DDL, DO 블록 문제 없음). */
+CREATE TABLE IF NOT EXISTS "point_cashout_requests" (
+	"cashout_request_id"	SERIAL	NOT NULL,
+	"family_id"	INTEGER	NOT NULL,
+	"child_id"	INTEGER	NOT NULL,
+	"parent_id"	INTEGER	NOT NULL,
+	"point_amount"	INTEGER	NOT NULL,
+	"status"	VARCHAR(20)	DEFAULT 'PENDING'	NOT NULL,
+	"requested_at"	TIMESTAMPTZ	DEFAULT CURRENT_TIMESTAMP	NOT NULL,
+	"processed_at"	TIMESTAMPTZ	NULL,
+	CONSTRAINT "PK_POINT_CASHOUT_REQUESTS" PRIMARY KEY ("cashout_request_id"),
+	CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_CHILD" FOREIGN KEY ("child_id")
+		REFERENCES "users" ("user_id"),
+	CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_PARENT" FOREIGN KEY ("parent_id")
+		REFERENCES "users" ("user_id")
+);
+
+
 /* ---------------------------------------------------------
    제약조건 보정
 
@@ -150,6 +173,11 @@ ALTER TABLE "point_transactions"
 ALTER TABLE "point_transactions"
 	ADD CONSTRAINT "UQ_POINT_TRANSACTIONS_CHILD_IDEMPOTENCY_KEY"
 	UNIQUE ("child_id", "idempotency_key");
+
+ALTER TABLE "point_cashout_requests"
+	DROP CONSTRAINT IF EXISTS "CK_POINT_CASHOUT_REQUESTS_AMOUNT_POSITIVE";
+ALTER TABLE "point_cashout_requests"
+	ADD CONSTRAINT "CK_POINT_CASHOUT_REQUESTS_AMOUNT_POSITIVE" CHECK ("point_amount" > 0);
 
 /* WLT-06 거래내역 조회용 인덱스.
    커서 페이징은 정렬 키와 같은 순서의 인덱스가 있어야 "이 지점 이후"부터

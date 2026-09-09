@@ -23,4 +23,21 @@ public interface BankTransferClient {
 	 *         BANK_TRANSFER_FAILED 그 밖의 이유로 송금이 실패한 경우
 	 */
 	BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount, String idempotencyKey);
+
+	/**
+	 * 부모의 연동 계좌에서 아이의 연동 계좌로 송금한다. WLT-07 환전 승인이 쓴다.
+	 *
+	 * <p>충전과 달리 승인 시점에는 이미 {@code point_cashout_requests.parent_id} 로
+	 * 보낼 부모가 정해져 있으므로, familyId 로 부모를 다시 찾을 필요가 없다.
+	 *
+	 * @param parentId       송금할 부모
+	 * @param childId        받을 아이
+	 * @param amount         송금액(원). 항상 양수
+	 * @param idempotencyKey 중복 제출 방지 키. 없으면 null
+	 * @return 송금 결과
+	 * @throws com.bana.dotori.global.error.BusinessException
+	 *         ACCOUNT_NOT_LINKED 아이 또는 부모의 연동 계좌가 없는 경우,
+	 *         BANK_TRANSFER_FAILED 그 밖의 이유로 송금이 실패한 경우
+	 */
+	BankTransferResult transferFromParentToChild(Integer parentId, Integer childId, int amount, String idempotencyKey);
 }

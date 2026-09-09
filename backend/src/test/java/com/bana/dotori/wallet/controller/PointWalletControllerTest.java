@@ -42,6 +42,7 @@ import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
 import com.bana.dotori.wallet.dto.response.PointTransactionItem;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.service.PointCashoutRequestService;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
 import com.bana.dotori.wallet.service.PointWalletQueryService;
@@ -77,6 +78,9 @@ class PointWalletControllerTest {
 
 	@MockitoBean
 	private PointWalletQueryService pointWalletQueryService;
+
+	@MockitoBean
+	private PointCashoutRequestService pointCashoutRequestService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;

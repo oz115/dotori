@@ -77,6 +77,27 @@ ERD 상 `users.role` 과 `point_transactions.transaction_type` 은 PG 네이티�
 방향은 `balance_after` 의 변화로 알 수 있어 따로 저장하지 않는다.
 API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` 이 필요해지면 응답에서 계산한다.
 
+#### 환전 요청 (WLT-07, S15P21A505-115)
+
+자녀가 포인트→현금 환전을 요청하면 그 즉시 포인트를 차감하고, 부모가 승인해야
+부모 계좌→자녀 계좌로 실제 송금이 일어난다. 요청과 승인이 서로 다른 트랜잭션이라,
+승인 중 송금이 실패하면 이미 커밋된 차감을 되돌릴 방법이 롤백이 아니라 별도의
+환급 거래(`REFUND`)뿐이다 — `point_cashout_requests.status` 를 `PENDING → APPROVED`
+또는 `PENDING → FAILED`(환급 완료)로 남겨 어느 쪽인지 구분한다. 명시적인 거절 액션은
+아직 없다 — 부모가 아무 조치도 하지 않으면 `PENDING` 으로 남는다.
+
+| 대상 | 제약 | 이유 |
+| --- | --- | --- |
+| `point_cashout_requests.point_amount` | CHECK `> 0` | 음수·0 포인트 환전 요청 차단 |
+| `point_cashout_requests.child_id`/`parent_id` | FK → `users.user_id` | 존재하지 않는 사용자를 향한 요청 방지 |
+
+API 명세의 `status` 컬럼은 네이티브 ENUM(`point_cashout_requests_status`)이지만,
+`schema.sql` 에서는 `users.role`/`point_transactions.transaction_type` 과 같은 이유로
+`VARCHAR` 로 둔다 — 이 파일은 세미콜론으로 문장을 쪼개 실행하는 구조라 `CREATE TYPE` 을
+멱등하게(`DO` 블록 없이) 만들 방법이 없다. 엔티티는 `@Enumerated(EnumType.STRING)` 이라
+컬럼이 `VARCHAR` 든 네이티브 ENUM 이든 동일하게 매핑되므로, 배포 DB에는 명세대로
+네이티브 ENUM 으로 만든다(수동 DDL, `DO` 블록 제약이 없는 환경이라 문제없다).
+
 #### 이미 만들어진 DB 에 적용해야 하는 변경
 
 `ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다.
