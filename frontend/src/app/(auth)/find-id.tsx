@@ -118,13 +118,14 @@ export default function FindIdScreen() {
             </Text>
           ) : null}
 
+          <View style={[styles.spacer, { minHeight: theme.space['2xl'] }]} />
+
           <Button
             label="아이디 찾기"
             variant="primary"
             onPress={submit}
             loading={findId.isPending}
             disabled={!canSubmit}
-            style={{ marginTop: theme.space['2xl'] }}
           />
         </>
       )}
