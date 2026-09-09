@@ -72,6 +72,18 @@ public class ChoreAccessValidator {
 		}
 	}
 
+	/**
+	 * 부모만 할 수 있는 동작(CHORE-08·09·10)을 막는다.
+	 *
+	 * <p>{@link #validate} 만으로는 아이가 자기 대기함을 들여다볼 수 있다. 승인·거절 화면은
+	 * 부모 것이라 여기서 한 번 더 좁힌다.
+	 */
+	public void requireParent(Integer userId) {
+		if (findUser(userId).getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+	}
+
 	public User findUser(Integer userId) {
 		return userRepository.findById(userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

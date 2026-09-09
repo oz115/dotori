@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,7 +27,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.service.ChoreCompletionService;
 import com.bana.dotori.global.config.SecurityConfig;
@@ -47,6 +50,7 @@ class ChoreCompletionControllerTest {
 	private static final Integer CHORE_ID = 7;
 	private static final Integer REQUEST_ID = 100;
 	private static final String REQUESTS_URL = "/api/v1/families/10/children/2/chores/7/completion-requests";
+	private static final String LIST_URL = "/api/v1/families/10/children/2/chores/completion-requests";
 	private static final String CANCEL_URL = "/api/v1/families/10/children/2/chores/completion-requests/100";
 	private static final String TOKEN = "access-token";
 	private static final String BEARER = "Bearer " + TOKEN;
@@ -66,6 +70,11 @@ class ChoreCompletionControllerTest {
 				List.of(new SimpleGrantedAuthority("ROLE_CHILD"))));
 	}
 
+	private ChoreCompletionSummary summary() {
+		return new ChoreCompletionSummary(REQUEST_ID, CHORE_ID, "설거지", "김아이", null, "다 했어요",
+			ChoreCompletionStatus.PENDING, OffsetDateTime.of(2026, 9, 9, 21, 0, 0, 0, ZoneOffset.ofHours(9)));
+	}
+
 	private ChoreCompletionResponse response() {
 		return new ChoreCompletionResponse(REQUEST_ID, CHORE_ID, ChoreCompletionStatus.PENDING,
 			OffsetDateTime.of(2026, 9, 9, 21, 0, 0, 0, ZoneOffset.ofHours(9)));
@@ -78,6 +87,82 @@ class ChoreCompletionControllerTest {
 			  "description": %s
 			}
 			""".formatted(description);
+	}
+
+	@Test
+	@DisplayName("대기함을 조회하면 200과 목록을 반환한다")
+	void getCompletionRequests_ok() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.getCompletionRequests(any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionListResponse(List.of(summary())));
+
+		mockMvc.perform(get(LIST_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.requests[0].choreCompletionRequestId").value(REQUEST_ID))
+			.andExpect(jsonPath("$.requests[0].choreTitle").value("설거지"))
+			.andExpect(jsonPath("$.requests[0].childName").value("김아이"))
+			.andExpect(jsonPath("$.requests[0].status").value("PENDING"));
+	}
+
+	@Test
+	@DisplayName("status 를 생략하면 PENDING 으로 조회한다")
+	void getCompletionRequests_defaultsToPending() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.getCompletionRequests(any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionListResponse(List.of()));
+
+		mockMvc.perform(get(LIST_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk());
+
+		// 대기함은 처리할 것을 보러 오는 화면이라 기본값이 PENDING 이어야 한다.
+		verify(choreCompletionService)
+			.getCompletionRequests(CHILD_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
+	}
+
+	@Test
+	@DisplayName("status 를 주면 그 값으로 조회한다")
+	void getCompletionRequests_withStatus() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.getCompletionRequests(any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionListResponse(List.of()));
+
+		mockMvc.perform(get(LIST_URL)
+				.param("status", "SUCCEED")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk());
+
+		verify(choreCompletionService)
+			.getCompletionRequests(CHILD_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.SUCCEED);
+	}
+
+	@Test
+	@DisplayName("없는 상태 이름을 주면 400을 반환한다")
+	void getCompletionRequests_unknownStatus() throws Exception {
+		givenAuthenticated();
+
+		// 노션 명세에는 APPROVED 로 적혀 있지만 DB ENUM 은 SUCCEED 다. 오타가 조용히
+		// 통과하면 빈 목록이 나가고 프론트는 원인을 못 찾는다.
+		mockMvc.perform(get(LIST_URL)
+				.param("status", "APPROVED")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isBadRequest());
+
+		verify(choreCompletionService, never()).getCompletionRequests(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("아이가 대기함을 조회하면 403을 반환한다")
+	void getCompletionRequests_forbidden() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.getCompletionRequests(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(get(LIST_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
 
 	@Test

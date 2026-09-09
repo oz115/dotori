@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
+import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
@@ -110,6 +111,26 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 
 		// 상태 검사는 엔티티가 한다. 이미 처리된 요청이면 INVALID_STATUS 로 409 가 나간다.
 		completionRequest.cancel(OffsetDateTime.now(KST));
+	}
+
+	/**
+	 * 부모가 대기함을 본다 (CHORE-08).
+	 *
+	 * <p>기본 필터는 PENDING 이다. 이 화면은 "지금 처리할 것"을 보러 오는 곳이라
+	 * 아무 것도 지정하지 않았을 때 처리 끝난 이력까지 섞어 주면 목록이 쓸데없이 길어진다.
+	 *
+	 * <p>아이는 자기 대기함도 볼 수 없다. 승인 권한이 없는 사람에게 보여 줄 이유가 없고,
+	 * 아이가 볼 목록은 완료 내역(CHORE-12)으로 따로 있다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public ChoreCompletionListResponse getCompletionRequests(Integer userId, Integer familyId, Integer childId,
+			ChoreCompletionStatus status) {
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
+
+		return new ChoreCompletionListResponse(
+			completionRequestRepository.findSummaries(familyId, childId, status));
 	}
 
 	/**

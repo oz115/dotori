@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +28,9 @@ import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
+import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
@@ -40,12 +43,15 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 
 /**
- * 2계층 - 완료 요청·취소의 규칙만 검증한다 (CHORE-11·12).
+ * 2계층 - 완료 요청·취소·대기함 조회의 규칙만 검증한다 (CHORE-08·11·12).
  *
  * <p>가족·아이 경계 검증은 {@link ChoreAccessValidator} 몫이라 여기서는 모킹한다.
  * 이 테스트가 실패하면 원인은 완료 요청 규칙 쪽이다.
+ *
+ * <p>대기함 조회의 JPQL 조인 자체는 여기서 검증하지 않는다 - 리포지토리를 모킹하기 때문이다.
+ * 조인이 맞는지는 DB 가 있어야 알 수 있다.
  */
-@DisplayName("ChoreCompletionServiceImpl 완료 요청과 취소")
+@DisplayName("ChoreCompletionServiceImpl 완료 요청·취소·대기함")
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ChoreCompletionServiceImplTest {
@@ -53,6 +59,7 @@ class ChoreCompletionServiceImplTest {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	private static final Integer FAMILY_ID = 10;
+	private static final Integer PARENT_ID = 1;
 	private static final Integer CHILD_ID = 2;
 	private static final Integer SIBLING_ID = 3;
 	private static final Integer CHORE_ID = 7;
@@ -222,6 +229,65 @@ class ChoreCompletionServiceImplTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_REWARDED);
 
 			verify(completionRequestRepository, never()).save(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("부모가 대기함을 볼 때")
+	class GetCompletionRequests {
+
+		private ChoreCompletionSummary summary() {
+			return new ChoreCompletionSummary(REQUEST_ID, CHORE_ID, "설거지", "김아이", null, "다 했어요",
+				ChoreCompletionStatus.PENDING, OffsetDateTime.now(KST));
+		}
+
+		@Test
+		@DisplayName("조회 결과를 그대로 담아 준다")
+		void 목록을_담아_준다() {
+			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(List.of(summary()));
+
+			ChoreCompletionListResponse response = choreCompletionService.getCompletionRequests(
+				PARENT_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
+
+			assertThat(response.requests()).hasSize(1);
+			assertThat(response.requests().getFirst().choreTitle()).isEqualTo("설거지");
+			assertThat(response.requests().getFirst().childName()).isEqualTo("김아이");
+		}
+
+		@Test
+		@DisplayName("비어 있어도 빈 목록을 준다")
+		void 빈_목록() {
+			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(List.of());
+
+			ChoreCompletionListResponse response = choreCompletionService.getCompletionRequests(
+				PARENT_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
+
+			assertThat(response.requests()).isEmpty();
+		}
+
+		@Test
+		@DisplayName("상태 필터를 그대로 넘긴다")
+		void 상태_필터를_넘긴다() {
+			choreCompletionService.getCompletionRequests(PARENT_ID, FAMILY_ID, CHILD_ID,
+				ChoreCompletionStatus.SUCCEED);
+
+			verify(completionRequestRepository).findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.SUCCEED);
+		}
+
+		@Test
+		@DisplayName("아이가 조회하면 403으로 막는다")
+		void 아이는_볼_수_없다() {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(CHILD_ID);
+
+			// 아이가 볼 목록은 완료 내역(CHORE-12)으로 따로 있다.
+			assertThatThrownBy(() -> choreCompletionService.getCompletionRequests(
+					CHILD_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+			verify(completionRequestRepository, never()).findSummaries(any(), any(), any());
 		}
 	}
 

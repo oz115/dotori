@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 
@@ -55,14 +56,25 @@ public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCom
 	Optional<ChoreCompletionRequest> findByIdAndChoreId(Integer id, Integer choreId);
 
 	/**
-	 * 대기 중인 요청을 가족 단위로 모은다 (CHORE-08 부모 대기함).
+	 * 부모 대기함 한 화면 (CHORE-08).
 	 *
-	 * <p>요청에는 family_id 가 없으므로 chores 를 거쳐 좁힌다. 지워진 할 일의 요청도 포함한다 —
-	 * 부모가 할 일을 지웠어도 이미 올라온 인증은 처리할 수 있어야 한다.
+	 * <p>경로가 아이를 지목하므로 그 아이 것만 모은다. 가족 조건도 함께 거는 것은 방어용이다 —
+	 * 접근 검증이 이미 childId 가 그 가족의 자녀임을 확인하지만, 조회 조건에서 가족 경계를
+	 * 빼 두면 나중에 그 검증이 느슨해졌을 때 조용히 새어 나간다.
+	 *
+	 * <p>지워진 할 일의 요청도 포함한다. 부모가 할 일을 지웠어도 이미 올라온 인증은
+	 * 처리할 수 있어야 한다.
+	 *
+	 * <p>제목·이름을 생성자 표현식으로 한 번에 채운다. 요청을 먼저 읽고 건당 다시 조회하면
+	 * 한 화면에 쿼리가 수십 번 나간다. 이 프로젝트의 다른 응답은 {@code @Component} 매퍼가
+	 * 만들지만, 조인 결과를 담는 이 목록만 예외로 둔다.
 	 */
-	@Query("select r from ChoreCompletionRequest r, Chore c "
-			+ "where r.choreId = c.id and c.familyId = :familyId and r.status = :status "
+	@Query("select new com.bana.dotori.chore.dto.ChoreCompletionSummary("
+			+ "r.id, r.choreId, c.title, u.name, r.photoUrl, r.description, r.status, r.requestedAt) "
+			+ "from ChoreCompletionRequest r, Chore c, User u "
+			+ "where r.choreId = c.id and r.childId = u.id "
+			+ "and c.familyId = :familyId and r.childId = :childId and r.status = :status "
 			+ "order by r.requestedAt desc, r.id desc")
-	List<ChoreCompletionRequest> findAllByFamilyIdAndStatus(
-			@Param("familyId") Integer familyId, @Param("status") ChoreCompletionStatus status);
+	List<ChoreCompletionSummary> findSummaries(@Param("familyId") Integer familyId,
+			@Param("childId") Integer childId, @Param("status") ChoreCompletionStatus status);
 }

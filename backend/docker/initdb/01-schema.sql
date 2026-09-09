@@ -1102,9 +1102,16 @@ FK 는 인덱스를 만들어 주지 않으므로 chore_id 쪽은 비어 있다.
 범위로 보는 것(processed_at)이 뒤다. 범위 조건을 앞에 두면 그 뒤 컬럼은
 인덱스로 걸러지지 않고 읽은 뒤 버려진다.
 
-아이별 완료 내역(CHORE-12)은 child_id 로 좁히는 다른 모양이라 이 인덱스를 못 쓴다.
-그 API 를 만들 때 따로 추가한다.
+CHILD_STATUS: 부모 대기함(CHORE-08)이 쓴다. 경로가 아이를 지목하므로 child_id 로
+좁히고 status 로 거른 뒤 requested_at 역순으로 정렬한다. 앞의 두 컬럼이 등호라
+인덱스를 타고, 뒤의 requested_at·id 는 정렬을 인덱스로 처리해 별도 sort 를 없앤다.
+CHORE_STATUS 로는 대신할 수 없다 — 그쪽 앞머리가 chore_id 라서 아이로 좁히는
+조회에서는 첫 컬럼부터 어긋난다.
 --------------------------------------------------------- */
 
 CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHORE_STATUS"
 ON "chore_completion_requests" ("chore_id", "status", "processed_at");
+
+
+CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHILD_STATUS"
+ON "chore_completion_requests" ("child_id", "status", "requested_at", "chore_completion_request_id");
