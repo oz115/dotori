@@ -53,14 +53,17 @@ export default function SignupEmailScreen() {
     setCode('');
     codeTtl.start(CODE_TTL_SECONDS);
     resendCooldown.start(RESEND_COOLDOWN_SECONDS);
-    send.mutate(email.trim(), {
-      onError: (e) => {
-        setError(emailVerificationErrorMessage(e));
-        setCodeSent(false);
-        codeTtl.stop();
-        resendCooldown.stop();
+    send.mutate(
+      { email: email.trim(), purpose: 'SIGNUP' },
+      {
+        onError: (e) => {
+          setError(emailVerificationErrorMessage(e));
+          setCodeSent(false);
+          codeTtl.stop();
+          resendCooldown.stop();
+        },
       },
-    });
+    );
   };
 
   const next = () => {

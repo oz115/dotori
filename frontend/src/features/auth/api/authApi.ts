@@ -1,6 +1,7 @@
 import { httpClient } from '@/shared/api';
 import type {
   EmailConfirmResponse,
+  EmailVerificationPurpose,
   LoginBody,
   LoginResponse,
   RefreshResponse,
@@ -29,10 +30,21 @@ export const authApi = {
   checkLoginId: (loginId: string) => httpClient.post('/api/v1/auth/login-id/check', { loginId }),
 
   emailVerification: {
-    send: (email: string) => httpClient.post('/api/v1/auth/email-verification/send', { email }),
+    send: (email: string, purpose?: EmailVerificationPurpose) =>
+      httpClient.post('/api/v1/auth/email-verification/send', { email, purpose }),
     confirm: (email: string, code: string) =>
       httpClient
         .post<EmailConfirmResponse>('/api/v1/auth/email-verification/confirm', { email, code })
         .then((res) => res.data),
   },
+
+  findId: (body: { name: string; email: string; verificationToken: string }) =>
+    httpClient.post<{ loginId: string }>('/api/v1/auth/find-id', body).then((res) => res.data),
+
+  resetPassword: (body: {
+    loginId: string;
+    email: string;
+    verificationToken: string;
+    newPassword: string;
+  }) => httpClient.post('/api/v1/auth/password-reset', body),
 };
