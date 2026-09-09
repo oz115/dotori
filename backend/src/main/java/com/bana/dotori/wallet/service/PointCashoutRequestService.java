@@ -20,8 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * WLT-07 포인트 환전. 자녀가 요청하면 포인트를 즉시 차감하고, 부모가 승인하면
- * 부모 계좌에서 자녀 계좌로 같은 금액을 송금한다. 명시적인 거절 액션은 없다 — 부모가
- * 아무 조치도 하지 않으면 요청은 PENDING 으로 남는다.
+ * 부모 계좌에서 자녀 계좌로 같은 금액을 송금한다. 부모는 거절할 수도 있고,
+ * 자녀는 자기 요청을 직접 취소할 수도 있다.
  *
  * <p><b>차감(요청 시)과 송금(승인 시)은 서로 다른 트랜잭션이다.</b> 요청 시점에 바로
  * 차감해야 자녀가 이미 쓴 포인트로 또 요청을 못 하고, 부모는 "이미 빠진 포인트"를 놓고
@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * 승인 요청이 결국 실패했다는 사실은 반환된 결과의 {@code status}로 호출자가 판단한다.
  *
  * <p>{@code point_cashout_requests_status} 는 스키마에 {@code PROGRESS} 도 갖고 있지만
- * 지금 구현은 만들지 않는다(팀 결정). PENDING 은 바로 SUCCEED/FAILED/CANCELLED 로 끝난다.
+ * 지금 구현은 만들지 않는다(팀 결정). PENDING 은 바로 SUCCEED/FAILED/CANCELLED/DECLINED 로 끝난다.
  */
 @Slf4j
 @Service
@@ -42,6 +42,7 @@ public class PointCashoutRequestService {
 	private static final String REQUEST_DESCRIPTION = "포인트 환전 요청";
 	private static final String REFUND_DESCRIPTION = "환전 실패 환급";
 	private static final String CANCEL_REFUND_DESCRIPTION = "환전 요청 취소 환급";
+	private static final String DECLINE_REFUND_DESCRIPTION = "환전 요청 거절 환급";
 
 	private final PointDeductionService pointDeductionService;
 	private final PointCashoutRequestRepository pointCashoutRequestRepository;
@@ -99,20 +100,7 @@ public class PointCashoutRequestService {
 					"해당 가족의 부모가 아닙니다. familyId=" + familyId + ", parentId=" + loginParentId);
 		}
 
-		PointCashoutRequest request = pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(cashoutRequestId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.CASHOUT_REQUEST_NOT_FOUND,
-						"환전 요청을 찾을 수 없습니다. cashoutRequestId=" + cashoutRequestId));
-
-		if (!request.getFamilyId().equals(familyId) || !request.getChildId().equals(childId)) {
-			throw new BusinessException(ErrorCode.CASHOUT_REQUEST_NOT_FOUND,
-					"경로와 일치하지 않는 환전 요청입니다. cashoutRequestId=" + cashoutRequestId
-							+ ", familyId=" + familyId + ", childId=" + childId);
-		}
-
-		if (request.getStatus() != PointCashoutRequestStatus.PENDING) {
-			throw new BusinessException(ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED,
-					"이미 처리된 환전 요청입니다. cashoutRequestId=" + cashoutRequestId + ", status=" + request.getStatus());
-		}
+		PointCashoutRequest request = lockPendingRequest(cashoutRequestId, familyId, childId);
 
 		int cashAmount = PointExchangePolicy.toWon(request.getPointAmount());
 		try {
@@ -140,8 +128,8 @@ public class PointCashoutRequestService {
 	}
 
 	/**
-	 * 자녀가 자기 PENDING 요청을 직접 취소한다. 부모가 거절하는 액션은 없다 — 취소는
-	 * 요청을 만든 자녀만 할 수 있다. 차감했던 포인트는 즉시 환급한다.
+	 * 자녀가 자기 PENDING 요청을 직접 취소한다. 취소는 요청을 만든 자녀만 할 수 있다.
+	 * 차감했던 포인트는 즉시 환급한다.
 	 *
 	 * @throws BusinessException FORBIDDEN 본인의 요청이 아닌 경우,
 	 *         CASHOUT_REQUEST_NOT_FOUND 요청이 없거나 경로와 다른 경우,
@@ -156,6 +144,50 @@ public class PointCashoutRequestService {
 					"본인의 환전 요청만 취소할 수 있습니다. loginUserId=" + loginChildId + ", childId=" + childId);
 		}
 
+		PointCashoutRequest request = lockPendingRequest(cashoutRequestId, familyId, childId);
+
+		pointDeductionService.refund(childId, request.getPointAmount(), CANCEL_REFUND_DESCRIPTION,
+				idempotencyKey == null ? null : idempotencyKey + ":cancel");
+		request.cancel();
+
+		log.info("환전 요청 취소. cashoutRequestId={}, familyId={}, childId={}, pointAmount={}",
+				cashoutRequestId, familyId, childId, request.getPointAmount());
+		return PointCashoutRequestResult.from(request);
+	}
+
+	/**
+	 * 부모가 자녀의 PENDING 요청을 거절한다. 승인과 같은 권한 규칙이다 — 그 가족의
+	 * 어느 부모나 거절할 수 있다. 차감했던 포인트는 즉시 환급한다.
+	 *
+	 * @throws BusinessException FORBIDDEN 해당 가족의 부모가 아닌 경우,
+	 *         CASHOUT_REQUEST_NOT_FOUND 요청이 없거나 경로와 다른 경우,
+	 *         CASHOUT_REQUEST_ALREADY_PROCESSED 이미 처리된 요청인 경우
+	 */
+	@Transactional
+	public PointCashoutRequestResult decline(Integer cashoutRequestId, Integer familyId, Integer childId,
+			Integer loginParentId, String idempotencyKey) {
+
+		if (!familyMembershipReader.isParentOfFamily(familyId, loginParentId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+					"해당 가족의 부모가 아닙니다. familyId=" + familyId + ", parentId=" + loginParentId);
+		}
+
+		PointCashoutRequest request = lockPendingRequest(cashoutRequestId, familyId, childId);
+
+		pointDeductionService.refund(childId, request.getPointAmount(), DECLINE_REFUND_DESCRIPTION,
+				idempotencyKey == null ? null : idempotencyKey + ":decline");
+		request.decline();
+
+		log.info("환전 요청 거절. cashoutRequestId={}, familyId={}, childId={}, parentId={}, pointAmount={}",
+				cashoutRequestId, familyId, childId, loginParentId, request.getPointAmount());
+		return PointCashoutRequestResult.from(request);
+	}
+
+	/**
+	 * 요청이 그 경로의 것인지 확인하고, 승인·취소·거절 전에 행을
+	 * {@code SELECT ... FOR UPDATE} 로 잠근다. 아직 PENDING 인지도 여기서 확인한다.
+	 */
+	private PointCashoutRequest lockPendingRequest(Integer cashoutRequestId, Integer familyId, Integer childId) {
 		PointCashoutRequest request = pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(cashoutRequestId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.CASHOUT_REQUEST_NOT_FOUND,
 						"환전 요청을 찾을 수 없습니다. cashoutRequestId=" + cashoutRequestId));
@@ -171,13 +203,7 @@ public class PointCashoutRequestService {
 					"이미 처리된 환전 요청입니다. cashoutRequestId=" + cashoutRequestId + ", status=" + request.getStatus());
 		}
 
-		pointDeductionService.refund(childId, request.getPointAmount(), CANCEL_REFUND_DESCRIPTION,
-				idempotencyKey == null ? null : idempotencyKey + ":cancel");
-		request.cancel();
-
-		log.info("환전 요청 취소. cashoutRequestId={}, familyId={}, childId={}, pointAmount={}",
-				cashoutRequestId, familyId, childId, request.getPointAmount());
-		return PointCashoutRequestResult.from(request);
+		return request;
 	}
 
 	/**

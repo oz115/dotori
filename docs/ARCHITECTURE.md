@@ -99,16 +99,17 @@ API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` �
 환급 거래(`REFUND`)뿐이다.
 
 `point_cashout_requests_status` (`backend/docker/initdb/01-schema.sql` 의 네이티브 ENUM)는
-`PENDING`/`PROGRESS`/`CANCELLED`/`SUCCEED`/`FAILED` 다섯 값을 갖는다. 지금 구현이 실제로
-쓰는 전이는 세 가지뿐이다.
+`PENDING`/`PROGRESS`/`CANCELLED`/`DECLINED`/`SUCCEED`/`FAILED` 여섯 값을 갖는다. 지금
+구현이 실제로 쓰는 전이는 네 가지뿐이다.
 
 - `PENDING → SUCCEED`: 부모 승인, 송금 성공
 - `PENDING → FAILED`: 부모 승인 시도, 송금 실패 → 같은 트랜잭션에서 환급까지 끝내고 남김
 - `PENDING → CANCELLED`: 자녀가 자기 PENDING 요청을 직접 취소 → 환급
+- `PENDING → DECLINED`: 부모가 요청을 거절 → 환급. 승인과 같은 권한 규칙(그 가족의
+  어느 부모나)이고, 은행 송금은 일어나지 않는다
 
 `PROGRESS`는 스키마에는 있지만 지금은 쓰지 않는다(팀 결정, 비동기 처리로 갈 때 다시 본다).
-명시적인 "부모 거절"은 없다 — 부모가 아무 조치도 하지 않으면 `PENDING`으로 남고,
-취소는 자녀만 할 수 있다.
+거절 사유를 남기는 컬럼은 없다 — 상태만 바뀐다(팀 결정).
 
 | 대상 | 제약 | 이유 |
 | --- | --- | --- |

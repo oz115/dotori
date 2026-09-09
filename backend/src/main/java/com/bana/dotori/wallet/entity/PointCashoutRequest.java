@@ -23,11 +23,10 @@ import lombok.NoArgsConstructor;
  * WLT-07 포인트 환전 요청 한 건.
  *
  * <p>자녀가 요청하면 포인트는 그 즉시 차감되고({@code PointDeductionService}, 이 요청과는
- * 별도 트랜잭션), 이 행은 PENDING 으로 남아 부모 승인(또는 자녀의 취소)을 기다린다.
+ * 별도 트랜잭션), 이 행은 PENDING 으로 남아 부모 승인(또는 거절, 자녀의 취소)을 기다린다.
  * 승인되면 부모→자녀 실제 송금이 일어나고 SUCCEED 로 바뀐다. 송금이 실패하면 차감했던
- * 포인트를 환급하고 FAILED 로 남긴다. 자녀가 직접 취소하면 CANCELLED 로 남기고
- * 마찬가지로 환급한다. 부모가 거절하는 액션은 없다 — 아무 조치도 하지 않으면 PENDING 으로
- * 남는다.
+ * 포인트를 환급하고 FAILED 로 남긴다. 자녀가 직접 취소하거나 부모가 거절하면 각각
+ * CANCELLED/DECLINED 로 남기고 마찬가지로 환급한다.
  */
 @Entity
 @Getter
@@ -114,6 +113,17 @@ public class PointCashoutRequest {
 	public void cancel() {
 		requirePending();
 		this.status = PointCashoutRequestStatus.CANCELLED;
+		this.processedAt = OffsetDateTime.now(KST);
+	}
+
+	/**
+	 * 부모가 요청을 거절한다. 차감했던 포인트는 호출자가 별도로 환급한다.
+	 *
+	 * @throws BusinessException CASHOUT_REQUEST_ALREADY_PROCESSED PENDING 이 아닌 경우
+	 */
+	public void decline() {
+		requirePending();
+		this.status = PointCashoutRequestStatus.DECLINED;
 		this.processedAt = OffsetDateTime.now(KST);
 	}
 

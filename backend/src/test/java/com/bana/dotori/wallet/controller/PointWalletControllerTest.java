@@ -513,13 +513,14 @@ class PointWalletControllerTest {
 	}
 
 	@Nested
-	@DisplayName("포인트 환전 요청/승인/취소")
+	@DisplayName("포인트 환전 요청/승인/거절/취소")
 	class Cashout {
 
 		private static final String CASHOUT_URL =
 				"/api/v1/families/{familyId}/children/{childId}/wallet/cashout-requests";
 		private static final String APPROVE_URL = CASHOUT_URL + "/{cashoutRequestId}/approve";
 		private static final String CANCEL_URL = CASHOUT_URL + "/{cashoutRequestId}/cancel";
+		private static final String DECLINE_URL = CASHOUT_URL + "/{cashoutRequestId}/decline";
 
 		@Test
 		@DisplayName("요청에 성공하면 201 과 PENDING 응답을 돌려준다")
@@ -653,6 +654,40 @@ class PointWalletControllerTest {
 					.given(pointCashoutRequestService).cancel(any(), any(), any(), any(), any());
 
 			mockMvc.perform(post(CANCEL_URL, 1, 2, 10).with(loginAs(2, "CHILD")))
+					.andExpect(status().isConflict())
+					.andExpect(jsonPath("$.code").value("CASHOUT_REQUEST_ALREADY_PROCESSED"));
+		}
+
+		@Test
+		@DisplayName("거절에 성공하면 200 과 DECLINED 응답을 돌려준다")
+		void 거절_성공() throws Exception {
+			given(pointCashoutRequestService.decline(eq(10), eq(1), eq(2), eq(9), eq("decline-001")))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.DECLINED, OffsetDateTime.now()));
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT"))
+							.header("Idempotency-Key", "decline-001"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.status").value("DECLINED"));
+		}
+
+		@Test
+		@DisplayName("해당 가족의 부모가 아니면 거절하지 않고 403 FORBIDDEN 으로 매핑한다")
+		void 거절_권한없음은_403이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN, "가족 부모 아님"))
+					.given(pointCashoutRequestService).decline(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+		}
+
+		@Test
+		@DisplayName("이미 처리된 요청 거절은 409 CASHOUT_REQUEST_ALREADY_PROCESSED 로 매핑한다")
+		void 이미_처리된_요청_거절은_409다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED, "이미 처리됨"))
+					.given(pointCashoutRequestService).decline(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
 					.andExpect(status().isConflict())
 					.andExpect(jsonPath("$.code").value("CASHOUT_REQUEST_ALREADY_PROCESSED"));
 		}

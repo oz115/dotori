@@ -270,6 +270,52 @@ class PointCashoutRequestServiceTest {
 	}
 
 	@Test
+	@DisplayName("부모가 거절하면 환급하고 DECLINED 가 된다")
+	void 부모가_거절하면_환급하고_DECLINED가_된다() {
+		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
+		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
+				.willReturn(Optional.of(request));
+
+		PointCashoutRequestResult result = pointCashoutRequestService.decline(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, PARENT_ID, KEY);
+
+		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.DECLINED);
+		verify(pointDeductionService).refund(eq(CHILD_ID), eq(1_000), any(), any());
+		verify(bankTransferClient, never()).transferFromParentToChild(any(), any(), anyInt(), any());
+	}
+
+	@Test
+	@DisplayName("해당 가족의 부모가 아니면 거절할 수 없다")
+	void 가족의_부모가_아니면_거절할_수_없다() {
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(false);
+
+		assertThatThrownBy(() -> pointCashoutRequestService.decline(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, PARENT_ID, KEY))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+		verify(pointCashoutRequestRepository, never()).findByCashoutRequestIdForUpdate(any());
+	}
+
+	@Test
+	@DisplayName("이미 처리된 요청은 거절할 수 없다")
+	void 이미_처리된_요청은_거절할_수_없다() {
+		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
+		request.cancel();
+		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
+		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
+				.willReturn(Optional.of(request));
+
+		assertThatThrownBy(() -> pointCashoutRequestService.decline(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, PARENT_ID, KEY))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED);
+
+		verify(pointDeductionService, never()).refund(any(), anyInt(), any(), any());
+	}
+
+	@Test
 	@DisplayName("목록 조회는 읽기 권한 판정을 그대로 쓴다")
 	void 목록_조회는_읽기_권한을_확인한다() {
 		given(pointCashoutRequestRepository.findByFamilyIdAndChildIdOrderByRequestedAtDesc(FAMILY_ID, CHILD_ID))

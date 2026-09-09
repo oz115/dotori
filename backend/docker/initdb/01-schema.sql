@@ -104,6 +104,7 @@ CREATE TYPE point_cashout_requests_status AS ENUM (
     'PENDING',
     'PROGRESS',
     'CANCELLED',
+    'DECLINED',
     'SUCCEED',
     'FAILED'
 );

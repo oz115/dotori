@@ -21,6 +21,9 @@ public enum PointCashoutRequestStatus {
 	/** 자녀가 자기 PENDING 요청을 직접 취소함. 차감했던 포인트를 환급함 */
 	CANCELLED,
 
+	/** 부모가 요청을 거절함. 차감했던 포인트를 환급함 */
+	DECLINED,
+
 	/** 부모가 승인했고 부모→자녀 송금까지 끝남 */
 	SUCCEED,
 
