@@ -1,4 +1,4 @@
-package com.bana.dotori.mock.bank;
+package com.bana.dotori.wallet.support;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -12,22 +12,21 @@ import org.springframework.stereotype.Component;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.wallet.service.BankTransferClient;
+import com.bana.dotori.wallet.service.BankTransferResult;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 싸피 금융망 연동 전까지 쓰는 메모리 기반 목업.
+ * 실제 금융망을 태우지 않고 충전 로직만 검증하는 테스트용 {@link BankTransferClient}.
  *
- * <p>계좌 연동(ACC-01·02)을 맡은 팀원의 작업이 끝나기 전에도 충전 API 를 완성하고
- * 검증할 수 있도록 만들었다. 계좌 표현은 API 명세 ACC-02·03 의 응답 형식
- * ({@link LinkedAccountSnapshot})을 그대로 따르므로, 실제 연동이 붙을 때
- * 이 클래스만 지우면 충전 로직은 손대지 않아도 된다.
+ * <p>계좌 표현은 API 명세 ACC-02·03 의 응답 형식({@link LinkedAccountSnapshot})을 그대로 따른다.
  *
  * <p>명세에 정의된 실패도 그대로 재현한다.
  * 잔액 부족이면 400 INSUFFICIENT_ACCOUNT_BALANCE, 계좌가 없으면 404 ACCOUNT_NOT_LINKED 다.
  *
  * <p>계좌가 등록돼 있지 않으면 기본 잔액으로 하나 만들어 준다. 그래야 인증·계좌 기능이
- * 없는 상태에서도 충전 흐름을 시연할 수 있다. 실제 연동이 붙으면 이 동작은 사라진다.
+ * 없는 상태에서도 충전 흐름을 시연할 수 있다.
  */
 @Slf4j
 @Component
