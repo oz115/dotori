@@ -73,6 +73,7 @@ public class StorePurchaseService {
 			.familyId(familyId)
 			.childId(childId)
 			.storeProductId(storeProductId)
+			.productName(product.getName())
 			.quantity(quantity)
 			.price(unitPrice)
 			.purchaseDate(today)
