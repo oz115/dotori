@@ -1,16 +1,25 @@
 import { signupErrorMessage } from './signupError';
 
+const withCode = (code: string) => ({ response: { status: 400, data: { code } } });
+
 describe('signupErrorMessage', () => {
-  it('maps 409 to a duplicate message', () => {
-    expect(signupErrorMessage({ response: { status: 409 } })).toContain('이미 사용 중');
+  it('maps DUPLICATE_LOGIN_ID', () => {
+    expect(signupErrorMessage(withCode('DUPLICATE_LOGIN_ID'))).toContain('아이디');
   });
 
-  it('maps 400 to a check-input message', () => {
-    expect(signupErrorMessage({ response: { status: 400 } })).toContain('다시 확인');
+  it('maps DUPLICATE_EMAIL', () => {
+    expect(signupErrorMessage(withCode('DUPLICATE_EMAIL'))).toContain('이메일');
   });
 
-  it('falls back for other errors', () => {
-    expect(signupErrorMessage({ response: { status: 500 } })).toContain('잠시 후');
-    expect(signupErrorMessage(new Error('network'))).toContain('잠시 후');
+  it('maps INVALID_VERIFICATION_TOKEN', () => {
+    expect(signupErrorMessage(withCode('INVALID_VERIFICATION_TOKEN'))).toContain('인증');
+  });
+
+  it('reports a network error', () => {
+    expect(signupErrorMessage(new Error('network'))).toContain('연결할 수 없');
+  });
+
+  it('falls back for unknown codes', () => {
+    expect(signupErrorMessage(withCode('SOMETHING_ELSE'))).toContain('잠시 후');
   });
 });

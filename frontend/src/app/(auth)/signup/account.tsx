@@ -1,29 +1,71 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { SignupStepLayout, useSignupStore, validateAccountStep } from '@/features/auth';
+import {
+  apiErrorCode,
+  isNetworkError,
+  SignupStepLayout,
+  useCheckLoginId,
+  useSignupStore,
+  validateAccountStep,
+} from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { Button, Input } from '@/shared/ui';
-
-// TODO(BE): 아이디 중복확인 API 연동. 현재는 안내만.
-const checkDuplicate = () => Alert.alert('준비 중', '아이디 중복 확인은 백엔드 작업 후 연결돼요.');
 
 type Errors = ReturnType<typeof validateAccountStep>;
 
 export default function SignupAccountScreen() {
   const theme = useTheme();
   const patch = useSignupStore((s) => s.patch);
+  const check = useCheckLoginId();
 
-  // 초기값만 스토어에서 읽는다 (뒤로 갔다 와도 입력 유지). 이후는 로컬 상태.
   const [loginId, setLoginId] = useState(() => useSignupStore.getState().loginId);
   const [password, setPassword] = useState(() => useSignupStore.getState().password);
   const [passwordConfirm, setPasswordConfirm] = useState(() => useSignupStore.getState().password);
   const [name, setName] = useState(() => useSignupStore.getState().name);
   const [errors, setErrors] = useState<Errors>({});
+  const [availableId, setAvailableId] = useState(''); // 중복확인 통과한 아이디 값
+
+  const idChecked = availableId !== '' && availableId === loginId.trim();
+
+  const onChangeLoginId = (v: string) => {
+    setLoginId(v);
+    if (errors.loginId) setErrors((e) => ({ ...e, loginId: undefined }));
+  };
+
+  const checkDuplicate = () => {
+    const value = loginId.trim();
+    if (check.isPending) return;
+    if (value.length < 4) {
+      setErrors((e) => ({ ...e, loginId: '아이디는 4자 이상 입력해주세요.' }));
+      return;
+    }
+    check.mutate(value, {
+      onSuccess: () => {
+        setAvailableId(value);
+        setErrors((e) => ({ ...e, loginId: undefined }));
+      },
+      onError: (err) => {
+        setAvailableId('');
+        setErrors((e) => ({
+          ...e,
+          loginId:
+            apiErrorCode(err) === 'DUPLICATE_LOGIN_ID'
+              ? '이미 사용 중인 아이디예요.'
+              : isNetworkError(err)
+                ? '서버에 연결할 수 없어요.'
+                : '중복 확인에 실패했어요. 다시 시도해주세요.',
+        }));
+      },
+    });
+  };
 
   const next = () => {
     const found = validateAccountStep({ loginId, password, passwordConfirm, name });
+    if (!idChecked) {
+      found.loginId = found.loginId ?? '아이디 중복확인을 해주세요.';
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
@@ -39,19 +81,33 @@ export default function SignupAccountScreen() {
       footer={<Button label="다음" variant="primary" onPress={next} />}
     >
       <View style={{ gap: theme.space.xl }}>
-        <Input
-          variant="box"
-          label="아이디"
-          placeholder="아이디를 입력하세요"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={loginId}
-          onChangeText={setLoginId}
-          error={errors.loginId}
-          rightSlot={
-            <Button label="중복확인" variant="outline" size="sm" onPress={checkDuplicate} />
-          }
-        />
+        <View style={styles.field}>
+          <Input
+            variant="box"
+            label="아이디"
+            placeholder="아이디를 입력하세요"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={loginId}
+            onChangeText={onChangeLoginId}
+            error={errors.loginId}
+            rightSlot={
+              <Button
+                label="중복확인"
+                variant="outline"
+                size="sm"
+                onPress={checkDuplicate}
+                loading={check.isPending}
+              />
+            }
+          />
+          {idChecked ? (
+            <Text style={[theme.typography.caption, { color: theme.color.brand.solid }]}>
+              사용 가능한 아이디예요.
+            </Text>
+          ) : null}
+        </View>
+
         <Input
           variant="box"
           label="비밀번호"
@@ -82,3 +138,7 @@ export default function SignupAccountScreen() {
     </SignupStepLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  field: { gap: 6 },
+});

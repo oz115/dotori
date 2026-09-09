@@ -10,6 +10,7 @@ type SignupState = {
   agreedOptional: boolean; // 선택 약관 동의 여부 (필수 약관은 진행 조건이라 따로 안 둠)
   email: string;
   emailVerified: boolean;
+  verificationToken: string; // 이메일 인증 확인에서 받은 토큰 (signup 에 필요)
   loginId: string;
   password: string;
   name: string;
@@ -23,6 +24,7 @@ const initial = {
   agreedOptional: false,
   email: '',
   emailVerified: false,
+  verificationToken: '',
   loginId: '',
   password: '',
   name: '',

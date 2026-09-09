@@ -1,50 +1,103 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { isValidEmail, SignupStepLayout, useCountdown, useSignupStore } from '@/features/auth';
+import {
+  emailVerificationErrorMessage,
+  isValidEmail,
+  SignupStepLayout,
+  useConfirmEmailCode,
+  useCountdown,
+  useSendEmailCode,
+  useSignupStore,
+} from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { Button, Input } from '@/shared/ui';
 
 const CODE_TTL_SECONDS = 10 * 60; // 인증코드 유효시간 10분
+const RESEND_COOLDOWN_SECONDS = 60; // 재전송 쿨다운
 
 export default function SignupEmailScreen() {
   const theme = useTheme();
   const patch = useSignupStore((s) => s.patch);
-  const savedEmail = useSignupStore((s) => s.email);
 
-  const [email, setEmail] = useState(savedEmail);
+  const [email, setEmail] = useState(() => useSignupStore.getState().email);
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-  const countdown = useCountdown();
+  const [error, setError] = useState('');
+  const codeTtl = useCountdown(); // 인증코드 유효시간
+  const resendCooldown = useCountdown(); // 재전송 쿨다운
 
+  const send = useSendEmailCode();
+  const confirm = useConfirmEmailCode();
   const emailOk = isValidEmail(email);
 
-  // TODO(S15P21A505-92): 이메일 인증 API 연동. 지금은 UI 흐름만.
+  const onChangeEmail = (v: string) => {
+    setEmail(v);
+    if (codeSent) {
+      // 이메일이 바뀌면 이전 인증 상태·타이머 모두 초기화
+      setCodeSent(false);
+      setCode('');
+      codeTtl.stop();
+      resendCooldown.stop();
+    }
+  };
+
   const sendCode = () => {
-    if (!emailOk) return;
+    if (!emailOk || resendCooldown.running) return;
+    setError('');
+    // 메일 발송은 서버가 SMTP 를 거쳐 느릴 수 있어 응답을 기다리지 않는다.
+    // 코드 입력 UI 로 바로 넘어가고, 실패하면 되돌린다.
     setCodeSent(true);
-    countdown.start(CODE_TTL_SECONDS);
-    Alert.alert(
-      '준비 중',
-      '이메일 인증은 백엔드 작업 후 연결됩니다. 지금은 아무 코드로 넘어갈 수 있어요.',
-    );
+    setCode('');
+    codeTtl.start(CODE_TTL_SECONDS);
+    resendCooldown.start(RESEND_COOLDOWN_SECONDS);
+    send.mutate(email.trim(), {
+      onError: (e) => {
+        setError(emailVerificationErrorMessage(e));
+        setCodeSent(false);
+        codeTtl.stop();
+        resendCooldown.stop();
+      },
+    });
   };
 
   const next = () => {
-    patch({ email: email.trim(), emailVerified: true });
-    router.push('/signup/account');
+    if (confirm.isPending || !codeSent || code.trim().length === 0) return;
+    setError('');
+    confirm.mutate(
+      { email: email.trim(), code: code.trim() },
+      {
+        onSuccess: (res) => {
+          patch({
+            email: email.trim(),
+            emailVerified: true,
+            verificationToken: res.verificationToken,
+          });
+          router.push('/signup/account');
+        },
+        onError: (e) => setError(emailVerificationErrorMessage(e)),
+      },
+    );
   };
 
-  const canProceed = emailOk && codeSent && code.trim().length > 0;
+  const canProceed = emailOk && codeSent && code.trim().length > 0 && !confirm.isPending;
 
   return (
     <SignupStepLayout
       step={1}
       title="이메일 본인인증"
       subtitle="회원가입 전, 이메일을 확인해주세요."
-      footer={<Button label="다음" variant="primary" onPress={next} disabled={!canProceed} />}
+      footer={
+        <Button
+          label="다음"
+          variant="primary"
+          onPress={next}
+          loading={confirm.isPending}
+          disabled={!canProceed}
+        />
+      }
     >
       <View style={{ gap: theme.space.sm }}>
         <Input
@@ -55,44 +108,65 @@ export default function SignupEmailScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={onChangeEmail}
+          editable={!codeSent}
         />
         <Button
-          label={codeSent ? '인증코드 재전송' : '인증코드 받기'}
+          label="인증코드 받기"
           variant="outline"
           onPress={sendCode}
-          disabled={!emailOk}
+          disabled={!emailOk || codeSent}
         />
       </View>
 
-      <View style={{ gap: theme.space.sm, marginTop: theme.space['2xl'] }}>
-        <Input
-          variant="box"
-          label="인증코드"
-          placeholder="메일로 받은 코드를 입력하세요"
-          keyboardType="number-pad"
-          value={code}
-          onChangeText={setCode}
-          editable={codeSent}
-        />
-        {codeSent ? (
+      {codeSent ? (
+        <View style={{ gap: theme.space.sm, marginTop: theme.space['2xl'] }}>
+          <Input
+            variant="box"
+            label="인증코드"
+            placeholder="메일로 받은 코드를 입력하세요"
+            keyboardType="number-pad"
+            value={code}
+            onChangeText={setCode}
+          />
           <View style={styles.metaRow}>
             <View style={styles.timer}>
               <Ionicons name="time-outline" size={14} color={theme.color.text.muted} />
               <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                남은 시간 <Text style={{ color: theme.color.brand.solid }}>{countdown.label}</Text>
+                남은 시간 <Text style={{ color: theme.color.brand.solid }}>{codeTtl.label}</Text>
               </Text>
             </View>
-            <Pressable onPress={sendCode} hitSlop={6}>
+            <Pressable onPress={sendCode} disabled={resendCooldown.running} hitSlop={6}>
               <Text
-                style={[theme.typography.caption, styles.resend, { color: theme.color.text.muted }]}
+                style={[
+                  theme.typography.caption,
+                  styles.resend,
+                  {
+                    color: resendCooldown.running
+                      ? theme.color.text.muted
+                      : theme.color.brand.solid,
+                  },
+                ]}
               >
-                인증코드 다시 보내기
+                {resendCooldown.running
+                  ? `인증코드 재전송 (${resendCooldown.label})`
+                  : '인증코드 재전송'}
               </Text>
             </Pressable>
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
+
+      {error ? (
+        <Text
+          style={[
+            theme.typography.caption,
+            { color: theme.color.status.danger.text, marginTop: theme.space.sm },
+          ]}
+        >
+          {error}
+        </Text>
+      ) : null}
     </SignupStepLayout>
   );
 }

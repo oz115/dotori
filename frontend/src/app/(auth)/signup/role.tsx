@@ -37,25 +37,19 @@ const ROLES: { key: UserRole; title: string; description: string; benefits: stri
 export default function SignupRoleScreen() {
   const theme = useTheme();
   const signup = useSignup();
-  const store = useSignupStore();
 
-  const [role, setRole] = useState<UserRole | null>(store.role);
+  const [role, setRole] = useState<UserRole | null>(() => useSignupStore.getState().role);
 
   const selected = ROLES.find((r) => r.key === role);
 
   const complete = () => {
     if (!role || signup.isPending) return;
+    const { loginId, password, name, email, verificationToken, reset } = useSignupStore.getState();
     signup.mutate(
-      {
-        loginId: store.loginId,
-        password: store.password,
-        name: store.name,
-        email: store.email,
-        role,
-      },
+      { loginId, password, name, email, role, verificationToken },
       {
         onSuccess: () => {
-          store.reset();
+          reset();
           Alert.alert('회원가입 완료', '가입한 아이디로 로그인해주세요.', [
             { text: '확인', onPress: () => router.replace('/') },
           ]);
