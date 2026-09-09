@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -22,6 +23,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.auth.dto.EmailVerificationPurpose;
 import com.bana.dotori.auth.dto.LoginRequest;
 import com.bana.dotori.auth.dto.LoginResponse;
 import com.bana.dotori.auth.dto.TokenRefreshResponse;
@@ -56,6 +58,7 @@ class AuthControllerTest {
 	private static final String LOGIN_URL = "/api/v1/auth/login";
 	private static final String REFRESH_URL = "/api/v1/auth/refresh";
 	private static final String LOGOUT_URL = "/api/v1/auth/logout";
+	private static final String EMAIL_SEND_URL = "/api/v1/auth/email-verification/send";
 
 	private static final String LOGIN_BODY = """
 		{
@@ -154,6 +157,54 @@ class AuthControllerTest {
 				.content("{\"refreshToken\": \"forged-token\"}"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+	}
+
+	@Test
+	@DisplayName("이메일 인증 코드 발송: 회원가입 용도로 발송 성공 시 204를 반환한다")
+	void sendEmailVerification_signup() throws Exception {
+		mockMvc.perform(post(EMAIL_SEND_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\": \"dotori@example.com\", \"purpose\": \"SIGNUP\"}"))
+			.andExpect(status().isNoContent());
+
+		then(emailVerificationService).should()
+			.sendCode("dotori@example.com", EmailVerificationPurpose.SIGNUP);
+	}
+
+	@Test
+	@DisplayName("이메일 인증 코드 발송: 회원가입 용도에서 이미 가입된 이메일이면 409와 DUPLICATE_EMAIL 에러를 반환한다")
+	void sendEmailVerification_duplicateEmail() throws Exception {
+		willThrow(new BusinessException(ErrorCode.DUPLICATE_EMAIL))
+			.given(emailVerificationService).sendCode("dotori@example.com", EmailVerificationPurpose.SIGNUP);
+
+		mockMvc.perform(post(EMAIL_SEND_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\": \"dotori@example.com\", \"purpose\": \"SIGNUP\"}"))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("DUPLICATE_EMAIL"));
+	}
+
+	@Test
+	@DisplayName("이메일 인증 코드 발송: 용도 없이 호출하면 기존 동작대로 발송된다 (찾기·재설정 호환)")
+	void sendEmailVerification_withoutPurpose() throws Exception {
+		mockMvc.perform(post(EMAIL_SEND_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\": \"dotori@example.com\"}"))
+			.andExpect(status().isNoContent());
+
+		then(emailVerificationService).should().sendCode("dotori@example.com", null);
+	}
+
+	@Test
+	@DisplayName("이메일 인증 코드 발송: 허용되지 않은 용도 값이면 400과 INVALID_REQUEST 에러를 반환한다")
+	void sendEmailVerification_invalidPurpose() throws Exception {
+		mockMvc.perform(post(EMAIL_SEND_URL)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\": \"dotori@example.com\", \"purpose\": \"LOGIN\"}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(emailVerificationService).shouldHaveNoInteractions();
 	}
 
 	@Test

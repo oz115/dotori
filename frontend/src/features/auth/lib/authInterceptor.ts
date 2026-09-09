@@ -11,8 +11,10 @@ let installed = false;
 /** 동시에 여러 요청이 401 을 받아도 refresh 는 한 번만 돈다. */
 let pendingRefresh: Promise<string> | null = null;
 
+// /api/v1/auth/* 는 전부 토큰 없이(또는 refresh token 으로) 동작하므로
+// 401 을 받아도 access token refresh 로 재시도하지 않는다.
 function isAuthEndpoint(url?: string): boolean {
-  return !!url && /\/api\/v1\/auth\/(login|refresh|logout|signup)/.test(url);
+  return !!url && url.includes('/api/v1/auth/');
 }
 
 /**
