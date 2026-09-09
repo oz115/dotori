@@ -17,10 +17,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 상점 구매 이력 (SHOP-06).
+ * 상점 구매 이력 (SHOP-06·07).
  *
- * <p>quantity·price 는 구매 시점 값을 그대로 남긴다 — 이후 상품 가격이 바뀌어도
- * 이미 산 구매 이력은 그때 가격으로 고정돼야 한다.
+ * <p>quantity·price·productName 은 구매 시점 값을 그대로 남긴다 — 이후 상품 가격이나
+ * 이름이 바뀌거나, 상품이 삭제돼도 이미 산 구매 이력은 그때 값으로 고정돼야 한다.
  */
 @Entity
 @Table(name = "purchases")
@@ -42,6 +42,9 @@ public class Purchase {
 	@Column(name = "store_product_id", nullable = false)
 	private Integer storeProductId;
 
+	@Column(name = "product_name", length = 100, nullable = false)
+	private String productName;
+
 	@Column(name = "quantity", nullable = false)
 	private int quantity;
 
@@ -56,11 +59,12 @@ public class Purchase {
 	private OffsetDateTime purchasedAt;
 
 	@Builder
-	private Purchase(Integer familyId, Integer childId, Integer storeProductId, int quantity, int price,
-			LocalDate purchaseDate) {
+	private Purchase(Integer familyId, Integer childId, Integer storeProductId, String productName, int quantity,
+			int price, LocalDate purchaseDate) {
 		this.familyId = familyId;
 		this.childId = childId;
 		this.storeProductId = storeProductId;
+		this.productName = productName;
 		this.quantity = quantity;
 		this.price = price;
 		this.purchaseDate = purchaseDate;
