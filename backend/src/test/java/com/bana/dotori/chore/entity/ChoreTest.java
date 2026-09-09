@@ -185,4 +185,36 @@ class ChoreTest {
 			assertThat(one.rewardIdempotencyKey()).isNotEqualTo(other.rewardIdempotencyKey());
 		}
 	}
+
+	@Nested
+	@DisplayName("멱등키에서 집안일을 되찾을 때")
+	class ParseRewardKey {
+
+		@Test
+		@DisplayName("자기가 만든 키를 그대로 되읽는다")
+		void 왕복한다() {
+			Chore chore = Chore.builder().startDate(LocalDate.of(2026, 9, 10)).build();
+			ReflectionTestUtils.setField(chore, "id", 42);
+
+			// 키를 만드는 쪽과 읽는 쪽이 어긋나면 이력 화면의 제목이 조용히 비어 버린다.
+			assertThat(Chore.choreIdFrom(chore.rewardIdempotencyKey())).isEqualTo(42);
+		}
+
+		@Test
+		@DisplayName("집안일 키가 아니면 null 이다")
+		void 남의_키는_null() {
+			// 충전·지급은 멱등키를 클라이언트가 정한다. 아무 문자열이나 들어올 수 있다.
+			assertThat(Chore.choreIdFrom("charge-2026-09-10-abc")).isNull();
+			assertThat(Chore.choreIdFrom(null)).isNull();
+			assertThat(Chore.choreIdFrom("")).isNull();
+		}
+
+		@Test
+		@DisplayName("모양이 어긋나면 null 이다")
+		void 형식이_깨지면_null() {
+			assertThat(Chore.choreIdFrom("chore:42")).isNull();
+			assertThat(Chore.choreIdFrom("chore:42:2026-09-10:extra")).isNull();
+			assertThat(Chore.choreIdFrom("chore:abc:2026-09-10")).isNull();
+		}
+	}
 }

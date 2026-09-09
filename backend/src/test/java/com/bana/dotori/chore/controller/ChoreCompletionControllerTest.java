@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -28,12 +29,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.chore.dto.ChoreApprovalResponse;
+import com.bana.dotori.chore.dto.ChoreCompletionHistoryItem;
+import com.bana.dotori.chore.dto.ChoreCompletionHistoryResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.service.ChoreApprovalService;
+import com.bana.dotori.chore.service.ChoreCompletionHistoryService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
@@ -53,6 +57,7 @@ class ChoreCompletionControllerTest {
 	private static final Integer CHORE_ID = 7;
 	private static final Integer REQUEST_ID = 100;
 	private static final String REQUESTS_URL = "/api/v1/families/10/children/2/chores/7/completion-requests";
+	private static final String COMPLETIONS_URL = "/api/v1/families/10/children/2/chores/completions";
 	private static final String LIST_URL = "/api/v1/families/10/children/2/chores/completion-requests";
 	private static final String APPROVE_URL =
 		"/api/v1/families/10/children/2/chores/completion-requests/100/approve";
@@ -70,6 +75,9 @@ class ChoreCompletionControllerTest {
 
 	@MockitoBean
 	private ChoreApprovalService choreApprovalService;
+
+	@MockitoBean
+	private ChoreCompletionHistoryService choreCompletionHistoryService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
@@ -173,6 +181,83 @@ class ChoreCompletionControllerTest {
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("완료 내역을 조회하면 200과 목록을 반환한다")
+	void getCompletions_ok() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionHistoryService.getCompletions(any(), any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionHistoryResponse(List.of(
+				new ChoreCompletionHistoryItem(CHORE_ID, "설거지", "김아이", 500,
+					OffsetDateTime.of(2026, 9, 9, 21, 0, 0, 0, ZoneOffset.ofHours(9))))));
+
+		mockMvc.perform(get(COMPLETIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.completions[0].choreId").value(CHORE_ID))
+			.andExpect(jsonPath("$.completions[0].choreTitle").value("설거지"))
+			.andExpect(jsonPath("$.completions[0].childName").value("김아이"))
+			.andExpect(jsonPath("$.completions[0].rewardPoints").value(500));
+	}
+
+	@Test
+	@DisplayName("기간을 주면 날짜로 변환해 넘긴다")
+	void getCompletions_withPeriod() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionHistoryService.getCompletions(any(), any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionHistoryResponse(List.of()));
+
+		mockMvc.perform(get(COMPLETIONS_URL)
+				.param("startDate", "2026-09-01")
+				.param("endDate", "2026-09-08")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk());
+
+		verify(choreCompletionHistoryService).getCompletions(CHILD_ID, FAMILY_ID, CHILD_ID,
+			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 8));
+	}
+
+	@Test
+	@DisplayName("기간을 생략하면 null 로 넘겨 서비스가 기본값을 정한다")
+	void getCompletions_withoutPeriod() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionHistoryService.getCompletions(any(), any(), any(), any(), any()))
+			.willReturn(new ChoreCompletionHistoryResponse(List.of()));
+
+		mockMvc.perform(get(COMPLETIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk());
+
+		verify(choreCompletionHistoryService).getCompletions(CHILD_ID, FAMILY_ID, CHILD_ID, null, null);
+	}
+
+	@Test
+	@DisplayName("날짜 형식이 아니면 400을 반환한다")
+	void getCompletions_badDate() throws Exception {
+		givenAuthenticated();
+
+		mockMvc.perform(get(COMPLETIONS_URL)
+				.param("startDate", "2026/09/01")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isBadRequest());
+
+		verify(choreCompletionHistoryService, never()).getCompletions(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("시작일이 종료일보다 늦으면 400과 INVALID_DATE_RANGE 를 반환한다")
+	void getCompletions_invalidRange() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionHistoryService.getCompletions(any(), any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.INVALID_DATE_RANGE));
+
+		mockMvc.perform(get(COMPLETIONS_URL)
+				.param("startDate", "2026-09-08")
+				.param("endDate", "2026-09-01")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_DATE_RANGE"));
 	}
 
 	@Test

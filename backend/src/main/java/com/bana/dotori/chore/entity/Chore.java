@@ -50,6 +50,15 @@ public class Chore {
 	 */
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
+	/**
+	 * 보상 지급 멱등키의 형식. 완성된 모양은 {@code chore:7:2026-09-09} 처럼 된다.
+	 *
+	 * <p>키를 만드는 곳({@link #rewardIdempotencyKey()})과 되읽는 곳({@link #choreIdFrom(String)})이
+	 * 같은 상수를 보게 묶어 뒀다. 한쪽만 고치면 이력 조회가 조용히 빈 제목을 내놓는다.
+	 */
+	private static final String REWARD_KEY_PREFIX = "chore:";
+	private static final String REWARD_KEY_DELIMITER = ":";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "chore_id")
@@ -181,7 +190,35 @@ public class Chore {
 	 * 방어가 같은 값을 보게 묶어 둔 것이다 — 따로 계산하면 둘이 어긋나는 날이 온다.
 	 */
 	public String rewardIdempotencyKey() {
-		return "chore:" + id + ":" + startDate;
+		return REWARD_KEY_PREFIX + id + REWARD_KEY_DELIMITER + startDate;
+	}
+
+	/**
+	 * 지급 거래의 멱등키에서 집안일 ID 를 되읽는다 (CHORE-03 완료 내역).
+	 *
+	 * <p>{@link #rewardIdempotencyKey()} 바로 옆에 둔 이유는 둘이 같은 형식에 묶여 있기 때문이다.
+	 * 키 모양을 바꾸면 이 메서드도 같이 고쳐야 하고, 떨어뜨려 놓으면 한쪽만 고치게 된다.
+	 *
+	 * <p>이력 조회는 지급된 금액을 {@code point_transactions} 에서 읽는다. 그 원장에는
+	 * 집안일 ID 컬럼이 없고 멱등키 안에만 들어 있어서 되읽어야 제목을 붙일 수 있다.
+	 *
+	 * <p>형식이 아니면 null 이다. 충전·지급은 멱등키를 <b>클라이언트가 정하므로</b> 누군가
+	 * {@code chore:...} 모양을 보낼 수 있다. 호출부는 이 메서드만 믿지 말고
+	 * {@code transaction_type = CHORE_REWARD} 로 먼저 걸러야 한다.
+	 */
+	public static Integer choreIdFrom(String idempotencyKey) {
+		if (idempotencyKey == null || !idempotencyKey.startsWith(REWARD_KEY_PREFIX)) {
+			return null;
+		}
+		String[] parts = idempotencyKey.split(REWARD_KEY_DELIMITER);
+		if (parts.length != 3) {
+			return null;
+		}
+		try {
+			return Integer.valueOf(parts[1]);
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	/**

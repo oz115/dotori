@@ -1,5 +1,8 @@
 package com.bana.dotori.chore.controller;
 
+import java.time.LocalDate;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,20 +17,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
+import com.bana.dotori.chore.dto.ChoreCompletionHistoryResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.service.ChoreApprovalService;
+import com.bana.dotori.chore.service.ChoreCompletionHistoryService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 집안일 완료 인증 API (CHORE-07·08·09·10·11·12).
+ * 집안일 완료 인증 API (CHORE-03·07·08·09·10·11·12).
  *
- * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)·승인(09)·거절(10)은 부모가 호출한다.
+ * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)·승인(09)·거절(10)은 부모가 호출하고,
+ * 완료 내역(03)은 둘 다 본다.
  * 경로는 같아도 역할이 다르므로 서비스가 매번 호출자의 역할을 확인한다.
  *
  * <p>취소 경로에 choreId 가 없는 것은 노션 명세를 그대로 따른 것이다. 요청 ID 하나로
@@ -40,6 +46,7 @@ public class ChoreCompletionController {
 
 	private final ChoreCompletionService choreCompletionService;
 	private final ChoreApprovalService choreApprovalService;
+	private final ChoreCompletionHistoryService choreCompletionHistoryService;
 
 	/**
 	 * 부모 대기함 (CHORE-08).
@@ -52,6 +59,21 @@ public class ChoreCompletionController {
 		@AuthenticationPrincipal Integer userId, @PathVariable Integer familyId, @PathVariable Integer childId,
 		@RequestParam(defaultValue = "PENDING") ChoreCompletionStatus status) {
 		return ResponseEntity.ok(choreCompletionService.getCompletionRequests(userId, familyId, childId, status));
+	}
+
+	/**
+	 * 완료 내역 (CHORE-03). 부모와 아이가 모두 본다.
+	 *
+	 * <p>기간을 안 보내면 최근 30일이다. 응답 금액은 지갑 원장에서 읽은 <b>실제 지급액</b>이라
+	 * 부모가 나중에 보상을 고쳐도 과거 이력은 그대로 남는다.
+	 */
+	@GetMapping("/completions")
+	public ResponseEntity<ChoreCompletionHistoryResponse> getCompletions(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer childId,
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+		return ResponseEntity.ok(choreCompletionHistoryService.getCompletions(
+			userId, familyId, childId, startDate, endDate));
 	}
 
 	@PostMapping("/{choreId}/completion-requests")
