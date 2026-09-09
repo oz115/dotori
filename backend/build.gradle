@@ -27,6 +27,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'com.google.firebase:firebase-admin:9.10.0'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
 	// 인증 사진 저장(CHORE-13). BOM 으로 버전을 맞춰야 s3 와 부속 모듈이 어긋나지 않는다.
