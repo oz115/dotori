@@ -45,24 +45,30 @@ export default function FindIdScreen() {
       header={<Header title="아이디 찾기" onBack={() => router.back()} />}
     >
       {foundId ? (
-        <View style={{ gap: theme.space.xl }}>
-          <Callout
-            icon={<Ionicons name="checkmark-circle" size={22} color={theme.color.brand.solid} />}
-            title="회원님의 아이디예요"
-            description="보안을 위해 일부만 표시돼요."
-          />
-          <View
-            style={[
-              styles.result,
-              {
-                borderColor: theme.color.border.default,
-                borderRadius: theme.radius.lg,
-                backgroundColor: theme.color.background.surface,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>{foundId}</Text>
+        <>
+          <View style={{ gap: theme.space.xl }}>
+            <Callout
+              icon={<Ionicons name="checkmark-circle" size={22} color={theme.color.brand.solid} />}
+              title="회원님의 아이디예요"
+              description="보안을 위해 일부만 표시돼요."
+            />
+            <View
+              style={[
+                styles.result,
+                {
+                  borderColor: theme.color.border.default,
+                  borderRadius: theme.radius.lg,
+                  backgroundColor: theme.color.background.surface,
+                },
+              ]}
+            >
+              <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>
+                {foundId}
+              </Text>
+            </View>
           </View>
+
+          <View style={styles.spacer} />
 
           <View style={{ gap: theme.space.md }}>
             <Button
@@ -76,7 +82,7 @@ export default function FindIdScreen() {
               onPress={() => router.replace('/reset-password')}
             />
           </View>
-        </View>
+        </>
       ) : (
         <>
           <Callout
@@ -112,14 +118,13 @@ export default function FindIdScreen() {
             </Text>
           ) : null}
 
-          <View style={[styles.spacer, { minHeight: theme.space['2xl'] }]} />
-
           <Button
             label="아이디 찾기"
             variant="primary"
             onPress={submit}
             loading={findId.isPending}
             disabled={!canSubmit}
+            style={{ marginTop: theme.space['2xl'] }}
           />
         </>
       )}

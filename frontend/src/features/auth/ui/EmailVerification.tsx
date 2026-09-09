@@ -100,63 +100,58 @@ export function EmailVerification({ purpose, onVerified, onReset, initialEmail =
   };
 
   return (
-    <View style={{ gap: theme.space.xl }}>
-      <View style={{ gap: theme.space.sm }}>
-        <Input
-          variant="box"
-          label="이메일"
-          placeholder="이메일을 입력하세요"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={email}
-          onChangeText={onChangeEmail}
-          editable={!verified}
-        />
-        {!verified ? (
-          <Button
-            label={codeSent ? '인증코드 재전송' : '인증코드 받기'}
-            variant="outline"
-            onPress={sendCode}
-            disabled={!emailOk || (codeSent && resendCooldown.running)}
-          />
-        ) : null}
-      </View>
+    <View style={{ gap: theme.space.md }}>
+      <Input
+        variant="box"
+        label="이메일"
+        placeholder="이메일을 입력하세요"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        value={email}
+        onChangeText={onChangeEmail}
+        editable={!verified}
+        rightSlot={
+          verified ? (
+            <Ionicons name="checkmark-circle" size={22} color={theme.color.brand.solid} />
+          ) : (
+            <Button
+              label={codeSent ? '재전송' : '인증 발송'}
+              variant="outline"
+              size="sm"
+              onPress={sendCode}
+              disabled={!emailOk || resendCooldown.running}
+            />
+          )
+        }
+      />
 
       {codeSent && !verified ? (
-        <View style={{ gap: theme.space.sm }}>
-          <Input
-            variant="box"
-            label="인증코드"
-            placeholder="메일로 받은 코드를 입력하세요"
-            keyboardType="number-pad"
-            value={code}
-            onChangeText={setCode}
-            rightSlot={
+        <Input
+          variant="box"
+          label="인증코드"
+          placeholder="인증코드 입력"
+          keyboardType="number-pad"
+          value={code}
+          onChangeText={setCode}
+          rightSlot={
+            <View style={styles.codeSlot}>
+              {codeTtl.running ? (
+                <Text style={[theme.typography.caption, { color: theme.color.brand.solid }]}>
+                  {codeTtl.label}
+                </Text>
+              ) : null}
               <Button
-                label="확인"
-                variant="outline"
+                label="인증"
+                variant="primary"
                 size="sm"
                 onPress={verifyCode}
                 loading={confirm.isPending}
                 disabled={code.trim().length === 0}
               />
-            }
-          />
-          <View style={styles.metaRow}>
-            <View style={styles.timer}>
-              <Ionicons name="time-outline" size={14} color={theme.color.text.muted} />
-              <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                남은 시간 <Text style={{ color: theme.color.brand.solid }}>{codeTtl.label}</Text>
-              </Text>
             </View>
-            {resendCooldown.running ? (
-              <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                재전송 {resendCooldown.label}
-              </Text>
-            ) : null}
-          </View>
-        </View>
+          }
+        />
       ) : null}
 
       {verified ? (
@@ -178,13 +173,6 @@ export function EmailVerification({ purpose, onVerified, onReset, initialEmail =
 }
 
 const styles = StyleSheet.create({
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  timer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  codeSlot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

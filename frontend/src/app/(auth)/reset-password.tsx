@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
 import { EmailVerification, resetPasswordErrorMessage, useResetPassword } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
@@ -123,19 +123,14 @@ export default function ResetPasswordScreen() {
         </Text>
       ) : null}
 
-      <View style={[styles.spacer, { minHeight: theme.space['2xl'] }]} />
-
       <Button
         label="비밀번호 재설정"
         variant="primary"
         onPress={submit}
         loading={resetPassword.isPending}
         disabled={!canSubmit}
+        style={{ marginTop: theme.space['2xl'] }}
       />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  spacer: { flex: 1 },
-});
