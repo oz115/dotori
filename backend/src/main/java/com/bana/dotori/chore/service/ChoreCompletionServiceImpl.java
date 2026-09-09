@@ -3,7 +3,9 @@ package com.bana.dotori.chore.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Locale;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,9 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	 * 시스템 기본 타임존을 따라가면 배포 환경에 따라 기간 판정이 하루씩 어긋난다.
 	 */
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	/** 대기 중 요청이 할 일당 하나임을 보장하는 부분 유니크 인덱스 이름 (소문자 비교용). */
+	private static final String PENDING_INDEX = "ux_chore_completion_requests_pending";
 
 	private final ChoreRepository choreRepository;
 	private final ChoreCompletionRequestRepository completionRequestRepository;
@@ -79,14 +84,50 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 			throw new BusinessException(ErrorCode.ALREADY_REWARDED);
 		}
 
-		ChoreCompletionRequest saved = completionRequestRepository.save(ChoreCompletionRequest.builder()
-			.choreId(choreId)
-			.childId(childId)
-			.photoUrl(request.photoUrl())
-			.description(request.description())
-			.build());
+		return completionMapper.toResponse(saveRequest(choreId, childId, request));
+	}
 
-		return completionMapper.toResponse(saved);
+	/**
+	 * 완료 요청을 넣는다. 대기 중 중복은 DB 가 최종적으로 막는다.
+	 *
+	 * <p>위 {@code existsByChoreIdAndStatus} 검사는 원자적이지 않다. 검사와 INSERT 사이에
+	 * 틈이 있어서 아이가 버튼을 연타하면 두 요청이 모두 통과해 PENDING 이 여러 건 쌓이고,
+	 * 부모 대기함에 같은 항목이 여러 줄 뜬다. 지급은 멱등키가 한 번으로 막지만 대기함은
+	 * 지저분해진다.
+	 *
+	 * <p>그 틈을 {@code UX_CHORE_COMPLETION_REQUESTS_PENDING} 부분 유니크 인덱스가 닫는다.
+	 * PENDING 행만 유일성을 따지므로 처리가 끝난 행은 몇 건이든 남고, 거절당한 아이는
+	 * 같은 주기에 다시 요청할 수 있다.
+	 *
+	 * <p>위반을 잡아 409 로 바꾸지 않으면 500 이 나간다. 지갑이 멱등키 위반을 다루는 방식과
+	 * 같고, 다른 무결성 위반(외래키·CHECK)까지 삼키면 전혀 다른 문제가 "이미 대기 중"으로
+	 * 둔갑해 원인을 못 찾으므로 이 인덱스 위반만 걸러 낸다.
+	 */
+	private ChoreCompletionRequest saveRequest(Integer choreId, Integer childId,
+			ChoreCompletionCreateRequest request) {
+		try {
+			// 유니크 인덱스 위반을 이 자리에서 잡으려면 flush 가 필요하다.
+			return completionRequestRepository.saveAndFlush(ChoreCompletionRequest.builder()
+				.choreId(choreId)
+				.childId(childId)
+				.photoUrl(request.photoUrl())
+				.description(request.description())
+				.build());
+		} catch (DataIntegrityViolationException e) {
+			if (!isPendingIndexViolation(e)) {
+				throw e;
+			}
+			throw new BusinessException(ErrorCode.PENDING_REQUEST_EXISTS,
+					"이미 처리 대기 중인 요청이 있습니다. choreId=" + choreId + ", childId=" + childId, e);
+		}
+	}
+
+	private boolean isPendingIndexViolation(DataIntegrityViolationException e) {
+		// ddl-auto 는 none 이라 이 인덱스는 01-schema.sql 만 만든다. 이름이 그대로 메시지에
+		// 실려 오므로 소문자로 맞춰 비교한다 (지갑도 대소문자를 맞춰 비교한다).
+		return String.valueOf(e.getMostSpecificCause().getMessage())
+				.toLowerCase(Locale.ROOT)
+				.contains(PENDING_INDEX);
 	}
 
 	/**
@@ -101,7 +142,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 		accessValidator.validate(userId, familyId, childId);
 		accessValidator.requireChild(userId);
 
-		ChoreCompletionRequest completionRequest = completionRequestRepository.findById(requestId)
+		ChoreCompletionRequest completionRequest = completionRequestRepository.findByIdForUpdate(requestId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND));
 
 		// 남의 요청이면 403 이다. 여기서는 404 로 숨기지 않는다 — 명세가 403 이고,
@@ -155,7 +196,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 
 		// 요청 ID 만으로 찾고 경로의 아이와 어긋나면 없는 것으로 본다. 403 을 주면
 		// 그 requestId 가 실재한다는 사실이 새어 나간다 (승인과 같은 기준).
-		ChoreCompletionRequest completionRequest = completionRequestRepository.findById(requestId)
+		ChoreCompletionRequest completionRequest = completionRequestRepository.findByIdForUpdate(requestId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND));
 		if (!completionRequest.getChildId().equals(childId)) {
 			throw new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);

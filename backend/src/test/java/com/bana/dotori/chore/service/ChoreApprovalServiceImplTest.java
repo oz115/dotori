@@ -112,7 +112,7 @@ class ChoreApprovalServiceImplTest {
 	}
 
 	private void givenApprovable(ChoreCompletionRequest request, Chore chore, boolean replayed) {
-		given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(request));
+		given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(request));
 		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
 		given(pointWalletService.deposit(any())).willReturn(paid(replayed));
 	}
@@ -219,7 +219,7 @@ class ChoreApprovalServiceImplTest {
 		@Test
 		@DisplayName("없는 요청이면 404다")
 		void 없는_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.empty());
 
 			assertThatThrownBy(ChoreApprovalServiceImplTest.this::approve)
 				.isInstanceOf(BusinessException.class)
@@ -229,7 +229,7 @@ class ChoreApprovalServiceImplTest {
 		@Test
 		@DisplayName("경로의 아이와 요청의 주인이 다르면 404다")
 		void 남의_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID))
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID))
 				.willReturn(Optional.of(pendingRequest(SIBLING_ID)));
 
 			// 403 을 주면 그 requestId 가 실재한다는 사실이 새어 나간다.
@@ -243,7 +243,7 @@ class ChoreApprovalServiceImplTest {
 		@Test
 		@DisplayName("요청이 가리키는 할 일이 다른 가족이면 404다")
 		void 다른_가족의_할_일() {
-			given(completionRequestRepository.findById(REQUEST_ID))
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID))
 				.willReturn(Optional.of(pendingRequest(CHILD_ID)));
 			given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.empty());
 

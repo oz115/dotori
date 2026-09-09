@@ -104,7 +104,7 @@ class ChoreCompletionServiceImplTest {
 
 	private void givenChore(Chore chore) {
 		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID)).willReturn(Optional.of(chore));
-		given(completionRequestRepository.save(any())).willAnswer(call -> call.getArgument(0));
+		given(completionRequestRepository.saveAndFlush(any())).willAnswer(call -> call.getArgument(0));
 	}
 
 	private ChoreCompletionRequest pendingRequest(Integer ownerId) {
@@ -134,7 +134,7 @@ class ChoreCompletionServiceImplTest {
 
 			assertThat(response.choreId()).isEqualTo(CHORE_ID);
 			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.PENDING);
-			verify(completionRequestRepository).save(any());
+			verify(completionRequestRepository).saveAndFlush(any());
 		}
 
 		@Test
@@ -146,7 +146,7 @@ class ChoreCompletionServiceImplTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
 
-			verify(completionRequestRepository, never()).save(any());
+			verify(completionRequestRepository, never()).saveAndFlush(any());
 		}
 
 		@Test
@@ -183,7 +183,7 @@ class ChoreCompletionServiceImplTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
 
-			verify(completionRequestRepository, never()).save(any());
+			verify(completionRequestRepository, never()).saveAndFlush(any());
 		}
 
 		@Test
@@ -208,7 +208,7 @@ class ChoreCompletionServiceImplTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.REWARD_NOT_EVALUATED);
 
-			verify(completionRequestRepository, never()).save(any());
+			verify(completionRequestRepository, never()).saveAndFlush(any());
 		}
 
 		@Test
@@ -234,7 +234,7 @@ class ChoreCompletionServiceImplTest {
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALREADY_REWARDED);
 
-			verify(completionRequestRepository, never()).save(any());
+			verify(completionRequestRepository, never()).saveAndFlush(any());
 		}
 	}
 
@@ -309,7 +309,7 @@ class ChoreCompletionServiceImplTest {
 		@DisplayName("REJECTED 로 바뀌고 처리 시각을 응답한다")
 		void 정상_거절() {
 			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(pending));
 
 			ChoreRejectionResponse response = reject();
 
@@ -323,7 +323,7 @@ class ChoreCompletionServiceImplTest {
 		@DisplayName("거절한 뒤에도 같은 주기에 다시 요청할 수 있다")
 		void 거절_뒤_재요청_가능() {
 			ChoreCompletionRequest rejected = pendingRequest(CHILD_ID);
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(rejected));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(rejected));
 			reject();
 
 			// 대기 중 중복 검사는 PENDING 만, 주기당 지급 판정은 SUCCEED 만 본다.
@@ -349,7 +349,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("없는 요청이면 404다")
 		void 없는_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.empty());
 
 			assertThatThrownBy(this::reject)
 				.isInstanceOf(BusinessException.class)
@@ -359,7 +359,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("경로의 아이와 요청의 주인이 다르면 404다")
 		void 남의_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID))
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID))
 				.willReturn(Optional.of(pendingRequest(SIBLING_ID)));
 
 			// 취소(아이)는 403 이지만 거절(부모)은 404 다. 부모는 남의 집 요청 ID 를 알 이유가 없다.
@@ -373,7 +373,7 @@ class ChoreCompletionServiceImplTest {
 		void 이미_처리됨() {
 			ChoreCompletionRequest approved = pendingRequest(CHILD_ID);
 			approved.approve(OffsetDateTime.now(KST));
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(approved));
 
 			// 승인된 것을 거절로 뒤집을 수는 없다. 이미 지급한 포인트를 상태 변경만으로 회수할 수 없다.
 			assertThatThrownBy(this::reject)
@@ -390,7 +390,7 @@ class ChoreCompletionServiceImplTest {
 		@DisplayName("자기 대기 요청이면 CANCELLED 로 바꾼다")
 		void 정상_취소() {
 			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(pending));
 
 			choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
 
@@ -402,7 +402,7 @@ class ChoreCompletionServiceImplTest {
 		@DisplayName("행을 지우지 않는다")
 		void 물리_삭제하지_않는다() {
 			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(pending));
 
 			choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
 
@@ -413,7 +413,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("없는 요청이면 404다")
 		void 없는_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.empty());
 
 			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
 				.isInstanceOf(BusinessException.class)
@@ -423,7 +423,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("남의 요청이면 403이다")
 		void 남의_요청() {
-			given(completionRequestRepository.findById(REQUEST_ID))
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID))
 				.willReturn(Optional.of(pendingRequest(SIBLING_ID)));
 
 			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
@@ -436,7 +436,7 @@ class ChoreCompletionServiceImplTest {
 		void 이미_처리됨() {
 			ChoreCompletionRequest approved = pendingRequest(CHILD_ID);
 			approved.approve(OffsetDateTime.now(KST));
-			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(approved));
 
 			assertThatThrownBy(() -> choreCompletionService.cancelCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID))
 				.isInstanceOf(BusinessException.class)

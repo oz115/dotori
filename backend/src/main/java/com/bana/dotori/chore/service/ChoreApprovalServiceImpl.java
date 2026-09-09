@@ -108,7 +108,7 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 	 * 실재한다는 사실이 새어 나가고, 부모는 남의 집 요청 ID 를 알 이유가 없다.
 	 */
 	private ChoreCompletionRequest findRequest(Integer childId, Integer requestId) {
-		ChoreCompletionRequest completionRequest = completionRequestRepository.findById(requestId)
+		ChoreCompletionRequest completionRequest = completionRequestRepository.findByIdForUpdate(requestId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND));
 		if (!completionRequest.getChildId().equals(childId)) {
 			throw new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);

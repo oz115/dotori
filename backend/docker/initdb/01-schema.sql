@@ -1115,3 +1115,24 @@ ON "chore_completion_requests" ("chore_id", "status", "processed_at");
 
 CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHILD_STATUS"
 ON "chore_completion_requests" ("child_id", "status", "requested_at", "chore_completion_request_id");
+
+
+/* ---------------------------------------------------------
+chore_completion_requests — 대기 중 요청은 할 일당 하나
+
+한 집안일에 처리 대기 중(PENDING)인 요청이 둘 이상 있을 수 없다는 불변식이다.
+부분 유니크 인덱스라 PENDING 행만 유일성을 따지고, 처리가 끝난
+SUCCEED·REJECTED·CANCELLED 는 몇 건이든 쌓인다 — 그래야 거절당한 아이가
+같은 주기에 다시 요청할 수 있다.
+
+애플리케이션 검사(existsByChoreIdAndStatus)만으로는 못 막는다. 그 검사와 INSERT
+사이에 틈이 있어서 아이가 버튼을 연타하면 요청이 여러 건 들어가고, 부모 대기함에
+같은 항목이 여러 줄 뜬다. 지급은 멱등키가 한 번으로 막지만 대기함은 지저분해진다.
+
+위반(23505)은 서비스가 잡아 409 로 바꾼다. 그냥 두면 500 이 나간다
+(지갑의 멱등키 위반 처리와 같은 방식이다).
+--------------------------------------------------------- */
+
+CREATE UNIQUE INDEX "UX_CHORE_COMPLETION_REQUESTS_PENDING"
+ON "chore_completion_requests" ("chore_id")
+WHERE "status" = 'PENDING';

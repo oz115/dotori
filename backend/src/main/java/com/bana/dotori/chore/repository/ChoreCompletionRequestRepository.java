@@ -4,7 +4,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -54,6 +57,26 @@ public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCom
 	 * 404 가 나가고, 경로의 choreId 와 요청이 실제로 연결돼 있는지도 같이 확인된다.
 	 */
 	Optional<ChoreCompletionRequest> findByIdAndChoreId(Integer id, Integer choreId);
+
+	/**
+	 * 상태를 바꾸기 전에 요청 행을 {@code SELECT ... FOR UPDATE} 로 잠근다 (CHORE-09·10·12).
+	 *
+	 * <p>승인·거절·취소가 모두 이 메서드로 행을 집는다. 잠그지 않으면 <b>갱신 손실</b>이 난다.
+	 * 부모가 승인하는 동시에 아이가 취소하면 두 트랜잭션이 각자 PENDING 을 읽고 각자
+	 * 상태를 바꾸는데, 엔티티의 PENDING 검사는 자기 트랜잭션이 읽은 값만 보므로 둘 다 통과한다.
+	 * 그리고 나중에 커밋한 쪽이 앞의 UPDATE 를 덮어쓴다.
+	 *
+	 * <p>승인이 먼저 커밋되고 취소가 나중에 커밋되면 <b>포인트는 지급됐는데 상태는 CANCELLED</b>
+	 * 인 행이 남는다. 지급은 지갑 멱등키가 막아 주지만 그건 "두 번 지급"만 막는 장치라
+	 * 이 조합에는 걸리지 않는다.
+	 *
+	 * <p>여기서 잠근 뒤에는 뒤에 온 트랜잭션이 앞의 커밋 결과를 보게 되므로
+	 * ({@code READ COMMITTED} 에서 락 해제 후 재조회) 엔티티의 PENDING 검사가 제대로 걸러 낸다.
+	 * 지갑이 잔액을 바꾸기 전에 지갑 행을 잠그는 것과 같은 이유다.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select r from ChoreCompletionRequest r where r.id = :id")
+	Optional<ChoreCompletionRequest> findByIdForUpdate(@Param("id") Integer id);
 
 	/**
 	 * 부모 대기함 한 화면 (CHORE-08).
