@@ -10,6 +10,7 @@ import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.PointExchangePolicy;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 import lombok.RequiredArgsConstructor;
@@ -41,9 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class PointChargeService {
-
-	/** 팀 환전 정책. 현금 10원 = 포인트 1점. */
-	public static final int KRW_PER_POINT = 10;
 
 	private final PointWalletService pointWalletService;
 	private final BankTransferClient bankTransferClient;
@@ -99,10 +97,10 @@ public class PointChargeService {
 	 * @throws BusinessException INVALID_CHARGE_UNIT 10원 단위가 아닌 경우
 	 */
 	private int toPoints(int cashAmount) {
-		if (cashAmount % KRW_PER_POINT != 0) {
+		if (!PointExchangePolicy.isWonUnit(cashAmount)) {
 			throw new BusinessException(ErrorCode.INVALID_CHARGE_UNIT,
-					"충전 금액은 " + KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + cashAmount);
+					"충전 금액은 " + PointExchangePolicy.KRW_PER_POINT + "원 단위여야 합니다. 요청 금액=" + cashAmount);
 		}
-		return cashAmount / KRW_PER_POINT;
+		return PointExchangePolicy.toPoints(cashAmount);
 	}
 }
