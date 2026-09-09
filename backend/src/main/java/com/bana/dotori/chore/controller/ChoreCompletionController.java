@@ -16,6 +16,7 @@ import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.service.ChoreApprovalService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
@@ -24,9 +25,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 집안일 완료 인증 API (CHORE-07·08·09·11·12).
+ * 집안일 완료 인증 API (CHORE-07·08·09·10·11·12).
  *
- * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)와 승인(09)은 부모가 호출한다.
+ * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)·승인(09)·거절(10)은 부모가 호출한다.
  * 경로는 같아도 역할이 다르므로 서비스가 매번 호출자의 역할을 확인한다.
  *
  * <p>취소 경로에 choreId 가 없는 것은 노션 명세를 그대로 따른 것이다. 요청 ID 하나로
@@ -72,6 +73,20 @@ public class ChoreCompletionController {
 	public ResponseEntity<ChoreApprovalResponse> approveCompletion(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId, @PathVariable Integer childId, @PathVariable Integer requestId) {
 		return ResponseEntity.ok(choreApprovalService.approve(userId, familyId, childId, requestId));
+	}
+
+	/**
+	 * 부모가 거절한다 (CHORE-10).
+	 *
+	 * <p>본문이 없다. 명세에는 거절 사유(reason)가 있지만 담을 컬럼이 없고 사유가 향할
+	 * 알림 도메인도 없어 팀 결정으로 뺐다 — 명세도 같이 고쳐야 한다.
+	 *
+	 * <p>거절해도 아이는 같은 주기에 다시 요청할 수 있다.
+	 */
+	@PostMapping("/completion-requests/{requestId}/reject")
+	public ResponseEntity<ChoreRejectionResponse> rejectCompletion(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer childId, @PathVariable Integer requestId) {
+		return ResponseEntity.ok(choreCompletionService.rejectCompletion(userId, familyId, childId, requestId));
 	}
 
 	/**

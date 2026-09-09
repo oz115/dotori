@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
@@ -131,6 +132,40 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 
 		return new ChoreCompletionListResponse(
 			completionRequestRepository.findSummaries(familyId, childId, status));
+	}
+
+	/**
+	 * 부모가 완료를 거절한다 (CHORE-10).
+	 *
+	 * <p>거절 사유는 받지 않는다. 담을 컬럼이 없고(아이가 쓴 description 을 덮어쓸 수는 없다)
+	 * 사유가 향할 알림 도메인도 아직 없다. 팀 결정에 따라 이번 범위에서 뺐다.
+	 *
+	 * <p>거절해도 아이는 <b>같은 주기에 다시 요청할 수 있다.</b> 대기 중 중복 검사는
+	 * PENDING 만 보고, 주기당 지급 판정은 SUCCEED 만 보므로 REJECTED 로 남은 행은
+	 * 재요청을 막지 않는다. 재도전을 막으면 부모가 잘못 눌렀을 때 되돌릴 방법이 없다.
+	 *
+	 * <p>지급이 없으므로 승인과 달리 지갑을 건드리지 않는다. 트랜잭션도 이 한 행뿐이다.
+	 */
+	@Override
+	@Transactional
+	public ChoreRejectionResponse rejectCompletion(Integer userId, Integer familyId, Integer childId,
+			Integer requestId) {
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
+
+		// 요청 ID 만으로 찾고 경로의 아이와 어긋나면 없는 것으로 본다. 403 을 주면
+		// 그 requestId 가 실재한다는 사실이 새어 나간다 (승인과 같은 기준).
+		ChoreCompletionRequest completionRequest = completionRequestRepository.findById(requestId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND));
+		if (!completionRequest.getChildId().equals(childId)) {
+			throw new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);
+		}
+
+		// 상태 검사는 엔티티가 한다. 이미 처리된 요청이면 INVALID_STATUS 로 409 가 나간다.
+		OffsetDateTime processedAt = OffsetDateTime.now(KST);
+		completionRequest.reject(processedAt);
+
+		return new ChoreRejectionResponse(completionRequest.getId(), completionRequest.getStatus(), processedAt);
 	}
 
 	/**

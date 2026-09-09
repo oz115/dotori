@@ -31,6 +31,7 @@ import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionSummary;
+import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.service.ChoreApprovalService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
@@ -55,6 +56,8 @@ class ChoreCompletionControllerTest {
 	private static final String LIST_URL = "/api/v1/families/10/children/2/chores/completion-requests";
 	private static final String APPROVE_URL =
 		"/api/v1/families/10/children/2/chores/completion-requests/100/approve";
+	private static final String REJECT_URL =
+		"/api/v1/families/10/children/2/chores/completion-requests/100/reject";
 	private static final String CANCEL_URL = "/api/v1/families/10/children/2/chores/completion-requests/100";
 	private static final String TOKEN = "access-token";
 	private static final String BEARER = "Bearer " + TOKEN;
@@ -323,6 +326,73 @@ class ChoreCompletionControllerTest {
 			.andExpect(status().isUnauthorized());
 
 		verify(choreApprovalService, never()).approve(any(), any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("거절하면 200과 REJECTED 를 반환한다")
+	void rejectCompletion_ok() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.rejectCompletion(any(), any(), any(), any()))
+			.willReturn(new ChoreRejectionResponse(REQUEST_ID, ChoreCompletionStatus.REJECTED,
+				OffsetDateTime.of(2026, 9, 9, 21, 0, 0, 0, ZoneOffset.ofHours(9))));
+
+		// 본문이 없다. 명세의 reason 은 담을 곳이 없어 팀 결정으로 뺐다.
+		mockMvc.perform(post(REJECT_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.choreCompletionRequestId").value(REQUEST_ID))
+			.andExpect(jsonPath("$.status").value("REJECTED"))
+			.andExpect(jsonPath("$.processedAt").exists());
+
+		verify(choreCompletionService).rejectCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
+	}
+
+	@Test
+	@DisplayName("이미 처리된 요청을 거절하려 하면 409와 INVALID_STATUS 를 반환한다")
+	void rejectCompletion_invalidStatus() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.rejectCompletion(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.INVALID_STATUS));
+
+		mockMvc.perform(post(REJECT_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("INVALID_STATUS"));
+	}
+
+	@Test
+	@DisplayName("아이가 거절하려 하면 403을 반환한다")
+	void rejectCompletion_forbidden() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.rejectCompletion(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(post(REJECT_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("없는 요청을 거절하려 하면 404를 반환한다")
+	void rejectCompletion_notFound() throws Exception {
+		givenAuthenticated();
+		given(choreCompletionService.rejectCompletion(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND));
+
+		mockMvc.perform(post(REJECT_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("CHORE_COMPLETION_REQUEST_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("거절에 토큰이 없으면 401을 반환한다")
+	void rejectCompletion_unauthorized() throws Exception {
+		mockMvc.perform(post(REJECT_URL))
+			.andExpect(status().isUnauthorized());
+
+		verify(choreCompletionService, never()).rejectCompletion(any(), any(), any(), any());
 	}
 
 	@Test

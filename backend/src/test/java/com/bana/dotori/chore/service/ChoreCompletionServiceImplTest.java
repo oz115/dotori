@@ -31,6 +31,7 @@ import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionSummary;
+import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
@@ -43,7 +44,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 
 /**
- * 2계층 - 완료 요청·취소·대기함 조회의 규칙만 검증한다 (CHORE-08·11·12).
+ * 2계층 - 완료 요청·취소·거절·대기함 조회의 규칙만 검증한다 (CHORE-08·10·11·12).
  *
  * <p>가족·아이 경계 검증은 {@link ChoreAccessValidator} 몫이라 여기서는 모킹한다.
  * 이 테스트가 실패하면 원인은 완료 요청 규칙 쪽이다.
@@ -51,7 +52,7 @@ import com.bana.dotori.global.error.ErrorCode;
  * <p>대기함 조회의 JPQL 조인 자체는 여기서 검증하지 않는다 - 리포지토리를 모킹하기 때문이다.
  * 조인이 맞는지는 DB 가 있어야 알 수 있다.
  */
-@DisplayName("ChoreCompletionServiceImpl 완료 요청·취소·대기함")
+@DisplayName("ChoreCompletionServiceImpl 완료 요청·취소·거절·대기함")
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ChoreCompletionServiceImplTest {
@@ -107,7 +108,12 @@ class ChoreCompletionServiceImplTest {
 	}
 
 	private ChoreCompletionRequest pendingRequest(Integer ownerId) {
-		return ChoreCompletionRequest.builder().choreId(CHORE_ID).childId(ownerId).build();
+		ChoreCompletionRequest request = ChoreCompletionRequest.builder()
+			.choreId(CHORE_ID)
+			.childId(ownerId)
+			.build();
+		ReflectionTestUtils.setField(request, "id", REQUEST_ID);
+		return request;
 	}
 
 	private ChoreCompletionResponse request() {
@@ -288,6 +294,91 @@ class ChoreCompletionServiceImplTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
 
 			verify(completionRequestRepository, never()).findSummaries(any(), any(), any());
+		}
+	}
+
+	@Nested
+	@DisplayName("부모가 거절할 때")
+	class RejectCompletion {
+
+		private ChoreRejectionResponse reject() {
+			return choreCompletionService.rejectCompletion(PARENT_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
+		}
+
+		@Test
+		@DisplayName("REJECTED 로 바뀌고 처리 시각을 응답한다")
+		void 정상_거절() {
+			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(pending));
+
+			ChoreRejectionResponse response = reject();
+
+			assertThat(response.choreCompletionRequestId()).isEqualTo(REQUEST_ID);
+			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.REJECTED);
+			assertThat(response.processedAt()).isNotNull();
+			assertThat(pending.getStatus()).isEqualTo(ChoreCompletionStatus.REJECTED);
+		}
+
+		@Test
+		@DisplayName("거절한 뒤에도 같은 주기에 다시 요청할 수 있다")
+		void 거절_뒤_재요청_가능() {
+			ChoreCompletionRequest rejected = pendingRequest(CHILD_ID);
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(rejected));
+			reject();
+
+			// 대기 중 중복 검사는 PENDING 만, 주기당 지급 판정은 SUCCEED 만 본다.
+			// REJECTED 로 남은 행은 둘 중 어느 것에도 걸리지 않는다.
+			givenChore(todayChore());
+			given(completionRequestRepository.existsByChoreIdAndStatus(CHORE_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(false);
+			given(completionRequestRepository.hasApprovedSince(eq(CHORE_ID), any())).willReturn(false);
+
+			assertThat(request().status()).isEqualTo(ChoreCompletionStatus.PENDING);
+		}
+
+		@Test
+		@DisplayName("부모가 아니면 403으로 막는다")
+		void 부모만_거절할_수_있다() {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(PARENT_ID);
+
+			assertThatThrownBy(this::reject)
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+		}
+
+		@Test
+		@DisplayName("없는 요청이면 404다")
+		void 없는_요청() {
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.empty());
+
+			assertThatThrownBy(this::reject)
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);
+		}
+
+		@Test
+		@DisplayName("경로의 아이와 요청의 주인이 다르면 404다")
+		void 남의_요청() {
+			given(completionRequestRepository.findById(REQUEST_ID))
+				.willReturn(Optional.of(pendingRequest(SIBLING_ID)));
+
+			// 취소(아이)는 403 이지만 거절(부모)은 404 다. 부모는 남의 집 요청 ID 를 알 이유가 없다.
+			assertThatThrownBy(this::reject)
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHORE_COMPLETION_REQUEST_NOT_FOUND);
+		}
+
+		@Test
+		@DisplayName("이미 처리된 요청이면 409다")
+		void 이미_처리됨() {
+			ChoreCompletionRequest approved = pendingRequest(CHILD_ID);
+			approved.approve(OffsetDateTime.now(KST));
+			given(completionRequestRepository.findById(REQUEST_ID)).willReturn(Optional.of(approved));
+
+			// 승인된 것을 거절로 뒤집을 수는 없다. 이미 지급한 포인트를 상태 변경만으로 회수할 수 없다.
+			assertThatThrownBy(this::reject)
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_STATUS);
 		}
 	}
 
