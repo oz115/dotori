@@ -3,6 +3,7 @@ package com.bana.dotori.chore.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("Chore 생성 기본값과 기간 판정")
 class ChoreTest {
+
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	@Nested
 	@DisplayName("집안일을 등록할 때")
@@ -36,7 +39,7 @@ class ChoreTest {
 
 			// DB 에 DEFAULT CURRENT_DATE 가 있지만 Hibernate 는 INSERT 에 모든 컬럼을 실으므로
 			// null 을 그대로 두면 DEFAULT 가 아니라 NOT NULL 위반이 된다.
-			assertThat(chore.getStartDate()).isEqualTo(LocalDate.now());
+			assertThat(chore.getStartDate()).isEqualTo(LocalDate.now(KST));
 		}
 
 		@Test

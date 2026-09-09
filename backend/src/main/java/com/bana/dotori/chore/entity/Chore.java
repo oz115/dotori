@@ -3,6 +3,7 @@ package com.bana.dotori.chore.entity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -38,6 +39,16 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Chore {
+
+	/**
+	 * 시작일 기본값이 보는 "오늘"을 KST 로 고정한다.
+	 *
+	 * <p>서비스가 보통 시작일을 채워 주므로 이 기본값은 안전망이다. 다만 안전망이
+	 * 환경에 따라 다른 날짜를 보면 안전망이 아니다 — {@code LocalDate.now()} 는
+	 * 시스템 기본 타임존을 쓰고, 그 값은 배포 설정에 달려 있다
+	 * (자세한 이유는 {@code ChoreServiceImpl.KST} 주석 참고).
+	 */
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -126,7 +137,7 @@ public class Chore {
 		this.difficulty = difficulty;
 		this.rewardPoints = rewardPoints;
 		this.repeatType = repeatType;
-		this.startDate = startDate != null ? startDate : LocalDate.now();
+		this.startDate = startDate != null ? startDate : LocalDate.now(KST);
 		this.endDate = endDate;
 	}
 

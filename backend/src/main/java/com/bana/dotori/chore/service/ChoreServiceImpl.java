@@ -1,6 +1,7 @@
 package com.bana.dotori.chore.service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,25 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChoreServiceImpl implements ChoreService {
 
+	/**
+	 * 생성·수정이 보는 "오늘"을 KST 로 고정한다.
+	 *
+	 * <p>{@code LocalDate.now()} 는 시스템 기본 타임존을 쓴다. 지금 배포 환경은
+	 * 컨테이너에 {@code TZ=Asia/Seoul} 이 들어가 있어 그대로 써도 KST 가 나오지만,
+	 * 그 설정은 서버의 배포 파일에만 있고 이 저장소에는 흔적이 없다
+	 * (backend/Dockerfile 에는 TZ 가 없어 이미지만 보면 UTC 다).
+	 *
+	 * <p>그 설정이 빠진 환경(CI, 다른 배포 대상, 이미지 재사용)에서는 UTC 가 되고,
+	 * 그러면 한국 시간 새벽에 등록한 반복 할 일이 어제 날짜로 저장된다. 크론은
+	 * KST 를 코드에 박아 두었으므로(SchedulingConfig 의 Clock) 그날 자정에
+	 * "기간이 끝난 할 일"로 보고 곧바로 다음 주기로 밀어 버리고, 부모가 방금 만든
+	 * 할 일이 이미 지나간 기간을 가리키게 된다.
+	 *
+	 * <p>크론만 명시하고 여기는 환경에 맡기면 둘이 갈릴 수 있어 같은 층위로 맞춘다.
+	 * 상점 구매(StorePurchaseService)도 같은 방식이다.
+	 */
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
 	private final ChoreRepository choreRepository;
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
@@ -46,11 +66,17 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 
-		// 반복이면 오늘부터 주기 끝까지, 일회성이면 부모가 넣은 기간을 쓴다.
-		// 반복에서 요청의 날짜를 무시하는 이유는 크론이 주기마다 기간을 다시 계산해 밀기 때문이다.
-		// 부모가 넣은 날짜를 그대로 두면 첫 주기만 다르게 굴러간다.
+		// start_date~end_date 는 반복과 일회성에서 뜻이 다르다.
+		//   반복   — 지금 진행 중인 "주기 한 칸"(창). 칸이 끝나면 크론이 다음 칸으로 민다.
+		//   일회성 — 이 할 일의 전체 수명. 크론이 건드리지 않아 부모가 정한 값이 끝까지 남는다.
+		//
+		// 그래서 반복은 요청의 날짜를 읽지 않고 주기로 계산한다. 부모가 넣은 임의의 기간을
+		// 쓰면 그 칸의 길이가 주기와 맞지 않게 되고, 주기당 한 번만 지급하는 규칙
+		// (S15P21A505-126)이 그 칸을 기준으로 판정하므로 보상 횟수가 틀어진다.
+		// 매일 반복에 9/1~12/31 이 들어온 경우: 크론은 end_date 가 지난 것만 밀기 때문에
+		// 12/31 까지 칸이 하나로 남고, 그 4개월 동안 보상이 단 한 번 나간다.
 		boolean repeating = request.repeatType().isRepeating();
-		LocalDate startDate = repeating ? LocalDate.now() : request.startDate();
+		LocalDate startDate = repeating ? LocalDate.now(KST) : request.startDate();
 		LocalDate endDate = repeating ? request.repeatType().endDateFrom(startDate) : request.endDate();
 
 		Chore chore = choreRepository.save(Chore.builder()
@@ -139,7 +165,7 @@ public class ChoreServiceImpl implements ChoreService {
 
 		if (target.isRepeating()) {
 			if (typeChanged) {
-				LocalDate today = LocalDate.now();
+				LocalDate today = LocalDate.now(KST);
 				chore.changePeriod(target, today, target.endDateFrom(today));
 			}
 			return;

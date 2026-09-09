@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +56,8 @@ import com.bana.dotori.user.repository.UserRepository;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ChoreServiceImplTest {
+
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	private static final Integer PARENT_ID = 1;
 	private static final Integer CHILD_ID = 2;
@@ -151,7 +154,7 @@ class ChoreServiceImplTest {
 		ChoreDetailResponse response = choreService.createChore(PARENT_ID, FAMILY_ID, CHILD_ID,
 			new ChoreCreateRequest("설거지", null, ChoreDifficulty.NORMAL, ChoreRepeatType.MONTH, null, null));
 
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(KST);
 		assertThat(response.startDate()).isEqualTo(today);
 		// 월간이면 그 달 말일까지다. 부모는 날짜를 직접 넣지 않는다.
 		assertThat(response.endDate()).isEqualTo(today.with(TemporalAdjusters.lastDayOfMonth()));
@@ -181,7 +184,7 @@ class ChoreServiceImplTest {
 				LocalDate.of(2020, 1, 1), LocalDate.of(2030, 12, 31)));
 
 		// 크론이 주기마다 기간을 다시 계산해 밀기 때문에, 첫 주기만 다르게 두면 안 된다.
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(KST);
 		assertThat(response.startDate()).isEqualTo(today);
 		assertThat(response.endDate()).isEqualTo(today);
 	}
@@ -331,7 +334,7 @@ class ChoreServiceImplTest {
 
 		// 기간을 그대로 두면 "매일 반복인데 9/20 에 끝나는" 상태가 되고,
 		// 크론은 end_date 가 지난 것만 밀기 때문에 그날이 와야 정상으로 돌아온다.
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(KST);
 		assertThat(response.repeatType()).isEqualTo(ChoreRepeatType.DAY);
 		assertThat(response.startDate()).isEqualTo(today);
 		assertThat(response.endDate()).isEqualTo(today);
@@ -346,7 +349,7 @@ class ChoreServiceImplTest {
 		ChoreDetailResponse response = choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
 			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.MONTH, null, null));
 
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(KST);
 		assertThat(response.startDate()).isEqualTo(today);
 		assertThat(response.endDate()).isEqualTo(today.with(TemporalAdjusters.lastDayOfMonth()));
 	}
@@ -361,7 +364,7 @@ class ChoreServiceImplTest {
 			new ChoreUpdateRequest(null, null, null, null, ChoreRepeatType.DAY,
 				LocalDate.of(2020, 1, 1), LocalDate.of(2030, 12, 31)));
 
-		assertThat(response.startDate()).isEqualTo(LocalDate.now());
+		assertThat(response.startDate()).isEqualTo(LocalDate.now(KST));
 	}
 
 	@Test
