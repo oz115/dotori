@@ -118,8 +118,8 @@ class PointCashoutRequestServiceTest {
 	}
 
 	@Test
-	@DisplayName("승인에 성공하면 APPROVED 로 바뀌고 환급하지 않는다")
-	void 승인_성공시_APPROVED가_된다() {
+	@DisplayName("승인에 성공하면 SUCCEED 로 바뀌고 환급하지 않는다")
+	void 승인_성공시_SUCCEED가_된다() {
 		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
 		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
@@ -130,7 +130,7 @@ class PointCashoutRequestServiceTest {
 		PointCashoutRequestResult result = pointCashoutRequestService.approve(
 				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, PARENT_ID, KEY);
 
-		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.APPROVED);
+		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.SUCCEED);
 		assertThat(result.processedAt()).isNotNull();
 		verify(pointDeductionService, never()).refund(any(), anyInt(), any(), any());
 	}
@@ -215,7 +215,7 @@ class PointCashoutRequestServiceTest {
 	@DisplayName("이미 처리된 요청은 다시 승인할 수 없다")
 	void 이미_처리된_요청은_다시_승인할_수_없다() {
 		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
-		request.approve();
+		request.succeed();
 		given(familyMembershipReader.isParentOfFamily(FAMILY_ID, PARENT_ID)).willReturn(true);
 		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
 				.willReturn(Optional.of(request));
@@ -226,6 +226,47 @@ class PointCashoutRequestServiceTest {
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED);
 
 		verify(bankTransferClient, never()).transferFromParentToChild(any(), any(), anyInt(), any());
+	}
+
+	@Test
+	@DisplayName("자녀가 자기 PENDING 요청을 취소하면 환급하고 CANCELLED 가 된다")
+	void 자녀가_취소하면_환급하고_CANCELLED가_된다() {
+		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
+		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
+				.willReturn(Optional.of(request));
+
+		PointCashoutRequestResult result = pointCashoutRequestService.cancel(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, CHILD_ID, KEY);
+
+		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.CANCELLED);
+		verify(pointDeductionService).refund(eq(CHILD_ID), eq(1_000), any(), any());
+	}
+
+	@Test
+	@DisplayName("본인의 요청이 아니면 취소할 수 없다")
+	void 본인_요청이_아니면_취소할_수_없다() {
+		assertThatThrownBy(() -> pointCashoutRequestService.cancel(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, 999, KEY))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+		verify(pointCashoutRequestRepository, never()).findByCashoutRequestIdForUpdate(any());
+	}
+
+	@Test
+	@DisplayName("이미 처리된 요청은 취소할 수 없다")
+	void 이미_처리된_요청은_취소할_수_없다() {
+		PointCashoutRequest request = PointCashoutRequest.pending(FAMILY_ID, CHILD_ID, PARENT_ID, 1_000);
+		request.succeed();
+		given(pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(CASHOUT_REQUEST_ID))
+				.willReturn(Optional.of(request));
+
+		assertThatThrownBy(() -> pointCashoutRequestService.cancel(
+				CASHOUT_REQUEST_ID, FAMILY_ID, CHILD_ID, CHILD_ID, KEY))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED);
+
+		verify(pointDeductionService, never()).refund(any(), anyInt(), any(), any());
 	}
 
 	@Test

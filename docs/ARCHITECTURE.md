@@ -96,21 +96,28 @@ API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` �
 자녀가 포인트→현금 환전을 요청하면 그 즉시 포인트를 차감하고, 부모가 승인해야
 부모 계좌→자녀 계좌로 실제 송금이 일어난다. 요청과 승인이 서로 다른 트랜잭션이라,
 승인 중 송금이 실패하면 이미 커밋된 차감을 되돌릴 방법이 롤백이 아니라 별도의
-환급 거래(`REFUND`)뿐이다 — `point_cashout_requests.status` 를 `PENDING → APPROVED`
-또는 `PENDING → FAILED`(환급 완료)로 남겨 어느 쪽인지 구분한다. 명시적인 거절 액션은
-아직 없다 — 부모가 아무 조치도 하지 않으면 `PENDING` 으로 남는다.
+환급 거래(`REFUND`)뿐이다.
+
+`point_cashout_requests_status` (`backend/docker/initdb/01-schema.sql` 의 네이티브 ENUM)는
+`PENDING`/`PROGRESS`/`CANCELLED`/`SUCCEED`/`FAILED` 다섯 값을 갖는다. 지금 구현이 실제로
+쓰는 전이는 세 가지뿐이다.
+
+- `PENDING → SUCCEED`: 부모 승인, 송금 성공
+- `PENDING → FAILED`: 부모 승인 시도, 송금 실패 → 같은 트랜잭션에서 환급까지 끝내고 남김
+- `PENDING → CANCELLED`: 자녀가 자기 PENDING 요청을 직접 취소 → 환급
+
+`PROGRESS`는 스키마에는 있지만 지금은 쓰지 않는다(팀 결정, 비동기 처리로 갈 때 다시 본다).
+명시적인 "부모 거절"은 없다 — 부모가 아무 조치도 하지 않으면 `PENDING`으로 남고,
+취소는 자녀만 할 수 있다.
 
 | 대상 | 제약 | 이유 |
 | --- | --- | --- |
-| `point_cashout_requests.point_amount` | CHECK `> 0` | 음수·0 포인트 환전 요청 차단 |
-| `point_cashout_requests.child_id`/`parent_id` | FK → `users.user_id` | 존재하지 않는 사용자를 향한 요청 방지 |
+| `point_cashout_requests.child_id`/`parent_id`/`family_id` | FK → `users.user_id`/`families.family_id` | 존재하지 않는 사용자·가족을 향한 요청 방지 |
 
-API 명세의 `status` 컬럼은 네이티브 ENUM(`point_cashout_requests_status`)이지만,
-`schema.sql` 에서는 `users.role`/`point_transactions.transaction_type` 과 같은 이유로
-`VARCHAR` 로 둔다 — 이 파일은 세미콜론으로 문장을 쪼개 실행하는 구조라 `CREATE TYPE` 을
-멱등하게(`DO` 블록 없이) 만들 방법이 없다. 엔티티는 `@Enumerated(EnumType.STRING)` 이라
-컬럼이 `VARCHAR` 든 네이티브 ENUM 이든 동일하게 매핑되므로, 배포 DB에는 명세대로
-네이티브 ENUM 으로 만든다(수동 DDL, `DO` 블록 제약이 없는 환경이라 문제없다).
+`status` 컬럼은 네이티브 ENUM이라 `PointCashoutRequestStatus` 상수 이름이 DDL 라벨과
+정확히 같아야 한다(`users.role`, `point_transactions.transaction_type` 과 같은 이유).
+`application.yaml` 의 `stringtype=unspecified` 덕에 `@Enumerated(EnumType.STRING)` 매핑이
+그대로 통한다.
 
 #### 이미 만들어진 DB 에 적용해야 하는 변경
 

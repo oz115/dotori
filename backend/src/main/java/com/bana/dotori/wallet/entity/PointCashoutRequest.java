@@ -12,8 +12,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-import org.hibernate.annotations.Check;
-
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 
@@ -25,14 +23,15 @@ import lombok.NoArgsConstructor;
  * WLT-07 포인트 환전 요청 한 건.
  *
  * <p>자녀가 요청하면 포인트는 그 즉시 차감되고({@code PointDeductionService}, 이 요청과는
- * 별도 트랜잭션), 이 행은 PENDING 으로 남아 부모 승인을 기다린다. 승인되면 부모→자녀 실제
- * 송금이 일어나고 APPROVED 로 바뀐다. 송금이 실패하면 차감했던 포인트를 환급하고 FAILED 로
- * 남긴다. 명시적인 "거절"은 없다 — 부모가 아무 조치도 하지 않으면 PENDING 으로 남는다.
+ * 별도 트랜잭션), 이 행은 PENDING 으로 남아 부모 승인(또는 자녀의 취소)을 기다린다.
+ * 승인되면 부모→자녀 실제 송금이 일어나고 SUCCEED 로 바뀐다. 송금이 실패하면 차감했던
+ * 포인트를 환급하고 FAILED 로 남긴다. 자녀가 직접 취소하면 CANCELLED 로 남기고
+ * 마찬가지로 환급한다. 부모가 거절하는 액션은 없다 — 아무 조치도 하지 않으면 PENDING 으로
+ * 남는다.
  */
 @Entity
 @Getter
 @Table(name = "point_cashout_requests")
-@Check(name = "CK_POINT_CASHOUT_REQUESTS_AMOUNT_POSITIVE", constraints = "point_amount > 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PointCashoutRequest {
 
@@ -60,7 +59,7 @@ public class PointCashoutRequest {
 	private int pointAmount;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", length = 20, nullable = false)
+	@Column(name = "status", nullable = false)
 	private PointCashoutRequestStatus status;
 
 	@Column(name = "requested_at", nullable = false, updatable = false)
@@ -90,9 +89,9 @@ public class PointCashoutRequest {
 	 *
 	 * @throws BusinessException CASHOUT_REQUEST_ALREADY_PROCESSED PENDING 이 아닌 경우
 	 */
-	public void approve() {
+	public void succeed() {
 		requirePending();
-		this.status = PointCashoutRequestStatus.APPROVED;
+		this.status = PointCashoutRequestStatus.SUCCEED;
 		this.processedAt = OffsetDateTime.now(KST);
 	}
 
@@ -104,6 +103,17 @@ public class PointCashoutRequest {
 	public void fail() {
 		requirePending();
 		this.status = PointCashoutRequestStatus.FAILED;
+		this.processedAt = OffsetDateTime.now(KST);
+	}
+
+	/**
+	 * 자녀가 자기 요청을 직접 취소한다. 차감했던 포인트는 호출자가 별도로 환급한다.
+	 *
+	 * @throws BusinessException CASHOUT_REQUEST_ALREADY_PROCESSED PENDING 이 아닌 경우
+	 */
+	public void cancel() {
+		requirePending();
+		this.status = PointCashoutRequestStatus.CANCELLED;
 		this.processedAt = OffsetDateTime.now(KST);
 	}
 

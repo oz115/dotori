@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.PointExchangePolicy;
 import com.bana.dotori.wallet.dto.response.PointCashoutRequestResult;
 import com.bana.dotori.wallet.entity.PointCashoutRequest;
 import com.bana.dotori.wallet.entity.PointCashoutRequestStatus;
@@ -29,6 +30,9 @@ import lombok.extern.slf4j.Slf4j;
  * 대신, 같은 트랜잭션 안에서 환급까지 끝내고 요청을 FAILED 로 남긴 뒤 정상 반환한다.
  * (실패를 밖으로 던지면 방금 커밋하려던 환급·FAILED 전이까지 함께 롤백돼 버린다.)
  * 승인 요청이 결국 실패했다는 사실은 반환된 결과의 {@code status}로 호출자가 판단한다.
+ *
+ * <p>{@code point_cashout_requests_status} 는 스키마에 {@code PROGRESS} 도 갖고 있지만
+ * 지금 구현은 만들지 않는다(팀 결정). PENDING 은 바로 SUCCEED/FAILED/CANCELLED 로 끝난다.
  */
 @Slf4j
 @Service
@@ -37,6 +41,7 @@ public class PointCashoutRequestService {
 
 	private static final String REQUEST_DESCRIPTION = "포인트 환전 요청";
 	private static final String REFUND_DESCRIPTION = "환전 실패 환급";
+	private static final String CANCEL_REFUND_DESCRIPTION = "환전 요청 취소 환급";
 
 	private final PointDeductionService pointDeductionService;
 	private final PointCashoutRequestRepository pointCashoutRequestRepository;
@@ -78,7 +83,7 @@ public class PointCashoutRequestService {
 
 	/**
 	 * 부모가 그 가족의 자녀인지, 요청이 그 경로의 것인지, 아직 PENDING 인지 확인한 뒤
-	 * 부모→자녀 송금을 시도한다. 송금이 성공하면 APPROVED, 실패하면 환급 후 FAILED 를 돌려준다
+	 * 부모→자녀 송금을 시도한다. 송금이 성공하면 SUCCEED, 실패하면 환급 후 FAILED 를 돌려준다
 	 * (예외를 던지지 않는다 — 클래스 설명 참고).
 	 *
 	 * @throws BusinessException FORBIDDEN 해당 가족의 부모가 아닌 경우,
@@ -109,7 +114,7 @@ public class PointCashoutRequestService {
 					"이미 처리된 환전 요청입니다. cashoutRequestId=" + cashoutRequestId + ", status=" + request.getStatus());
 		}
 
-		int cashAmount = request.getPointAmount() * PointChargeService.KRW_PER_POINT;
+		int cashAmount = PointExchangePolicy.toWon(request.getPointAmount());
 		try {
 			BankTransferResult transfer = bankTransferClient.transferFromParentToChild(
 					request.getParentId(), childId, cashAmount, idempotencyKey);
@@ -118,7 +123,7 @@ public class PointCashoutRequestService {
 						"요청 금액과 이체 금액이 다릅니다. cashoutRequestId=" + cashoutRequestId
 								+ ", 요청=" + cashAmount + ", 이체=" + transfer.transferredAmount());
 			}
-			request.approve();
+			request.succeed();
 			log.info("환전 승인 완료. cashoutRequestId={}, familyId={}, childId={}, parentId={}, pointAmount={}",
 					cashoutRequestId, familyId, childId, request.getParentId(), request.getPointAmount());
 		} catch (BusinessException e) {
@@ -131,6 +136,47 @@ public class PointCashoutRequestService {
 			request.fail();
 		}
 
+		return PointCashoutRequestResult.from(request);
+	}
+
+	/**
+	 * 자녀가 자기 PENDING 요청을 직접 취소한다. 부모가 거절하는 액션은 없다 — 취소는
+	 * 요청을 만든 자녀만 할 수 있다. 차감했던 포인트는 즉시 환급한다.
+	 *
+	 * @throws BusinessException FORBIDDEN 본인의 요청이 아닌 경우,
+	 *         CASHOUT_REQUEST_NOT_FOUND 요청이 없거나 경로와 다른 경우,
+	 *         CASHOUT_REQUEST_ALREADY_PROCESSED 이미 처리된 요청인 경우
+	 */
+	@Transactional
+	public PointCashoutRequestResult cancel(Integer cashoutRequestId, Integer familyId, Integer childId,
+			Integer loginChildId, String idempotencyKey) {
+
+		if (!childId.equals(loginChildId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+					"본인의 환전 요청만 취소할 수 있습니다. loginUserId=" + loginChildId + ", childId=" + childId);
+		}
+
+		PointCashoutRequest request = pointCashoutRequestRepository.findByCashoutRequestIdForUpdate(cashoutRequestId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.CASHOUT_REQUEST_NOT_FOUND,
+						"환전 요청을 찾을 수 없습니다. cashoutRequestId=" + cashoutRequestId));
+
+		if (!request.getFamilyId().equals(familyId) || !request.getChildId().equals(childId)) {
+			throw new BusinessException(ErrorCode.CASHOUT_REQUEST_NOT_FOUND,
+					"경로와 일치하지 않는 환전 요청입니다. cashoutRequestId=" + cashoutRequestId
+							+ ", familyId=" + familyId + ", childId=" + childId);
+		}
+
+		if (request.getStatus() != PointCashoutRequestStatus.PENDING) {
+			throw new BusinessException(ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED,
+					"이미 처리된 환전 요청입니다. cashoutRequestId=" + cashoutRequestId + ", status=" + request.getStatus());
+		}
+
+		pointDeductionService.refund(childId, request.getPointAmount(), CANCEL_REFUND_DESCRIPTION,
+				idempotencyKey == null ? null : idempotencyKey + ":cancel");
+		request.cancel();
+
+		log.info("환전 요청 취소. cashoutRequestId={}, familyId={}, childId={}, pointAmount={}",
+				cashoutRequestId, familyId, childId, request.getPointAmount());
 		return PointCashoutRequestResult.from(request);
 	}
 

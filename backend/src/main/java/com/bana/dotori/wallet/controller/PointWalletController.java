@@ -231,4 +231,21 @@ public class PointWalletController {
 		}
 		return PointCashoutRequestResponse.from(result);
 	}
+
+	/**
+	 * WLT-07 환전 요청 취소. 자녀가 자기 PENDING 요청을 직접 취소하면 차감했던 포인트를
+	 * 즉시 돌려받는다. 부모가 거절하는 기능은 없다 — 취소는 요청을 만든 자녀만 할 수 있다.
+	 */
+	@PostMapping("/cashout-requests/{cashoutRequestId}/cancel")
+	public PointCashoutRequestResponse cancelCashoutRequest(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@PathVariable Integer cashoutRequestId,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+
+		PointCashoutRequestResult result = pointCashoutRequestService.cancel(
+				cashoutRequestId, familyId, childId, loginUserId, idempotencyKey);
+		return PointCashoutRequestResponse.from(result);
+	}
 }
