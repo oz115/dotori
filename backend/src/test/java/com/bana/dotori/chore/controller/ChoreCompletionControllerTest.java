@@ -27,10 +27,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
+import com.bana.dotori.chore.service.ChoreApprovalService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
 import com.bana.dotori.global.config.SecurityConfig;
 import com.bana.dotori.global.error.BusinessException;
@@ -51,6 +53,8 @@ class ChoreCompletionControllerTest {
 	private static final Integer REQUEST_ID = 100;
 	private static final String REQUESTS_URL = "/api/v1/families/10/children/2/chores/7/completion-requests";
 	private static final String LIST_URL = "/api/v1/families/10/children/2/chores/completion-requests";
+	private static final String APPROVE_URL =
+		"/api/v1/families/10/children/2/chores/completion-requests/100/approve";
 	private static final String CANCEL_URL = "/api/v1/families/10/children/2/chores/completion-requests/100";
 	private static final String TOKEN = "access-token";
 	private static final String BEARER = "Bearer " + TOKEN;
@@ -60,6 +64,9 @@ class ChoreCompletionControllerTest {
 
 	@MockitoBean
 	private ChoreCompletionService choreCompletionService;
+
+	@MockitoBean
+	private ChoreApprovalService choreApprovalService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
@@ -250,6 +257,72 @@ class ChoreCompletionControllerTest {
 				.content(body("null")))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("REWARD_NOT_EVALUATED"));
+	}
+
+	@Test
+	@DisplayName("승인하면 200과 지급된 보상을 반환한다")
+	void approveCompletion_ok() throws Exception {
+		givenAuthenticated();
+		given(choreApprovalService.approve(any(), any(), any(), any()))
+			.willReturn(new ChoreApprovalResponse(REQUEST_ID, ChoreCompletionStatus.SUCCEED, 500,
+				OffsetDateTime.of(2026, 9, 9, 21, 0, 0, 0, ZoneOffset.ofHours(9))));
+
+		mockMvc.perform(post(APPROVE_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.choreCompletionRequestId").value(REQUEST_ID))
+			.andExpect(jsonPath("$.status").value("SUCCEED"))
+			.andExpect(jsonPath("$.rewardPoints").value(500));
+
+		verify(choreApprovalService).approve(CHILD_ID, FAMILY_ID, CHILD_ID, REQUEST_ID);
+	}
+
+	@Test
+	@DisplayName("이미 처리된 요청을 승인하려 하면 409와 INVALID_STATUS 를 반환한다")
+	void approveCompletion_invalidStatus() throws Exception {
+		givenAuthenticated();
+		given(choreApprovalService.approve(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.INVALID_STATUS));
+
+		mockMvc.perform(post(APPROVE_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("INVALID_STATUS"));
+	}
+
+	@Test
+	@DisplayName("이번 주기에 이미 지급됐으면 409와 ALREADY_REWARDED 를 반환한다")
+	void approveCompletion_alreadyRewarded() throws Exception {
+		givenAuthenticated();
+		given(choreApprovalService.approve(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.ALREADY_REWARDED));
+
+		mockMvc.perform(post(APPROVE_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("ALREADY_REWARDED"));
+	}
+
+	@Test
+	@DisplayName("아이가 승인하려 하면 403을 반환한다")
+	void approveCompletion_forbidden() throws Exception {
+		givenAuthenticated();
+		given(choreApprovalService.approve(any(), any(), any(), any()))
+			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+		mockMvc.perform(post(APPROVE_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("승인에 토큰이 없으면 401을 반환한다")
+	void approveCompletion_unauthorized() throws Exception {
+		mockMvc.perform(post(APPROVE_URL))
+			.andExpect(status().isUnauthorized());
+
+		verify(choreApprovalService, never()).approve(any(), any(), any(), any());
 	}
 
 	@Test

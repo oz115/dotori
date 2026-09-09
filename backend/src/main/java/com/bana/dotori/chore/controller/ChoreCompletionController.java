@@ -12,20 +12,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
+import com.bana.dotori.chore.service.ChoreApprovalService;
 import com.bana.dotori.chore.service.ChoreCompletionService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 집안일 완료 인증 API (CHORE-08·11·12).
+ * 집안일 완료 인증 API (CHORE-07·08·09·11·12).
  *
- * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)는 부모가 호출한다. 경로는 같아도
- * 역할이 다르므로 서비스가 매번 호출자의 역할을 확인한다.
+ * <p>요청·취소(11·12)는 아이가, 대기함 조회(08)와 승인(09)은 부모가 호출한다.
+ * 경로는 같아도 역할이 다르므로 서비스가 매번 호출자의 역할을 확인한다.
  *
  * <p>취소 경로에 choreId 가 없는 것은 노션 명세를 그대로 따른 것이다. 요청 ID 하나로
  * 행을 찾을 수 있고, 그 행이 호출자 것인지는 서비스가 확인한다.
@@ -36,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class ChoreCompletionController {
 
 	private final ChoreCompletionService choreCompletionService;
+	private final ChoreApprovalService choreApprovalService;
 
 	/**
 	 * 부모 대기함 (CHORE-08).
@@ -57,6 +60,18 @@ public class ChoreCompletionController {
 		ChoreCompletionResponse response =
 			choreCompletionService.requestCompletion(userId, familyId, childId, choreId, request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
+
+	/**
+	 * 부모가 승인하고 보상을 지급한다 (CHORE-09 + CHORE-07).
+	 *
+	 * <p>상태 변경과 포인트 지급이 한 트랜잭션이다. 조회가 아니라 상태를 바꾸는 동작이라
+	 * PUT 이 아니라 POST 다 — 명세도 그렇게 정해져 있다.
+	 */
+	@PostMapping("/completion-requests/{requestId}/approve")
+	public ResponseEntity<ChoreApprovalResponse> approveCompletion(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer childId, @PathVariable Integer requestId) {
+		return ResponseEntity.ok(choreApprovalService.approve(userId, familyId, childId, requestId));
 	}
 
 	/**
