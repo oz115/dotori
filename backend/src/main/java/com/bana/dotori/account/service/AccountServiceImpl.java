@@ -204,6 +204,25 @@ public class AccountServiceImpl implements AccountService {
 			OffsetDateTime.now());
 	}
 
+	// 연동 계좌번호만 조회한다 (금융망 호출 없이 로컬 DB만 본다)
+	@Override
+	@Transactional(readOnly = true)
+	public String getLinkedAccountNumber(Integer userId) {
+		return accountRepository.findFirstByUserId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED))
+			.getAccountNumber();
+	}
+
+	// 연동된 계좌를 해제한다 (금융망에는 별도 해지 호출이 없어 로컬 레코드만 지운다)
+	@Override
+	@Transactional
+	public void unlinkAccount(Integer userId) {
+		Account account = accountRepository.findFirstByUserId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
+
+		accountRepository.delete(account);
+	}
+
 	private int indexOfTransaction(List<TransactionHistoryItem> items, String transactionUniqueNo) {
 		for (int i = 0; i < items.size(); i++) {
 			if (items.get(i).transactionUniqueNo().equals(transactionUniqueNo)) {

@@ -17,6 +17,8 @@ import jakarta.validation.Validator;
 
 class SignupRequestTest {
 
+	private static final String TOKEN = "vt_a1b2c3d4";
+
 	private static Validator validator;
 
 	@BeforeAll
@@ -34,7 +36,7 @@ class SignupRequestTest {
 	@DisplayName("모든 필드가 유효하면 위반이 없다")
 	void validate_success() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com",
-			UserRole.PARENT);
+			UserRole.PARENT, TOKEN);
 
 		Set<ConstraintViolation<SignupRequest>> violations = validator.validate(request);
 
@@ -44,7 +46,8 @@ class SignupRequestTest {
 	@Test
 	@DisplayName("loginId가 비어 있으면 위반이 발생한다")
 	void validate_blankLoginId() {
-		SignupRequest request = new SignupRequest(" ", "P@ssw0rd!", "김도토", "dotori@example.com", UserRole.PARENT);
+		SignupRequest request = new SignupRequest(" ", "P@ssw0rd!", "김도토", "dotori@example.com",
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("loginId");
 	}
@@ -53,7 +56,7 @@ class SignupRequestTest {
 	@DisplayName("loginId가 50자를 초과하면 위반이 발생한다")
 	void validate_tooLongLoginId() {
 		SignupRequest request = new SignupRequest("a".repeat(51), "P@ssw0rd!", "김도토", "dotori@example.com",
-			UserRole.PARENT);
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("loginId");
 	}
@@ -61,7 +64,8 @@ class SignupRequestTest {
 	@Test
 	@DisplayName("password가 비어 있으면 위반이 발생한다")
 	void validate_blankPassword() {
-		SignupRequest request = new SignupRequest("dotori123", "", "김도토", "dotori@example.com", UserRole.PARENT);
+		SignupRequest request = new SignupRequest("dotori123", "", "김도토", "dotori@example.com",
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("password");
 	}
@@ -70,7 +74,7 @@ class SignupRequestTest {
 	@DisplayName("password가 8자 미만이면 위반이 발생한다")
 	void validate_tooShortPassword() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ss1", "김도토", "dotori@example.com",
-			UserRole.PARENT);
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("password");
 	}
@@ -78,7 +82,8 @@ class SignupRequestTest {
 	@Test
 	@DisplayName("name이 비어 있으면 위반이 발생한다")
 	void validate_blankName() {
-		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "", "dotori@example.com", UserRole.PARENT);
+		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "", "dotori@example.com",
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("name");
 	}
@@ -87,7 +92,7 @@ class SignupRequestTest {
 	@DisplayName("name이 50자를 초과하면 위반이 발생한다")
 	void validate_tooLongName() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "가".repeat(51), "dotori@example.com",
-			UserRole.PARENT);
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("name");
 	}
@@ -95,7 +100,8 @@ class SignupRequestTest {
 	@Test
 	@DisplayName("email 형식이 올바르지 않으면 위반이 발생한다")
 	void validate_invalidEmail() {
-		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "not-an-email", UserRole.PARENT);
+		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "not-an-email",
+			UserRole.PARENT, TOKEN);
 
 		assertThat(violatedFields(request)).contains("email");
 	}
@@ -103,8 +109,18 @@ class SignupRequestTest {
 	@Test
 	@DisplayName("role이 null이면 위반이 발생한다")
 	void validate_nullRole() {
-		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com", null);
+		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com",
+			null, TOKEN);
 
 		assertThat(violatedFields(request)).contains("role");
+	}
+
+	@Test
+	@DisplayName("verificationToken이 비어 있으면 위반이 발생한다")
+	void validate_blankVerificationToken() {
+		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com",
+			UserRole.PARENT, " ");
+
+		assertThat(violatedFields(request)).contains("verificationToken");
 	}
 }

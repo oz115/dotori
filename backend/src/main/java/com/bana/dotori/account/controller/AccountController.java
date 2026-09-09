@@ -6,6 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -74,5 +75,12 @@ public class AccountController {
 		@Valid @RequestBody TransferRequest request,
 		@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 		return ResponseEntity.ok(accountService.transfer(userId, request, idempotencyKey));
+	}
+
+	// 계좌 연동 해제 API
+	@DeleteMapping("/me")
+	public ResponseEntity<Void> unlinkAccount(@AuthenticationPrincipal Integer userId) {
+		accountService.unlinkAccount(userId);
+		return ResponseEntity.noContent().build();
 	}
 }

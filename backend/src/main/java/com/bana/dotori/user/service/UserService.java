@@ -14,6 +14,14 @@ public interface UserService {
 	SignupResponse signup(SignupRequest request);
 
 	/**
+	 * 아이디 사용 가능 여부 확인 (회원가입 화면의 중복 체크 버튼).
+	 *
+	 * <p>사용 중이면 DUPLICATE_LOGIN_ID 를 던진다. 확인과 가입 사이에 다른 가입이
+	 * 끼어들 수 있으므로 signup 의 최종 중복 검사를 대체하지 않는다.
+	 */
+	void checkLoginIdAvailable(String loginId);
+
+	/**
 	 * MYPAGE-01 회원 정보 조회. 본인 계정만 조회할 수 있다.
 	 *
 	 * @param loginUserId  인증된 요청자

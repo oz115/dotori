@@ -6,11 +6,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.bana.dotori.auth.service.AuthService;
+import com.bana.dotori.auth.service.EmailVerificationCodeManager;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.PasswordPolicy;
 import com.bana.dotori.user.dto.ConnectedChildrenResponse;
 import com.bana.dotori.user.dto.PasswordChangeRequest;
 import com.bana.dotori.user.dto.SignupRequest;
@@ -30,10 +34,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-	// 회원가입(SignupRequest)의 @Size 와 같은 정책이다. 한쪽만 바뀌면 가입과 변경의 기준이 갈린다.
-	private static final int PASSWORD_MIN_LENGTH = 8;
-	private static final int PASSWORD_MAX_LENGTH = 64;
-
 	private final UserRepository userRepository;
 	private final UserMapper userMapper;
 	private final PasswordEncoder passwordEncoder;
@@ -41,11 +41,14 @@ public class UserServiceImpl implements UserService {
 	private final FamilyService familyService;
 	private final MyPageAccessPolicy accessPolicy;
 	private final RemainingAssetReader remainingAssetReader;
+	private final EmailVerificationCodeManager emailVerificationCodeManager;
 
 	@Override
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
 		SignupRequest normalized = normalizeEmail(request);
+		// 이메일 인증(AUTH-07)을 통과한 요청인지부터 확인한다. 인증 안 된 이메일로는 가입할 수 없다.
+		emailVerificationCodeManager.requireValidToken(normalized.email(), normalized.verificationToken());
 		if (userRepository.existsByLoginId(normalized.loginId())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
 		}
@@ -56,10 +59,38 @@ public class UserServiceImpl implements UserService {
 		User user = userMapper.toEntity(normalized, passwordEncoder.encode(normalized.password()));
 
 		try {
-			return userMapper.toSignupResponse(userRepository.save(user));
+			SignupResponse response = userMapper.toSignupResponse(userRepository.save(user));
+			consumeVerificationTokenAfterCommit(normalized.email());
+			return response;
 		} catch (DataIntegrityViolationException e) {
 			// 중복 체크와 save 사이에 동시 요청이 끼어들면 unique 제약 위반이 여기로 온다 → 409로 변환
 			throw new BusinessException(resolveDuplicateError(e));
+		}
+	}
+
+	/**
+	 * verificationToken(1회용) 소모는 커밋이 확정된 뒤에만 한다. 커밋 전에 지우면
+	 * 커밋 실패(롤백) 시 가입은 안 됐는데 토큰만 사라져 인증을 처음부터 다시 해야 한다.
+	 * (비밀번호 재설정의 토큰 소모와 같은 규칙 — AuthServiceImpl.resetPassword)
+	 */
+	private void consumeVerificationTokenAfterCommit(String email) {
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					emailVerificationCodeManager.deleteToken(email);
+				}
+			});
+		} else {
+			emailVerificationCodeManager.deleteToken(email);
+		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public void checkLoginIdAvailable(String loginId) {
+		if (userRepository.existsByLoginId(loginId)) {
+			throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
 		}
 	}
 
@@ -100,23 +131,13 @@ public class UserServiceImpl implements UserService {
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
 		}
-		validatePasswordPolicy(request.newPassword());
+		PasswordPolicy.validate(request.newPassword());
 
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
 
 		// 비밀번호를 바꾸는 이유가 유출일 수 있다. 기존 Refresh Token 을 남겨두면
 		// 훔쳐간 쪽이 계속 Access Token 을 재발급받으므로 전부 끊는다.
 		authService.revokeAllRefreshTokens(targetUserId);
-	}
-
-	private void validatePasswordPolicy(String newPassword) {
-		if (newPassword == null || newPassword.isBlank()
-			|| newPassword.length() < PASSWORD_MIN_LENGTH
-			|| newPassword.length() > PASSWORD_MAX_LENGTH) {
-
-			throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT,
-				"비밀번호는 공백 없이 " + PASSWORD_MIN_LENGTH + "자 이상 " + PASSWORD_MAX_LENGTH + "자 이하여야 합니다");
-		}
 	}
 
 	@Override
@@ -168,7 +189,7 @@ public class UserServiceImpl implements UserService {
 
 	private SignupRequest normalizeEmail(SignupRequest request) {
 		return new SignupRequest(request.loginId(), request.password(), request.name(),
-			request.email().toLowerCase(Locale.ROOT), request.role());
+			request.email().toLowerCase(Locale.ROOT), request.role(), request.verificationToken());
 	}
 
 	private ErrorCode resolveDuplicateError(DataIntegrityViolationException e) {

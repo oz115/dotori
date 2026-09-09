@@ -22,15 +22,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import com.bana.dotori.auth.service.EmailVerificationCodeManager;
 import com.bana.dotori.global.security.JwtTokenProvider;
-import com.bana.dotori.global.security.RefreshTokenCookieProvider;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.wallet.support.WalletTestFixture;
-import jakarta.servlet.http.Cookie;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * E2E - 마이페이지 요청 하나가 인증부터 실제 DB 까지 끝까지 도는지 확인한다.
@@ -62,6 +63,14 @@ class MyPageApiE2ETest {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	/**
+	 * 이메일 인증 토큰 검증만 목으로 대체한다. 회원가입이 verificationToken 을 요구하는데
+	 * 실제 인증은 메일 수신이 필요해 테스트에서 재현할 수 없고, Redis 의존도 생긴다.
+	 * 이 테스트의 관심사는 마이페이지 배선이지 이메일 인증이 아니다.
+	 */
+	@MockitoBean
+	private EmailVerificationCodeManager emailVerificationCodeManager;
 
 	private Integer parentId;
 	private Integer childId;
@@ -179,14 +188,13 @@ class MyPageApiE2ETest {
 		@DisplayName("변경에 성공하면 변경 전에 받은 Refresh Token 이 무효가 된다")
 		void 기존_Refresh_Token_이_끊긴다() throws Exception {
 			// 폐기 전에는 재발급이 된다는 것부터 확인해야, 뒤의 실패가 폐기 때문임이 분명해진다.
-			Cookie beforeChange = loginAndGetRefreshCookie("mypage-parent", PARENT_PASSWORD);
-			mockMvc.perform(post("/api/v1/auth/refresh").cookie(beforeChange))
-				.andExpect(status().isOk());
+			String beforeChange = loginAndGetRefreshToken("mypage-parent", PARENT_PASSWORD);
+			refresh(beforeChange).andExpect(status().isOk());
 
-			Cookie stillValid = loginAndGetRefreshCookie("mypage-parent", PARENT_PASSWORD);
+			String stillValid = loginAndGetRefreshToken("mypage-parent", PARENT_PASSWORD);
 			changePassword(PARENT_PASSWORD, "NewP@ssw0rd!").andExpect(status().isNoContent());
 
-			mockMvc.perform(post("/api/v1/auth/refresh").cookie(stillValid))
+			refresh(stillValid)
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
 		}
@@ -258,13 +266,12 @@ class MyPageApiE2ETest {
 		@DisplayName("탈퇴하면 로그인도 토큰 재발급도 막힌다")
 		void 탈퇴하면_계정이_막힌다() throws Exception {
 			detachChild();
-			Cookie refreshCookie = loginAndGetRefreshCookie("mypage-parent", PARENT_PASSWORD);
+			String refreshToken = loginAndGetRefreshToken("mypage-parent", PARENT_PASSWORD);
 
 			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
 
 			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isUnauthorized());
-			mockMvc.perform(post("/api/v1/auth/refresh").cookie(refreshCookie))
-				.andExpect(status().isUnauthorized());
+			refresh(refreshToken).andExpect(status().isUnauthorized());
 		}
 
 		@Test
@@ -338,7 +345,8 @@ class MyPageApiE2ETest {
 		mockMvc.perform(post("/api/v1/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@autotest.local", "role": "%s"}
+					{"loginId": "%s", "password": "%s", "name": "%s", "email": "%s@autotest.local", "role": "%s",
+					"verificationToken": "vt_autotest"}
 					""".formatted(loginId, password, name, loginId, role)))
 			.andExpect(status().isCreated());
 		return jdbcTemplate.queryForObject(
@@ -351,11 +359,19 @@ class MyPageApiE2ETest {
 			.content("{\"loginId\": \"%s\", \"password\": \"%s\"}".formatted(loginId, password)));
 	}
 
-	private Cookie loginAndGetRefreshCookie(String loginId, String password) throws Exception {
+	private String loginAndGetRefreshToken(String loginId, String password) throws Exception {
 		MvcResult result = login(loginId, password).andExpect(status().isOk()).andReturn();
-		Cookie cookie = result.getResponse().getCookie(RefreshTokenCookieProvider.COOKIE_NAME);
-		assertThat(cookie).isNotNull();
-		return cookie;
+		String refreshToken = new ObjectMapper()
+			.readTree(result.getResponse().getContentAsString())
+			.path("refreshToken").asText(null);
+		assertThat(refreshToken).isNotBlank();
+		return refreshToken;
+	}
+
+	private ResultActions refresh(String refreshToken) throws Exception {
+		return mockMvc.perform(post("/api/v1/auth/refresh")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"refreshToken\": \"%s\"}".formatted(refreshToken)));
 	}
 
 	/**

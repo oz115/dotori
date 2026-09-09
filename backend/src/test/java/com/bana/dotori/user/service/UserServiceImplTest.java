@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -26,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.auth.service.AuthService;
+import com.bana.dotori.auth.service.EmailVerificationCodeManager;
 import com.bana.dotori.family.dto.ConnectedChild;
 import com.bana.dotori.family.service.FamilyService;
 import com.bana.dotori.global.error.BusinessException;
@@ -61,6 +63,9 @@ class UserServiceImplTest {
 	@Mock
 	private RemainingAssetReader remainingAssetReader;
 
+	@Mock
+	private EmailVerificationCodeManager emailVerificationCodeManager;
+
 	@Spy
 	private UserMapper userMapper;
 
@@ -71,7 +76,8 @@ class UserServiceImplTest {
 	private UserServiceImpl userService;
 
 	private SignupRequest signupRequest() {
-		return new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com", UserRole.PARENT);
+		return new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "dotori@example.com", UserRole.PARENT,
+			"vt_a1b2c3d4");
 	}
 
 	@Test
@@ -95,7 +101,7 @@ class UserServiceImplTest {
 	@DisplayName("이메일은 소문자로 정규화되어 중복 체크·저장된다")
 	void signup_normalizesEmail() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "Dotori@Example.COM",
-			UserRole.PARENT);
+			UserRole.PARENT, "vt_a1b2c3d4");
 		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
 		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
@@ -106,6 +112,65 @@ class UserServiceImplTest {
 		assertThat(response.email()).isEqualTo("dotori@example.com");
 		verify(userRepository).existsByEmail("dotori@example.com");
 		verify(userRepository).save(argThat(user -> "dotori@example.com".equals(user.getEmail())));
+	}
+
+	@Test
+	@DisplayName("verificationToken이 유효하지 않으면 INVALID_VERIFICATION_TOKEN 예외가 발생하고 중복 검사에 가지 않는다")
+	void signup_invalidVerificationToken() {
+		willThrow(new BusinessException(ErrorCode.INVALID_VERIFICATION_TOKEN))
+			.given(emailVerificationCodeManager).requireValidToken("dotori@example.com", "vt_a1b2c3d4");
+
+		assertThatThrownBy(() -> userService.signup(signupRequest()))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_VERIFICATION_TOKEN);
+
+		verify(userRepository, never()).existsByLoginId(anyString());
+		verify(userRepository, never()).save(any(User.class));
+	}
+
+	@Test
+	@DisplayName("가입에 성공하면 verificationToken을 소모한다")
+	void signup_consumesVerificationToken() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
+		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
+		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		userService.signup(signupRequest());
+
+		verify(emailVerificationCodeManager).requireValidToken("dotori@example.com", "vt_a1b2c3d4");
+		verify(emailVerificationCodeManager).deleteToken("dotori@example.com");
+	}
+
+	@Test
+	@DisplayName("아이디가 중복이면 verificationToken을 소모하지 않는다")
+	void signup_keepsTokenOnDuplicate() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+
+		assertThatThrownBy(() -> userService.signup(signupRequest()))
+			.isInstanceOf(BusinessException.class);
+
+		verify(emailVerificationCodeManager, never()).deleteToken(anyString());
+	}
+
+	@Test
+	@DisplayName("아이디 중복 체크: 사용 가능한 아이디면 예외 없이 통과한다")
+	void checkLoginIdAvailable_success() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
+
+		userService.checkLoginIdAvailable("dotori123");
+	}
+
+	@Test
+	@DisplayName("아이디 중복 체크: 사용 중인 아이디면 DUPLICATE_LOGIN_ID 예외가 발생한다")
+	void checkLoginIdAvailable_duplicate() {
+		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+
+		assertThatThrownBy(() -> userService.checkLoginIdAvailable("dotori123"))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.DUPLICATE_LOGIN_ID);
 	}
 
 	@Test

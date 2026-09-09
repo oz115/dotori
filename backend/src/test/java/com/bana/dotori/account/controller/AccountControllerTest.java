@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -471,6 +473,39 @@ class AccountControllerTest {
 		mockMvc.perform(post(TRANSFER_URL)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(TRANSFER_BODY))
+			.andExpect(status().isUnauthorized());
+
+		then(accountService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("계좌 연동 해제 성공 시 204를 반환한다")
+	void unlinkAccount_success() throws Exception {
+		authenticateAs(1);
+
+		mockMvc.perform(delete(ME_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isNoContent());
+
+		then(accountService).should().unlinkAccount(1);
+	}
+
+	@Test
+	@DisplayName("연동된 계좌가 없으면 404와 ACCOUNT_NOT_LINKED 에러를 반환한다")
+	void unlinkAccount_notLinked() throws Exception {
+		authenticateAs(1);
+		willThrow(new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED)).given(accountService).unlinkAccount(1);
+
+		mockMvc.perform(delete(ME_URL)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + ACCESS_TOKEN))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("ACCOUNT_NOT_LINKED"));
+	}
+
+	@Test
+	@DisplayName("인증 헤더 없이 계좌 연동 해제를 요청하면 401을 반환한다")
+	void unlinkAccount_withoutAuth() throws Exception {
+		mockMvc.perform(delete(ME_URL))
 			.andExpect(status().isUnauthorized());
 
 		then(accountService).shouldHaveNoInteractions();

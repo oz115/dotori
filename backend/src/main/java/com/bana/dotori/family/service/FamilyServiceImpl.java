@@ -1,6 +1,5 @@
 package com.bana.dotori.family.service;
 
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,6 +25,7 @@ import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.RandomCodeGenerator;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
@@ -36,12 +36,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FamilyServiceImpl implements FamilyService {
 
-	// 초대 코드 문자셋 — 아이가 보고 입력하기 쉽도록 혼동되는 문자(0, O, 1, I)는 제외
-	private static final String CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 	private static final int CODE_LENGTH = 6;
 	private static final Duration CODE_TTL = Duration.ofMinutes(10);
 	private static final int CODE_GENERATION_MAX_ATTEMPTS = 10;
-	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
 	private final FamilyRepository familyRepository;
 	private final FamilyMemberRepository familyMemberRepository;
@@ -170,11 +167,7 @@ public class FamilyServiceImpl implements FamilyService {
 
 	private String generateUniqueCode() {
 		for (int attempt = 0; attempt < CODE_GENERATION_MAX_ATTEMPTS; attempt++) {
-			StringBuilder builder = new StringBuilder(CODE_LENGTH);
-			for (int i = 0; i < CODE_LENGTH; i++) {
-				builder.append(CODE_CHARACTERS.charAt(SECURE_RANDOM.nextInt(CODE_CHARACTERS.length())));
-			}
-			String code = builder.toString();
+			String code = RandomCodeGenerator.generate(CODE_LENGTH);
 			if (!familyCodeRepository.existsByCode(code)) {
 				return code;
 			}

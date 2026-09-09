@@ -21,8 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.auth.dto.LoginRequest;
-import com.bana.dotori.auth.dto.LoginResult;
-import com.bana.dotori.auth.dto.TokenRefreshResult;
+import com.bana.dotori.auth.dto.LoginResponse;
+import com.bana.dotori.auth.dto.TokenRefreshResponse;
 import com.bana.dotori.auth.entity.RefreshToken;
 import com.bana.dotori.auth.mapper.AuthMapper;
 import com.bana.dotori.auth.repository.RefreshTokenRepository;
@@ -85,14 +85,14 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.hashToken("refresh-token")).willReturn("refresh-hash");
 		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(1800L);
 
-		LoginResult result = authService.login(new LoginRequest("dotori123", "P@ssw0rd!"));
+		LoginResponse response = authService.login(new LoginRequest("dotori123", "P@ssw0rd!"));
 
-		assertThat(result.refreshToken()).isEqualTo("refresh-token");
-		assertThat(result.response().accessToken()).isEqualTo("access-token");
-		assertThat(result.response().tokenType()).isEqualTo("Bearer");
-		assertThat(result.response().expiresIn()).isEqualTo(1800L);
-		assertThat(result.response().user().userId()).isEqualTo(1);
-		assertThat(result.response().user().role()).isEqualTo(UserRole.PARENT);
+		assertThat(response.refreshToken()).isEqualTo("refresh-token");
+		assertThat(response.accessToken()).isEqualTo("access-token");
+		assertThat(response.tokenType()).isEqualTo("Bearer");
+		assertThat(response.expiresIn()).isEqualTo(1800L);
+		assertThat(response.user().userId()).isEqualTo(1);
+		assertThat(response.user().role()).isEqualTo(UserRole.PARENT);
 		verify(refreshTokenRepository).save(argThat(saved -> "refresh-hash".equals(saved.getTokenHash())));
 	}
 
@@ -131,10 +131,10 @@ class AuthServiceImplTest {
 		given(jwtTokenProvider.createRefreshToken(1)).willReturn("new-refresh");
 		given(jwtTokenProvider.getAccessTokenValiditySeconds()).willReturn(1800L);
 
-		TokenRefreshResult result = authService.refresh("old-refresh");
+		TokenRefreshResponse response = authService.refresh("old-refresh");
 
-		assertThat(result.response().accessToken()).isEqualTo("new-access");
-		assertThat(result.refreshToken()).isEqualTo("new-refresh");
+		assertThat(response.accessToken()).isEqualTo("new-access");
+		assertThat(response.refreshToken()).isEqualTo("new-refresh");
 		assertThat(stored.getRevokedAt()).isNotNull();
 		verify(refreshTokenRepository).save(argThat(saved -> "new-hash".equals(saved.getTokenHash())));
 	}

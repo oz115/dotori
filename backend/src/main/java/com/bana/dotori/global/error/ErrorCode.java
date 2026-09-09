@@ -26,12 +26,19 @@ public enum ErrorCode {
 	DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다"),
 	DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다"),
 
+	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "일치하는 회원이 없습니다"),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다"),
 	INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "비밀번호 형식이 올바르지 않습니다"),
 	PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치하지 않습니다"),
 	HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "잔여 자산이 있어 탈퇴할 수 없습니다"),
 	FAMILY_HAS_CHILDREN(HttpStatus.CONFLICT, "가족에 남은 자녀가 있어 탈퇴할 수 없습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
+
+	// 이메일 인증 (AUTH-07)
+	TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "인증 코드가 이미 발송되었습니다. 잠시 후 다시 시도해 주세요"),
+	INVALID_CODE(HttpStatus.BAD_REQUEST, "인증 코드가 일치하지 않거나 만료되었습니다"),
+	TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "인증 시도 횟수를 초과했습니다. 코드를 다시 발송해 주세요"),
+	INVALID_VERIFICATION_TOKEN(HttpStatus.UNAUTHORIZED, "인증 토큰이 만료되었거나 일치하지 않습니다"),
 
 	// 계좌 연동 (ACC-01·02)
 	ACCOUNT_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 계좌입니다"),
@@ -71,7 +78,11 @@ public enum ErrorCode {
 	// 상점 (SHOP)
 	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다"),
 	OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 없습니다"),
-	DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 이미 구매한 상품입니다");
+	DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "오늘 이미 구매한 상품입니다"),
+	PRICE_NOT_EVALUATED(HttpStatus.BAD_REQUEST, "아직 가격이 산정되지 않은 상품입니다"),
+
+	// 집안일 (CHORE)
+	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "집안일을 찾을 수 없습니다");
 
 	private final HttpStatus status;
 	private final String message;
