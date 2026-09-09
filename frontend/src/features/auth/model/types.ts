@@ -51,6 +51,13 @@ export type SignupBody = {
   verificationToken: string;
 };
 
+/**
+ * 인증코드 발송 용도. SIGNUP 만 동작이 다르다 —
+ * 이미 가입된 이메일이면 코드를 보내지 않고 409 DUPLICATE_EMAIL.
+ * (FIND_ID/PASSWORD_RESET/미지정은 계정 존재 여부를 노출하지 않음)
+ */
+export type EmailVerificationPurpose = 'SIGNUP' | 'FIND_ID' | 'PASSWORD_RESET';
+
 /** POST /api/v1/auth/email-verification/confirm */
 export type EmailConfirmResponse = {
   verified: boolean;
