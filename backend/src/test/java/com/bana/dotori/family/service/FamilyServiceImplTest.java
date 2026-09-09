@@ -243,6 +243,23 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("가족 설정 수정: 구성원이어도 생성자가 아니면 FORBIDDEN 예외가 발생한다")
+	void updateFamily_notCreator() {
+		// onboardedFamily 의 생성자는 1 — 같은 가족의 다른 부모(3)가 수정을 시도한다
+		given(userRepository.findById(3)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 3)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.updateFamily(3, 1,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(familyRepository, never()).saveAndFlush(any(Family.class));
+	}
+
+	@Test
 	@DisplayName("가족 설정 수정: 부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
 	void updateFamily_notParent() {
 		given(userRepository.findById(2)).willReturn(Optional.of(child()));

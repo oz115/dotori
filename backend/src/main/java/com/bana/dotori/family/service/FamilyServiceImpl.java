@@ -99,6 +99,10 @@ public class FamilyServiceImpl implements FamilyService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 		Family family = findMemberFamily(userId, familyId);
+		// 가족 관리는 생성자 한 명이 한다 — 삭제(deleteFamily)와 같은 기준
+		if (!family.getCreatedBy().equals(userId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
 
 		// 부분 수정이라 안 온(null) 금액은 환산도 하지 않고 그대로 둔다.
 		Integer allowancePoints = request.weeklyAllowance() == null

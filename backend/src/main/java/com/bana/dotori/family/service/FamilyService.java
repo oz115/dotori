@@ -18,7 +18,7 @@ public interface FamilyService {
 	FamilyCreateResponse create(Integer userId, FamilyCreateRequest request);
 
 	/**
-	 * 가족 이름·온보딩 설정 부분 수정. 그 가족의 부모 구성원만 할 수 있고, 안 보낸 필드는 그대로 둔다.
+	 * 가족 이름·온보딩 설정 부분 수정. 가족 생성자(부모)만 할 수 있고, 안 보낸 필드는 그대로 둔다.
 	 *
 	 * <p>금액은 원으로 받아 가족 생성과 같은 정책(최소 1000원·1000원 단위)으로 검증한 뒤
 	 * 포인트로 환산해 저장한다.
