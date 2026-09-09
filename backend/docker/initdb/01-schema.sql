@@ -222,6 +222,7 @@ CREATE TYPE task_difficulty AS ENUM (
    (현금화처럼 외부 송금을 기다리는 요청은 그 구간이 있어 PROGRESS 를 쓴다.) */
 CREATE TYPE chore_completion_requests_status AS ENUM (
     'PENDING',
+    'PROGRESS',
     'CANCELLED',
     'SUCCEED',
     'REJECTED'
@@ -1085,6 +1086,19 @@ family_codes
 ALTER TABLE "family_codes"
 ADD CONSTRAINT "UQ_FAMILY_CODES_CODE"
 UNIQUE ("code");
+
+
+/* ---------------------------------------------------------
+device_tokens
+
+같은 FCM 토큰이 여러 user_id 에 동시에 남아있으면 안 됨.
+기기가 재로그인하면 등록 API 가 이 유니크를 이용해
+기존 소유자를 새 user_id 로 갈아치우는 upsert 로 동작한다.
+--------------------------------------------------------- */
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "UQ_DEVICE_TOKENS_FCM_TOKEN"
+UNIQUE ("fcm_token");
 
 
 /* ---------------------------------------------------------
