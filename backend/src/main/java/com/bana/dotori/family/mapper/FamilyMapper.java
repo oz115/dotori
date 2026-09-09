@@ -10,19 +10,26 @@ import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.global.util.PointExchangePolicy;
 import com.bana.dotori.user.entity.User;
 
 @Component
 public class FamilyMapper {
 
-	public Family toEntity(FamilyCreateRequest request, Integer createdBy) {
+	/** 금액 두 개는 이미 포인트로 환산된 값을 받는다. 원→포인트 환산은 서비스가 한다. */
+	public Family toEntity(FamilyCreateRequest request, Integer createdBy, int allowancePoints,
+		int rewardLimitPoints) {
 		return Family.builder()
 			.name(request.name())
 			.createdBy(createdBy)
+			.weeklyAllowance(allowancePoints)
+			.weeklyRewardLimit(rewardLimitPoints)
+			.financialKnowledgeLevel(request.financialKnowledgeLevel())
 			.build();
 	}
 
@@ -31,9 +38,25 @@ public class FamilyMapper {
 			family.getCreatedAt());
 	}
 
+	/** 저장된 포인트를 요청과 같은 단위(원)로 되돌려 응답한다. */
+	public FamilyUpdateResponse toUpdateResponse(Family family) {
+		return new FamilyUpdateResponse(family.getId(), family.getName(),
+			toWon(family.getWeeklyAllowance()), toWon(family.getWeeklyRewardLimit()),
+			family.getFinancialKnowledgeLevel(), family.getUpdatedAt());
+	}
+
 	public FamilyResponse toFamilyResponse(Family family, int memberCount) {
 		return new FamilyResponse(family.getId(), family.getName(), family.getCreatedBy(), memberCount,
-			family.getCreatedAt());
+			toWon(family.getWeeklyAllowance()), toWon(family.getWeeklyRewardLimit()),
+			family.getFinancialKnowledgeLevel(), family.getCreatedAt());
+	}
+
+	/**
+	 * 저장 단위(포인트)를 화면 단위(원)로 되돌린다. 환산 자체는 {@link PointExchangePolicy#toWon} 이 하고,
+	 * 여기서는 온보딩 도입 전에 만들어진 가족의 null 만 통과시킨다 (공유 DB 재생성 전까지의 과도기 방어).
+	 */
+	private Integer toWon(Integer points) {
+		return points == null ? null : PointExchangePolicy.toWon(points);
 	}
 
 	public FamilyMembersResponse toMembersResponse(List<FamilyMember> members) {

@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,6 +18,8 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.service.FamilyService;
 
@@ -41,6 +44,13 @@ public class FamilyController {
 	public ResponseEntity<FamilyResponse> getFamily(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId) {
 		return ResponseEntity.ok(familyService.getFamily(userId, familyId));
+	}
+
+	// 가족 이름·온보딩 설정 부분 수정. 안 보낸 필드는 그대로 둔다.
+	@PatchMapping("/{familyId}")
+	public ResponseEntity<FamilyUpdateResponse> updateFamily(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @Valid @RequestBody FamilyUpdateRequest request) {
+		return ResponseEntity.ok(familyService.updateFamily(userId, familyId, request));
 	}
 
 	@GetMapping("/{familyId}/members")

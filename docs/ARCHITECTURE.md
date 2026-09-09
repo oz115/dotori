@@ -29,12 +29,25 @@
 
 | 엔티티 | 설명 | 주요 관계 |
 | --- | --- | --- |
-| Family | 부모 한 명이 생성하는 가족 그룹. 생성자만 해체할 수 있으며 `deleted_at`으로 소프트 삭제 | FamilyMember 1:N |
+| Family | 부모 한 명이 생성하는 가족 그룹. 생성자만 해체·설정 수정할 수 있으며 `deleted_at`으로 소프트 삭제. 온보딩 설정 3종(`weekly_allowance`·`weekly_reward_limit`·`financial_knowledge_level`)을 "가족 기본값"으로 보관한다 | FamilyMember 1:N |
 | FamilyMember | 부모 한 명과 여러 자녀의 가족 소속 이력. 활성 소속은 `deleted_at IS NULL`로 조회 | Family N:1, User N:1 |
 | FamilyCode | 가족 초대 코드(6자리, TTL 10분). `code`는 전역 UNIQUE — 코드만으로 가족을 특정하므로 중복이 생기면 연결 API가 죽는다. 재발급 시 기존 코드를 하드 삭제해 가족당 유효 코드 1개 유지 | Family N:1 |
 
 - 가족 해체 시 가족과 구성원 소속만 소프트 삭제하며, 포인트 등 거래·자산 이력은 삭제하지 않는다.
 - `family_codes`는 소프트 삭제 대상이 아니다(하드 삭제). 다만 해체된 가족의 코드는 정리되지 않고 남는다 — 연결 API가 가족의 `deleted_at`을 확인해 막는다.
+
+#### 가족 온보딩 설정 (S15P21A505-134)
+
+- **`families`의 금액 컬럼(`weekly_allowance`, `weekly_reward_limit`)은 원(₩)이 아니라 포인트 단위로 저장한다.**
+  부모가 원으로 입력하면 서버가 팀 환전 정책(현금 10원 = 포인트 1점, `global/util/PointExchangePolicy`)으로
+  환산해 저장하고, 응답으로 나갈 때만 원으로 되돌린다. 이 컬럼을 원으로 읽으면 한도가 10배로 계산되니 주의.
+- 금액 입력은 최소 1,000원·1,000원 단위만 허용한다 (검증은 `FamilyServiceImpl.toPoints`).
+- **소비처(퀴즈·예적금·투자·집안일)는 `families` 컬럼을 직접 조회하지 않고
+  `family/service/FamilySettingsReader`를 주입받아 읽는다** — 반환값은 포인트 단위다.
+  자녀별 차등 설정이 생기면 이 구현체만 바뀌고 소비처 코드는 그대로 두기 위한 경계로,
+  `childId`를 지금부터 파라미터로 받는다.
+- 환율(10원=1포인트)의 원본은 `PointExchangePolicy` 하나다. 원↔포인트 환산(`toPoints`/`toWon`)을
+  손으로 `* 10`, `/ 10` 하지 않는다 — 포인트 충전(지갑)과 가족 온보딩이 함께 쓴다.
 
 ### 스키마 관리 방식
 
@@ -53,8 +66,9 @@ Flyway 같은 마이그레이션 도구로 옮기면 위 두 문제가 사라지
 
 #### enum 컬럼을 varchar 로 두는 이유
 
-ERD 상 `users.role` 과 `point_transactions.transaction_type` 은 PG 네이티브 ENUM 이지만
-둘 다 `VARCHAR` 로 매핑했다. `ddl-auto: update` 가 네이티브 enum 타입을 제대로 다루지 못해
+ERD 상 `users.role` 과 `point_transactions.transaction_type`, 그리고 `families.financial_knowledge_level`
+(S15P21A505-134, `BEGINNER`/`INTERMEDIATE`/`ADVANCED`) 은 enum 값이지만
+모두 `VARCHAR` 로 매핑했다. `ddl-auto: update` 가 네이티브 enum 타입을 제대로 다루지 못해
 재기동 시 컬럼이 깨지기 때문이다. 스키마 관리가 스크립트나 Flyway 로 넘어가면 되돌리는 것이 맞다.
 
 #### 포인트 지갑 (S15P21A505-49~53)
@@ -77,26 +91,50 @@ ERD 상 `users.role` 과 `point_transactions.transaction_type` 은 PG 네이티�
 방향은 `balance_after` 의 변화로 알 수 있어 따로 저장하지 않는다.
 API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` 이 필요해지면 응답에서 계산한다.
 
-#### 스키마를 어디서 관리하나
+#### 이미 만들어진 DB 에 적용해야 하는 변경
 
-원본은 **`backend/docker/initdb/01-schema.sql` 하나**다 (노션 DDL과 동일 내용).
-`ddl-auto: none` 이므로 Hibernate 는 스키마를 만들지도 고치지도 않는다.
-엔티티를 고쳤으면 이 파일도 같은 커밋에서 고친다.
+`ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다.
+그래서 `backend/src/test/resources/schema.sql` 아래쪽이 위 제약들을
+`DROP CONSTRAINT IF EXISTS` → `ADD CONSTRAINT` 로 매번 다시 걸어 준다.
+테스트가 앱과 같은 DB 를 쓰므로, **테스트를 한 번 돌리면 그 DB 에는 자동으로 반영된다.**
 
-DB 는 역할로 두 개를 나눠 쓴다.
+테스트가 닿지 않는 DB(배포 환경 등)에는 손으로 한 번 실행한다.
+`init.sql` 최신화 때 같이 반영한다.
 
-- **로컬 도커 DB** — 테스트 전용. `docker compose -f docker-compose.local.yml up -d` 하면
-  컨테이너가 처음 뜰 때 위 스크립트로 스키마가 만들어진다. 스키마를 고친 뒤에는
-  `down -v` 로 볼륨을 지우고 다시 띄워야 반영된다.
-- **공용 EC2 DB** — QA 전용. 자동 반영이 없다. 인프라 담당자와 협의해 수동으로 실행한다
-  (스크립트 맨 위 `DROP` 이 데이터를 전부 날린다).
+```sql
+-- 멱등키 유일성을 (지갑, 키) 복합으로 좁힌다.
+ALTER TABLE point_transactions
+	DROP CONSTRAINT IF EXISTS uk_point_transactions_idempotency_key;
 
-예전에는 `ddl-auto: update` 가 스키마를 만들고, 그게 못 붙이는 제약을
-`backend/src/test/resources/schema.sql` 이 테스트마다 덧발랐다. 그 구조는 없앴다.
-DDL 로 만든 스키마 위에 Hibernate 가 엔티티 모양대로 컬럼을 덧붙여
-`point_wallets` 에 `child_id`(DDL)와 `user_id`(엔티티)가 함께 생기는 사고가 났고,
-테스트용 파일이 지갑 범위 6개 테이블만 담은 채 enum 컬럼을 `VARCHAR` 로 선언해
-실제 스키마와 어긋나 있었다.
+ALTER TABLE point_transactions
+	ADD CONSTRAINT uk_point_transactions_wallet_idempotency_key
+	UNIQUE (wallet_id, idempotency_key);
+
+-- WLT-06 거래내역 조회(커서 페이징)용 인덱스.
+CREATE INDEX IF NOT EXISTS ix_point_transactions_wallet_created_at
+	ON point_transactions (wallet_id, created_at, point_transaction_id);
+```
+
+가족 온보딩 설정(S15P21A505-134)의 새 컬럼도 같은 방식으로 반영한다.
+테이블을 DROP 후 재생성하는 일괄 최신화 전까지는 아래 ALTER 로 맞추고
+(과도기에는 기존 행 때문에 NULL 허용), 재생성 시 최종 DDL 에서 NOT NULL 로 조인다.
+
+```sql
+ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_allowance          INTEGER     NULL;
+ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_reward_limit       INTEGER     NULL;
+ALTER TABLE families ADD COLUMN IF NOT EXISTS financial_knowledge_level VARCHAR(20) NULL;
+```
+
+이미 서로 다른 지갑에 같은 멱등키가 들어가 있으면 두 번째 문장이 실패한다.
+그런 행이 있는지 먼저 확인한다.
+
+```sql
+SELECT idempotency_key, count(DISTINCT wallet_id)
+FROM point_transactions
+WHERE idempotency_key IS NOT NULL
+GROUP BY idempotency_key
+HAVING count(DISTINCT wallet_id) > 1;
+```
 
 ## API 설계 원칙
 
