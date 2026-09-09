@@ -81,7 +81,7 @@ export function ProgressIndicator({ total, current }: StepperProps) {
   );
 }
 
-const CIRCLE = 40;
+const CIRCLE = 35;
 
 const styles = StyleSheet.create({
   stepsRow: {

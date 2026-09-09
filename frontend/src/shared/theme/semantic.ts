@@ -9,13 +9,15 @@ export const colorLight = {
   background: {
     canvas: palette.neutral[0], // 페이지 기본 배경 (흰색)
     surface: palette.neutral[0], // 카드/시트
-    surfaceSunken: palette.neutral[200], // 섹션 구분용 연회색 영역 (#F2F5ED)
+    surfaceSunken: palette.neutral[300], // 섹션 구분용 연회색 영역 (#F2F5ED)
     overlay: 'rgba(39, 44, 38, 0.45)', // 모달 딤
   },
   text: {
     strong: palette.neutral[900], // 제목
     default: palette.neutral[700], // 본문
     muted: palette.neutral[400], // 보조 설명
+    sub: palette.neutral[500],
+    label: palette.neutral[500], // 폼 필드 라벨
     onBrand: palette.neutral[0], // 브랜드 배경 위 글자
     link: palette.green[600],
   },
