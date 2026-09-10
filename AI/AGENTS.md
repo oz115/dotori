@@ -28,12 +28,14 @@ AI/
 │   ├── core/         도메인에 종속되지 않는 공통 코드
 │   │   ├── config.py     설정 로딩
 │   │   ├── database.py   엔진/세션, ORM Base (경계 규칙 주석 필독)
+│   │   ├── models.py     여러 도메인이 공유하는 읽기 전용 매핑 (families)
+│   │   ├── points.py     가중치 -> 포인트 환산 규칙 (반올림, CHECK > 0 대응)
 │   │   └── security.py   내부 호출 토큰 검증
 │   ├── main.py       FastAPI 앱, 헬스체크, 도메인 라우터 등록
 │   ├── llm/
 │   │   └── client.py 공용 OpenAI 클라이언트 (도메인 서비스가 직접 SDK 를 import 하지 않는다)
-│   └── domains/      도메인별 패키지 (가격 책정 / 퀴즈 / 투자)
-│       └── {pricing,quiz,investment}/
+│   └── domains/      업무 영역별 패키지
+│       └── {shopping,work,quiz,investment}/
 │           ├── router.py    내부 API. `require_internal_token` 의존성 필수
 │           ├── services.py  비즈니스 로직, LLM 호출
 │           ├── schemas.py   요청/응답 Pydantic 모델
@@ -42,6 +44,21 @@ AI/
 ├── Dockerfile
 └── requirements.txt
 ```
+
+도메인은 **기능이 아니라 업무 영역**으로 가른다. `shopping`(상점 상품 가격)과
+`work`(할일 보상)를 하나의 `pricing` 으로 묶지 않는 이유는 두 가지다.
+
+- 기준 금액이 다르다. 상점은 `value * 하루 소득`, 할일은 `value * 주간 기본 용돈` 이다
+- 같은 `Base` 에 같은 `__tablename__` 을 두 번 등록하면 기동이 실패한다.
+  여러 도메인이 공유하는 `families` 는 `core/models.py` 한 곳에만 둔다
+
+공유해도 되는 것은 기준 금액이 아니라 반올림 규칙이라, `core/points.py` 에는 그 부분만 둔다.
+기준 금액을 구하는 코드는 그것을 쓰는 도메인에 둔다 (하루 소득 -> `shopping/services.py`).
+
+예적금은 도메인이 없다. 노션 「예/적금 상품 표 (Savings)」가 **이율·만기를 고정하고 가정별로
+다른 것은 상품당 최대 납입 가능 금액뿐**이라고 정했고, 그 역산은 규칙 기반이라 계산 주체가
+백엔드다. AI 는 그 범위 안에서 상품·납입 계획을 추천하고 계산 결과를 설명하는 몫만 갖는다.
+`docs/db-boundary.md` 도 예적금 테이블을 "접근 안 함" 으로 두고 있다.
 
 ## 코드 스타일
 
@@ -88,5 +105,8 @@ AI/
 
 - 네이밍/커밋 컨벤션은 [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md)를 따른다.
 - API 명세는 노션(작업 > API 명세)이 유일한 원본이다.
+- **기능 설계도 노션이 원본이다** (「AI 기능 정리」와 그 하위 페이지 — 가격 설정, 예/적금 상품 표,
+  투자, 회사 리스트). 배분 비율·이율·수식이 필요하면 거기서 확인한다.
+- 루트 `AI-docs/`는 gitignore 대상인 **개인 작업공간의 초안**이다. 노션에 옮겨지기 전 메모라
+  이미 폐기된 수치가 남아 있다. **코드 주석에서 근거로 인용하지 않는다.**
 - 환경변수는 `.env`(gitignore 대상)로 관리하고 `.env.example`을 최신 상태로 유지한다.
-- 설계 문서는 `backend/AI-docs/`에 있다 (git 추적 대상 아님).

@@ -53,20 +53,30 @@
 
 이제 `D = (A + B) / 7` 계산에 요청 파라미터가 아니라 DB 값을 바로 쓸 수 있다.
 
-### 2. `investment_news_products` 에 영향 방향이 없다
+### 2. 뉴스의 상승/하락 방향을 담을 곳이 없다
 
-컬럼이 `investment_news_product_id`, `investment_news_id`, `investment_product_id` 3개뿐이다.
-그런데 투자 설계(v3)의 핵심은 **하나의 뉴스가 회사마다 서로 다른 영향을 준다**는 것이다.
-지금 구조로는 "이 뉴스가 이 회사에 호재인지 악재인지"를 저장할 수 없다.
+`investment_news` 는 `title`, `content`, `published_at` 뿐이고
+`investment_news_products` 는 `investment_news_product_id`, `investment_news_id`,
+`investment_product_id` 3개뿐이다. **뉴스가 호재인지 악재인지 저장할 컬럼이 없다.**
 
-요청안 (`investment_news_products`):
+설계상 방향은 부가 정보가 아니라 핵심이다. 노션 「투자 (Investment)」는 하루 뉴스 3건을
+**상승 2건 + 하락 1건**으로 정해 두었고, 그 구성이 곧 주간 수익 한도를 만든다.
+
+요청안 (`investment_news`):
 
 | 컬럼 | 타입 | 의미 |
 | --- | --- | --- |
-| `impact` | ENUM/VARCHAR | `POSITIVE` / `NEGATIVE` / `NEUTRAL` |
-| `evidence_grade` | VARCHAR | 설계 v3 의 근거 등급 `A` / `B` |
+| `impact` | ENUM/VARCHAR | `POSITIVE` / `NEGATIVE` |
 
-담당: 투자 도메인 / 상태: **요청 전**
+`investment_news_products` 가 아니라 `investment_news` 에 두기를 요청한다.
+노션이 **`1 경제요인 : 1 회사`** 로 정해서 뉴스 하나가 가리키는 회사도 하나이기 때문이다.
+조인 테이블에 두면 "뉴스 A 는 회사 X 에 호재, 회사 Y 에 악재" 같은 상태를 표현할 수 있게
+되는데, 그건 지금 설계에 없는 경우다.
+
+설계 v3 의 `evidence_grade`(근거 등급 A/B)는 **더 이상 필요하지 않다.** 한 뉴스가 회사마다
+다른 영향을 주는 구조가 사라졌기 때문이다. 이전 요청안에서 철회한다.
+
+담당: 투자 도메인 / 상태: **요청 전** (1:1 확정에 맞춰 2026-09-10 재작성)
 
 ### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다
 

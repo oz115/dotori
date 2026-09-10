@@ -4,7 +4,8 @@
 백엔드(Spring Boot)와 같은 PostgreSQL 을 쓰고, 별도 프로세스로 뜬다.
 
 - 언어/프레임워크: Python 3.11, FastAPI
-- 설계 문서: [`backend/AI-docs/`](../backend/AI-docs) (git 추적 대상 아님, 개인 작업공간)
+- 설계 문서: 노션 「AI 기능 정리」와 그 하위 페이지 (유일한 원본)
+  - 루트 `AI-docs/`는 노션에 옮겨지기 전 개인 메모다. 폐기된 수치가 섞여 있어 근거로 쓰지 않는다
 
 ## 경계
 
