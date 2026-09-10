@@ -175,4 +175,13 @@ HAVING count(DISTINCT wallet_id) > 1;
 
 ## 외부 연동
 
--
+- **AWS S3** (`ap-northeast-2`, 버킷 `s15p21a505dotori`) — 집안일 인증 사진 (CHORE-13).
+  - 버킷은 **비공개**다. 앱만 IAM 액세스 키로 접근하고, 화면은 서버가 발급한 presigned URL 로 본다
+    (기본 10분). 앱에 키를 넣으면 그 키는 공개된 키가 되므로 클라이언트 직접 업로드는 하지 않는다.
+  - DB 에는 URL 이 아니라 **키**를 저장한다: `chores/{familyId}/{childId}/{uuid}.{jpg|png}`.
+    presigned URL 은 500자가 넘고 몇 분 뒤 만료돼 저장할 값이 못 된다.
+    경로에 가족·아이를 넣은 덕에 클라이언트가 보낸 키가 자기 것인지 검증할 수 있다.
+  - 코드는 `global/storage/PhotoStorage` 인터페이스로 감쌌다. 테스트에서는
+    `mock/storage/MockPhotoStorage`(`test` 프로파일)가 받으므로 버킷도 자격증명도 필요 없다.
+  - 업로드만 하고 완료 요청을 안 보내면 사진이 고아로 남는다. 정리는 버킷 라이프사이클 규칙 몫이다
+    (아직 안 걸었음).
