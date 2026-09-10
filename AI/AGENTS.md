@@ -16,6 +16,9 @@ AI 서버(`AI/`) 작업 시 참고하는 지침입니다. 저장소 공통 지�
 .\.venv\Scripts\Activate.ps1
 fastapi dev app/main.py          # 로컬 실행 (http://127.0.0.1:8000/docs)
 pip install -r requirements.txt  # 의존성 설치
+
+# 노트북(notebooks/)을 돌릴 때만. requirements.txt 에는 넣지 않는다
+pip install openai ipykernel
 ```
 
 DB 가 필요한 작업은 다른 창에서 터널을 먼저 연다: `ssh -N A505`
@@ -29,10 +32,16 @@ AI/
 │   ├── db.py         엔진/세션 (경계 규칙 주석 필독)
 │   ├── security.py   내부 호출 토큰 검증
 │   └── main.py       FastAPI 앱, 헬스체크
+├── notebooks/        프롬프트·산정 로직 실험용 주피터 노트북
 ├── docs/db-boundary.md  테이블별 읽기/쓰기 범위, 협의 필요 항목
 ├── Dockerfile
 └── requirements.txt
 ```
+
+`notebooks/` 는 LLM 프롬프트와 산정 수식을 먼저 눌러 보는 자리다. 서버 코드로 옮기기 전
+단계이므로 `app/` 을 import 하지 않고 자체적으로 완결되게 쓴다.
+노트북 전용 도구(`openai`, `ipykernel`)는 **`requirements.txt` 에 넣지 않는다** —
+배포 이미지에 들어가면 안 된다. 서버가 LLM 을 부르게 될 때 정식으로 추가한다.
 
 ## 코드 스타일
 
