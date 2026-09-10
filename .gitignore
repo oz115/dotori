@@ -11,7 +11,10 @@ Thumbs.db
 desktop.ini
 
 # === IDE ===
-# frontend/.vscode 는 팀 공유 설정이므로 전역 무시하지 않음
+# frontend/.vscode 는 팀 공유 설정이므로 전역 무시하지 않는다.
+# 대신 루트 .vscode 는 개인 설정이므로 앞에 / 를 붙여 루트만 무시한다
+# (Java 확장이 java.configuration.updateBuildConfiguration 을 여기에 써 넣는다).
+/.vscode/
 .idea/
 *.iml
 *.iws
