@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import {
   createFamilyErrorMessage,
@@ -42,11 +42,12 @@ export default function OnboardingKnowledgeScreen() {
         financialKnowledgeLevel: level,
       },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
           reset();
-          Alert.alert('가족이 만들어졌어요', '이제 아이를 초대해 함께 시작해요.', [
-            { text: '확인', onPress: () => router.replace('/') },
-          ]);
+          router.replace({
+            pathname: '/onboarding/invite',
+            params: { familyId: String(res.familyId) },
+          });
         },
         onError: (e) => setError(createFamilyErrorMessage(e)),
       },

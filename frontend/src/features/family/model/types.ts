@@ -25,3 +25,16 @@ export type FamilyCreateResponse = {
   createdBy: number;
   createdAt: string;
 };
+
+/** GET /api/v1/families/status */
+export type FamilyStatus = {
+  hasFamily: boolean;
+};
+
+/** POST /api/v1/families/{familyId}/invitations 응답 (201). code 는 6자리, 10분 TTL. */
+export type InvitationResponse = {
+  familyId: number;
+  code: string;
+  /** ISO 8601 만료 시각 */
+  expiresAt: string;
+};
