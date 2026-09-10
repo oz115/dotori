@@ -30,6 +30,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -178,6 +179,26 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있으면 hasFamily=true를 반환한다")
+	void getStatus_hasFamily() {
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isTrue();
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있지 않으면 hasFamily=false를 반환한다")
+	void getStatus_noFamily() {
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isFalse();
 	}
 
 	private Family onboardedFamily() {
