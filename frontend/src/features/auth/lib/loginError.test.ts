@@ -6,8 +6,11 @@ describe('loginErrorMessage', () => {
     expect(loginErrorMessage({ response: { status: 400 } })).toContain('비밀번호');
   });
 
-  it('falls back to a generic message otherwise', () => {
+  it('reports a network error (no response)', () => {
+    expect(loginErrorMessage(new Error('network'))).toContain('연결할 수 없');
+  });
+
+  it('falls back for other server errors', () => {
     expect(loginErrorMessage({ response: { status: 500 } })).toContain('잠시 후');
-    expect(loginErrorMessage(new Error('network'))).toContain('잠시 후');
   });
 });

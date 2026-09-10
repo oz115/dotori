@@ -84,7 +84,7 @@ export const typography = {
   },
   body: {
     fontFamily: fontFamily.regular,
-    fontSize: 16,
+    fontSize: 18,
     lineHeight: 24,
   },
   bodySm: {
@@ -94,7 +94,7 @@ export const typography = {
   },
   label: {
     fontFamily: fontFamily.medium,
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 18,
   },
   button: {
@@ -105,7 +105,7 @@ export const typography = {
   },
   caption: {
     fontFamily: fontFamily.regular,
-    fontSize: 12,
+    fontSize: 16,
     lineHeight: 16,
   },
 } as const satisfies Record<string, TextStyle>;

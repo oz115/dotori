@@ -1,5 +1,7 @@
 import { httpClient } from '@/shared/api';
 import type {
+  EmailConfirmResponse,
+  EmailVerificationPurpose,
   LoginBody,
   LoginResponse,
   RefreshResponse,
@@ -17,10 +19,32 @@ export const authApi = {
   signup: (body: SignupBody) =>
     httpClient.post('/api/v1/auth/signup', body).then((res) => res.data),
 
-  logout: () => httpClient.post('/api/v1/auth/logout'),
+  logout: (refreshToken: string) => httpClient.post('/api/v1/auth/logout', { refreshToken }),
 
   refresh: (refreshToken: string) =>
     httpClient
       .post<RefreshResponse>('/api/v1/auth/refresh', { refreshToken })
       .then((res) => res.data),
+
+  /** 아이디 중복 확인 — 사용 가능하면 204, 사용 중이면 409 DUPLICATE_LOGIN_ID */
+  checkLoginId: (loginId: string) => httpClient.post('/api/v1/auth/login-id/check', { loginId }),
+
+  emailVerification: {
+    send: (email: string, purpose?: EmailVerificationPurpose) =>
+      httpClient.post('/api/v1/auth/email-verification/send', { email, purpose }),
+    confirm: (email: string, code: string) =>
+      httpClient
+        .post<EmailConfirmResponse>('/api/v1/auth/email-verification/confirm', { email, code })
+        .then((res) => res.data),
+  },
+
+  findId: (body: { name: string; email: string; verificationToken: string }) =>
+    httpClient.post<{ loginId: string }>('/api/v1/auth/find-id', body).then((res) => res.data),
+
+  resetPassword: (body: {
+    loginId: string;
+    email: string;
+    verificationToken: string;
+    newPassword: string;
+  }) => httpClient.post('/api/v1/auth/password-reset', body),
 };

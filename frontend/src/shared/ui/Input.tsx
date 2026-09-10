@@ -10,19 +10,25 @@ type InputProps = TextInputProps & {
   /** 에러 메시지. 있으면 강조색과 메시지가 danger 로 바뀐다 */
   error?: string;
   /**
-   * line — 밑줄형 (Figma: 회원가입/계좌). 포커스 시 밑줄·글자가 브랜드 그린.
-   * box  — 박스형 (Figma: 로그인). 아이콘 슬롯, 포커스 시 테두리 그린.
+   * line — 밑줄형. 포커스 시 밑줄·글자가 브랜드 그린.
+   * box  — 박스형 (Figma: 로그인·회원가입). 아이콘/버튼 슬롯, 포커스 시 테두리 그린.
    */
   variant?: 'line' | 'box';
-  /** box 변형에서 왼쪽 아이콘 슬롯 */
+  /** box 변형: 그림자 (Figma 기준 로그인만 true, 회원가입 등은 false) */
+  elevated?: boolean;
+  /** box 변형: 왼쪽 아이콘 슬롯 */
   leftIcon?: ReactNode;
+  /** box 변형: 오른쪽 슬롯 (중복확인 버튼 등). secureTextEntry 와 동시 사용 불가 */
+  rightSlot?: ReactNode;
 };
 
 export function Input({
   label,
   error,
   variant = 'line',
+  elevated = false,
   leftIcon,
+  rightSlot,
   onFocus,
   onBlur,
   style,
@@ -71,14 +77,14 @@ export function Input({
   return (
     <View style={styles.container}>
       {label ? (
-        <Text style={[theme.typography.label, { color: theme.color.text.muted }]}>{label}</Text>
+        <Text style={[theme.typography.label, { color: theme.color.text.label }]}>{label}</Text>
       ) : null}
 
       {variant === 'box' ? (
         <View
           style={[
             styles.box,
-            theme.shadow.card,
+            elevated && theme.shadow.card,
             {
               minHeight: theme.layout.inputHeight,
               gap: theme.space.sm,
@@ -105,6 +111,7 @@ export function Input({
               />
             </Pressable>
           ) : null}
+          {rightSlot}
         </View>
       ) : (
         field

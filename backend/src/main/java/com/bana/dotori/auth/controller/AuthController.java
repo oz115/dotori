@@ -48,7 +48,7 @@ public class AuthController {
 	@PostMapping("/email-verification/send")
 	public ResponseEntity<Void> sendEmailVerificationCode(
 		@Valid @RequestBody EmailVerificationSendRequest request) {
-		emailVerificationService.sendCode(request.email());
+		emailVerificationService.sendCode(request.email(), request.purpose());
 		return ResponseEntity.noContent().build();
 	}
 

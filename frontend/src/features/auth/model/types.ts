@@ -15,12 +15,12 @@ export type AuthUser = {
  */
 export type AuthStatus = 'loading' | 'authenticated' | 'guest';
 
-/** POST /api/v1/auth/login — BE가 모바일용으로 refreshToken을 body에 포함 (예정) */
+/** POST /api/v1/auth/login */
 export type LoginResponse = {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   expiresIn: number;
-  refreshToken: string;
   user: {
     userId: number;
     name: string;
@@ -47,4 +47,19 @@ export type SignupBody = {
   name: string;
   email: string;
   role: UserRole;
+  /** 이메일 인증 확인에서 발급받은 토큰 (인증된 이메일만 가입 가능) */
+  verificationToken: string;
+};
+
+/**
+ * 인증코드 발송 용도. SIGNUP 만 동작이 다르다 —
+ * 이미 가입된 이메일이면 코드를 보내지 않고 409 DUPLICATE_EMAIL.
+ * (FIND_ID/PASSWORD_RESET/미지정은 계정 존재 여부를 노출하지 않음)
+ */
+export type EmailVerificationPurpose = 'SIGNUP' | 'FIND_ID' | 'PASSWORD_RESET';
+
+/** POST /api/v1/auth/email-verification/confirm */
+export type EmailConfirmResponse = {
+  verified: boolean;
+  verificationToken: string;
 };
