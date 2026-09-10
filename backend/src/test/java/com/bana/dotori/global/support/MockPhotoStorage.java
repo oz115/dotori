@@ -1,4 +1,4 @@
-package com.bana.dotori.mock.storage;
+package com.bana.dotori.global.support;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,7 +11,8 @@ import com.bana.dotori.global.storage.PhotoStorage;
 /**
  * 테스트용 {@link PhotoStorage}. 실제 S3 를 때리지 않고 메모리에 담아 둔다.
  *
- * <p>{@code MockBankTransferClient} 와 같은 자리다. 통합 테스트가 진짜 S3 를 쓰면 느려지고,
+ * <p>{@code wallet/support/MockBankTransferClient} 와 같은 자리다 — 외부 시스템 대역은
+ * {@code src/test} 에 둔다. 통합 테스트가 진짜 S3 를 쓰면 느려지고,
  * 액세스 키를 받지 못한 팀원은 테스트가 깨지고, 버킷에 쓰레기 파일이 쌓인다.
  *
  * <p>올린 내용을 들고 있는 이유는 테스트가 "무엇이 올라갔는지" 확인할 수 있게 하려는
