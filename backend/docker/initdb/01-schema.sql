@@ -497,6 +497,7 @@ CREATE TABLE "purchases" (
     "family_id"             INTEGER     NOT NULL,
     "child_id"              INTEGER     NOT NULL,
     "store_product_id"      INTEGER     NOT NULL,
+    "product_name"          VARCHAR(100) NOT NULL,
     "quantity"              INTEGER     DEFAULT 1 NOT NULL,
     "price"                 INTEGER     NOT NULL,
     "purchase_date"         DATE        DEFAULT CURRENT_DATE NOT NULL,
