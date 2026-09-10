@@ -34,7 +34,7 @@ export function Callout({ icon, title, description, action }: CalloutProps) {
     >
       {icon ? <View style={styles.icon}>{icon}</View> : null}
       <View style={styles.body}>
-        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>{title}</Text>
+        <Text style={[theme.typography.label, { color: theme.color.text.label }]}>{title}</Text>
         {description ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
             {description}

@@ -1,4 +1,4 @@
-import { apiErrorCode, isNetworkError } from '@/features/auth/lib/apiError';
+import { apiErrorCode, isNetworkError } from '@/shared/api';
 
 /** 이메일 인증(코드 발송·확인) 실패 원인 → 사용자 문구. */
 export function emailVerificationErrorMessage(error: unknown): string {

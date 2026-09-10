@@ -35,6 +35,7 @@ import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMemberResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -137,6 +138,30 @@ class FamilyControllerTest {
 				.content(CREATE_BODY))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("ALREADY_IN_FAMILY"));
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있으면 200과 hasFamily=true를 반환한다")
+	void getStatus_hasFamily() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(true));
+
+		mockMvc.perform(get(FAMILIES_URL + "/status")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.hasFamily").value(true));
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있지 않으면 200과 hasFamily=false를 반환한다")
+	void getStatus_noFamily() throws Exception {
+		givenParentAuthenticated(1);
+		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(false));
+
+		mockMvc.perform(get(FAMILIES_URL + "/status")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.hasFamily").value(false));
 	}
 
 	@Test
