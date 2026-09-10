@@ -1,6 +1,7 @@
 package com.bana.dotori.wallet.controller;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import jakarta.validation.Valid;
 
@@ -19,13 +20,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.wallet.dto.request.PointCashoutRequestCreateRequest;
 import com.bana.dotori.wallet.dto.request.PointChargeRequest;
 import com.bana.dotori.wallet.dto.request.PointGrantRequest;
 import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
+import com.bana.dotori.wallet.dto.response.PointCashoutRequestResponse;
+import com.bana.dotori.wallet.dto.response.PointCashoutRequestResult;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
 import com.bana.dotori.wallet.dto.response.PointTransactionResponse;
+import com.bana.dotori.wallet.entity.PointCashoutRequestStatus;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.service.PointCashoutRequestService;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
 import com.bana.dotori.wallet.service.PointWalletQueryService;
@@ -50,6 +56,7 @@ public class PointWalletController {
 	private final PointChargeService pointChargeService;
 	private final PointGrantService pointGrantService;
 	private final PointWalletQueryService pointWalletQueryService;
+	private final PointCashoutRequestService pointCashoutRequestService;
 
 	/**
 	 * WLT-04 보유 포인트 조회.
@@ -154,5 +161,108 @@ public class PointWalletController {
 		PointChangeResult result = pointGrantService.grant(
 				loginUserId, familyId, childId, request.amount(), request.description(), idempotencyKey);
 		return PointTransactionResponse.from(result);
+	}
+
+	/**
+	 * WLT-07 환전 요청. 자녀가 보유 포인트를 현금으로 바꿔 달라고 요청한다.
+	 * 요청 즉시 포인트가 차감되며, 실제 송금은 부모가 승인해야 일어난다.
+	 */
+	@PostMapping("/cashout-requests")
+	@ResponseStatus(HttpStatus.CREATED)
+	public PointCashoutRequestResponse createCashoutRequest(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+			@Valid @RequestBody PointCashoutRequestCreateRequest request) {
+
+		// 요청 즉시 본인 포인트가 빠진다. 남이 대신 부를 수 있으면 다른 사람 포인트를
+		// 마음대로 차감시키는 셈이 되므로 충전과 같은 이유로 본인 확인이 필수다.
+		if (!childId.equals(loginUserId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN,
+					"본인의 포인트만 환전 요청할 수 있습니다. loginUserId=" + loginUserId + ", childId=" + childId);
+		}
+
+		PointCashoutRequestResult result = pointCashoutRequestService.request(
+				familyId, childId, request.amount(), idempotencyKey);
+		return PointCashoutRequestResponse.from(result);
+	}
+
+	/**
+	 * WLT-07 환전 요청 목록 조회. 조회 권한은 잔액·거래내역과 같다 — 자녀 본인, 또는
+	 * 같은 가족의 부모.
+	 *
+	 * @param status 상태 필터. 생략하면 전체
+	 */
+	@GetMapping("/cashout-requests")
+	public List<PointCashoutRequestResponse> getCashoutRequests(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@RequestParam(required = false) PointCashoutRequestStatus status) {
+
+		return pointCashoutRequestService.list(familyId, childId, loginUserId, status).stream()
+				.map(PointCashoutRequestResponse::from)
+				.toList();
+	}
+
+	/**
+	 * WLT-07 환전 승인. 부모가 자녀의 환전 요청을 승인하면 부모 계좌에서 자녀 계좌로
+	 * 실제 송금이 일어난다. 호출자가 그 가족의 부모인지는 서비스가 확인한다.
+	 *
+	 * <p>송금이 실패하면 서비스가 차감했던 포인트를 자동으로 환급한다. 그 경우도
+	 * 여기서는 502 로 응답한다 — 클라이언트 입장에서는 "승인이 실패했다"이지,
+	 * 포인트가 정상으로 돌아왔다는 사실까지 알 필요는 없다.
+	 */
+	@PostMapping("/cashout-requests/{cashoutRequestId}/approve")
+	public PointCashoutRequestResponse approveCashoutRequest(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@PathVariable Integer cashoutRequestId,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+
+		PointCashoutRequestResult result = pointCashoutRequestService.approve(
+				cashoutRequestId, familyId, childId, loginUserId, idempotencyKey);
+
+		if (result.status() == PointCashoutRequestStatus.FAILED) {
+			throw new BusinessException(ErrorCode.BANK_TRANSFER_FAILED,
+					"환전 승인 중 송금이 실패해 포인트를 환급했습니다. cashoutRequestId=" + cashoutRequestId);
+		}
+		return PointCashoutRequestResponse.from(result);
+	}
+
+	/**
+	 * WLT-07 환전 요청 취소. 자녀가 자기 PENDING 요청을 직접 취소하면 차감했던 포인트를
+	 * 즉시 돌려받는다. 취소는 요청을 만든 자녀만 할 수 있다.
+	 */
+	@PostMapping("/cashout-requests/{cashoutRequestId}/cancel")
+	public PointCashoutRequestResponse cancelCashoutRequest(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@PathVariable Integer cashoutRequestId,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+
+		PointCashoutRequestResult result = pointCashoutRequestService.cancel(
+				cashoutRequestId, familyId, childId, loginUserId, idempotencyKey);
+		return PointCashoutRequestResponse.from(result);
+	}
+
+	/**
+	 * WLT-07 환전 요청 거절. 부모가 자녀의 환전 요청을 거절하면 차감했던 포인트를
+	 * 즉시 돌려받는다. 호출자가 그 가족의 부모인지는 서비스가 확인한다.
+	 */
+	@PostMapping("/cashout-requests/{cashoutRequestId}/decline")
+	public PointCashoutRequestResponse declineCashoutRequest(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId,
+			@PathVariable Integer cashoutRequestId,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+
+		PointCashoutRequestResult result = pointCashoutRequestService.decline(
+				cashoutRequestId, familyId, childId, loginUserId, idempotencyKey);
+		return PointCashoutRequestResponse.from(result);
 	}
 }

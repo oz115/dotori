@@ -23,10 +23,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.global.security.JwtTokenProvider;
-import com.bana.dotori.mock.bank.MockBankTransferClient;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
+import com.bana.dotori.wallet.support.MockBankTransferClient;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
 /**

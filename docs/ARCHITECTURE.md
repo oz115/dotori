@@ -91,6 +91,35 @@ ERD 상 `users.role` 과 `point_transactions.transaction_type`, 그리고 `famil
 방향은 `balance_after` 의 변화로 알 수 있어 따로 저장하지 않는다.
 API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` 이 필요해지면 응답에서 계산한다.
 
+#### 환전 요청 (WLT-07, S15P21A505-115)
+
+자녀가 포인트→현금 환전을 요청하면 그 즉시 포인트를 차감하고, 부모가 승인해야
+부모 계좌→자녀 계좌로 실제 송금이 일어난다. 요청과 승인이 서로 다른 트랜잭션이라,
+승인 중 송금이 실패하면 이미 커밋된 차감을 되돌릴 방법이 롤백이 아니라 별도의
+환급 거래(`REFUND`)뿐이다.
+
+`point_cashout_requests_status` (`backend/docker/initdb/01-schema.sql` 의 네이티브 ENUM)는
+`PENDING`/`PROGRESS`/`CANCELLED`/`DECLINED`/`SUCCEED`/`FAILED` 여섯 값을 갖는다. 지금
+구현이 실제로 쓰는 전이는 네 가지뿐이다.
+
+- `PENDING → SUCCEED`: 부모 승인, 송금 성공
+- `PENDING → FAILED`: 부모 승인 시도, 송금 실패 → 같은 트랜잭션에서 환급까지 끝내고 남김
+- `PENDING → CANCELLED`: 자녀가 자기 PENDING 요청을 직접 취소 → 환급
+- `PENDING → DECLINED`: 부모가 요청을 거절 → 환급. 승인과 같은 권한 규칙(그 가족의
+  어느 부모나)이고, 은행 송금은 일어나지 않는다
+
+`PROGRESS`는 스키마에는 있지만 지금은 쓰지 않는다(팀 결정, 비동기 처리로 갈 때 다시 본다).
+거절 사유를 남기는 컬럼은 없다 — 상태만 바뀐다(팀 결정).
+
+| 대상 | 제약 | 이유 |
+| --- | --- | --- |
+| `point_cashout_requests.child_id`/`parent_id`/`family_id` | FK → `users.user_id`/`families.family_id` | 존재하지 않는 사용자·가족을 향한 요청 방지 |
+
+`status` 컬럼은 네이티브 ENUM이라 `PointCashoutRequestStatus` 상수 이름이 DDL 라벨과
+정확히 같아야 한다(`users.role`, `point_transactions.transaction_type` 과 같은 이유).
+`application.yaml` 의 `stringtype=unspecified` 덕에 `@Enumerated(EnumType.STRING)` 매핑이
+그대로 통한다.
+
 #### 이미 만들어진 DB 에 적용해야 하는 변경
 
 `ddl-auto: update` 는 기존 테이블의 제약을 바꾸지 않는다.

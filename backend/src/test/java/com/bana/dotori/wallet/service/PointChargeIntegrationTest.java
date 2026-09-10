@@ -14,10 +14,10 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
-import com.bana.dotori.mock.bank.MockBankTransferClient;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointWallet;
 import com.bana.dotori.wallet.repository.PointWalletRepository;
+import com.bana.dotori.wallet.support.MockBankTransferClient;
 import com.bana.dotori.wallet.support.WalletTestFixture;
 
 /**

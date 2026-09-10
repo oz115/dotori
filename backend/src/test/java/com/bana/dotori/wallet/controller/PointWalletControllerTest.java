@@ -38,10 +38,13 @@ import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.wallet.dto.response.PointBalanceResponse;
 import com.bana.dotori.wallet.dto.response.CursorPage;
+import com.bana.dotori.wallet.dto.response.PointCashoutRequestResult;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.dto.response.PointTransactionHistoryResponse;
 import com.bana.dotori.wallet.dto.response.PointTransactionItem;
+import com.bana.dotori.wallet.entity.PointCashoutRequestStatus;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.service.PointCashoutRequestService;
 import com.bana.dotori.wallet.service.PointChargeService;
 import com.bana.dotori.wallet.service.PointGrantService;
 import com.bana.dotori.wallet.service.PointWalletQueryService;
@@ -77,6 +80,9 @@ class PointWalletControllerTest {
 
 	@MockitoBean
 	private PointWalletQueryService pointWalletQueryService;
+
+	@MockitoBean
+	private PointCashoutRequestService pointCashoutRequestService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
@@ -503,6 +509,193 @@ class PointWalletControllerTest {
 		private PointChangeResult grantResult(Integer transactionId, int amount, int balanceAfter) {
 			return new PointChangeResult(transactionId, 10,
 					PointTransactionReason.GRANT, amount, balanceAfter, OffsetDateTime.now(), false);
+		}
+	}
+
+	@Nested
+	@DisplayName("포인트 환전 요청/승인/거절/취소")
+	class Cashout {
+
+		private static final String CASHOUT_URL =
+				"/api/v1/families/{familyId}/children/{childId}/wallet/cashout-requests";
+		private static final String APPROVE_URL = CASHOUT_URL + "/{cashoutRequestId}/approve";
+		private static final String CANCEL_URL = CASHOUT_URL + "/{cashoutRequestId}/cancel";
+		private static final String DECLINE_URL = CASHOUT_URL + "/{cashoutRequestId}/decline";
+
+		@Test
+		@DisplayName("요청에 성공하면 201 과 PENDING 응답을 돌려준다")
+		void 요청_성공() throws Exception {
+			given(pointCashoutRequestService.request(eq(1), eq(2), eq(1_000), eq("cashout-001")))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.PENDING, null));
+
+			mockMvc.perform(post(CASHOUT_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.header("Idempotency-Key", "cashout-001")
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 1000}"))
+					.andExpect(status().isCreated())
+					.andExpect(jsonPath("$.cashoutRequestId").value(10))
+					.andExpect(jsonPath("$.status").value("PENDING"))
+					.andExpect(jsonPath("$.pointAmount").value(1_000));
+		}
+
+		@Test
+		@DisplayName("본인의 포인트가 아니면 요청하지 않고 403 으로 막는다")
+		void 본인이_아니면_403이다() throws Exception {
+			mockMvc.perform(post(CASHOUT_URL, 1, 2).with(loginAs(9, "CHILD"))
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 1000}"))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+			verify(pointCashoutRequestService, never()).request(any(), any(), any(Integer.class), any());
+		}
+
+		@Test
+		@DisplayName("금액이 0 이하면 서비스를 호출하지 않고 400 으로 막는다")
+		void 잘못된_금액은_400이다() throws Exception {
+			mockMvc.perform(post(CASHOUT_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 0}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+			verify(pointCashoutRequestService, never()).request(any(), any(), any(Integer.class), any());
+		}
+
+		@Test
+		@DisplayName("잔액이 부족하면 400 INSUFFICIENT_POINT 로 매핑한다")
+		void 잔액_부족은_400이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.INSUFFICIENT_POINT, "잔액 부족"))
+					.given(pointCashoutRequestService).request(any(), any(), any(Integer.class), any());
+
+			mockMvc.perform(post(CASHOUT_URL, 1, 2).with(loginAs(2, "CHILD"))
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"amount\": 1000}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("INSUFFICIENT_POINT"));
+		}
+
+		@Test
+		@DisplayName("목록 조회에 성공하면 200 과 배열을 돌려준다")
+		void 목록_조회_성공() throws Exception {
+			given(pointCashoutRequestService.list(eq(1), eq(2), eq(2), isNull()))
+					.willReturn(List.of(cashoutResult(10, PointCashoutRequestStatus.PENDING, null)));
+
+			mockMvc.perform(get(CASHOUT_URL, 1, 2).with(loginAs(2, "CHILD")))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$[0].cashoutRequestId").value(10))
+					.andExpect(jsonPath("$[0].status").value("PENDING"));
+		}
+
+		@Test
+		@DisplayName("status 를 넘기면 그대로 서비스에 전달한다")
+		void 상태_필터를_그대로_넘긴다() throws Exception {
+			given(pointCashoutRequestService.list(eq(1), eq(2), eq(9), eq(PointCashoutRequestStatus.SUCCEED)))
+					.willReturn(List.of());
+
+			mockMvc.perform(get(CASHOUT_URL, 1, 2).with(loginAs(9, "PARENT"))
+							.param("status", "SUCCEED"))
+					.andExpect(status().isOk());
+
+			verify(pointCashoutRequestService).list(1, 2, 9, PointCashoutRequestStatus.SUCCEED);
+		}
+
+		@Test
+		@DisplayName("승인에 성공하면 200 과 SUCCEED 응답을 돌려준다")
+		void 승인_성공() throws Exception {
+			given(pointCashoutRequestService.approve(eq(10), eq(1), eq(2), eq(9), eq("approve-001")))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.SUCCEED, OffsetDateTime.now()));
+
+			mockMvc.perform(post(APPROVE_URL, 1, 2, 10).with(loginAs(9, "PARENT"))
+							.header("Idempotency-Key", "approve-001"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.status").value("SUCCEED"))
+					.andExpect(jsonPath("$.processedAt").exists());
+		}
+
+		@Test
+		@DisplayName("승인 중 송금이 실패하면(FAILED) 502 BANK_TRANSFER_FAILED 로 매핑한다")
+		void 승인_실패는_502다() throws Exception {
+			given(pointCashoutRequestService.approve(eq(10), eq(1), eq(2), eq(9), any()))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.FAILED, OffsetDateTime.now()));
+
+			mockMvc.perform(post(APPROVE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
+					.andExpect(status().isBadGateway())
+					.andExpect(jsonPath("$.code").value("BANK_TRANSFER_FAILED"));
+		}
+
+		@Test
+		@DisplayName("해당 가족의 부모가 아니면 403 FORBIDDEN 으로 매핑한다")
+		void 승인_권한없음은_403이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN, "가족 부모 아님"))
+					.given(pointCashoutRequestService).approve(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(APPROVE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+		}
+
+		@Test
+		@DisplayName("취소에 성공하면 200 과 CANCELLED 응답을 돌려준다")
+		void 취소_성공() throws Exception {
+			given(pointCashoutRequestService.cancel(eq(10), eq(1), eq(2), eq(2), eq("cancel-001")))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.CANCELLED, OffsetDateTime.now()));
+
+			mockMvc.perform(post(CANCEL_URL, 1, 2, 10).with(loginAs(2, "CHILD"))
+							.header("Idempotency-Key", "cancel-001"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.status").value("CANCELLED"));
+		}
+
+		@Test
+		@DisplayName("이미 처리된 요청은 409 CASHOUT_REQUEST_ALREADY_PROCESSED 로 매핑한다")
+		void 이미_처리된_요청_취소는_409다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED, "이미 처리됨"))
+					.given(pointCashoutRequestService).cancel(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(CANCEL_URL, 1, 2, 10).with(loginAs(2, "CHILD")))
+					.andExpect(status().isConflict())
+					.andExpect(jsonPath("$.code").value("CASHOUT_REQUEST_ALREADY_PROCESSED"));
+		}
+
+		@Test
+		@DisplayName("거절에 성공하면 200 과 DECLINED 응답을 돌려준다")
+		void 거절_성공() throws Exception {
+			given(pointCashoutRequestService.decline(eq(10), eq(1), eq(2), eq(9), eq("decline-001")))
+					.willReturn(cashoutResult(10, PointCashoutRequestStatus.DECLINED, OffsetDateTime.now()));
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT"))
+							.header("Idempotency-Key", "decline-001"))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.status").value("DECLINED"));
+		}
+
+		@Test
+		@DisplayName("해당 가족의 부모가 아니면 거절하지 않고 403 FORBIDDEN 으로 매핑한다")
+		void 거절_권한없음은_403이다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN, "가족 부모 아님"))
+					.given(pointCashoutRequestService).decline(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
+					.andExpect(status().isForbidden())
+					.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+		}
+
+		@Test
+		@DisplayName("이미 처리된 요청 거절은 409 CASHOUT_REQUEST_ALREADY_PROCESSED 로 매핑한다")
+		void 이미_처리된_요청_거절은_409다() throws Exception {
+			willThrow(new BusinessException(ErrorCode.CASHOUT_REQUEST_ALREADY_PROCESSED, "이미 처리됨"))
+					.given(pointCashoutRequestService).decline(any(), any(), any(), any(), any());
+
+			mockMvc.perform(post(DECLINE_URL, 1, 2, 10).with(loginAs(9, "PARENT")))
+					.andExpect(status().isConflict())
+					.andExpect(jsonPath("$.code").value("CASHOUT_REQUEST_ALREADY_PROCESSED"));
+		}
+
+		private PointCashoutRequestResult cashoutResult(Integer cashoutRequestId, PointCashoutRequestStatus status,
+				OffsetDateTime processedAt) {
+			return new PointCashoutRequestResult(cashoutRequestId, 1, 2, 3, 1_000, status,
+					OffsetDateTime.now(), processedAt);
 		}
 	}
 
