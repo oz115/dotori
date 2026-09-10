@@ -17,8 +17,9 @@ AI 서버(`AI/`) 작업 시 참고하는 지침입니다. 저장소 공통 지�
 fastapi dev app/main.py          # 로컬 실행 (http://127.0.0.1:8000/docs)
 pip install -r requirements.txt  # 의존성 설치
 
-# 노트북(notebooks/)을 돌릴 때만. requirements.txt 에는 넣지 않는다
-pip install openai ipykernel
+# 노트북(notebooks/)을 돌릴 때만. 배포 이미지에 들어가면 안 되므로
+# requirements.txt 에는 넣지 않는다 (openai 는 requirements.txt 에 이미 있다)
+pip install ipykernel
 ```
 
 DB 가 필요한 작업은 다른 창에서 터널을 먼저 연다: `ssh -N A505`
@@ -28,20 +29,46 @@ DB 가 필요한 작업은 다른 창에서 터널을 먼저 연다: `ssh -N A50
 ```
 AI/
 ├── app/
-│   ├── config.py     설정 로딩
-│   ├── db.py         엔진/세션 (경계 규칙 주석 필독)
-│   ├── security.py   내부 호출 토큰 검증
-│   └── main.py       FastAPI 앱, 헬스체크
+│   ├── core/         도메인에 종속되지 않는 공통 코드
+│   │   ├── config.py     설정 로딩
+│   │   ├── database.py   엔진/세션, ORM Base (경계 규칙 주석 필독)
+│   │   ├── models.py     여러 도메인이 공유하는 읽기 전용 매핑 (families)
+│   │   ├── points.py     가중치 -> 포인트 환산 규칙 (반올림, CHECK > 0 대응)
+│   │   └── security.py   내부 호출 토큰 검증
+│   ├── main.py       FastAPI 앱, 헬스체크, 도메인 라우터 등록
+│   ├── llm/
+│   │   └── client.py 공용 OpenAI 클라이언트 (도메인 서비스가 직접 SDK 를 import 하지 않는다)
+│   └── domains/      업무 영역별 패키지
+│       └── {shopping,work,quiz,investment}/
+│           ├── router.py    내부 API. `require_internal_token` 의존성 필수
+│           ├── services.py  비즈니스 로직, LLM 호출
+│           ├── schemas.py   요청/응답 Pydantic 모델
+│           └── models.py    기존 테이블 매핑 (도메인이 쓰는 컬럼만)
 ├── notebooks/        프롬프트·산정 로직 실험용 주피터 노트북
 ├── docs/db-boundary.md  테이블별 읽기/쓰기 범위, 협의 필요 항목
 ├── Dockerfile
 └── requirements.txt
 ```
 
-`notebooks/` 는 LLM 프롬프트와 산정 수식을 먼저 눌러 보는 자리다. 서버 코드로 옮기기 전
-단계이므로 `app/` 을 import 하지 않고 자체적으로 완결되게 쓴다.
-노트북 전용 도구(`openai`, `ipykernel`)는 **`requirements.txt` 에 넣지 않는다** —
-배포 이미지에 들어가면 안 된다. 서버가 LLM 을 부르게 될 때 정식으로 추가한다.
+도메인은 **기능이 아니라 업무 영역**으로 가른다. `shopping`(상점 상품 가격)과
+`work`(할일 보상)를 하나의 `pricing` 으로 묶지 않는 이유는 두 가지다.
+
+- 기준 금액이 다르다. 상점은 `value * 하루 소득`, 할일은 `value * 주간 기본 용돈` 이다
+- 같은 `Base` 에 같은 `__tablename__` 을 두 번 등록하면 기동이 실패한다.
+  여러 도메인이 공유하는 `families` 는 `core/models.py` 한 곳에만 둔다
+
+공유해도 되는 것은 기준 금액이 아니라 반올림 규칙이라, `core/points.py` 에는 그 부분만 둔다.
+기준 금액을 구하는 코드는 그것을 쓰는 도메인에 둔다 (하루 소득 -> `shopping/services.py`).
+
+예적금은 도메인이 없다. 노션 「예/적금 상품 표 (Savings)」가 **이율·만기를 고정하고 가정별로
+다른 것은 상품당 최대 납입 가능 금액뿐**이라고 정했고, 그 역산은 규칙 기반이라 계산 주체가
+백엔드다. AI 는 그 범위 안에서 상품·납입 계획을 추천하고 계산 결과를 설명하는 몫만 갖는다.
+`docs/db-boundary.md` 도 예적금 테이블을 "접근 안 함" 으로 두고 있다.
+
+`notebooks/` 는 LLM 프롬프트와 산정 수식을 서버 코드로 옮기기 전에 먼저 눌러 보는 자리다.
+`app/` 을 import 하지 않고 자체적으로 완결되게 쓴다 — 구조가 바뀌어도 노트북이 깨지지 않게.
+노트북 전용 도구(`ipykernel`)는 **`requirements.txt` 에 넣지 않는다.** 배포 이미지에
+들어가면 안 된다.
 
 ## 코드 스타일
 
@@ -55,8 +82,9 @@ AI/
 ## DB 규칙 (필독)
 
 **이 서버는 DB 테이블을 하나도 소유하지 않는다.** 팀원들이 이미 만들어 둔 테이블을
-활용하는 것이 이 서버의 역할이다. 스키마 주인은 백엔드(Spring)이고,
-`ddl-auto: update` 로 Hibernate 가 엔티티에서 테이블을 만든다.
+활용하는 것이 이 서버의 역할이다. 스키마 주인은 백엔드(Spring)이고, `ddl-auto: none` 이라
+Hibernate 가 스키마를 만들지도 바꾸지도 않는다 — 원본은
+`backend/docker/initdb/01-schema.sql` 이다.
 
 ### 절대 하지 않는 것
 
@@ -68,12 +96,15 @@ AI/
 
 ### 필요한 컬럼이 없을 때
 
-혼자 처리할 수 없다. 컬럼은 백엔드 엔티티에 선언되어야 Hibernate 가 만들기 때문이다.
+혼자 처리할 수 없다. `ddl-auto: none` 이라 Hibernate 가 컬럼을 만들어 주지 않고,
+스키마 원본인 `backend/docker/initdb/01-schema.sql` 을 고쳐야 하기 때문이다.
 
 1. 어느 도메인 담당자의 테이블인지 확인한다
 2. 컬럼 이름·타입·의미를 정리해서 담당자에게 요청한다
-3. 합의되면 담당자가 엔티티에 선언하고, DB 에 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
-4. 합의 내용을 [docs/db-boundary.md](docs/db-boundary.md) 에 기록한다
+3. 합의되면 담당자가 **엔티티와 `01-schema.sql` 을 함께** 고친다.
+   공유 EC2 DB 에는 자동 반영되지 않으므로 인프라 담당자와 반영 시점을 맞춘다
+4. DB 에 실제로 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
+5. 합의 내용을 [docs/db-boundary.md](docs/db-boundary.md) 에 기록한다
 
 지금 열려 있는 요청은 [docs/db-boundary.md](docs/db-boundary.md) 의
 "협의가 필요한 항목" 에 정리해 두었다.
@@ -88,5 +119,8 @@ AI/
 
 - 네이밍/커밋 컨벤션은 [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md)를 따른다.
 - API 명세는 노션(작업 > API 명세)이 유일한 원본이다.
+- **기능 설계도 노션이 원본이다** (「AI 기능 정리」와 그 하위 페이지 — 가격 설정, 예/적금 상품 표,
+  투자, 회사 리스트). 배분 비율·이율·수식이 필요하면 거기서 확인한다.
+- 루트 `AI-docs/`는 gitignore 대상인 **개인 작업공간의 초안**이다. 노션에 옮겨지기 전 메모라
+  이미 폐기된 수치가 남아 있다. **코드 주석에서 근거로 인용하지 않는다.**
 - 환경변수는 `.env`(gitignore 대상)로 관리하고 `.env.example`을 최신 상태로 유지한다.
-- 설계 문서는 `backend/AI-docs/`에 있다 (git 추적 대상 아님).

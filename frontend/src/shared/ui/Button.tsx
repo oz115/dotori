@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } f
 
 import { useTheme } from '@/shared/theme';
 
-type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'outline';
+type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'md' | 'sm';
 
 type ButtonProps = PressableProps & {
@@ -19,6 +19,7 @@ type ButtonProps = PressableProps & {
 /**
  * CTA 버튼. 색·간격·모서리·타이포는 전부 shared/theme 토큰에서.
  * gradient/primary 는 보통 풀폭, outline·size="sm" 은 인라인 액션용.
+ * ghost 는 흰 배경 + 중립 회색 테두리 + 회색 글자 — 초록을 안 쓰는 약한 보조 버튼(예: "이전").
  */
 export function Button({
   label,
@@ -42,6 +43,9 @@ export function Button({
     if (variant === 'outline') {
       return pressed ? theme.color.brand.subtle : theme.color.background.surface;
     }
+    if (variant === 'ghost') {
+      return pressed ? theme.color.background.surfaceSunken : theme.color.background.surface;
+    }
     return pressed ? theme.color.background.surfaceSunken : theme.palette.neutral[100];
   };
 
@@ -50,7 +54,7 @@ export function Button({
       ? theme.color.text.onBrand
       : variant === 'outline'
         ? theme.color.brand.solid
-        : theme.color.text.default;
+        : theme.color.text.default; // secondary, ghost
 
   const content = loading ? (
     <ActivityIndicator color={contentColor} />
@@ -78,8 +82,8 @@ export function Button({
           borderRadius: sm ? theme.radius.sm : theme.radius.md,
           paddingHorizontal: sm ? theme.space.md : theme.space.lg,
           backgroundColor: surface(state.pressed),
-          borderWidth: variant === 'outline' ? 1.5 : 0,
-          borderColor: theme.color.brand.solid,
+          borderWidth: variant === 'outline' ? 1.5 : variant === 'ghost' ? 1 : 0,
+          borderColor: variant === 'ghost' ? theme.color.border.default : theme.color.brand.solid,
           opacity: isDisabled ? 0.5 : state.pressed && variant === 'gradient' ? 0.92 : 1,
         },
         typeof style === 'function' ? style(state) : style,

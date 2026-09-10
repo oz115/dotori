@@ -8,11 +8,11 @@ import {
   isValidEmail,
   SignupStepLayout,
   useConfirmEmailCode,
-  useCountdown,
   useSendEmailCode,
   useSignupStore,
 } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
+import { useCountdown } from '@/shared/lib/useCountdown';
 import { Button, Input } from '@/shared/ui';
 
 const CODE_TTL_SECONDS = 10 * 60; // 인증코드 유효시간 10분

@@ -34,7 +34,7 @@ public interface ChoreRepository extends JpaRepository<Chore, Integer> {
 	 * 그래야 남의 가족 것을 집었을 때 403 이 아니라 404 가 나가고,
 	 * "그 ID 는 존재한다"는 사실이 새지 않는다.
 	 *
-	 * <p>isActive 는 보지 않는다. 비살아 있는 집안일도 상세는 조회돼야 하고(이미 지급한 보상의 근거),
+	 * <p>삭제 여부는 보지 않는다. 지워진 집안일도 상세는 조회돼야 하고(이미 지급한 보상의 근거),
 	 * 걸려 있는 완료 요청을 부모가 처리할 수 있어야 한다.
 	 */
 	Optional<Chore> findByIdAndFamilyId(Integer id, Integer familyId);

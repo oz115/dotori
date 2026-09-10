@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
@@ -13,7 +15,6 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,15 +37,8 @@ import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.event.ChoreCreatedEvent;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
-import com.bana.dotori.family.entity.Family;
-import com.bana.dotori.family.entity.FamilyMember;
-import com.bana.dotori.family.repository.FamilyMemberRepository;
-import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
-import com.bana.dotori.user.entity.User;
-import com.bana.dotori.user.entity.UserRole;
-import com.bana.dotori.user.repository.UserRepository;
 
 /**
  * 2계층 - 집안일 서비스가 경로의 familyId·childId 를 검증하는지 본다.
@@ -69,13 +63,7 @@ class ChoreServiceImplTest {
 	private ChoreRepository choreRepository;
 
 	@Mock
-	private FamilyRepository familyRepository;
-
-	@Mock
-	private FamilyMemberRepository familyMemberRepository;
-
-	@Mock
-	private UserRepository userRepository;
+	private ChoreAccessValidator accessValidator;
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
@@ -85,22 +73,6 @@ class ChoreServiceImplTest {
 
 	@InjectMocks
 	private ChoreServiceImpl choreService;
-
-	@BeforeEach
-	void setUpFamily() {
-		Family family = Family.builder().name("도토리네").createdBy(PARENT_ID).build();
-		ReflectionTestUtils.setField(family, "id", FAMILY_ID);
-		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.of(family));
-
-		givenUser(PARENT_ID, UserRole.PARENT);
-		givenUser(CHILD_ID, UserRole.CHILD);
-		givenUser(SIBLING_ID, UserRole.CHILD);
-		given(familyMemberRepository.existsActiveMember(FAMILY_ID, PARENT_ID)).willReturn(true);
-		given(familyMemberRepository.existsActiveMember(FAMILY_ID, CHILD_ID)).willReturn(true);
-		given(familyMemberRepository.existsActiveMember(FAMILY_ID, SIBLING_ID)).willReturn(true);
-		givenFamilyChild(CHILD_ID);
-		givenFamilyChild(SIBLING_ID);
-	}
 
 	@Test
 	@DisplayName("부모가 자기 가족 아이에게 집안일을 등록한다")
@@ -122,6 +94,10 @@ class ChoreServiceImplTest {
 	@Test
 	@DisplayName("아이가 등록을 시도하면 403으로 막고 저장하지 않는다")
 	void 아이는_등록할_수_없다() {
+		// validate 는 "아이라면 자기 것인가"만 보므로 자기 자신을 넣으면 통과한다.
+		// 등록을 막는 것은 requireParent 다.
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(CHILD_ID);
+
 		assertThatThrownBy(() -> choreService.createChore(CHILD_ID, FAMILY_ID, CHILD_ID, request()))
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
@@ -203,58 +179,61 @@ class ChoreServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("없는 가족이면 404다")
-	void 없는_가족은_404() {
-		given(familyRepository.findByIdAndDeletedAtIsNull(99)).willReturn(Optional.empty());
+	@DisplayName("조회할 때도 경로의 가족·아이를 검증기에 넘긴다")
+	void 조회도_검증기를_거친다() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, CHILD_ID)));
 
-		assertThatThrownBy(() -> choreService.getChores(PARENT_ID, 99, CHILD_ID))
+		choreService.getChores(PARENT_ID, FAMILY_ID, CHILD_ID);
+		choreService.getChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+
+		verify(accessValidator, times(2)).validate(PARENT_ID, FAMILY_ID, CHILD_ID);
+		// 조회는 아이도 자기 것을 볼 수 있어야 하므로 부모로 좁히지 않는다.
+		verify(accessValidator, never()).requireParent(any());
+	}
+
+	@Test
+	@DisplayName("변경은 부모로 좁힌 뒤 진행한다")
+	void 변경은_부모로_좁힌다() {
+		given(choreRepository.findByIdAndFamilyId(CHORE_ID, FAMILY_ID))
+			.willReturn(Optional.of(chore(CHORE_ID, CHILD_ID)));
+
+		choreService.updateChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
+			new ChoreUpdateRequest(null, null, null, 700, null, null, null));
+		choreService.deleteChore(PARENT_ID, FAMILY_ID, CHILD_ID, CHORE_ID);
+
+		verify(accessValidator, times(2)).validate(PARENT_ID, FAMILY_ID, CHILD_ID);
+		verify(accessValidator, times(2)).requireParent(PARENT_ID);
+	}
+
+	@Test
+	@DisplayName("검증기가 막으면 그 예외를 그대로 올려보내고 저장소를 건드리지 않는다")
+	void 검증기가_막으면_멈춘다() {
+		// 규칙 자체(404·403 을 언제 주는가)는 ChoreAccessValidatorTest 가 검증한다.
+		// 여기서 볼 것은 "막혔을 때 서비스가 계속 진행하지 않는가" 다.
+		willThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND))
+			.given(accessValidator).validate(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+		assertThatThrownBy(() -> choreService.createChore(PARENT_ID, FAMILY_ID, CHILD_ID, request()))
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAMILY_NOT_FOUND);
+
+		verify(choreRepository, never()).save(any());
+		verify(eventPublisher, never()).publishEvent(any(ChoreCreatedEvent.class));
 	}
 
 	@Test
-	@DisplayName("그 가족의 구성원이 아니면 403이 아니라 404다")
-	void 남의_가족은_404() {
-		Integer outsider = 99;
-		givenUser(outsider, UserRole.PARENT);
-		given(familyMemberRepository.existsActiveMember(FAMILY_ID, outsider)).willReturn(false);
+	@DisplayName("검증기가 아이의 형제 접근을 막으면 조회하지 않는다")
+	void 형제_접근이_막히면_조회하지_않는다() {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.given(accessValidator).validate(CHILD_ID, FAMILY_ID, SIBLING_ID);
 
-		// 403 을 주면 그 familyId 가 실재한다는 사실이 새어 나간다.
-		assertThatThrownBy(() -> choreService.getChores(outsider, FAMILY_ID, CHILD_ID))
-			.isInstanceOf(BusinessException.class)
-			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FAMILY_NOT_FOUND);
-	}
-
-	@Test
-	@DisplayName("경로의 childId가 그 가족 자녀가 아니면 404다")
-	void 남의_자녀는_404() {
-		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, 99))
-			.willReturn(Optional.empty());
-
-		assertThatThrownBy(() -> choreService.getChores(PARENT_ID, FAMILY_ID, 99))
-			.isInstanceOf(BusinessException.class)
-			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
-	}
-
-	@Test
-	@DisplayName("경로의 childId가 부모면 404다")
-	void 부모를_childId로_넣으면_404() {
-		FamilyMember parentMember = member(PARENT_ID, UserRole.PARENT);
-		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, PARENT_ID))
-			.willReturn(Optional.of(parentMember));
-
-		assertThatThrownBy(() -> choreService.getChores(PARENT_ID, FAMILY_ID, PARENT_ID))
-			.isInstanceOf(BusinessException.class)
-			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
-	}
-
-	@Test
-	@DisplayName("아이가 형제의 집안일을 보려 하면 403이다")
-	void 아이는_형제_것을_볼_수_없다() {
-		// 형제의 존재는 이미 아는 사실이라 숨길 것이 없고, 권한 문제임을 알려 주는 편이 낫다.
 		assertThatThrownBy(() -> choreService.getChores(CHILD_ID, FAMILY_ID, SIBLING_ID))
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+		verify(choreRepository, never())
+			.findAllByFamilyIdAndChildIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(any(), any());
 	}
 
 	@Test
@@ -428,6 +407,8 @@ class ChoreServiceImplTest {
 	@Test
 	@DisplayName("아이는 수정할 수 없다")
 	void 아이는_수정할_수_없다() {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(CHILD_ID);
+
 		assertThatThrownBy(() -> choreService.updateChore(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
 			new ChoreUpdateRequest(null, null, null, 700, null, null, null)))
 			.isInstanceOf(BusinessException.class)
@@ -465,9 +446,14 @@ class ChoreServiceImplTest {
 	@Test
 	@DisplayName("아이는 삭제할 수 없다")
 	void 아이는_삭제할_수_없다() {
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(CHILD_ID);
+
 		assertThatThrownBy(() -> choreService.deleteChore(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID))
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+		// 인가에서 막혔으면 집안일을 집으러 가지도 않는다.
+		verify(choreRepository, never()).findByIdAndFamilyId(any(), any());
 	}
 
 	@Test
@@ -515,30 +501,4 @@ class ChoreServiceImplTest {
 		return chore;
 	}
 
-	private void givenUser(Integer userId, UserRole role) {
-		given(userRepository.findById(userId)).willReturn(Optional.of(user(userId, role)));
-	}
-
-	private void givenFamilyChild(Integer childId) {
-		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, childId))
-			.willReturn(Optional.of(member(childId, UserRole.CHILD)));
-	}
-
-	private User user(Integer userId, UserRole role) {
-		User user = User.builder()
-			.loginId("login" + userId)
-			.password("pw")
-			.name("이름")
-			.email("user" + userId + "@autotest.local")
-			.role(role)
-			.build();
-		ReflectionTestUtils.setField(user, "id", userId);
-		return user;
-	}
-
-	private FamilyMember member(Integer userId, UserRole role) {
-		Family family = Family.builder().name("도토리네").createdBy(PARENT_ID).build();
-		ReflectionTestUtils.setField(family, "id", FAMILY_ID);
-		return FamilyMember.builder().family(family).user(user(userId, role)).build();
-	}
 }

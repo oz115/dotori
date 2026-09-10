@@ -1,4 +1,4 @@
-import { apiErrorCode, isNetworkError } from '@/features/auth/lib/apiError';
+import { apiErrorCode, isNetworkError } from '@/shared/api';
 
 /** 회원가입 실패 원인 → 사용자 문구. */
 export function signupErrorMessage(error: unknown): string {
