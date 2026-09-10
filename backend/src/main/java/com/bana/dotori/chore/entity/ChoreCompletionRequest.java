@@ -59,9 +59,15 @@ public class ChoreCompletionRequest {
 	@Column(name = "child_id", nullable = false, updatable = false)
 	private Integer childId;
 
-	/** 인증 사진. 업로드 API(CHORE-13)가 아직 없어 지금은 항상 null 이다. */
-	@Column(name = "photo_url", length = 100)
-	private String photoUrl;
+	/**
+	 * 인증 사진의 저장 키 (CHORE-13). URL 이 아니다.
+	 *
+	 * <p>형식은 {@link ChorePhotoKey} 가 정한다. 버킷이 비공개라 URL 을 저장해도 쓸 수 없고,
+	 * 볼 수 있는 presigned URL 은 몇 분 뒤 만료돼 저장할 값이 아니다 — 보여 줄 때마다
+	 * 이 키로 새로 발급한다.
+	 */
+	@Column(name = "photo_key", length = 100)
+	private String photoKey;
 
 	@Column(name = "description", length = 255)
 	private String description;
@@ -79,10 +85,10 @@ public class ChoreCompletionRequest {
 	private OffsetDateTime processedAt;
 
 	@Builder
-	private ChoreCompletionRequest(Integer choreId, Integer childId, String photoUrl, String description) {
+	private ChoreCompletionRequest(Integer choreId, Integer childId, String photoKey, String description) {
 		this.choreId = choreId;
 		this.childId = childId;
-		this.photoUrl = photoUrl;
+		this.photoKey = photoKey;
 		this.description = description;
 		this.status = ChoreCompletionStatus.PENDING;
 	}

@@ -101,7 +101,7 @@ class ChoreCompletionControllerTest {
 	private String body(String description) {
 		return """
 			{
-			  "photoUrl": null,
+			  "photoKey": "chores/10/2/550e8400-e29b-41d4-a716-446655440000.jpg",
 			  "description": %s
 			}
 			""".formatted(description);
@@ -288,15 +288,15 @@ class ChoreCompletionControllerTest {
 	}
 
 	@Test
-	@DisplayName("사진 URL이 100자를 넘으면 400을 반환하고 서비스를 호출하지 않는다")
-	void requestCompletion_photoUrlTooLong() throws Exception {
+	@DisplayName("사진 키가 100자를 넘으면 400을 반환하고 서비스를 호출하지 않는다")
+	void requestCompletion_photoKeyTooLong() throws Exception {
 		givenAuthenticated();
 		String tooLong = "h".repeat(101);
 
 		mockMvc.perform(post(REQUESTS_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"photoUrl\": \"" + tooLong + "\"}"))
+				.content("{\"photoKey\": \"" + tooLong + "\"}"))
 			.andExpect(status().isBadRequest());
 
 		verify(choreCompletionService, never()).requestCompletion(any(), any(), any(), any(), any());

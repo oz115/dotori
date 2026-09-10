@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
+import com.bana.dotori.chore.entity.ChorePhotoKey;
 import com.bana.dotori.chore.support.ChoreTestFixture;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -49,6 +50,14 @@ class ChoreCompletionConcurrencyTest {
 	private static final int REWARD_POINTS = 500;
 	private static final int INITIAL_BALANCE = 1_000;
 
+	/**
+	 * 업로드(CHORE-13)가 만들어 준 형식의 사진 키.
+	 *
+	 * <p>familyId·childId 가 경로와 일치해야 통과한다. setUp 에서 만든 가족·아이 ID 를 써서
+	 * 조립하므로 상수가 아니라 필드다.
+	 */
+	private String photoKey;
+
 	@Autowired
 	private ChoreCompletionService choreCompletionService;
 
@@ -74,6 +83,7 @@ class ChoreCompletionConcurrencyTest {
 		familyId = WalletTestFixture.insertFamilyWithChild(jdbcTemplate, parentId, childId);
 		choreId = ChoreTestFixture.insertTodayChore(jdbcTemplate, familyId, parentId, childId, REWARD_POINTS);
 		pointWalletRepository.save(PointWallet.openWithBalance(childId, INITIAL_BALANCE));
+		photoKey = ChorePhotoKey.issue(familyId, childId, "image/jpeg");
 	}
 
 	@AfterEach
@@ -91,7 +101,7 @@ class ChoreCompletionConcurrencyTest {
 		runConcurrently(threadCount, index -> {
 			try {
 				choreCompletionService.requestCompletion(childId, familyId, childId, choreId,
-						new ChoreCompletionCreateRequest(null, "다 했어요 " + index));
+						new ChoreCompletionCreateRequest(photoKey, "다 했어요 " + index));
 				created.incrementAndGet();
 			} catch (BusinessException e) {
 				// 예상한 실패는 "이미 대기 중" 하나뿐이다. 다른 코드까지 여기서 삼키면
@@ -119,7 +129,7 @@ class ChoreCompletionConcurrencyTest {
 		// 부분 유니크 인덱스가 PENDING 만 보므로 REJECTED 로 남은 행은 재요청을 막지 않는다.
 		// 막는 것은 지급이지 요청이 아니다 — 부모가 잘못 눌렀을 때 되돌릴 길이 있어야 한다.
 		choreCompletionService.requestCompletion(childId, familyId, childId, choreId,
-				new ChoreCompletionCreateRequest(null, "다시 했어요"));
+				new ChoreCompletionCreateRequest(ChorePhotoKey.issue(familyId, childId, "image/jpeg"), "다시 했어요"));
 
 		assertThat(ChoreTestFixture.countRequestsByStatus(jdbcTemplate, choreId, "PENDING")).isEqualTo(1);
 		assertThat(ChoreTestFixture.countRequestsByStatus(jdbcTemplate, choreId, "REJECTED")).isEqualTo(1);

@@ -329,11 +329,17 @@ CREATE TABLE "savings_subscriptions" (
 );
 
 
+/* photo_key: 인증 사진의 S3 저장 키다 (CHORE-13). URL 이 아니다.
+             형식은 chores/{family_id}/{child_id}/{uuid}.jpg 로 약 55자다.
+
+             버킷이 비공개라 URL 을 저장해도 그 URL 로는 아무도 볼 수 없다. 볼 수 있는
+             presigned URL 은 서명과 만료시각이 붙어 500자를 넘고 몇 분 뒤 죽으므로
+             저장할 값이 아니다. 화면에 보여 줄 때마다 이 키로 새로 발급한다. */
 CREATE TABLE "chore_completion_requests" (
     "chore_completion_request_id"   SERIAL      NOT NULL,
     "chore_id"                      INTEGER     NOT NULL,
     "child_id"                      INTEGER     NOT NULL,
-    "photo_url"                     VARCHAR(100) NULL,
+    "photo_key"                     VARCHAR(100) NULL,
     "description"                   VARCHAR(255) NULL,
     "status"                        chore_completion_requests_status DEFAULT 'PENDING' NOT NULL,
     "requested_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,

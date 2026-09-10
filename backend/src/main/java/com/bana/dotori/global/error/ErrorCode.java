@@ -87,7 +87,9 @@ public enum ErrorCode {
 	REWARD_NOT_EVALUATED(HttpStatus.BAD_REQUEST, "아직 보상이 산정되지 않은 할 일입니다"),
 	PENDING_REQUEST_EXISTS(HttpStatus.CONFLICT, "이미 처리 대기 중인 완료 요청이 있습니다"),
 	ALREADY_REWARDED(HttpStatus.CONFLICT, "이번 주기에 이미 보상을 받았습니다"),
-	INVALID_STATUS(HttpStatus.CONFLICT, "이미 처리된 요청입니다");
+	INVALID_STATUS(HttpStatus.CONFLICT, "이미 처리된 요청입니다"),
+	INVALID_FILE(HttpStatus.BAD_REQUEST, "사진 형식이나 용량이 올바르지 않습니다"),
+	FILE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "사진 저장에 실패했습니다");
 
 	private final HttpStatus status;
 	private final String message;

@@ -30,7 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
-import com.bana.dotori.chore.dto.ChoreCompletionSummary;
+import com.bana.dotori.chore.dto.ChoreCompletionRow;
 import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
@@ -42,6 +42,7 @@ import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.storage.PhotoStorage;
 
 /**
  * 2계층 - 완료 요청·취소·거절·대기함 조회의 규칙만 검증한다 (CHORE-08·10·11·12).
@@ -65,6 +66,8 @@ class ChoreCompletionServiceImplTest {
 	private static final Integer SIBLING_ID = 3;
 	private static final Integer CHORE_ID = 7;
 	private static final Integer REQUEST_ID = 100;
+	/** 서버가 만든 형식의 유효한 키. FAMILY_ID·CHILD_ID 와 일치해야 통과한다. */
+	private static final String PHOTO_KEY = "chores/10/2/550e8400-e29b-41d4-a716-446655440000.jpg";
 
 	@Mock
 	private ChoreRepository choreRepository;
@@ -74,6 +77,9 @@ class ChoreCompletionServiceImplTest {
 
 	@Mock
 	private ChoreAccessValidator accessValidator;
+
+	@Mock
+	private PhotoStorage photoStorage;
 
 	@Spy
 	private ChoreCompletionMapper completionMapper;
@@ -118,7 +124,7 @@ class ChoreCompletionServiceImplTest {
 
 	private ChoreCompletionResponse request() {
 		return choreCompletionService.requestCompletion(CHILD_ID, FAMILY_ID, CHILD_ID, CHORE_ID,
-			new ChoreCompletionCreateRequest(null, "다 했어요"));
+			new ChoreCompletionCreateRequest(PHOTO_KEY, "다 했어요"));
 	}
 
 	@Nested
@@ -135,6 +141,35 @@ class ChoreCompletionServiceImplTest {
 			assertThat(response.choreId()).isEqualTo(CHORE_ID);
 			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.PENDING);
 			verify(completionRequestRepository).saveAndFlush(any());
+		}
+
+		@Test
+		@DisplayName("형제의 사진 키를 실어 보내면 400이고 저장하지 않는다")
+		void 남의_사진_키() {
+			givenChore(todayChore());
+			String siblingKey = "chores/10/3/550e8400-e29b-41d4-a716-446655440000.jpg";
+
+			// 키는 클라이언트가 보내는 문자열이다. 그대로 믿으면 형제가 올린 사진으로
+			// 자기 인증을 할 수 있다.
+			assertThatThrownBy(() -> choreCompletionService.requestCompletion(CHILD_ID, FAMILY_ID, CHILD_ID,
+					CHORE_ID, new ChoreCompletionCreateRequest(siblingKey, "다 했어요")))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_FILE);
+
+			verify(completionRequestRepository, never()).saveAndFlush(any());
+		}
+
+		@Test
+		@DisplayName("우리 버킷 밖을 가리키는 키도 400이다")
+		void 형식이_아닌_사진_키() {
+			givenChore(todayChore());
+
+			assertThatThrownBy(() -> choreCompletionService.requestCompletion(CHILD_ID, FAMILY_ID, CHILD_ID,
+					CHORE_ID, new ChoreCompletionCreateRequest("https://evil.example.com/a.jpg", null)))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_FILE);
+
+			verify(completionRequestRepository, never()).saveAndFlush(any());
 		}
 
 		@Test
@@ -242,8 +277,8 @@ class ChoreCompletionServiceImplTest {
 	@DisplayName("부모가 대기함을 볼 때")
 	class GetCompletionRequests {
 
-		private ChoreCompletionSummary summary() {
-			return new ChoreCompletionSummary(REQUEST_ID, CHORE_ID, "설거지", "김아이", null, "다 했어요",
+		private ChoreCompletionRow row() {
+			return new ChoreCompletionRow(REQUEST_ID, CHORE_ID, "설거지", "김아이", PHOTO_KEY, "다 했어요",
 				ChoreCompletionStatus.PENDING, OffsetDateTime.now(KST));
 		}
 
@@ -251,7 +286,7 @@ class ChoreCompletionServiceImplTest {
 		@DisplayName("조회 결과를 그대로 담아 준다")
 		void 목록을_담아_준다() {
 			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
-				.willReturn(List.of(summary()));
+				.willReturn(List.of(row()));
 
 			ChoreCompletionListResponse response = choreCompletionService.getCompletionRequests(
 				PARENT_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
@@ -259,6 +294,38 @@ class ChoreCompletionServiceImplTest {
 			assertThat(response.requests()).hasSize(1);
 			assertThat(response.requests().getFirst().choreTitle()).isEqualTo("설거지");
 			assertThat(response.requests().getFirst().childName()).isEqualTo("김아이");
+		}
+
+		@Test
+		@DisplayName("저장된 키로 볼 수 있는 링크를 발급해 담는다")
+		void 링크를_발급한다() {
+			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(List.of(row()));
+			given(photoStorage.presignedUrl(PHOTO_KEY)).willReturn("https://bucket/photo?X-Amz-Signature=x");
+
+			ChoreCompletionListResponse response = choreCompletionService.getCompletionRequests(
+				PARENT_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
+
+			// 버킷이 비공개라 키를 그대로 내려주면 부모 화면에 사진이 뜨지 않는다.
+			assertThat(response.requests().getFirst().photoUrl())
+				.isEqualTo("https://bucket/photo?X-Amz-Signature=x");
+		}
+
+		@Test
+		@DisplayName("사진 키가 없는 행은 링크를 발급하지 않는다")
+		void 키가_없으면_발급하지_않는다() {
+			ChoreCompletionRow noPhoto = new ChoreCompletionRow(REQUEST_ID, CHORE_ID, "설거지", "김아이", null,
+				"다 했어요", ChoreCompletionStatus.PENDING, OffsetDateTime.now(KST));
+			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(List.of(noPhoto));
+
+			ChoreCompletionListResponse response = choreCompletionService.getCompletionRequests(
+				PARENT_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING);
+
+			// photo_key 가 NULL 인 행이 DDL 상 가능하다. 그대로 발급하면 키가 "null" 인
+			// 링크가 나가고 부모 화면이 깨진다.
+			assertThat(response.requests().getFirst().photoUrl()).isNull();
+			verify(photoStorage, never()).presignedUrl(any());
 		}
 
 		@Test

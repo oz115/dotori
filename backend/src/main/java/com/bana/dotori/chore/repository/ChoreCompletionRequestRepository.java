@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.bana.dotori.chore.dto.ChoreCompletionSummary;
+import com.bana.dotori.chore.dto.ChoreCompletionRow;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 
@@ -91,13 +91,16 @@ public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCom
 	 * <p>제목·이름을 생성자 표현식으로 한 번에 채운다. 요청을 먼저 읽고 건당 다시 조회하면
 	 * 한 화면에 쿼리가 수십 번 나간다. 이 프로젝트의 다른 응답은 {@code @Component} 매퍼가
 	 * 만들지만, 조인 결과를 담는 이 목록만 예외로 둔다.
+	 *
+	 * <p>응답 타입이 아니라 {@link ChoreCompletionRow} 를 돌려준다. 사진 칸에 저장된 키가
+	 * 들어 있어서, 서비스가 그 키로 presigned URL 을 발급해 응답 타입으로 바꿔야 한다.
 	 */
-	@Query("select new com.bana.dotori.chore.dto.ChoreCompletionSummary("
-			+ "r.id, r.choreId, c.title, u.name, r.photoUrl, r.description, r.status, r.requestedAt) "
+	@Query("select new com.bana.dotori.chore.dto.ChoreCompletionRow("
+			+ "r.id, r.choreId, c.title, u.name, r.photoKey, r.description, r.status, r.requestedAt) "
 			+ "from ChoreCompletionRequest r, Chore c, User u "
 			+ "where r.choreId = c.id and r.childId = u.id "
 			+ "and c.familyId = :familyId and r.childId = :childId and r.status = :status "
 			+ "order by r.requestedAt desc, r.id desc")
-	List<ChoreCompletionSummary> findSummaries(@Param("familyId") Integer familyId,
+	List<ChoreCompletionRow> findSummaries(@Param("familyId") Integer familyId,
 			@Param("childId") Integer childId, @Param("status") ChoreCompletionStatus status);
 }

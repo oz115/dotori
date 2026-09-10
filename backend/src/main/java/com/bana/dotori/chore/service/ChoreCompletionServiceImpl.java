@@ -12,15 +12,19 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.chore.dto.ChoreCompletionCreateRequest;
 import com.bana.dotori.chore.dto.ChoreCompletionListResponse;
 import com.bana.dotori.chore.dto.ChoreCompletionResponse;
+import com.bana.dotori.chore.dto.ChoreCompletionRow;
+import com.bana.dotori.chore.dto.ChoreCompletionSummary;
 import com.bana.dotori.chore.dto.ChoreRejectionResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
+import com.bana.dotori.chore.entity.ChorePhotoKey;
 import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.storage.PhotoStorage;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,6 +45,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	private final ChoreCompletionRequestRepository completionRequestRepository;
 	private final ChoreAccessValidator accessValidator;
 	private final ChoreCompletionMapper completionMapper;
+	private final PhotoStorage photoStorage;
 
 	/**
 	 * 아이가 완료를 인증한다 (CHORE-11).
@@ -73,6 +78,13 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 		}
 		if (chore.getRewardPoints() == null) {
 			throw new BusinessException(ErrorCode.REWARD_NOT_EVALUATED);
+		}
+		// 사진 키는 클라이언트가 보내는 문자열이라 그대로 믿으면 안 된다. 남의 사진 키를 넣어
+		// 자기 인증으로 쓰거나 우리 버킷 밖의 값을 넣을 수 있다. 업로드할 때 서버가 만든 키만
+		// 통과하도록 형식과 소유(familyId·childId)를 함께 본다.
+		if (!ChorePhotoKey.belongsTo(request.photoKey(), familyId, childId)) {
+			throw new BusinessException(ErrorCode.INVALID_FILE,
+					"사진 키가 이 아이의 것이 아닙니다. photoKey=" + request.photoKey());
 		}
 		if (completionRequestRepository.existsByChoreIdAndStatus(choreId, ChoreCompletionStatus.PENDING)) {
 			throw new BusinessException(ErrorCode.PENDING_REQUEST_EXISTS);
@@ -110,7 +122,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 			return completionRequestRepository.saveAndFlush(ChoreCompletionRequest.builder()
 				.choreId(choreId)
 				.childId(childId)
-				.photoUrl(request.photoUrl())
+				.photoKey(request.photoKey())
 				.description(request.description())
 				.build());
 		} catch (DataIntegrityViolationException e) {
@@ -163,6 +175,10 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	 *
 	 * <p>아이는 자기 대기함도 볼 수 없다. 승인 권한이 없는 사람에게 보여 줄 이유가 없고,
 	 * 아이가 볼 목록은 완료 내역(CHORE-12)으로 따로 있다.
+	 *
+	 * <p>사진은 저장된 키를 그대로 내보내지 않는다. 버킷이 비공개라 키로는 볼 수 없으므로
+	 * 건마다 presigned URL 을 발급해 담는다. 발급은 서명 계산뿐이라 네트워크를 타지 않아
+	 * 목록 길이만큼 불러도 왕복 비용이 없다.
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -172,7 +188,22 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 		accessValidator.requireParent(userId);
 
 		return new ChoreCompletionListResponse(
-			completionRequestRepository.findSummaries(familyId, childId, status));
+			completionRequestRepository.findSummaries(familyId, childId, status).stream()
+				.map(this::toSummary)
+				.toList());
+	}
+
+	/**
+	 * 저장된 키를 볼 수 있는 링크로 바꿔 응답 한 줄을 만든다.
+	 *
+	 * <p>키가 없는 행도 있을 수 있다. 사진이 필수가 되기 전(CHORE-13 이전)에 들어온 요청이라
+	 * null 을 그대로 흘려보낸다 — 없는 키로 링크를 만들면 열었을 때 404 가 나는 죽은 URL 이
+	 * 응답에 실린다.
+	 */
+	private ChoreCompletionSummary toSummary(ChoreCompletionRow row) {
+		String photoUrl = row.photoKey() == null ? null : photoStorage.presignedUrl(row.photoKey());
+		return new ChoreCompletionSummary(row.choreCompletionRequestId(), row.choreId(), row.choreTitle(),
+			row.childName(), photoUrl, row.description(), row.status(), row.requestedAt());
 	}
 
 	/**
