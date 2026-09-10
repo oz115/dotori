@@ -186,10 +186,17 @@ CREATE TYPE task_difficulty AS ENUM (
 );
 
 
-/* 집안일 완료 요청 상태 */
+/* 집안일 완료 요청 상태
+
+   PENDING 에서 시작해 SUCCEED · REJECTED · CANCELLED 중 하나로 한 번만 옮겨 간다.
+   되돌아오는 전이는 없다.
+
+   PROGRESS(처리 중)를 두지 않는다. 아이가 사진과 내용을 한 번에 올려 요청이 완성되고,
+   부모가 거절하면 그 행을 고치는 게 아니라 아이가 새 요청을 올린다. 즉 "올리는 중"
+   이나 "고치는 중" 으로 머무를 구간이 없다.
+   (현금화처럼 외부 송금을 기다리는 요청은 그 구간이 있어 PROGRESS 를 쓴다.) */
 CREATE TYPE chore_completion_requests_status AS ENUM (
     'PENDING',
-    'PROGRESS',
     'CANCELLED',
     'SUCCEED',
     'REJECTED'
