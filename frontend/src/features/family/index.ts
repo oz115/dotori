@@ -2,7 +2,12 @@ export { familyApi } from './api/familyApi';
 export { familyKeys } from './model/familyKeys';
 export { useOnboardingStore } from './model/onboardingStore';
 export { useCreateFamily } from './model/useCreateFamily';
+export { useCreateInvitation } from './model/useInvitation';
+export { useDeleteFamily } from './model/useDeleteFamily';
+export { useFamilyStatus } from './model/useFamilyStatus';
 export { createFamilyErrorMessage } from './lib/familyError';
+export { invitationErrorMessage } from './lib/invitationError';
+export { savedFamilyId } from './lib/savedFamilyId';
 export {
   AMOUNT_UNIT_WON,
   ALLOWANCE_PRESETS_WON,
@@ -18,4 +23,6 @@ export type {
   FinancialKnowledgeLevel,
   FamilyCreateBody,
   FamilyCreateResponse,
+  FamilyStatus,
+  InvitationResponse,
 } from './model/types';
