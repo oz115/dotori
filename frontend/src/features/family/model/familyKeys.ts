@@ -3,6 +3,6 @@
  */
 export const familyKeys = {
   all: ['family'] as const,
-  /** 현재 로그인 사용자의 가족 (GET /families/me) */
-  me: () => [...familyKeys.all, 'me'] as const,
+  /** 현재 로그인 사용자의 가족 소속 여부 (GET /families/status) */
+  status: () => [...familyKeys.all, 'status'] as const,
 };
