@@ -13,7 +13,7 @@
 React Native ──> Spring Boot ──(HTTP, 내부망)──> AI 서버 ──> PostgreSQL
                      │                                          ▲
                      └──────────────────────────────────────────┘
-                        스키마 주인은 Spring (ddl-auto: update)
+                        스키마 주인은 Spring (ddl-auto: none, 원본은 01-schema.sql)
 ```
 
 - **프론트는 이 서버를 직접 부르지 않는다.** 사용자 인증(JWT)은 Spring 이 처리하고,

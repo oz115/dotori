@@ -24,7 +24,7 @@ class Family(Base):
 
     두 금액 컬럼은 `INTEGER DEFAULT 0 NOT NULL` 이다. 온보딩을 아직 채우지 않은 가족은
     비정상이 아니라 정상적으로 0 이므로, 나누기 전에 0 인지 확인해야 한다
-    (`app.core.points.daily_income` 주석 참고).
+    (`app.domains.shopping.services.has_income` 주석 참고).
     """
 
     __tablename__ = "families"

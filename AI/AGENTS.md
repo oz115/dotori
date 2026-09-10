@@ -72,8 +72,9 @@ AI/
 ## DB 규칙 (필독)
 
 **이 서버는 DB 테이블을 하나도 소유하지 않는다.** 팀원들이 이미 만들어 둔 테이블을
-활용하는 것이 이 서버의 역할이다. 스키마 주인은 백엔드(Spring)이고,
-`ddl-auto: update` 로 Hibernate 가 엔티티에서 테이블을 만든다.
+활용하는 것이 이 서버의 역할이다. 스키마 주인은 백엔드(Spring)이고, `ddl-auto: none` 이라
+Hibernate 가 스키마를 만들지도 바꾸지도 않는다 — 원본은
+`backend/docker/initdb/01-schema.sql` 이다.
 
 ### 절대 하지 않는 것
 
@@ -85,12 +86,15 @@ AI/
 
 ### 필요한 컬럼이 없을 때
 
-혼자 처리할 수 없다. 컬럼은 백엔드 엔티티에 선언되어야 Hibernate 가 만들기 때문이다.
+혼자 처리할 수 없다. `ddl-auto: none` 이라 Hibernate 가 컬럼을 만들어 주지 않고,
+스키마 원본인 `backend/docker/initdb/01-schema.sql` 을 고쳐야 하기 때문이다.
 
 1. 어느 도메인 담당자의 테이블인지 확인한다
 2. 컬럼 이름·타입·의미를 정리해서 담당자에게 요청한다
-3. 합의되면 담당자가 엔티티에 선언하고, DB 에 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
-4. 합의 내용을 [docs/db-boundary.md](docs/db-boundary.md) 에 기록한다
+3. 합의되면 담당자가 **엔티티와 `01-schema.sql` 을 함께** 고친다.
+   공유 EC2 DB 에는 자동 반영되지 않으므로 인프라 담당자와 반영 시점을 맞춘다
+4. DB 에 실제로 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
+5. 합의 내용을 [docs/db-boundary.md](docs/db-boundary.md) 에 기록한다
 
 지금 열려 있는 요청은 [docs/db-boundary.md](docs/db-boundary.md) 의
 "협의가 필요한 항목" 에 정리해 두었다.
