@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Spring -> AI 서버 내부 호출 인증용 공유 토큰. 비어 있으면 검증을 건너뛴다(로컬 개발용).
     internal_token: str = ""
 
+    # --- LLM (OpenAI) ---
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
     @property
     def database_url(self) -> str:
         # 비밀번호에 @ : / 같은 문자가 있으면 URL 이 깨지므로 인코딩한다.

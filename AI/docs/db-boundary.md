@@ -20,7 +20,7 @@
 | `investment_news` | INSERT | 매일 뉴스 3건 생성 |
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
 | `investment_price_history` | INSERT | 주가 변동 이력 |
-| `families`, `users` | **읽기만** | 온보딩 A·B 값과 아이 정보 조회 |
+| `families`, `users` | **읽기만** | 온보딩 A(`weekly_reward_limit`)·B(`weekly_allowance`) 값, `financial_knowledge_level`, 아이 정보 조회 |
 | 그 밖의 모든 테이블 | 접근 안 함 | 포인트 지갑, 예적금, 계좌 연동 등은 백엔드 담당 |
 
 `store_products.value`(NUMERIC)는 가중치, `price`(INTEGER)는 포인트다.
@@ -35,23 +35,23 @@
 3. 합의되면 담당자가 백엔드 엔티티에 선언하고, DB 에 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
 4. 합의 결과를 이 문서에 기록한다
 
-### 1. 온보딩 A·B 값을 저장할 컬럼이 없다 (블로커)
+### 1. 온보딩 A·B 값을 저장할 컬럼 (해결됨, 2026-09-10)
 
-기획에는 "family 나 user 테이블에 A, B 값이 저장됨"으로 되어 있지만,
-`families` 는 컬럼이 6개(`family_id`, `name`, `created_by`, `created_at`, `updated_at`,
-`deleted_at`)뿐이고 `users` 에도 없다.
-**A·B 없이는 하루 소득 `D = (A + B) / 7` 을 구할 수 없어 가격 책정 자체가 불가능하다.**
-
-요청안 (`families`):
+`families` 에 반영됐다. 요청 시 이름(`weekly_max_earning`)과 실제 컬럼명(`weekly_reward_limit`)이
+다르니 코드에서 실제 이름을 쓴다. 덤으로 요청하지 않았던 `financial_knowledge_level`
+(아이 금융 이해도, `VARCHAR(20)`, CHECK 로 값 제한 — 퀴즈 난이도·보상 산정에 참고)도 추가됐다.
 
 | 컬럼 | 타입 | 의미 |
 | --- | --- | --- |
-| `weekly_max_earning` | INTEGER | A — 포인트 시스템 안에서 예적금, 투자, 퀴즈로 주당 벌 수 있는 최대 포인트 (할 일 제외)|
+| `weekly_reward_limit` | INTEGER | A — 예적금·투자·퀴즈로 주당 벌 수 있는 최대 포인트 (할 일 제외) |
 | `weekly_allowance` | INTEGER | B — 주간 기본 용돈(포인트 환산) |
+| `financial_knowledge_level` | VARCHAR(20) | 아이의 금융 이해도 (`BEGINNER` 등). AI 가 보상·퀴즈 난이도 참고 |
 
-담당: 온보딩 · 가족 도메인 / 상태: **요청함 (2026-09-08)** — 반영 확인 후 컬럼 이름을 이 표와 맞춘다
+담당: 온보딩 · 가족 도메인 / 상태: **DB 반영 완료** — 세 컬럼 모두 `NOT NULL DEFAULT` 라
+백엔드 `Family` 엔티티가 아직 이 필드들을 매핑하지 않아도 INSERT 는 깨지지 않는다.
+단, 엔티티 매핑 전까지는 온보딩 화면에서 실제로 이 값을 받아 저장하는지 백엔드와 확인 필요.
 
-그 전까지는 A·B 를 요청 파라미터로 받아 계산 로직을 완성해 둔다.
+이제 `D = (A + B) / 7` 계산에 요청 파라미터가 아니라 DB 값을 바로 쓸 수 있다.
 
 ### 2. `investment_news_products` 에 영향 방향이 없다
 

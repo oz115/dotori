@@ -19,9 +19,17 @@
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import get_settings
+from app.core.config import get_settings
+
+
+class Base(DeclarativeBase):
+    """도메인별 ORM 모델(`app/domains/*/models.py`)이 상속하는 베이스.
+
+    기존 테이블에 매핑만 한다 — `Base.metadata.create_all()` 은 절대 호출하지 않는다.
+    (위 경계 규칙 참고. 새 테이블이 필요하면 이 서버가 아니라 백엔드 엔티티에 선언한다.)
+    """
 
 _settings = get_settings()
 

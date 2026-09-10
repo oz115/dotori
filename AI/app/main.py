@@ -12,8 +12,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
-from app.db import get_session
+from app.core.config import get_settings
+from app.core.database import get_session
+from app.domains.investment.router import router as investment_router
+from app.domains.pricing.router import router as pricing_router
+from app.domains.quiz.router import router as quiz_router
 
 app = FastAPI(
     title="도토리 AI 서버",
@@ -49,3 +52,6 @@ def health_db(session: Session = Depends(get_session)) -> dict[str, str]:
 
 
 app.include_router(health_router)
+app.include_router(pricing_router)
+app.include_router(quiz_router)
+app.include_router(investment_router)

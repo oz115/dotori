@@ -25,10 +25,19 @@ DB 가 필요한 작업은 다른 창에서 터널을 먼저 연다: `ssh -N A50
 ```
 AI/
 ├── app/
-│   ├── config.py     설정 로딩
-│   ├── db.py         엔진/세션 (경계 규칙 주석 필독)
-│   ├── security.py   내부 호출 토큰 검증
-│   └── main.py       FastAPI 앱, 헬스체크
+│   ├── core/         도메인에 종속되지 않는 공통 코드
+│   │   ├── config.py     설정 로딩
+│   │   ├── database.py   엔진/세션, ORM Base (경계 규칙 주석 필독)
+│   │   └── security.py   내부 호출 토큰 검증
+│   ├── main.py       FastAPI 앱, 헬스체크, 도메인 라우터 등록
+│   ├── llm/
+│   │   └── client.py 공용 OpenAI 클라이언트 (도메인 서비스가 직접 SDK 를 import 하지 않는다)
+│   └── domains/      도메인별 패키지 (가격 책정 / 퀴즈 / 투자)
+│       └── {pricing,quiz,investment}/
+│           ├── router.py    내부 API. `require_internal_token` 의존성 필수
+│           ├── services.py  비즈니스 로직, LLM 호출
+│           ├── schemas.py   요청/응답 Pydantic 모델
+│           └── models.py    기존 테이블 매핑 (도메인이 쓰는 컬럼만)
 ├── docs/db-boundary.md  테이블별 읽기/쓰기 범위, 협의 필요 항목
 ├── Dockerfile
 └── requirements.txt

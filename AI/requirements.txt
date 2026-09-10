@@ -4,3 +4,5 @@ fastapi[standard]==0.141.1
 pydantic-settings==2.15.0
 sqlalchemy==2.0.52
 psycopg[binary]==3.3.5
+# TODO: pip install -U openai 로 최신 버전 확인 후 아래 버전을 맞춘다.
+openai==1.55.0
