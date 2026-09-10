@@ -18,6 +18,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -38,6 +39,11 @@ public class FamilyController {
 		@Valid @RequestBody FamilyCreateRequest request) {
 		FamilyCreateResponse response = familyService.create(userId, request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
+
+	@GetMapping("/status")
+	public ResponseEntity<FamilyStatusResponse> getStatus(@AuthenticationPrincipal Integer userId) {
+		return ResponseEntity.ok(familyService.getStatus(userId));
 	}
 
 	@GetMapping("/{familyId}")

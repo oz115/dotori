@@ -9,6 +9,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -16,6 +17,12 @@ import com.bana.dotori.family.dto.InvitationCodeResponse;
 public interface FamilyService {
 
 	FamilyCreateResponse create(Integer userId, FamilyCreateRequest request);
+
+	/**
+	 * 현재 사용자가 이미 어느 가족에든 속해 있는지 확인한다. 온보딩 분기(가족 생성/연결 화면 vs
+	 * 홈)에 쓴다.
+	 */
+	FamilyStatusResponse getStatus(Integer userId);
 
 	/**
 	 * 가족 이름·온보딩 설정 부분 수정. 가족 생성자(부모)만 할 수 있고, 안 보낸 필드는 그대로 둔다.
