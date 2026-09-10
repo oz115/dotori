@@ -1,5 +1,6 @@
 import { httpClient } from '@/shared/api';
 import type {
+  FamilyConnectResponse,
   FamilyCreateBody,
   FamilyCreateResponse,
   FamilyStatus,
@@ -26,4 +27,10 @@ export const familyApi = {
 
   /** 가족 삭제 — 생성자만, 성공 시 204 */
   remove: (familyId: number) => httpClient.delete(`/api/v1/families/${familyId}`),
+
+  /** 자녀가 초대 코드로 가족에 합류 — 자녀만, 잘못된/만료된 코드면 INVALID_FAMILY_CODE */
+  connect: (code: string) =>
+    httpClient
+      .post<FamilyConnectResponse>('/api/v1/families/connect', { code })
+      .then((res) => res.data),
 };
