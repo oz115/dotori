@@ -26,7 +26,7 @@ export default function OnboardingHomeScreen() {
   // 온보딩 퍼널의 진입점 — 이전 회차 입력값 초기화
   useEffect(() => reset(), [reset]);
 
-  const mascotW = Math.min(width * 0.28, 116);
+  const mascotW = Math.min(width * 0.32, 140);
 
   return (
     <Screen scroll>
@@ -43,7 +43,7 @@ export default function OnboardingHomeScreen() {
           <Text
             style={[
               styles.subtitle,
-              { color: theme.color.text.default, marginTop: theme.space.sm },
+              { color: theme.color.text.default, marginTop: theme.space.lg },
             ]}
           >
             도토리와 함께 우리 아이의{'\n'}
@@ -52,7 +52,11 @@ export default function OnboardingHomeScreen() {
         </View>
         <Image
           source={MASCOT}
-          style={{ width: mascotW, height: mascotW * MASCOT_RATIO }}
+          style={{
+            width: mascotW,
+            height: mascotW * MASCOT_RATIO,
+            marginTop: theme.space['4xl'],
+          }}
           resizeMode="contain"
         />
       </View>
@@ -61,7 +65,7 @@ export default function OnboardingHomeScreen() {
         style={[
           styles.card,
           {
-            marginTop: theme.space['3xl'],
+            marginTop: theme.space['4xl'],
             borderColor: theme.color.border.default,
             borderRadius: theme.radius.lg,
             padding: theme.space.lg,
@@ -141,7 +145,7 @@ const styles = StyleSheet.create({
   topSpacer: { flex: 0.4 },
   hero: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
   },
   heroText: { flex: 1 },

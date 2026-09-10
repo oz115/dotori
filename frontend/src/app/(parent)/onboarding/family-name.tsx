@@ -32,7 +32,7 @@ export default function OnboardingFamilyNameScreen() {
     >
       <View style={{ gap: theme.space['2xl'] }}>
         <Input
-          variant="line"
+          variant="box"
           label="가족이름"
           placeholder="예: 도토리 가족"
           value={name}

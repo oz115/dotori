@@ -36,9 +36,11 @@ export function OnboardingStepLayout({
 
   return (
     <Screen scroll keyboardAvoiding header={<Header title="가족 만들기" onBack={goBack} />}>
-      <ProgressIndicator total={3} current={step} />
+      <View style={{ marginTop: theme.space.lg }}>
+        <ProgressIndicator total={3} current={step} />
+      </View>
 
-      <View style={{ marginTop: theme.space['2xl'], gap: theme.space.xs }}>
+      <View style={{ marginTop: theme.space['5xl'], gap: theme.space.sm }}>
         <Text style={[theme.typography.h1, { color: theme.color.text.strong }]}>{title}</Text>
         {subtitle ? (
           <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>{subtitle}</Text>
@@ -49,7 +51,7 @@ export function OnboardingStepLayout({
 
       <View style={styles.spacer} />
 
-      <View style={{ marginTop: theme.space.xl }}>{footer}</View>
+      <View style={{ marginTop: theme.space['2xl'] }}>{footer}</View>
     </Screen>
   );
 }
