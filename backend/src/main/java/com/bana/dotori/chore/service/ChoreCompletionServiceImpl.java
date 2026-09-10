@@ -187,7 +187,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 		accessValidator.validate(userId, familyId, childId);
 		accessValidator.requireParent(userId);
 
-		return new ChoreCompletionListResponse(
+		return completionMapper.toListResponse(
 			completionRequestRepository.findSummaries(familyId, childId, status).stream()
 				.map(this::toSummary)
 				.toList());
@@ -196,14 +196,16 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	/**
 	 * 저장된 키를 볼 수 있는 링크로 바꿔 응답 한 줄을 만든다.
 	 *
+	 * <p>발급만 여기서 하고 필드를 옮기는 일은 매퍼에 맡긴다. 매퍼가 저장소에 의존하면
+	 * 서비스 테스트가 매퍼까지 모킹해야 해서, 발급 결과 문자열만 넘긴다.
+	 *
 	 * <p>키가 없는 행도 있을 수 있다. 사진이 필수가 되기 전(CHORE-13 이전)에 들어온 요청이라
 	 * null 을 그대로 흘려보낸다 — 없는 키로 링크를 만들면 열었을 때 404 가 나는 죽은 URL 이
 	 * 응답에 실린다.
 	 */
 	private ChoreCompletionSummary toSummary(ChoreCompletionRow row) {
 		String photoUrl = row.photoKey() == null ? null : photoStorage.presignedUrl(row.photoKey());
-		return new ChoreCompletionSummary(row.choreCompletionRequestId(), row.choreId(), row.choreTitle(),
-			row.childName(), photoUrl, row.description(), row.status(), row.requestedAt());
+		return completionMapper.toSummary(row, photoUrl);
 	}
 
 	/**
@@ -234,10 +236,9 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 		}
 
 		// 상태 검사는 엔티티가 한다. 이미 처리된 요청이면 INVALID_STATUS 로 409 가 나간다.
-		OffsetDateTime processedAt = OffsetDateTime.now(KST);
-		completionRequest.reject(processedAt);
+		completionRequest.reject(OffsetDateTime.now(KST));
 
-		return new ChoreRejectionResponse(completionRequest.getId(), completionRequest.getStatus(), processedAt);
+		return completionMapper.toRejectionResponse(completionRequest);
 	}
 
 	/**
