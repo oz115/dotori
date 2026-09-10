@@ -65,7 +65,7 @@ export default function OnboardingHomeScreen() {
         style={[
           styles.card,
           {
-            marginTop: theme.space['4xl'],
+            //marginTop: theme.space['4xl'],
             borderColor: theme.color.border.default,
             borderRadius: theme.radius.lg,
             padding: theme.space.lg,

@@ -9,10 +9,10 @@ import type { FinancialKnowledgeLevel } from '@/features/family/model/types';
 export const AMOUNT_UNIT_WON = 1000;
 
 /** 주간 기본 용돈 프리셋(원). 직접 입력도 가능. */
-export const ALLOWANCE_PRESETS_WON = [3000, 5000, 10000, 20000] as const;
+export const ALLOWANCE_PRESETS_WON = [5000, 10000, 20000] as const;
 
 /** 주간 추가 보상 한도 프리셋(원). */
-export const REWARD_LIMIT_PRESETS_WON = [2000, 5000, 10000, 30000] as const;
+export const REWARD_LIMIT_PRESETS_WON = [3000, 5000, 10000] as const;
 
 /** 최소 1,000원 이상 · 1,000원 단위인지. 서버 검증과 동일한 규칙을 미리 막는다. */
 export function isValidOnboardingAmount(won: number | null): won is number {

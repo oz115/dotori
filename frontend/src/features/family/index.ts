@@ -12,7 +12,8 @@ export {
   parseAmountInput,
 } from './lib/onboarding';
 export { OnboardingStepLayout } from './ui/OnboardingStepLayout';
-export { AmountPresetField } from './ui/AmountPresetField';
+export { AmountStepInput } from './ui/AmountStepInput';
+export { StepFooter } from './ui/StepFooter';
 export type {
   FinancialKnowledgeLevel,
   FamilyCreateBody,

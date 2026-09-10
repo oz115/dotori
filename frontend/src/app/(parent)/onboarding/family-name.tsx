@@ -21,12 +21,13 @@ export default function OnboardingFamilyNameScreen() {
   const next = () => {
     if (!canProceed) return;
     patch({ familyName: trimmed });
-    router.push('/onboarding/economy');
+    router.push('/onboarding/allowance');
   };
 
   return (
     <OnboardingStepLayout
       step={1}
+      headerTitle="가족 만들기"
       title={'가족과 아이를 초대하고\n도토리 활동을 함께해 보세요!'}
       footer={<Button label="다음" variant="primary" onPress={next} disabled={!canProceed} />}
     >

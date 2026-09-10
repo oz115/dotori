@@ -10,3 +10,22 @@
 export function formatWon(won: number): string {
   return `${won.toLocaleString('ko-KR')}원`;
 }
+
+/** 1234567 → "1,234,567" (단위 없이 천 단위 구분) */
+export function formatWonNumber(won: number): string {
+  return won.toLocaleString('ko-KR');
+}
+
+/**
+ * 5000 → "5천 원", 10000 → "1만 원", 30000 → "3만 원", 15000 → "1만 5천 원".
+ * 천 단위로 안 떨어지면 전체 표기로 폴백한다 (프리셋 칩 라벨용).
+ */
+export function formatWonShort(won: number): string {
+  if (won % 1000 !== 0 || won <= 0) return formatWon(won);
+  const man = Math.floor(won / 10000);
+  const cheon = Math.floor((won % 10000) / 1000);
+  const parts: string[] = [];
+  if (man > 0) parts.push(`${man}만`);
+  if (cheon > 0) parts.push(`${cheon}천`);
+  return `${parts.join(' ')} 원`;
+}
