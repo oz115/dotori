@@ -12,7 +12,6 @@ export { loginErrorMessage } from './lib/loginError';
 export { signupErrorMessage } from './lib/signupError';
 export { emailVerificationErrorMessage } from './lib/emailVerificationError';
 export { findIdErrorMessage, resetPasswordErrorMessage } from './lib/accountRecoveryError';
-export { apiErrorCode, isNetworkError } from './lib/apiError';
 export { isValidEmail, validateAccountStep } from './lib/signupValidation';
 export { useCountdown } from './lib/useCountdown';
 export { BrandHero } from './ui/BrandHero';

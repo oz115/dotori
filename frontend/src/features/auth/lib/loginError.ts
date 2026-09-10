@@ -1,5 +1,6 @@
-import { isNetworkError } from '@/features/auth/lib/apiError';
 import type { AxiosError } from 'axios';
+
+import { isNetworkError } from '@/shared/api';
 
 /** 로그인 실패 원인을 사용자 문구로 바꾼다. */
 export function loginErrorMessage(error: unknown): string {
