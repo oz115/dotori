@@ -1,15 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandHero, loginErrorMessage, savedLoginId, useLogin } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { Button, Callout, Checkbox, IdIcon, Input, PasswordIcon, Screen } from '@/shared/ui';
 
 const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
-
-const soon = () => Alert.alert('준비 중', '곧 제공될 기능이에요.');
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -85,13 +83,13 @@ export default function LoginScreen() {
           label="아이디 저장"
         />
         <View style={[styles.links, { gap: theme.space.sm }]}>
-          <Pressable onPress={soon} hitSlop={6}>
+          <Pressable onPress={() => router.push('/find-id')} hitSlop={6}>
             <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
               아이디 찾기
             </Text>
           </Pressable>
           <Text style={[theme.typography.bodySm, { color: theme.color.border.strong }]}>|</Text>
-          <Pressable onPress={soon} hitSlop={6}>
+          <Pressable onPress={() => router.push('/reset-password')} hitSlop={6}>
             <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
               비밀번호 재설정
             </Text>

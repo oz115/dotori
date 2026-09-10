@@ -67,6 +67,10 @@ public enum ErrorCode {
 	INVALID_CURSOR(HttpStatus.BAD_REQUEST, "조회 커서가 올바르지 않습니다"),
 	INVALID_TRANSACTION_REASON(HttpStatus.INTERNAL_SERVER_ERROR, "거래 사유와 방향이 맞지 않습니다"),
 
+	// 포인트 환전 (WLT-07)
+	CASHOUT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "환전 요청을 찾을 수 없습니다"),
+	CASHOUT_REQUEST_ALREADY_PROCESSED(HttpStatus.CONFLICT, "이미 처리된 환전 요청입니다"),
+
 	// 계좌 (ACC)
 	BANK_TRANSFER_FAILED(HttpStatus.BAD_GATEWAY, "계좌 송금에 실패했습니다"),
 	INSUFFICIENT_ACCOUNT_BALANCE(HttpStatus.BAD_REQUEST, "계좌 잔액이 부족합니다"),

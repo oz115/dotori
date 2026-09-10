@@ -1,4 +1,4 @@
-package com.bana.dotori.mock.bank;
+package com.bana.dotori.wallet.service;
 
 /**
  * 송금 성공 결과.
