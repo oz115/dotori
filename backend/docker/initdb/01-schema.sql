@@ -29,6 +29,8 @@
 ========================================================= */
 
 DROP TABLE IF EXISTS
+"notifications",
+"device_tokens",
 "point_transactions",
 "point_cashout_requests",
 "investment_transactions",
@@ -61,6 +63,8 @@ CASCADE;
 ========================================================= */
 
 DROP TYPE IF EXISTS
+notifications_type,
+device_tokens_platform,
 point_transactions_transaction_type,
 point_cashout_requests_status,
 users_role,
@@ -80,6 +84,25 @@ CASCADE;
 /* =========================================================
 3. ENUM TYPE CREATION
 ========================================================= */
+
+/* 알림 타입 */
+CREATE TYPE notifications_type AS ENUM (
+    'INVITATION',
+    'PURCHASE',
+    'CHARGE',
+    'CASHOUT',
+    'CHORE',
+    'SAVINGS',
+    'INVESTMENT'
+);
+
+
+/* FCM 푸시를 수신할 디바이스 플랫폼 */
+CREATE TYPE device_tokens_platform AS ENUM (
+    'ANDROID',
+    'IOS'
+);
+
 
 /* 포인트 거래 발생 사유
    입출금 방향이 아닌 "왜 포인트가 변했는지"를 저장 */
@@ -403,6 +426,33 @@ CREATE TABLE "refresh_tokens" (
 );
 
 
+/* ref_id: 딥링크용 연관 리소스 ID (예: chore_id). 알림 타입마다 가리키는 대상 테이블이
+           달라 FK 를 걸 수 없다 */
+CREATE TABLE "notifications" (
+    "notification_id"       SERIAL      NOT NULL,
+    "user_id"               INTEGER     NOT NULL,
+    "type"                  notifications_type NOT NULL,
+    "title"                 VARCHAR(100) NOT NULL,
+    "body"                  VARCHAR(255) NOT NULL,
+    "ref_id"                INTEGER     NULL,
+    "is_read"               BOOLEAN     DEFAULT FALSE NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+/* fcm_token: 유일해야 upsert(등록 API가 이미 있는 토큰이면 user_id 를 갈아치우는 방식)로
+              기기 재로그인 시 이전 계정 소유권을 정리할 수 있다.
+   last_used_at: 등록/갱신 API 호출마다 갱신. 오래 미사용된 토큰 정리 기준으로 쓴다. */
+CREATE TABLE "device_tokens" (
+    "device_token_id"       SERIAL      NOT NULL,
+    "user_id"               INTEGER     NOT NULL,
+    "fcm_token"             VARCHAR(255) NOT NULL,
+    "platform"              device_tokens_platform NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "last_used_at"          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
 CREATE TABLE "family_codes" (
     "family_code_id"        SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -620,6 +670,16 @@ ADD CONSTRAINT "PK_REFRESH_TOKENS"
 PRIMARY KEY ("refresh_token_id");
 
 
+ALTER TABLE "notifications"
+ADD CONSTRAINT "PK_NOTIFICATIONS"
+PRIMARY KEY ("notification_id");
+
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "PK_DEVICE_TOKENS"
+PRIMARY KEY ("device_token_id");
+
+
 ALTER TABLE "family_codes"
 ADD CONSTRAINT "PK_FAMILY_CODES"
 PRIMARY KEY ("family_code_id");
@@ -734,6 +794,20 @@ REFERENCES "families" ("family_id");
 /* refresh_tokens */
 ALTER TABLE "refresh_tokens"
 ADD CONSTRAINT "FK_REFRESH_TOKENS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* notifications */
+ALTER TABLE "notifications"
+ADD CONSTRAINT "FK_NOTIFICATIONS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* device_tokens */
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "FK_DEVICE_TOKENS_USER"
 FOREIGN KEY ("user_id")
 REFERENCES "users" ("user_id");
 
@@ -1018,6 +1092,19 @@ CHECK ("financial_knowledge_level" IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED'));
 
 
 /* ---------------------------------------------------------
+device_tokens
+
+같은 FCM 토큰이 여러 user_id 에 동시에 남아있으면 안 됨.
+기기가 재로그인하면 등록 API 가 이 유니크를 이용해
+기존 소유자를 새 user_id 로 갈아치우는 upsert 로 동작한다.
+--------------------------------------------------------- */
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "UQ_DEVICE_TOKENS_FCM_TOKEN"
+UNIQUE ("fcm_token");
+
+
+/* ---------------------------------------------------------
 store_products
 
 1. 가치 가중치는 양수 (AI 산정 전 NULL 은 허용)
@@ -1071,6 +1158,17 @@ point_transactions
 
 CREATE INDEX "IX_POINT_TRANSACTIONS_CHILD_CREATED_AT"
 ON "point_transactions" ("child_id", "created_at", "point_transaction_id");
+
+
+/* ---------------------------------------------------------
+notifications
+
+알림 목록 조회(NOTI-01)의 페이징이 쓰는 인덱스. point_transactions 와 같은 이유로
+정렬 키(created_at)와 순서를 맞춰 커서 지점부터 필요한 만큼만 읽고 멈추게 한다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_NOTIFICATIONS_USER_CREATED_AT"
+ON "notifications" ("user_id", "created_at", "notification_id");
 
 
 /* ---------------------------------------------------------
