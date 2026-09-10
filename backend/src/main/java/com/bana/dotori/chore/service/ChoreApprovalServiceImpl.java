@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
+import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.global.error.BusinessException;
@@ -42,6 +43,7 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 	private final ChoreCompletionRequestRepository completionRequestRepository;
 	private final ChoreAccessValidator accessValidator;
 	private final PointWalletService pointWalletService;
+	private final ChoreCompletionMapper completionMapper;
 
 	/**
 	 * 부모가 완료를 승인하고 보상을 지급한다 (CHORE-09 + CHORE-07).
@@ -78,8 +80,7 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 		}
 
 		// 상태 전이를 먼저 한다. PENDING 이 아니면 여기서 409 가 나가고 지갑 락을 잡지 않는다.
-		OffsetDateTime processedAt = OffsetDateTime.now(KST);
-		completionRequest.approve(processedAt);
+		completionRequest.approve(OffsetDateTime.now(KST));
 
 		// 첫 보상이 첫 포인트일 수 있다. 지갑이 없으면 deposit 이 WALLET_NOT_FOUND 로 터진다.
 		pointWalletService.createWalletIfAbsent(childId);
@@ -97,8 +98,7 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 		log.info("집안일 보상 지급 완료. familyId={}, childId={}, choreId={}, requestId={}, amount={}, balanceAfter={}",
 				familyId, childId, chore.getId(), requestId, rewardPoints, result.balanceAfter());
 
-		return new ChoreApprovalResponse(completionRequest.getId(), completionRequest.getStatus(),
-				rewardPoints, processedAt);
+		return completionMapper.toApprovalResponse(completionRequest, rewardPoints);
 	}
 
 	/**
