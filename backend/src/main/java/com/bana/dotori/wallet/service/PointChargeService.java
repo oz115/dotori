@@ -3,8 +3,6 @@ package com.bana.dotori.wallet.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bana.dotori.mock.bank.BankTransferClient;
-import com.bana.dotori.mock.bank.BankTransferResult;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;

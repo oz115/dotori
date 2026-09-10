@@ -1,4 +1,4 @@
-package com.bana.dotori.mock.bank;
+package com.bana.dotori.wallet.support;
 
 import java.time.OffsetDateTime;
 
@@ -20,10 +20,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
  *   "updatedAt": "2026-08-28T12:00:00+09:00"
  * }
  * </pre>
- *
- * <p>계좌 연동(ACC-01·02)이 완성되면 이 레코드는 계좌 도메인의 응답 DTO 로 대체된다.
- * 지금 형식을 맞춰 두는 이유는, 나중에 목업을 실제 API 로 갈아끼울 때
- * 충전 로직을 건드리지 않기 위해서다.
  *
  * @param balance 현재 잔액(원). 포인트가 아니라 실제 돈이다
  */

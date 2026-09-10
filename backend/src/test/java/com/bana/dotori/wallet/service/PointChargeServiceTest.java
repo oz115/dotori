@@ -23,8 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.error.BusinessException;
-import com.bana.dotori.mock.bank.BankTransferClient;
-import com.bana.dotori.mock.bank.BankTransferResult;
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
