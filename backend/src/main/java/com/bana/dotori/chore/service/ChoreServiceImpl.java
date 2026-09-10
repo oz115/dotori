@@ -16,14 +16,8 @@ import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.event.ChoreCreatedEvent;
 import com.bana.dotori.chore.mapper.ChoreMapper;
 import com.bana.dotori.chore.repository.ChoreRepository;
-import com.bana.dotori.family.entity.FamilyMember;
-import com.bana.dotori.family.repository.FamilyMemberRepository;
-import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
-import com.bana.dotori.user.entity.User;
-import com.bana.dotori.user.entity.UserRole;
-import com.bana.dotori.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,9 +45,7 @@ public class ChoreServiceImpl implements ChoreService {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	private final ChoreRepository choreRepository;
-	private final FamilyRepository familyRepository;
-	private final FamilyMemberRepository familyMemberRepository;
-	private final UserRepository userRepository;
+	private final ChoreAccessValidator accessValidator;
 	private final ChoreMapper choreMapper;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -61,10 +53,8 @@ public class ChoreServiceImpl implements ChoreService {
 	@Transactional
 	public ChoreDetailResponse createChore(Integer userId, Integer familyId, Integer childId,
 			ChoreCreateRequest request) {
-		validateAccess(userId, familyId, childId);
-		if (findUser(userId).getRole() != UserRole.PARENT) {
-			throw new BusinessException(ErrorCode.FORBIDDEN);
-		}
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
 
 		// start_date~end_date 는 반복과 일회성에서 뜻이 다르다.
 		//   반복   — 지금 진행 중인 "주기 한 칸"(창). 칸이 끝나면 크론이 다음 칸으로 민다.
@@ -101,7 +91,7 @@ public class ChoreServiceImpl implements ChoreService {
 	@Override
 	@Transactional(readOnly = true)
 	public ChoreListResponse getChores(Integer userId, Integer familyId, Integer childId) {
-		validateAccess(userId, familyId, childId);
+		accessValidator.validate(userId, familyId, childId);
 		return choreMapper.toListResponse(
 			choreRepository.findAllByFamilyIdAndChildIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(familyId, childId));
 	}
@@ -109,7 +99,7 @@ public class ChoreServiceImpl implements ChoreService {
 	@Override
 	@Transactional(readOnly = true)
 	public ChoreDetailResponse getChore(Integer userId, Integer familyId, Integer childId, Integer choreId) {
-		validateAccess(userId, familyId, childId);
+		accessValidator.validate(userId, familyId, childId);
 
 		Chore chore = choreRepository.findByIdAndFamilyId(choreId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_NOT_FOUND));
@@ -195,10 +185,8 @@ public class ChoreServiceImpl implements ChoreService {
 	 * 보상 금액을 바로잡아야 하는 경우가 있다.
 	 */
 	private Chore findForParent(Integer userId, Integer familyId, Integer childId, Integer choreId) {
-		validateAccess(userId, familyId, childId);
-		if (findUser(userId).getRole() != UserRole.PARENT) {
-			throw new BusinessException(ErrorCode.FORBIDDEN);
-		}
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
 
 		Chore chore = choreRepository.findByIdAndFamilyId(choreId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.CHORE_NOT_FOUND));
@@ -206,39 +194,5 @@ public class ChoreServiceImpl implements ChoreService {
 			throw new BusinessException(ErrorCode.CHORE_NOT_FOUND);
 		}
 		return chore;
-	}
-
-	/**
-	 * 경로의 familyId·childId 를 검증한다. 세 가지를 본다.
-	 *
-	 * <ol>
-	 *   <li>살아 있는 가족이고 호출자가 그 구성원인가 — 아니면 404.
-	 *       403 을 주면 그 familyId 가 실재한다는 사실이 새어 나간다 (상점 API 와 같은 기준).</li>
-	 *   <li>childId 가 그 가족의 살아 있는 자녀인가 — 아니면 404.</li>
-	 *   <li>호출자가 아이라면 자기 자신인가 — 형제 것을 보려 하면 403.
-	 *       형제의 존재는 이미 아는 사실이라 여기서는 숨길 것이 없고, 권한 문제임을 알려 주는 편이 낫다.</li>
-	 * </ol>
-	 */
-	private void validateAccess(Integer userId, Integer familyId, Integer childId) {
-		familyRepository.findByIdAndDeletedAtIsNull(familyId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
-			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
-		}
-
-		FamilyMember childMember = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-		if (childMember.getUser().getRole() != UserRole.CHILD) {
-			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
-		}
-
-		if (findUser(userId).getRole() == UserRole.CHILD && !userId.equals(childId)) {
-			throw new BusinessException(ErrorCode.FORBIDDEN);
-		}
-	}
-
-	private User findUser(Integer userId) {
-		return userRepository.findById(userId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 	}
 }

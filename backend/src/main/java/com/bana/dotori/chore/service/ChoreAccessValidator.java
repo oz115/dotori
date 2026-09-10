@@ -17,11 +17,15 @@ import lombok.RequiredArgsConstructor;
  * 집안일 API 경로(`/families/{familyId}/children/{childId}/...`)의 접근 검증.
  *
  * <p>경로에 들어온 familyId·childId 를 그대로 믿으면 남의 가족 데이터를 건드릴 수 있다.
- * 완료 요청 계열(CHORE-08~12)이 같은 검증을 여러 번 하므로 한곳에 모았다.
+ * 집안일 API 전부(CHORE-01~13)가 같은 검증을 하므로 한곳에 모았다.
  *
- * <p>{@code ChoreServiceImpl} 에도 같은 로직이 private 메서드로 남아 있다. 그쪽까지 옮기면
- * 기존 서비스 테스트가 검증하던 404·403 케이스가 모킹 뒤로 숨어 버려 이번 범위에서는 두었다.
- * 인가 규칙이 두 군데 있는 상태라 한쪽만 고치는 일이 없도록 조심해야 한다.
+ * <p><b>집안일 인가 규칙은 이 클래스에만 있다.</b> 한동안 {@code ChoreServiceImpl} 안에도
+ * 같은 로직이 private 으로 복제돼 있었는데, 그 상태에서는 규칙을 한쪽만 고치면 나머지 절반이
+ * 옛 규칙으로 돌고 양쪽 테스트가 모두 초록이라 아무도 눈치채지 못한다. 규칙을 바꿀 일이
+ * 생기면 여기만 고치고, 다른 곳에 같은 검사를 다시 쓰지 않는다.
+ *
+ * <p>규칙이 맞는지는 {@code ChoreAccessValidatorTest} 가 검증한다. 각 서비스 테스트는
+ * 이 검증기를 모킹하므로 "거치는가"만 본다.
  */
 @Component
 @RequiredArgsConstructor

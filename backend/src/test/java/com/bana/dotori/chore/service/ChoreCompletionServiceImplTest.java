@@ -382,8 +382,10 @@ class ChoreCompletionServiceImplTest {
 
 			assertThat(response.choreCompletionRequestId()).isEqualTo(REQUEST_ID);
 			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.REJECTED);
-			assertThat(response.processedAt()).isNotNull();
 			assertThat(pending.getStatus()).isEqualTo(ChoreCompletionStatus.REJECTED);
+			// 응답의 처리 시각은 엔티티에 기록된 값이어야 한다. 서비스가 따로 계산한 값을
+			// 실어 보내면 DB 에 저장된 시각과 응답이 어긋날 수 있다.
+			assertThat(response.processedAt()).isNotNull().isEqualTo(pending.getProcessedAt());
 		}
 
 		@Test

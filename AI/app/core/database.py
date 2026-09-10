@@ -2,8 +2,9 @@
 
 경계 규칙 (중요)
 ---------------
-이 DB 의 스키마 주인은 **백엔드(Spring)** 다. `ddl-auto: update` 로 Hibernate 가
-엔티티에서 테이블을 만든다. 따라서 이 서버는 다음을 지킨다.
+이 DB 의 스키마 주인은 **백엔드(Spring)** 다. 단 `ddl-auto: none` 이라 Hibernate 가
+스키마를 만들지도 바꾸지도 않는다 — 원본은 `backend/docker/initdb/01-schema.sql` 이다.
+따라서 이 서버는 다음을 지킨다.
 
 **이 서버는 테이블을 하나도 소유하지 않는다.** 팀원들이 이미 만들어 둔 테이블만 쓴다.
 
@@ -11,17 +12,25 @@
 * `Base.metadata.create_all()` 을 **절대 호출하지 않는다.** 남의 테이블까지 건드린다.
 * Alembic 을 쓰지 않는다. `--autogenerate` 가 자기가 모르는 테이블에 대해
   `drop_table` 을 만들어 내므로 공유 DB 에서는 위험하다.
-* 필요한 컬럼이 없으면 **직접 추가하지 않고 담당자와 협의한다.** 컬럼은 백엔드 엔티티에
-  선언되어야 Hibernate 가 만든다.
+* 필요한 컬럼이 없으면 **직접 추가하지 않고 담당자와 협의한다.** 담당자가 엔티티와
+  `01-schema.sql` 을 함께 고쳐야 하고, 공유 DB 반영은 인프라 담당자와 맞춰야 한다.
 * 읽기/쓰기 범위는 `docs/db-boundary.md` 를 따른다.
 """
 
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import get_settings
+from app.core.config import get_settings
+
+
+class Base(DeclarativeBase):
+    """도메인별 ORM 모델(`app/domains/*/models.py`)이 상속하는 베이스.
+
+    기존 테이블에 매핑만 한다 — `Base.metadata.create_all()` 은 절대 호출하지 않는다.
+    (위 경계 규칙 참고. 새 테이블이 필요하면 이 서버가 아니라 백엔드 엔티티에 선언한다.)
+    """
 
 _settings = get_settings()
 

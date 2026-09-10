@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { emailVerificationErrorMessage } from '@/features/auth/lib/emailVerificationError';
 import { isValidEmail } from '@/features/auth/lib/signupValidation';
-import { useCountdown } from '@/features/auth/lib/useCountdown';
+import { useCountdown } from '@/shared/lib/useCountdown';
 import type { EmailVerificationPurpose } from '@/features/auth/model/types';
 import { useConfirmEmailCode, useSendEmailCode } from '@/features/auth/model/useEmailVerification';
 import { useTheme } from '@/shared/theme';

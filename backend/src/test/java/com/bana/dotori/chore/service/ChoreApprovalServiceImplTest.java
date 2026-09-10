@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -31,6 +32,7 @@ import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.entity.ChoreDifficulty;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
+import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.global.error.BusinessException;
@@ -77,6 +79,9 @@ class ChoreApprovalServiceImplTest {
 
 	@Mock
 	private PointWalletService pointWalletService;
+
+	@Spy
+	private ChoreCompletionMapper completionMapper;
 
 	@InjectMocks
 	private ChoreApprovalServiceImpl choreApprovalService;
@@ -136,8 +141,10 @@ class ChoreApprovalServiceImplTest {
 			assertThat(response.choreCompletionRequestId()).isEqualTo(REQUEST_ID);
 			assertThat(response.status()).isEqualTo(ChoreCompletionStatus.SUCCEED);
 			assertThat(response.rewardPoints()).isEqualTo(REWARD_POINTS);
-			assertThat(response.processedAt()).isNotNull();
 			assertThat(request.getStatus()).isEqualTo(ChoreCompletionStatus.SUCCEED);
+			// 응답의 처리 시각은 엔티티에 기록된 값이어야 한다. 서비스가 따로 계산한 값을
+			// 실어 보내면 DB 에 저장된 시각과 응답이 어긋날 수 있다.
+			assertThat(response.processedAt()).isNotNull().isEqualTo(request.getProcessedAt());
 		}
 
 		@Test
