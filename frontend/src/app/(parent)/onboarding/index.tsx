@@ -4,7 +4,7 @@ import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native
 
 import { useAuthStore } from '@/features/auth';
 import { useOnboardingStore } from '@/features/family';
-import { useTheme } from '@/shared/theme';
+import { fontFamily, useTheme } from '@/shared/theme';
 import { Button, ProgressIndicator, Screen } from '@/shared/ui';
 
 const MASCOT = require('@/assets/images/parent-onboarding.png'); // 253 x 294
@@ -26,33 +26,36 @@ export default function OnboardingHomeScreen() {
   // 온보딩 퍼널의 진입점 — 이전 회차 입력값 초기화
   useEffect(() => reset(), [reset]);
 
-  const mascotW = Math.min(width * 0.3, 132);
+  const mascotW = Math.min(width * 0.28, 116);
 
   return (
     <Screen scroll>
       <View style={[styles.topSpacer, { minHeight: theme.space.xl }]} />
 
       <View style={styles.hero}>
-        <Text style={[theme.typography.h1, styles.heroTitle, { color: theme.color.text.strong }]}>
-          안녕하세요,{'\n'}
-          <Text style={{ color: theme.color.brand.solid }}>{name ? `${name}님` : '반가워요'}</Text>
-        </Text>
+        <View style={styles.heroText}>
+          <Text style={[styles.greeting, { color: theme.color.text.strong }]}>
+            안녕하세요,{'\n'}
+            <Text style={{ color: theme.color.brand.solid }}>
+              {name ? `${name}님` : '반가워요'}
+            </Text>
+          </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: theme.color.text.default, marginTop: theme.space.sm },
+            ]}
+          >
+            도토리와 함께 우리 아이의{'\n'}
+            <Text style={{ color: theme.color.brand.solid }}>건강한 경제 습관</Text>을 시작해요.
+          </Text>
+        </View>
         <Image
           source={MASCOT}
           style={{ width: mascotW, height: mascotW * MASCOT_RATIO }}
           resizeMode="contain"
         />
       </View>
-
-      <Text
-        style={[
-          theme.typography.body,
-          { color: theme.color.text.default, marginTop: theme.space.md },
-        ]}
-      >
-        도토리와 함께 우리 아이의{' '}
-        <Text style={{ color: theme.color.brand.solid }}>건강한 경제 습관</Text>을 시작해요.
-      </Text>
 
       <View
         style={[
@@ -138,11 +141,12 @@ const styles = StyleSheet.create({
   topSpacer: { flex: 0.4 },
   hero: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
   },
-  heroTitle: { flex: 1, marginTop: 4 },
+  heroText: { flex: 1 },
+  greeting: { fontFamily: fontFamily.bold, fontSize: 32, lineHeight: 40 },
+  subtitle: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 23 },
   card: { borderWidth: 1, overflow: 'hidden' },
   stepRow: { flexDirection: 'row', alignItems: 'center' },
   badge: {
