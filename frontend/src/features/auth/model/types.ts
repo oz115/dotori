@@ -28,6 +28,17 @@ export type LoginResponse = {
   };
 };
 
+/** GET /api/v1/users/{userId} — 마이페이지가 쓰는 회원 정보 */
+export type UserProfile = {
+  userId: number;
+  loginId: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  emailVerified: boolean;
+  createdAt: string;
+};
+
 /** POST /api/v1/auth/refresh */
 export type RefreshResponse = {
   accessToken: string;
