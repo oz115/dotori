@@ -38,3 +38,10 @@ export type InvitationResponse = {
   /** ISO 8601 만료 시각 */
   expiresAt: string;
 };
+
+/** POST /api/v1/families/connect 응답 — 자녀가 초대 코드로 가족에 합류 */
+export type FamilyConnectResponse = {
+  familyId: number;
+  familyName: string;
+  joinedAt: string;
+};

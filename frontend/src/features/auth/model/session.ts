@@ -19,6 +19,18 @@ export async function signIn(body: LoginBody): Promise<void> {
   });
 }
 
+/**
+ * 회원 탈퇴 — 서버 soft delete 후 로컬 세션을 정리한다.
+ * 비밀번호가 틀리면(PASSWORD_MISMATCH) throw 하고 세션은 유지된다.
+ */
+export async function withdrawAccount(password: string): Promise<void> {
+  const userId = useAuthStore.getState().user?.userId;
+  if (userId == null) throw new Error('세션이 없습니다');
+  await authApi.withdraw(userId, password);
+  await tokenStorage.clear();
+  useAuthStore.getState().clearSession();
+}
+
 /** 로그아웃: 서버 무효화(실패 무시) + 로컬 정리 */
 export async function signOut(): Promise<void> {
   const refreshToken = await tokenStorage.get();

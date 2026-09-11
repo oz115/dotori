@@ -101,7 +101,7 @@ class MyPageApiE2ETest {
 				.andExpect(jsonPath("$.loginId").value("mypage-parent"))
 				.andExpect(jsonPath("$.name").value("김도토"))
 				.andExpect(jsonPath("$.role").value("PARENT"))
-				.andExpect(jsonPath("$.emailVerified").value(false))
+				.andExpect(jsonPath("$.emailVerified").value(true))
 				.andExpect(jsonPath("$.createdAt").exists())
 				.andExpect(jsonPath("$.profileImageUrl").doesNotExist());
 		}
@@ -336,6 +336,28 @@ class MyPageApiE2ETest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("PASSWORD_MISMATCH"));
 
+			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isOk());
+		}
+
+		@Test
+		@DisplayName("탈퇴한 회원의 이메일·아이디로 다시 가입하고 로그인까지 된다")
+		void 탈퇴한_계정의_이메일과_아이디는_재사용된다() throws Exception {
+			detachChild();
+			withdraw(PARENT_PASSWORD).andExpect(status().isNoContent());
+
+			// 소프트 삭제라 탈퇴 행이 남지만, 부분 유니크 인덱스(UX_USERS_*_ACTIVE)와
+			// deleted_at 을 거르는 중복 검사 덕에 같은 값으로 재가입이 된다.
+			// 기존 signup 헬퍼는 login_id 단건 조회라 행이 2개가 되는 여기서는 못 쓴다.
+			mockMvc.perform(post("/api/v1/auth/signup")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+						{"loginId": "mypage-parent", "password": "P@ssw0rd!", "name": "김도토",
+						"email": "mypage-parent@autotest.local", "role": "PARENT",
+						"verificationToken": "vt_autotest"}
+						"""))
+				.andExpect(status().isCreated());
+
+			// 로그인 조회도 탈퇴 행이 아니라 새 행에 걸리는지 확인한다
 			login("mypage-parent", PARENT_PASSWORD).andExpect(status().isOk());
 		}
 	}

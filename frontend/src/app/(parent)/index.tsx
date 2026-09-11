@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { signOut } from '@/features/auth';
+import { signOut, WithdrawButton } from '@/features/auth';
 import { savedFamilyId, useDeleteFamily, useFamilyStatus } from '@/features/family';
 import { Button } from '@/shared/ui';
 import { useTheme } from '@/shared/theme';
+import { MainTabBar } from '@/widgets/main-tab-bar';
 
 /**
  * 부모 홈 자리 표시자. 실제 홈은 부모 홈 태스크에서 구현한다.
@@ -46,7 +47,10 @@ export default function ParentHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.color.background.canvas }]}>
+    <SafeAreaView
+      edges={['top']}
+      style={[styles.safe, { backgroundColor: theme.color.background.canvas }]}
+    >
       <View style={styles.center}>
         <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>부모 홈</Text>
 
@@ -84,7 +88,10 @@ export default function ParentHomeScreen() {
         )}
 
         <Button label="로그아웃" variant="secondary" onPress={signOut} />
+        <WithdrawButton />
       </View>
+      {/* 투자 등 다른 탭으로는 하단 탭바로 이동한다. bottom safe-area 는 탭바가 처리 */}
+      <MainTabBar active="home" />
     </SafeAreaView>
   );
 }

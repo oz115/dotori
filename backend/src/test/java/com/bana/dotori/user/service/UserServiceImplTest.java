@@ -84,8 +84,8 @@ class UserServiceImplTest {
 	@DisplayName("회원가입 성공 시 저장된 유저 정보를 반환한다")
 	void signup_success() {
 		SignupRequest request = signupRequest();
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -102,15 +102,15 @@ class UserServiceImplTest {
 	void signup_normalizesEmail() {
 		SignupRequest request = new SignupRequest("dotori123", "P@ssw0rd!", "김도토", "Dotori@Example.COM",
 			UserRole.PARENT, "vt_a1b2c3d4");
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		SignupResponse response = userService.signup(request);
 
 		assertThat(response.email()).isEqualTo("dotori@example.com");
-		verify(userRepository).existsByEmail("dotori@example.com");
+		verify(userRepository).existsByEmailAndDeletedAtIsNull("dotori@example.com");
 		verify(userRepository).save(argThat(user -> "dotori@example.com".equals(user.getEmail())));
 	}
 
@@ -125,15 +125,15 @@ class UserServiceImplTest {
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.INVALID_VERIFICATION_TOKEN);
 
-		verify(userRepository, never()).existsByLoginId(anyString());
+		verify(userRepository, never()).existsByLoginIdAndDeletedAtIsNull(anyString());
 		verify(userRepository, never()).save(any(User.class));
 	}
 
 	@Test
 	@DisplayName("가입에 성공하면 verificationToken을 소모한다")
 	void signup_consumesVerificationToken() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -146,7 +146,7 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("아이디가 중복이면 verificationToken을 소모하지 않는다")
 	void signup_keepsTokenOnDuplicate() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(true);
 
 		assertThatThrownBy(() -> userService.signup(signupRequest()))
 			.isInstanceOf(BusinessException.class);
@@ -157,7 +157,7 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("아이디 중복 체크: 사용 가능한 아이디면 예외 없이 통과한다")
 	void checkLoginIdAvailable_success() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
 
 		userService.checkLoginIdAvailable("dotori123");
 	}
@@ -165,7 +165,7 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("아이디 중복 체크: 사용 중인 아이디면 DUPLICATE_LOGIN_ID 예외가 발생한다")
 	void checkLoginIdAvailable_duplicate() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(true);
 
 		assertThatThrownBy(() -> userService.checkLoginIdAvailable("dotori123"))
 			.isInstanceOf(BusinessException.class)
@@ -176,7 +176,7 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("이미 사용 중인 아이디면 DUPLICATE_LOGIN_ID 예외가 발생한다")
 	void signup_duplicateLoginId() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(true);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(true);
 
 		assertThatThrownBy(() -> userService.signup(signupRequest()))
 			.isInstanceOf(BusinessException.class)
@@ -187,8 +187,8 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("이미 사용 중인 이메일이면 DUPLICATE_EMAIL 예외가 발생한다")
 	void signup_duplicateEmail() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(true);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(true);
 
 		assertThatThrownBy(() -> userService.signup(signupRequest()))
 			.isInstanceOf(BusinessException.class)
@@ -199,8 +199,8 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("동시 요청으로 저장 시점에 unique 제약 위반이 나면 409로 변환된다")
 	void signup_raceConditionOnLoginId() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willThrow(new DataIntegrityViolationException(
 			"could not execute statement",
@@ -215,8 +215,8 @@ class UserServiceImplTest {
 	@Test
 	@DisplayName("동시 요청으로 이메일 unique 제약 위반이 나면 DUPLICATE_EMAIL로 변환된다")
 	void signup_raceConditionOnEmail() {
-		given(userRepository.existsByLoginId("dotori123")).willReturn(false);
-		given(userRepository.existsByEmail("dotori@example.com")).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull("dotori@example.com")).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willThrow(new DataIntegrityViolationException(
 			"could not execute statement",
@@ -232,8 +232,8 @@ class UserServiceImplTest {
 	@DisplayName("비밀번호는 인코딩되어 저장된다")
 	void signup_encodesPassword() {
 		SignupRequest request = signupRequest();
-		given(userRepository.existsByLoginId(anyString())).willReturn(false);
-		given(userRepository.existsByEmail(anyString())).willReturn(false);
+		given(userRepository.existsByLoginIdAndDeletedAtIsNull(anyString())).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull(anyString())).willReturn(false);
 		given(passwordEncoder.encode("P@ssw0rd!")).willReturn("encoded-password");
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -254,7 +254,7 @@ class UserServiceImplTest {
 		assertThat(response.name()).isEqualTo("김도토");
 		assertThat(response.email()).isEqualTo("dotori@example.com");
 		assertThat(response.role()).isEqualTo(UserRole.PARENT);
-		assertThat(response.emailVerified()).isFalse();
+		assertThat(response.emailVerified()).isTrue();
 		assertThat(response.createdAt()).isNotNull();
 	}
 

@@ -18,10 +18,10 @@
 | `chores` | 읽기 + `reward_points` 쓰기 | 할 일 보상 포인트 책정 |
 | `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
 | `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료 |
-| `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정, 주가 갱신 |
+| `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정. `current_price` 는 가족별 이력이 없을 때 쓰는 시작가로 좁힐 예정 (협의 2번). `news_context` 는 매일 뉴스 생성 프롬프트의 few-shot 참고자료 (협의 4번) |
 | `investment_news` | INSERT | 매일 뉴스 3건 생성 |
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
-| `investment_price_history` | INSERT | 주가 변동 이력 |
+| `investment_price_history` | INSERT | 가족별 주가 변동 이력. `family_id` 컬럼 요청 중 (협의 2번) |
 | `families`, `users` | **읽기만** | 온보딩 A(`weekly_reward_limit`)·B(`weekly_allowance`) 값, `financial_knowledge_level`, 아이 정보 조회 |
 | 그 밖의 모든 테이블 | 접근 안 함 | 포인트 지갑, 예적금, 계좌 연동 등은 백엔드 담당 |
 
@@ -55,8 +55,29 @@
 
 이제 `D = (A + B) / 7` 계산에 요청 파라미터가 아니라 DB 값을 바로 쓸 수 있다.
 
-### 2. 뉴스의 상승/하락 방향을 담을 곳이 없다
+### 2. 투자 시세: 가족별 이력 컬럼 + 뉴스의 상승/하락 방향
 
+두 가지가 같이 걸려 있어서 한 번에 요청한다.
+
+**(a) 가격 이력이 가족별이 아니다.** 주가 변동폭 = `families.weekly_reward_limit`(A) 의
+40%/7 인데(`app.domains.investment.services` 참고), A 는 가족마다 다르다(협의 1번 참고).
+그런데 `investment_price_history` 는 `investment_product_id` 하나로만 묶인 전역 값이라
+"어느 가족 기준으로 움직였는지"를 저장할 수 없다.
+
+뉴스(`investment_news`, `investment_news_products`)와 회사 카탈로그(`investment_products`)는
+그대로 전역으로 둔다 — 뉴스 내용과 회사 정체성(노션 「회사 리스트」가 고정한 10개)은 모든
+가족이 동일하게 봐야 자연스럽다. **같은 뉴스로 인한 가격 변동폭만 가족마다 다르게** 적용한다.
+`investment_products.current_price` 는 "가족별 이력이 아직 없을 때 쓰는 시작가(seed)" 로
+의미를 좁힌다. 실제 "이 가족에게 이 회사가 지금 얼마인가"는 `investment_price_history` 에서
+`family_id + investment_product_id` 로 가장 최근 행을 찾아서 구한다.
+
+요청안 (`investment_price_history`):
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `family_id` | INTEGER (FK) | 이 가격 변동이 적용되는 가족 |
+
+**(b) 뉴스의 상승/하락 방향을 담을 곳이 없다.**
 `investment_news` 는 `title`, `content`, `published_at` 뿐이고
 `investment_news_products` 는 `investment_news_product_id`, `investment_news_id`,
 `investment_product_id` 3개뿐이다. **뉴스가 호재인지 악재인지 저장할 컬럼이 없다.**
@@ -78,7 +99,8 @@
 설계 v3 의 `evidence_grade`(근거 등급 A/B)는 **더 이상 필요하지 않다.** 한 뉴스가 회사마다
 다른 영향을 주는 구조가 사라졌기 때문이다. 이전 요청안에서 철회한다.
 
-담당: 투자 도메인 / 상태: **요청 전** (1:1 확정에 맞춰 2026-09-10 재작성)
+담당: 투자 도메인 / 상태: **요청 전** (`family_id`·`impact` 두 컬럼을 한 번에 요청 —
+2026-09-10 재작성)
 
 ### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다
 
@@ -93,6 +115,28 @@
   `ai_reason`(TEXT), `ai_suggested_price`(INTEGER) 추가를 상점 도메인 담당자와 협의한다.
 
 담당: 상점 도메인 / 상태: **v1 은 저장 없이 진행**
+
+### 4. 회사 10개 시드 + 뉴스 프롬프트용 속성 (요청안 정리 완료, 2026-09-10)
+
+노션 「회사 리스트」가 회사 10개(시원아이스·푸른들농업·두근여행·신나는월드·하늘항공·번개택배·
+튼튼건설·고소한빵·씽씽자동차·파워배터리)와 각각의 대표 경제 요인·상승/하락 사건 예시를
+확정했다. `name`·`description`은 기존 컬럼에 매핑하고, `category`는 전부 `STOCK`으로 둔다
+(ENUM 은 확장성을 위해 남겨둔 것, 지금은 나눌 대상이 없다).
+
+경제 요인·상승/하락 예시는 조회 대상이 아니라 매일 뉴스 3건을 만드는 LLM 프롬프트의
+few-shot 참고자료라 컬럼을 나누지 않고 자유 텍스트 하나로 묶었다.
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `news_context` | TEXT | 대표 경제 요인 + 상승/하락 사건 예시 (자유 텍스트) |
+
+`01-schema.sql`은 Notion DDL 문서의 동기화본이라 여기서 직접 고치지 않는다 — 위 컬럼
+요청을 Notion에 반영하는 건 투자 도메인 담당자 몫이다. 시드 데이터(회사 10개 INSERT 문)는
+참고용으로 `AI/../02-seed-investment-products.sql`에 따로 정리해 뒀다.
+`current_price`는 전부 10000 자리표시자다 — 실제 시작가는 아직 확정되지 않았다.
+
+담당: 투자 도메인 / 상태: **요청안만 정리, Notion·`01-schema.sql` 반영은 투자 도메인 담당자가
+진행.** 반영 후 `current_price` 시작가를 확정해야 한다.
 
 ## 테이블을 만들지 않고 해결하는 것들
 
