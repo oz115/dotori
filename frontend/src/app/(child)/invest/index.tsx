@@ -11,15 +11,8 @@ import {
   StockCard,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { BottomNav, Header, type NavIconName } from '@/shared/ui';
-
-const NAV_ITEMS: { key: NavIconName; label: string }[] = [
-  { key: 'task', label: '할 일' },
-  { key: 'store', label: '상점' },
-  { key: 'home', label: '홈' },
-  { key: 'save', label: '저축' },
-  { key: 'invest', label: '투자' },
-];
+import { Header } from '@/shared/ui';
+import { ChildTabBar } from '@/widgets/child-tab-bar';
 
 /**
  * 자녀 투자 탭 (Figma: 투자 상품 상세 보기). 투자 요약·오늘의 뉴스·주식 리스트를
@@ -27,17 +20,6 @@ const NAV_ITEMS: { key: NavIconName; label: string }[] = [
  */
 export default function InvestScreen() {
   const theme = useTheme();
-
-  const onSelectTab = (key: NavIconName) => {
-    if (key === 'invest') {
-      return;
-    }
-    if (key === 'home') {
-      router.replace('/');
-      return;
-    }
-    // TODO: 할 일·상점·저축 탭은 해당 화면 태스크에서 라우트가 생기면 연결한다
-  };
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
@@ -76,15 +58,19 @@ export default function InvestScreen() {
               <StockCard
                 key={stock.id}
                 stock={stock}
-                // TODO: 종목 상세 화면 태스크에서 라우트가 생기면 연결한다
-                onPress={() => {}}
+                onPress={() =>
+                  router.push({
+                    pathname: '/invest/[stockId]',
+                    params: { stockId: String(stock.id) },
+                  })
+                }
               />
             ))}
           </View>
         </View>
       </ScrollView>
 
-      <BottomNav items={NAV_ITEMS} activeKey="invest" onSelect={onSelectTab} />
+      <ChildTabBar active="invest" />
     </View>
   );
 }

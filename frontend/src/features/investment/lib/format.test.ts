@@ -1,4 +1,4 @@
-import { formatAcorns, formatPoints, signedAcorns } from './format';
+import { formatAcorns, formatNumber, formatPoints, signedAcorns } from './format';
 
 describe('formatPoints', () => {
   it('천 단위 구분 쉼표와 P 접미사를 붙인다', () => {
@@ -9,6 +9,13 @@ describe('formatPoints', () => {
   it('천 미만은 쉼표 없이 표기한다', () => {
     expect(formatPoints(980)).toBe('980P');
     expect(formatPoints(0)).toBe('0P');
+  });
+});
+
+describe('formatNumber', () => {
+  it('단위 없이 천 단위 구분만 한다', () => {
+    expect(formatNumber(1120)).toBe('1,120');
+    expect(formatNumber(600)).toBe('600');
   });
 });
 
