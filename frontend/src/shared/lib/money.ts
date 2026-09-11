@@ -16,6 +16,11 @@ export function formatWonNumber(won: number): string {
   return won.toLocaleString('ko-KR');
 }
 
+/** 12400 → "12,400P" (지갑·상점이 다루는 도토리 포인트 표시) */
+export function formatPoint(point: number): string {
+  return `${point.toLocaleString('ko-KR')}P`;
+}
+
 /**
  * 5000 → "5천 원", 10000 → "1만 원", 30000 → "3만 원", 15000 → "1만 5천 원".
  * 천 단위로 안 떨어지면 전체 표기로 폴백한다 (프리셋 칩 라벨용).

@@ -1,4 +1,4 @@
-import { formatWon, formatWonNumber, formatWonShort } from './money';
+import { formatPoint, formatWon, formatWonNumber, formatWonShort } from './money';
 
 describe('formatWon', () => {
   it('groups thousands and appends 원', () => {
@@ -12,6 +12,13 @@ describe('formatWonNumber', () => {
   it('groups thousands without a unit', () => {
     expect(formatWonNumber(10000)).toBe('10,000');
     expect(formatWonNumber(0)).toBe('0');
+  });
+});
+
+describe('formatPoint', () => {
+  it('groups thousands and appends P', () => {
+    expect(formatPoint(12400)).toBe('12,400P');
+    expect(formatPoint(0)).toBe('0P');
   });
 });
 
