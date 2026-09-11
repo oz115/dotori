@@ -182,23 +182,26 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가족에 소속되어 있으면 hasFamily=true를 반환한다")
+	@DisplayName("가족에 소속되어 있으면 hasFamily=true와 familyId를 함께 반환한다")
 	void getStatus_hasFamily() {
-		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.of(3));
 
 		FamilyStatusResponse response = familyService.getStatus(1);
 
 		assertThat(response.hasFamily()).isTrue();
+		// 초대 코드 만료 후 재발급으로 이어 가려면 화면이 familyId 를 알아야 한다
+		assertThat(response.familyId()).isEqualTo(3);
 	}
 
 	@Test
-	@DisplayName("가족에 소속되어 있지 않으면 hasFamily=false를 반환한다")
+	@DisplayName("가족에 소속되어 있지 않으면 hasFamily=false, familyId=null을 반환한다")
 	void getStatus_noFamily() {
-		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.empty());
 
 		FamilyStatusResponse response = familyService.getStatus(1);
 
 		assertThat(response.hasFamily()).isFalse();
+		assertThat(response.familyId()).isNull();
 	}
 
 	private Family onboardedFamily() {

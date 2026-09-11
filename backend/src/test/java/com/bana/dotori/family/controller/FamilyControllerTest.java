@@ -1,5 +1,6 @@
 package com.bana.dotori.family.controller;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -141,27 +142,29 @@ class FamilyControllerTest {
 	}
 
 	@Test
-	@DisplayName("가족에 소속되어 있으면 200과 hasFamily=true를 반환한다")
+	@DisplayName("가족에 소속되어 있으면 200과 hasFamily=true, familyId를 반환한다")
 	void getStatus_hasFamily() throws Exception {
 		givenParentAuthenticated(1);
-		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(true));
+		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(true, 3));
 
 		mockMvc.perform(get(FAMILIES_URL + "/status")
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.hasFamily").value(true));
+			.andExpect(jsonPath("$.hasFamily").value(true))
+			.andExpect(jsonPath("$.familyId").value(3));
 	}
 
 	@Test
-	@DisplayName("가족에 소속되어 있지 않으면 200과 hasFamily=false를 반환한다")
+	@DisplayName("가족에 소속되어 있지 않으면 200과 hasFamily=false, familyId=null을 반환한다")
 	void getStatus_noFamily() throws Exception {
 		givenParentAuthenticated(1);
-		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(false));
+		given(familyService.getStatus(1)).willReturn(new FamilyStatusResponse(false, null));
 
 		mockMvc.perform(get(FAMILIES_URL + "/status")
 				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.hasFamily").value(false));
+			.andExpect(jsonPath("$.hasFamily").value(false))
+			.andExpect(jsonPath("$.familyId").value(nullValue()));
 	}
 
 	@Test
