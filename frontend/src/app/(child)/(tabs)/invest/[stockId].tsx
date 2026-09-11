@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { findMockStockDetail, StockInfoCard, StockOverviewCard } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
-import { MainTabBar } from '@/widgets/main-tab-bar';
 
 /**
  * 투자 상품 상세 (Figma: 투자 상품 상세 보기). 개요 카드·상품 정보·사기/팔기 버튼의
@@ -19,7 +18,7 @@ export default function InvestDetailScreen() {
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
       <Header
         title="투자 상품 상세 보기"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest'))}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
       />
 
       {detail ? (
@@ -47,8 +46,6 @@ export default function InvestDetailScreen() {
           </Text>
         </View>
       )}
-
-      <MainTabBar active="invest" />
     </View>
   );
 }

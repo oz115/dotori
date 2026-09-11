@@ -12,7 +12,6 @@ import {
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Header } from '@/shared/ui';
-import { MainTabBar } from '@/widgets/main-tab-bar';
 
 // Figma 아이콘 시트에서 추출한 섹션 아이콘
 const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
@@ -72,8 +71,6 @@ export default function InvestScreen() {
           </View>
         </View>
       </ScrollView>
-
-      <MainTabBar active="invest" />
     </View>
   );
 }
