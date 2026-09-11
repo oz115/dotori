@@ -45,6 +45,6 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
-# === 주피터 노트북 (AI/notebooks/) ===
-# 노트북 자체는 커밋 대상이고, VS Code 가 만드는 체크포인트 사본만 제외한다.
+# === 주피터 노트북 ===
+# 실험 노트북은 AI-docs/ (위에서 이미 제외) 에 두고, 체크포인트 사본도 제외한다.
 .ipynb_checkpoints/

@@ -1,0 +1,72 @@
+[
+  {
+    "name": "컴퓨터 게임 1시간",
+    "description": null,
+    "category": "GAME",
+    "value": "0.3",
+    "reason": "게임 1시간은 하루 중 일부를 쓰는 허가라 하루 소득의 3분의 1 정도로 잡았습니다."
+  },
+  {
+    "name": "주말 게임 1시간 추가",
+    "description": "주말에만 사용 가능",
+    "category": "GAME",
+    "value": "0.5",
+    "reason": "같은 1시간이지만 주말에만 쓸 수 있어 평일보다 귀합니다. 반나절치로 잡았습니다."
+  },
+  {
+    "name": "아이스크림 1개",
+    "description": null,
+    "category": "SNACK",
+    "value": "0.4",
+    "reason": "한 번 먹으면 사라지는 간식이라 하루 소득의 절반 아래로 가볍게 잡았습니다."
+  },
+  {
+    "name": "편의점에서 과자 직접 골라 사기",
+    "description": "1,000원 한도",
+    "category": "SNACK",
+    "value": "0.6",
+    "reason": "과자값보다 직접 고르는 경험에 값을 두었습니다. 하루의 절반이 조금 넘는 정도입니다."
+  },
+  {
+    "name": "취침 시간 1시간 연장",
+    "description": null,
+    "category": "PRIVILEGE",
+    "value": "0.7",
+    "reason": "게임 1시간과 같은 1시간이지만 평소 잘 허락되지 않는 일이라 하루치에 가깝게 잡았습니다."
+  },
+  {
+    "name": "친구 집에서 하룻밤 자기",
+    "description": null,
+    "category": "PRIVILEGE",
+    "value": "2",
+    "reason": "특별하고 자주 없는 허가라 이틀치 소득으로 잡았습니다."
+  },
+  {
+    "name": "주말 놀이공원 나들이",
+    "description": "가족 동반",
+    "category": "OUTING",
+    "value": "10",
+    "reason": "하루를 통째로 쓰고 부모의 비용도 드는 나들이라 열흘치로 잡았습니다."
+  },
+  {
+    "name": "레고 클래식 중형 세트",
+    "description": null,
+    "category": "TOY",
+    "value": "21",
+    "reason": "3주 동안 꾸준히 모으면 살 수 있는 목표로 잡았습니다."
+  },
+  {
+    "name": "닌텐도 스위치 게임기",
+    "description": null,
+    "category": "TOY",
+    "value": "60",
+    "reason": "아이가 스스로 사기 어려운 큰 물건이라 두 달치 소득을 모으는 목표로 잡았습니다."
+  },
+  {
+    "name": "자전거",
+    "description": null,
+    "category": "TOY",
+    "value": "90",
+    "reason": "가장 큰 목표에 해당하는 물건이라 약 세 달(90일)치 소득을 모아야 살 수 있게 잡았습니다."
+  }
+]

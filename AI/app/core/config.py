@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     # Spring -> AI 서버 내부 호출 인증용 공유 토큰. 비어 있으면 검증을 건너뛴다(로컬 개발용).
     internal_token: str = ""
 
+    # --- RabbitMQ (루트 ../.env 재사용 — Spring 과 같은 브로커를 쓴다) ---
+    rabbitmq_host: str = "localhost"
+    rabbitmq_port: int = 5672
+    rabbitmq_username: str = "guest"
+    rabbitmq_password: str = "guest"
+    rabbitmq_vhost: str = "/"
+    # LLM 호출로 핸들러가 붙잡혀 있어도 하트비트가 끊기지 않게 넉넉히 둔다.
+    # BlockingConnection 은 우리가 pika 를 호출할 때만 I/O 를 처리한다.
+    rabbitmq_heartbeat: int = 180
+    # false 면 컨슈머를 띄우지 않는다. 공유 큐를 로컬에서 가로채고 싶지 않을 때 쓴다.
+    store_pricing_consumer_enabled: bool = True
+
     # --- LLM (SSAFY GMS — OpenAI 호환 게이트웨이) ---
     # 값은 루트 ../.env 에 있다. OpenAI 에 직접 붙지 않고 GMS 를 거치므로 base 가 필요하다.
     # 실제 요청 주소는 `{gms_base}/api.openai.com/v1` 이다 (`app.llm.client` 참고).
@@ -54,6 +66,16 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
+
+    @property
+    def rabbitmq_credentials(self) -> tuple[str, str]:
+        """빈 문자열은 "미설정"으로 본다.
+
+        pydantic-settings 는 변수가 *없을* 때만 기본값을 쓴다. 루트 `.env.example` 처럼
+        `RABBITMQ_USERNAME=` 로 비어 있으면 그 빈 문자열이 그대로 들어와 AMQP 가 403 을
+        낸다 — 원인을 찾기 어려운 실패라 여기서 막는다.
+        """
+        return (self.rabbitmq_username or "guest", self.rabbitmq_password or "guest")
 
 @lru_cache
 def get_settings() -> Settings:

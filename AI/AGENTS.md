@@ -17,8 +17,8 @@ AI 서버(`AI/`) 작업 시 참고하는 지침입니다. 저장소 공통 지�
 fastapi dev app/main.py          # 로컬 실행 (http://127.0.0.1:8000/docs)
 pip install -r requirements.txt  # 의존성 설치
 
-# 노트북(notebooks/)을 돌릴 때만. 배포 이미지에 들어가면 안 되므로
-# requirements.txt 에는 넣지 않는다 (openai 는 requirements.txt 에 이미 있다)
+# ../AI-docs 의 실험 노트북을 돌릴 때만. 배포 이미지에 들어가면 안 되므로
+# requirements.txt 에는 넣지 않는다
 pip install ipykernel
 ```
 
@@ -35,16 +35,22 @@ AI/
 │   │   ├── models.py     여러 도메인이 공유하는 읽기 전용 매핑 (families)
 │   │   ├── points.py     가중치 -> 포인트 환산 규칙 (반올림, CHECK > 0 대응)
 │   │   └── security.py   내부 호출 토큰 검증
-│   ├── main.py       FastAPI 앱, 헬스체크, 도메인 라우터 등록
-│   ├── llm/
-│   │   └── client.py 공용 OpenAI 클라이언트 (도메인 서비스가 직접 SDK 를 import 하지 않는다)
+│   ├── main.py       FastAPI 앱, 헬스체크, 라우터 등록, 컨슈머 기동(lifespan)
+│   ├── llm/          LLM 호출 공통 (도메인 서비스가 SDK 를 직접 import 하지 않는다)
+│   │   ├── client.py   어디로 부르는가 (GMS 경유 클라이언트)
+│   │   └── response.py 응답을 어떻게 받는가 (코드펜스 제거, 모델별 토큰 파라미터)
+│   ├── messaging/
+│   │   └── consumer.py RabbitMQ 배관. 연결·재연결·ack 만 맡는다 (도메인 무관)
 │   └── domains/      업무 영역별 패키지
 │       └── {shopping,work,quiz,investment}/
-│           ├── router.py    내부 API. `require_internal_token` 의존성 필수
-│           ├── services.py  비즈니스 로직, LLM 호출
-│           ├── schemas.py   요청/응답 Pydantic 모델
-│           └── models.py    기존 테이블 매핑 (도메인이 쓰는 컬럼만)
-├── notebooks/        프롬프트·산정 로직 실험용 주피터 노트북
+│           ├── router.py     내부 API. `require_internal_token` 의존성 필수
+│           ├── consumer.py   큐 핸들러 (큐로 일을 받는 도메인만)
+│           ├── services.py   도메인 계산과 산정 흐름
+│           ├── repository.py DB 조회·쓰기. SQL 이 이 파일 밖으로 안 나간다
+│           ├── prompt.py     LLM 메시지 조립
+│           ├── schemas.py    요청/응답 Pydantic 모델
+│           ├── models.py     기존 테이블 매핑 (도메인이 쓰는 컬럼만)
+│           └── prompts/      문구·few-shot 데이터 (조립 코드는 prompt.py)
 ├── docs/db-boundary.md  테이블별 읽기/쓰기 범위, 협의 필요 항목
 ├── Dockerfile
 └── requirements.txt
@@ -65,10 +71,22 @@ AI/
 백엔드다. AI 는 그 범위 안에서 상품·납입 계획을 추천하고 계산 결과를 설명하는 몫만 갖는다.
 `docs/db-boundary.md` 도 예적금 테이블을 "접근 안 함" 으로 두고 있다.
 
-`notebooks/` 는 LLM 프롬프트와 산정 수식을 서버 코드로 옮기기 전에 먼저 눌러 보는 자리다.
-`app/` 을 import 하지 않고 자체적으로 완결되게 쓴다 — 구조가 바뀌어도 노트북이 깨지지 않게.
-노트북 전용 도구(`ipykernel`)는 **`requirements.txt` 에 넣지 않는다.** 배포 이미지에
-들어가면 안 된다.
+도메인 안에서도 책임을 나눈다. 파일 하나가 커지는 것 자체보다, **한 파일에서 DB·프롬프트·
+LLM 호출·흐름 제어를 같이 고치게 되는 것**이 문제다. diff 에서 원인이 섞이고 한쪽을 바꿀 때
+다른 쪽을 깨뜨린다. `services.py` 는 도메인 계산과 흐름만 갖고, SQL 은 `repository.py`,
+메시지 조립은 `prompt.py` 로 뺀다.
+
+여러 도메인이 같은 문제를 만나면 `app/` 공통으로 올린다 — 코드펜스 제거나 모델별 토큰
+파라미터는 상점 전용이 아니라서 `app/llm/response.py` 에 있다. 도메인마다 따로 풀면 같은
+함정에 두 번 빠진다.
+
+프롬프트 문구와 few-shot 예시는 도메인의 `prompts/` 밑에 파일로 둔다. 방대한 문자열을
+코드에 박으면 기준을 다듬을 때마다 서비스 코드를 건드리게 되고, diff 에서 로직 변경과
+문구 변경이 섞인다. `investment/prompts/news_system_prompt.md` 가 그 예다.
+
+프롬프트를 서버에 넣기 전에 눌러 보는 실험 노트북은 **`../AI-docs/` 에 둔다** (gitignore
+대상인 개인 작업공간). `AI/` 안에 두면 배포 이미지에 노트북이 섞이고, `ipykernel` 같은
+실험 전용 도구가 `requirements.txt` 로 새어 들어온다.
 
 ## 코드 스타일
 
