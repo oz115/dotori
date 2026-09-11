@@ -32,7 +32,7 @@ export function StockOverviewCard({ detail }: Props) {
     >
       <View style={styles.topRow}>
         <View style={[styles.nameBlock, { gap: theme.space.md }]}>
-          {/* 상품 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */}
+          {/* 상품 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
           <View
             style={[
               styles.icon,

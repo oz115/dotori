@@ -35,7 +35,7 @@ export type StockDetail = {
   name: string;
   /** 업종 분류 배지 텍스트 (친환경 기업 …) */
   category: string;
-  /** 상품 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */
+  /** 상품 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */
   emoji: string;
   description: string;
   /** 아이가 이 상품을 보유 중인지 (보유중 배지) */
@@ -63,7 +63,7 @@ export type StockSummary = {
   name: string;
   /** 업종 분류 (생활 소비 …) */
   category: string;
-  /** 종목 아이콘 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */
+  /** 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */
   emoji: string;
   /** 현재가, 단위는 도토리 */
   currentPrice: number;
