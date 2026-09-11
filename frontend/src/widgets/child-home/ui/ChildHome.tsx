@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,16 +16,11 @@ import { TodayChores } from './TodayChores';
 import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
 
-type ChildHomeProps = {
-  /** 하단 탭바 (widgets/main-tab-bar). widget 끼리는 직접 import 하지 않아서 호출하는
-   * app 레이어(라우트 파일)가 조립해 넘겨준다. */
-  tabBar: ReactNode;
-};
-
 /**
  * 자녀 홈 화면 본체. wallet·chore·store feature 를 조합하는 화면 배치용 widget.
+ * 하단 탭바는 이 화면이 그리지 않는다 — `(child)/(tabs)/_layout.tsx` 의 `<Tabs>` 가 고정으로 갖고 있다.
  */
-export function ChildHome({ tabBar }: ChildHomeProps) {
+export function ChildHome() {
   const theme = useTheme();
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
@@ -58,9 +53,6 @@ export function ChildHome({ tabBar }: ChildHomeProps) {
         <SavingGoals familyId={familyId} balance={balance.data?.balance} />
         <ActivityBoard />
       </ScrollView>
-
-      {/* 투자 등 다른 탭으로는 하단 탭바로 이동한다. bottom safe-area 는 탭바가 처리 */}
-      {tabBar}
 
       <AccountSheet visible={accountSheetOpen} onClose={() => setAccountSheetOpen(false)} />
     </SafeAreaView>

@@ -14,6 +14,7 @@ export const palette = {
     500: '#3DAD39', // key / primary
     600: '#3E983A', // pressed
     700: '#2F782D', // active / deep
+    800: '#000000',
   },
   greenMuted: '#619D46', // key color 2 (톤 다운된 보조 그린)
 

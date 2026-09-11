@@ -34,6 +34,7 @@ export const colorLight = {
     tint: 'rgba(233, 246, 229, 0.4)', // green.50 40% — 회원가입 유도 등 은은한 배너
     subtleText: palette.green[700],
     border: palette.green[500],
+    black: palette.green[800],
   },
   accent: {
     acorn: palette.acorn,
