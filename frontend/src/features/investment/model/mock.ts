@@ -76,6 +76,15 @@ export const mockStocks: StockSummary[] = [
     change: 40,
     trend: [650, 760, 720, 850, 930, 1080, 1120],
   },
+  {
+    id: 4,
+    name: '미래 로봇',
+    category: '기술',
+    emoji: '🤖',
+    currentPrice: 1450,
+    change: 120,
+    trend: [1100, 1180, 1150, 1260, 1300, 1330, 1450],
+  },
 ];
 
 /** 리스트(mockStocks)와 같은 종목의 상세. id·현재가·등락이 서로 어긋나면 안 된다. */
@@ -86,7 +95,7 @@ export const mockStockDetails: StockDetail[] = [
     category: '생활 소비',
     emoji: '🏪',
     description: '우리 동네 알뜰 마트예요. 생활에 필요한 물건을 팔아요.',
-    holding: false,
+    holding: true,
     currentPrice: 980,
     changeFromYesterday: 20,
     history: toHistory([900, 930, 910, 950, 940, 960, 980]),
@@ -113,8 +122,22 @@ export const mockStockDetails: StockDetail[] = [
     changeFromYesterday: 40,
     history: toHistory([650, 760, 720, 850, 930, 1080, 1120]),
   },
+  {
+    id: 4,
+    name: '미래 로봇',
+    category: '기술',
+    emoji: '🤖',
+    description: '집안일을 도와주는 로봇을 만드는 회사예요.',
+    holding: true,
+    currentPrice: 1450,
+    changeFromYesterday: 120,
+    history: toHistory([1100, 1180, 1150, 1260, 1300, 1330, 1450]),
+  },
 ];
 
 export function findMockStockDetail(stockId: number): StockDetail | undefined {
   return mockStockDetails.find((detail) => detail.id === stockId);
 }
+
+/** 보유 화면 목업 — 보유중 종목만. 화면 상단 합계는 lib/holdings 가 여기서 계산한다. */
+export const mockHoldings: StockDetail[] = mockStockDetails.filter((detail) => detail.holding);

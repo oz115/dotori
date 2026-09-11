@@ -49,8 +49,7 @@ export default function InvestScreen() {
             title="주식 리스트"
             action={{
               label: '보유한 주식 보기',
-              // TODO: 보유 주식 화면 태스크에서 라우트가 생기면 연결한다
-              onPress: () => {},
+              onPress: () => router.push('/invest/holdings'),
             }}
           />
           <View style={{ gap: theme.space.md }}>

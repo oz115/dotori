@@ -48,6 +48,15 @@ export type StockDetail = {
   history: PricePoint[];
 };
 
+/** 보유 화면 상단 합계 (가지고 있는 상품·지금 가치·번 돈) */
+export type HoldingsSummary = {
+  count: number;
+  /** 보유 종목 현재가 합, 단위는 도토리 */
+  totalValue: number;
+  /** 번 돈, 단위는 도토리 */
+  totalEarned: number;
+};
+
 /** 주식 리스트의 종목 한 줄 */
 export type StockSummary = {
   id: number;
