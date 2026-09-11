@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Polyline, Svg } from 'react-native-svg';
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
@@ -44,13 +44,14 @@ export function StockCard({ stock, onPress }: Props) {
         },
       ]}
     >
+      {/* 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
       <View
         style={[
           styles.icon,
           { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.md },
         ]}
       >
-        <Image source={stock.image} style={styles.iconImage} resizeMode="contain" />
+        <Text style={styles.iconEmoji}>{stock.emoji}</Text>
       </View>
 
       <View style={styles.nameBlock}>
@@ -119,9 +120,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconImage: {
-    width: 36,
-    height: 36,
+  iconEmoji: {
+    fontSize: 24,
   },
   nameBlock: {
     flex: 1,
