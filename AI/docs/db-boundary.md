@@ -23,6 +23,7 @@
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
 | `investment_price_history` | INSERT | 가족별 주가 변동 이력. `family_id` 컬럼 요청 중 (협의 2번) |
 | `families`, `users` | **읽기만** | 온보딩 A(`weekly_reward_limit`)·B(`weekly_allowance`) 값, `financial_knowledge_level`, 아이 정보 조회 |
+| `family_members` | **읽기만** | 가족-자녀 연결 조회. `users` 에 `family_id` 컬럼이 없어 퀴즈 배정 시 자녀가 속한 가족을 찾는 데 필요 (2026-09-11 추가) |
 | 그 밖의 모든 테이블 | 접근 안 함 | 포인트 지갑, 예적금, 계좌 연동 등은 백엔드 담당 |
 
 `store_products.value`(NUMERIC)는 가중치, `price`(INTEGER)는 포인트다.
