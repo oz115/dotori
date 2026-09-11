@@ -165,6 +165,32 @@ GROUP BY idempotency_key
 HAVING count(DISTINCT wallet_id) > 1;
 ```
 
+#### 회원 아이디·이메일 유일성 — 부분 유니크 인덱스 (S15P21A505-172)
+
+회원 탈퇴(MYPAGE-05)는 거래·가족 이력 보존 때문에 행을 지우지 않는 소프트 삭제라,
+`users.login_id`·`users.email` 을 전체 UNIQUE 로 걸면 **탈퇴자가 쓰던 이메일·아이디로
+다시 가입할 수 없다.** 그래서 유일성 범위를 살아있는 행으로 좁혔다.
+
+- DB: 전체 UNIQUE 제약(`UQ_USERS_*`) 대신 **부분 유니크 인덱스**
+  `UX_USERS_LOGIN_ID_ACTIVE` / `UX_USERS_EMAIL_ACTIVE` (`WHERE deleted_at IS NULL`).
+- 코드: 아이디·이메일 조회는 전부 `deleted_at IS NULL` 을 거른다
+  (`UserRepository` 의 `*AndDeletedAtIsNull`, `findByNameAndEmail`).
+  거르지 않으면 재가입 후 같은 아이디의 행이 2개라 단건 조회가 깨진다.
+- 동시 가입 경합은 그대로 인덱스 위반(23505)으로 잡혀
+  `UserServiceImpl.resolveDuplicateError` 가 409 로 바꾼다.
+
+이미 만들어진 DB(공용 EC2 등)에는 아래를 수동 실행한다.
+
+```sql
+ALTER TABLE users DROP CONSTRAINT IF EXISTS "UQ_USERS_LOGIN_ID";
+ALTER TABLE users DROP CONSTRAINT IF EXISTS "UQ_USERS_EMAIL";
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UX_USERS_LOGIN_ID_ACTIVE"
+	ON users (login_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "UX_USERS_EMAIL_ACTIVE"
+	ON users (email) WHERE deleted_at IS NULL;
+```
+
 ## API 설계 원칙
 
 -

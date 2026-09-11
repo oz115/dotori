@@ -77,7 +77,8 @@ chores_repeat_type,
 task_difficulty,
 chore_completion_requests_status,
 store_products_category,
-words_category
+words_category,
+investment_news_impact
 CASCADE;
 
 
@@ -251,6 +252,13 @@ CREATE TYPE words_category AS ENUM (
 );
 
 
+/* 투자 뉴스가 상품 가격에 주는 영향 방향 */
+CREATE TYPE investment_news_impact AS ENUM (
+    'POSITIVE',
+    'NEGATIVE'
+);
+
+
 /* =========================================================
 4. TABLE CREATION
 ========================================================= */
@@ -389,6 +397,7 @@ CREATE TABLE "investment_products" (
     "name"                  VARCHAR(100) NOT NULL,
     "description"           VARCHAR(255) NULL,
     "category"              investment_products_category NULL,
+    "news_context"          TEXT        NOT NULL,
     "current_price"         INTEGER     NOT NULL,
     "is_active"             BOOLEAN     DEFAULT TRUE NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -410,6 +419,7 @@ CREATE TABLE "point_cashout_requests" (
 
 CREATE TABLE "investment_price_history" (
     "investment_price_history_id"  SERIAL      NOT NULL,
+    "family_id"                    INTEGER     NOT NULL,
     "investment_product_id"        INTEGER     NOT NULL,
     "price"                        INTEGER     NOT NULL,
     "recorded_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -475,6 +485,7 @@ CREATE TABLE "investment_news" (
     "investment_news_id"    SERIAL      NOT NULL,
     "title"                 VARCHAR(255) NOT NULL,
     "content"               VARCHAR(255) NOT NULL,
+    "impact"                investment_news_impact NOT NULL,
     "published_at"          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -876,6 +887,11 @@ ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_PRODUCT"
 FOREIGN KEY ("investment_product_id")
 REFERENCES "investment_products" ("investment_product_id");
 
+ALTER TABLE "investment_price_history"
+ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
 
 /* investment_news_products */
 ALTER TABLE "investment_news_products"
@@ -983,17 +999,24 @@ REFERENCES "users" ("user_id");
 /* ---------------------------------------------------------
 users
 
-로그인 아이디와 이메일은 전체 시스템에서 유일해야 함
+로그인 아이디와 이메일은 살아있는 회원끼리만 유일해야 함.
+
+탈퇴(MYPAGE-05)는 이력 보존 때문에 행을 지우지 않고 deleted_at 만 찍는
+소프트 삭제라, 전체 UNIQUE 로 걸면 탈퇴자가 쓰던 이메일·아이디로
+다시 가입할 수 없다. 부분 유니크 인덱스로 탈퇴 행을 제외한다.
+(중복 검사 쿼리도 같은 기준 — UserRepository 의 *AndDeletedAtIsNull)
+
+위반(23505)은 UserServiceImpl.resolveDuplicateError 가 잡아 409 로 바꾼다.
 --------------------------------------------------------- */
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_LOGIN_ID"
-UNIQUE ("login_id");
+CREATE UNIQUE INDEX "UX_USERS_LOGIN_ID_ACTIVE"
+ON "users" ("login_id")
+WHERE "deleted_at" IS NULL;
 
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_EMAIL"
-UNIQUE ("email");
+CREATE UNIQUE INDEX "UX_USERS_EMAIL_ACTIVE"
+ON "users" ("email")
+WHERE "deleted_at" IS NULL;
 
 
 /* ---------------------------------------------------------
@@ -1249,3 +1272,14 @@ SUCCEED·REJECTED·CANCELLED 는 몇 건이든 쌓인다 — 그래야 거절당
 CREATE UNIQUE INDEX "UX_CHORE_COMPLETION_REQUESTS_PENDING"
 ON "chore_completion_requests" ("chore_id")
 WHERE "status" = 'PENDING';
+
+
+/* ---------------------------------------------------------
+investment_price_history
+
+가족별 상품 가격 추이 조회용. 조회가 가족·상품으로 좁히고
+recorded_at 순으로 정렬하므로 그 순서 그대로 건다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_INVESTMENT_PRICE_HISTORY_FAMILY_PRODUCT_RECORDED_AT"
+ON "investment_price_history" ("family_id", "investment_product_id", "recorded_at");

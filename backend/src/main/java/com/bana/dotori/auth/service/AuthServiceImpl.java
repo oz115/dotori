@@ -42,8 +42,7 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	@Transactional
 	public LoginResponse login(LoginRequest request) {
-		User user = userRepository.findByLoginId(request.loginId())
-			.filter(found -> found.getDeletedAt() == null)
+		User user = userRepository.findByLoginIdAndDeletedAtIsNull(request.loginId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -100,7 +99,6 @@ public class AuthServiceImpl implements AuthService {
 
 		// 이름 뒤에 붙는 공백(모바일 키보드가 자주 만든다) 때문에 404가 나지 않게 다듬는다
 		User user = userRepository.findByNameAndEmail(request.name().strip(), email)
-			.filter(found -> found.getDeletedAt() == null)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		return new FindIdResponse(maskLoginId(user.getLoginId()));
 	}
@@ -129,8 +127,7 @@ public class AuthServiceImpl implements AuthService {
 		String email = request.email().toLowerCase(Locale.ROOT);
 		emailVerificationCodeManager.requireValidToken(email, request.verificationToken());
 
-		User user = userRepository.findByLoginId(request.loginId())
-			.filter(found -> found.getDeletedAt() == null)
+		User user = userRepository.findByLoginIdAndDeletedAtIsNull(request.loginId())
 			.filter(found -> found.getEmail().toLowerCase(Locale.ROOT).equals(email))
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 

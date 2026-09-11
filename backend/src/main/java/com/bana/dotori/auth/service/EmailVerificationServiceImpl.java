@@ -35,7 +35,8 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 		// 즉시 409 로 알려줘서, 마지막 가입하기 단계가 아니라 이메일 입력 시점에 걸러낸다.
 		// 다른 용도(아이디 찾기·비밀번호 재설정)는 가입된 이메일이어야 하므로 검사하지 않고,
 		// 계정 존재 여부도 노출하지 않는다.
-		if (purpose == EmailVerificationPurpose.SIGNUP && userRepository.existsByEmail(normalizedEmail)) {
+		if (purpose == EmailVerificationPurpose.SIGNUP
+			&& userRepository.existsByEmailAndDeletedAtIsNull(normalizedEmail)) {
 			throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
 		}
 		// 가족 초대 코드와 같은 문자셋(혼동 문자를 뺀 대문자·숫자)의 6자리 코드
