@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { signOut, WithdrawButton } from '@/features/auth';
+import { useMyAccount } from '@/features/account';
 import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
-import { Button } from '@/shared/ui';
+import { AppTopBar } from '@/shared/ui';
 
 import { useChildIdentity } from '@/widgets/child-home/model/useChildIdentity';
 
@@ -13,7 +13,6 @@ import { ActivityBoard } from './ActivityBoard';
 import { BalanceCard } from './BalanceCard';
 import { SavingGoals } from './SavingGoals';
 import { TodayChores } from './TodayChores';
-import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
 
 /**
@@ -24,89 +23,40 @@ export function ChildHome() {
   const theme = useTheme();
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
-  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
-
-  const notReady = () => Alert.alert('준비 중이에요', '곧 만나볼 수 있어요.');
+  const account = useMyAccount();
 
   return (
     <SafeAreaView
       edges={['top']}
       style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
     >
-      <TopBar onProfilePress={() => setAccountSheetOpen(true)} />
+      <AppTopBar onProfilePress={() => router.push('/mypage')} />
 
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
+          { paddingHorizontal: theme.space['2xl'], gap: theme.space['2xl'] },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <BalanceCard
           balance={balance.data?.balance}
           isPending={balance.isPending}
-          onCharge={notReady}
-          onCashout={notReady}
+          onCharge={() => router.push('/wallet/charge')}
+          onCashout={() => router.push('/wallet/cashout')}
+          account={account.data}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores familyId={familyId} childId={childId} />
         <SavingGoals familyId={familyId} balance={balance.data?.balance} />
         <ActivityBoard />
       </ScrollView>
-
-      <AccountSheet visible={accountSheetOpen} onClose={() => setAccountSheetOpen(false)} />
     </SafeAreaView>
-  );
-}
-
-type AccountSheetProps = {
-  visible: boolean;
-  onClose: () => void;
-};
-
-/**
- * 로그아웃·회원 탈퇴 임시 시트. 마이페이지가 생기기 전까지 프로필 아이콘 뒤에 붙여둔다.
- */
-function AccountSheet({ visible, onClose }: AccountSheetProps) {
-  const theme = useTheme();
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.color.background.canvas,
-              borderRadius: theme.radius.lg,
-              padding: theme.space.xl,
-              gap: theme.space.sm,
-            },
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Button
-            label="로그아웃"
-            variant="ghost"
-            onPress={() => {
-              onClose();
-              void signOut();
-            }}
-          />
-          <WithdrawButton />
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: 4, paddingBottom: 40 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {},
+  // 마지막 섹션(ActivityBoard)이 연회색 배경을 화면 아래 끝까지 깔아서 여기선 여백을 두지 않는다
+  content: { paddingTop: 4, paddingBottom: 0 },
 });
