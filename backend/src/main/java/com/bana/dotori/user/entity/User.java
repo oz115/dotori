@@ -70,7 +70,9 @@ public class User {
 		this.name = name;
 		this.email = email;
 		this.role = role;
-		this.emailVerified = false;
+		// 가입은 이메일 인증 통과(verificationToken 검증)가 전제라 생성 시점에 이미 인증된 상태다.
+		// 이 값이 false 가 되는 건 나중에 이메일 변경 기능이 생겨 재인증을 기다릴 때뿐이다.
+		this.emailVerified = true;
 	}
 
 	/**

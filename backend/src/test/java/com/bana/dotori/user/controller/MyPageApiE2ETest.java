@@ -101,7 +101,7 @@ class MyPageApiE2ETest {
 				.andExpect(jsonPath("$.loginId").value("mypage-parent"))
 				.andExpect(jsonPath("$.name").value("김도토"))
 				.andExpect(jsonPath("$.role").value("PARENT"))
-				.andExpect(jsonPath("$.emailVerified").value(false))
+				.andExpect(jsonPath("$.emailVerified").value(true))
 				.andExpect(jsonPath("$.createdAt").exists())
 				.andExpect(jsonPath("$.profileImageUrl").doesNotExist());
 		}

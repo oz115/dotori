@@ -254,7 +254,7 @@ class UserServiceImplTest {
 		assertThat(response.name()).isEqualTo("김도토");
 		assertThat(response.email()).isEqualTo("dotori@example.com");
 		assertThat(response.role()).isEqualTo(UserRole.PARENT);
-		assertThat(response.emailVerified()).isFalse();
+		assertThat(response.emailVerified()).isTrue();
 		assertThat(response.createdAt()).isNotNull();
 	}
 
