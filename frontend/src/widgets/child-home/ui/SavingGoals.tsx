@@ -1,10 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { categoryIcon, nearestSavingGoals, useStoreProducts } from '@/features/store';
+import {
+  categoryIcon,
+  mockStoreProducts,
+  nearestSavingGoals,
+  useStoreProducts,
+} from '@/features/store';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { ProgressBar } from '@/shared/ui';
+import { ContentCard, MockBadge, ProgressBar } from '@/shared/ui';
 
 type SavingGoalsProps = {
   familyId: number | undefined;
@@ -21,31 +26,43 @@ export function SavingGoals({ familyId, balance }: SavingGoalsProps) {
   const theme = useTheme();
   const products = useStoreProducts(familyId);
 
-  if (balance == null || !products.data) return null;
+  if (products.isPending) return null;
 
-  const goals = nearestSavingGoals(products.data, balance);
+  const currentBalance = balance ?? 0;
+  const realGoals = nearestSavingGoals(products.data ?? [], currentBalance);
+
+  // 상점에 올라온 물건이 없으면 예시로 자리를 채운다 (배치 확인용 — "예시" 표시가 붙는다)
+  const usingMock = realGoals.length === 0;
+  const goals = usingMock ? nearestSavingGoals(mockStoreProducts, currentBalance) : realGoals;
   if (goals.length === 0) return null;
 
   return (
     <View style={{ gap: theme.space.md }}>
-      <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-        조금만 더 모으면!
-      </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={[styles.titleRow, { gap: theme.space.xs }]}>
+        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+          조금만 더 모으면!
+        </Text>
+        {usingMock ? <MockBadge /> : null}
+      </View>
+      {/*
+        ScrollView 는 콘텐츠 높이에 딱 맞춰지는데 카드 그림자는 그 밖으로 번져서
+        아래가 잘린다 (Y+4, blur 20). 안쪽 패딩으로 번질 자리를 만들어 준다.
+      */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 4, paddingBottom: theme.space.lg }}
+        style={{ marginBottom: -theme.space.md }}
+      >
         <View style={{ flexDirection: 'row', gap: theme.space.md }}>
           {goals.map((goal) => (
-            <View
+            <ContentCard
               key={goal.product.storeProductId}
-              style={[
-                styles.card,
-                {
-                  width: CARD_WIDTH,
-                  borderRadius: theme.radius.lg,
-                  borderColor: theme.color.border.default,
-                  padding: theme.space.md,
-                  gap: theme.space.sm,
-                },
-              ]}
+              style={{
+                width: CARD_WIDTH,
+                padding: theme.space.md,
+                gap: theme.space.sm,
+              }}
             >
               <View
                 style={[
@@ -76,13 +93,13 @@ export function SavingGoals({ familyId, balance }: SavingGoalsProps) {
               <ProgressBar value={goal.progress} />
               <View style={styles.rangeRow}>
                 <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                  {formatPoint(balance)}
+                  {formatPoint(currentBalance)}
                 </Text>
                 <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
                   {formatPoint(goal.product.price)}
                 </Text>
               </View>
-            </View>
+            </ContentCard>
           ))}
         </View>
       </ScrollView>
@@ -91,7 +108,6 @@ export function SavingGoals({ familyId, balance }: SavingGoalsProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1 },
   imageBox: {
     height: 72,
     borderWidth: 1,

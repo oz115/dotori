@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { useTodayChores } from '@/features/chore';
 import { useTheme } from '@/shared/theme';
@@ -31,7 +31,11 @@ export function UpdateBanner({ familyId, childId }: UpdateBannerProps) {
         },
       ]}
     >
-      <Text style={theme.typography.body}>🐿️</Text>
+      <Image
+        source={require('@/assets/images/faces/face-basic.png')}
+        style={styles.face}
+        resizeMode="contain"
+      />
       <Text style={[theme.typography.label, { color: theme.color.brand.subtleText }]}>
         오늘 해야 할 일이 있어요!
       </Text>
@@ -41,4 +45,5 @@ export function UpdateBanner({ familyId, childId }: UpdateBannerProps) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  face: { width: 28, height: 28 },
 });

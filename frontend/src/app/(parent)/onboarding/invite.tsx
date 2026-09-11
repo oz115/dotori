@@ -6,9 +6,9 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import {
   invitationErrorMessage,
   OnboardingStepLayout,
-  savedFamilyId,
   StepFooter,
   useCreateInvitation,
+  useFamilyId,
 } from '@/features/family';
 import { useCountdown } from '@/shared/lib/useCountdown';
 import { useTheme } from '@/shared/theme';
@@ -18,22 +18,18 @@ export default function OnboardingInviteScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ familyId?: string }>();
 
-  const [familyId, setFamilyId] = useState<number | null>(() => {
-    const n = Number(params.familyId);
-    return Number.isInteger(n) && n > 0 ? n : null;
-  });
   const [error, setError] = useState('');
 
   const invitation = useCreateInvitation();
   const ttl = useCountdown();
   const issuedFor = useRef<number | null>(null);
 
-  // 라우트 파라미터가 없으면(앱 재시작 후 등) 저장된 familyId 로 복구
-  useEffect(() => {
-    if (familyId == null) {
-      void savedFamilyId.get().then((id) => id != null && setFamilyId(id));
-    }
-  }, [familyId]);
+  // 온보딩에서 넘어올 땐 라우트 파라미터로 받고, 그 밖(앱 재시작 후 등)에서는
+  // 서버가 알려주는 값을 쓴다. 둘 다 없으면 아직 조회 중이다.
+  const serverFamilyId = useFamilyId().data;
+  const paramFamilyId = Number(params.familyId);
+  const familyId =
+    Number.isInteger(paramFamilyId) && paramFamilyId > 0 ? paramFamilyId : (serverFamilyId ?? null);
 
   const issue = useCallback(
     (id: number) => {

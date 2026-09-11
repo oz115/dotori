@@ -22,6 +22,23 @@ export function formatPoint(point: number): string {
 }
 
 /**
+ * 환전 비율: 현금 10원 = 도토리 1P.
+ * 서버(PointExchangePolicy)와 같은 값이어야 한다 — 화면이 다른 비율로 안내하면
+ * 사용자가 받은 금액이 예상과 달라진다.
+ */
+export const KRW_PER_POINT = 10;
+
+/** 원 → 포인트. 10원 단위로 떨어지지 않으면 버려진 잔돈만큼 손해라 호출 전에 검증한다. */
+export function wonToPoint(won: number): number {
+  return Math.floor(won / KRW_PER_POINT);
+}
+
+/** 포인트 → 원 */
+export function pointToWon(point: number): number {
+  return point * KRW_PER_POINT;
+}
+
+/**
  * 5000 → "5천 원", 10000 → "1만 원", 30000 → "3만 원", 15000 → "1만 5천 원".
  * 천 단위로 안 떨어지면 전체 표기로 폴백한다 (프리셋 칩 라벨용).
  */
