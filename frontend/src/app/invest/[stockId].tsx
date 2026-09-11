@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { findMockStockDetail, StockInfoCard, StockOverviewCard } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
-import { ChildTabBar } from '@/widgets/child-tab-bar';
+import { MainTabBar } from '@/widgets/main-tab-bar';
 
 /**
  * 투자 상품 상세 (Figma: 투자 상품 상세 보기). 개요 카드·상품 정보·사기/팔기 버튼의
@@ -48,7 +48,7 @@ export default function InvestDetailScreen() {
         </View>
       )}
 
-      <ChildTabBar active="invest" />
+      <MainTabBar active="invest" />
     </View>
   );
 }

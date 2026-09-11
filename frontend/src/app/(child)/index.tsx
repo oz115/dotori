@@ -7,7 +7,7 @@ import { signOut, WithdrawButton } from '@/features/auth';
 import { useFamilyStatus } from '@/features/family';
 import { Button } from '@/shared/ui';
 import { useTheme } from '@/shared/theme';
-import { ChildTabBar } from '@/widgets/child-tab-bar';
+import { MainTabBar } from '@/widgets/main-tab-bar';
 
 /**
  * 자녀 홈 자리 표시자. 실제 홈은 자녀 홈 태스크에서 구현한다.
@@ -42,7 +42,7 @@ export default function ChildHomeScreen() {
         <WithdrawButton />
       </View>
       {/* 다른 탭(투자 등)으로는 하단 탭바로 이동한다. bottom safe-area 는 탭바가 처리 */}
-      <ChildTabBar active="home" />
+      <MainTabBar active="home" />
     </SafeAreaView>
   );
 }

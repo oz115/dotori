@@ -12,7 +12,7 @@ import {
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Header } from '@/shared/ui';
-import { ChildTabBar } from '@/widgets/child-tab-bar';
+import { MainTabBar } from '@/widgets/main-tab-bar';
 
 /**
  * 자녀 투자 탭 (Figma: 투자 상품 상세 보기). 투자 요약·오늘의 뉴스·주식 리스트를
@@ -69,7 +69,7 @@ export default function InvestScreen() {
         </View>
       </ScrollView>
 
-      <ChildTabBar active="invest" />
+      <MainTabBar active="invest" />
     </View>
   );
 }
