@@ -1,24 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, type ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 
 import { BANKS, type AccountInfo } from '@/features/account';
 import { formatPoint, formatWonNumber } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
+import { ContentCard } from '@/shared/ui';
+
+/** 장과 장 사이 간격. 넘기는 도중에만 보이고, 멈추면 이만큼 화면 밖으로 빠진다 */
+const PAGE_GAP = 16;
 
 type BalanceCardProps = {
   balance: number | undefined;
   isPending: boolean;
   onCharge: () => void;
   onCashout: () => void;
-  /** "예적금·투자 내 계좌보기" 펼쳤을 때 "내 계좌" 줄에 쓸 실제 연동 계좌 정보 */
+  /** "내 자산 현황"의 연동 계좌 줄에 쓸 실제 계좌 정보 */
   account: AccountInfo | undefined;
 };
 
 /**
- * 잔액 카드. 예적금·투자는 아직 없는 도메인이라 펼침 목록에서는 mock 값을 보여준다 —
- * "내 계좌" 한 줄만 실제 연동 계좌 데이터다.
+ * 홈 맨 위 지갑. 옆으로 넘기면 두 장이다 — 도토리 잔액, 내 자산 현황.
+ *
+ * 두 장의 내용 길이가 달라서 그냥 두면 넘길 때마다 아래 섹션이 위아래로 출렁인다.
+ * 가로 ScrollView 는 자식을 가장 큰 높이에 맞춰 늘리므로, 두 장 모두 flex:1 로 두어
+ * 높이를 고정한다.
  */
 export function BalanceCard({
   balance,
@@ -28,17 +44,71 @@ export function BalanceCard({
   account,
 }: BalanceCardProps) {
   const theme = useTheme();
-  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(0);
+
+  // 한 장의 폭은 화면 폭에서 계산하지 않고 실제로 그려진 폭을 잰다 —
+  // 홈 화면의 좌우 여백이 바뀌면 계산값이 어긋나 다음 장이 옆에 걸쳐 보인다.
+  const [pageWidth, setPageWidth] = useState(0);
+
+  // 넘기는 동안 두 장이 맞붙어 보이지 않게 사이를 띄우고, 그만큼 더 스크롤해서 멈춘다
+  const interval = pageWidth + PAGE_GAP;
+
+  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setPage(Math.round(e.nativeEvent.contentOffset.x / interval));
+  };
 
   return (
-    <View style={[styles.card, { borderRadius: theme.radius.lg }]}>
+    <View style={{ gap: theme.space.md }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}
+        snapToInterval={interval}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        onMomentumScrollEnd={onScrollEnd}
+        // 자산 카드 그림자가 ScrollView 경계 밖으로 번져 잘리는 걸 막는다
+        contentContainerStyle={{ gap: PAGE_GAP, paddingTop: 4, paddingBottom: 8 }}
+      >
+        {/* 폭을 재기 전(첫 프레임)에 그리면 카드가 폭 0 으로 찌그러진 채 한 번 보인다 */}
+        {pageWidth > 0 ? (
+          <>
+            <View style={{ width: pageWidth }}>
+              <WalletPage
+                balance={balance}
+                isPending={isPending}
+                onCharge={onCharge}
+                onCashout={onCashout}
+              />
+            </View>
+            <View style={{ width: pageWidth }}>
+              <AssetsPage account={account} />
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+
+      <PageDots count={2} active={page} />
+    </View>
+  );
+}
+
+type WalletPageProps = Omit<BalanceCardProps, 'account'>;
+
+/** 첫 장 — 보유 도토리와 충전·환전 버튼. */
+function WalletPage({ balance, isPending, onCharge, onCashout }: WalletPageProps) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.walletCard, { borderRadius: theme.radius.lg }]}>
       <LinearGradient
         colors={theme.palette.gradient.deep}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.inner, { padding: theme.space['2xl'], gap: theme.space.lg }]}>
+      <View style={[styles.walletInner, { padding: theme.space['2xl'] }]}>
         <View style={{ gap: theme.space.sm }}>
           <View style={[styles.labelRow, { gap: theme.space.xs }]}>
             <Image
@@ -67,52 +137,66 @@ export function BalanceCard({
           </View>
         </View>
       </View>
+    </View>
+  );
+}
 
-      {/* 카드 아래를 가로로 꽉 채우는 띠. 위쪽 그라디언트 위에 흰색을 옅게 덮어
-          한 톤 밝은 초록으로 보이게 한다 (구분선만 긋는 것보다 영역이 또렷하다) */}
-      <Pressable
-        onPress={() => setExpanded((v) => !v)}
-        style={[
-          styles.expandRow,
-          {
-            backgroundColor: EXPAND_BAND_OVERLAY,
-            paddingVertical: theme.space.md,
-            gap: theme.space.xs,
-          },
-        ]}
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-      >
-        <Text style={[theme.typography.bodySm, { color: theme.color.text.onBrand }]}>
-          예적금 투자 내 계좌보기
-        </Text>
-      </Pressable>
+/**
+ * 둘째 장 — 내 자산 현황. 예적금·투자는 아직 없는 도메인이라 예시 값이고,
+ * 연동 계좌 한 줄만 실제 데이터다.
+ */
+function AssetsPage({ account }: { account: AccountInfo | undefined }) {
+  const theme = useTheme();
 
-      {/* 펼치면 카드 아래쪽이 통째로 흰 영역이 된다 — 초록 위에 흰 상자를 얹는 것보다
-          목록이 또렷하게 읽힌다. 아래 모서리는 카드의 overflow:hidden 이 잘라 준다 */}
-      {expanded ? (
-        <View style={[styles.detailSheet, { backgroundColor: theme.color.background.surface }]}>
-          <DetailRow
-            icon={<SavingsIcon />}
-            title="예적금"
-            subtitle="3개 상품에 저축 중"
-            amount={formatPoint(3000)}
-          />
-          <DetailRow
-            icon={<InvestIcon />}
-            title="투자"
-            subtitle="3개 회사 보유 중"
-            amount={formatPoint(3000)}
-          />
-          <DetailRow
-            icon={<AccountIcon bankCode={account?.bankCode} />}
-            title="내 계좌"
-            subtitle={account?.bankName ?? '연동된 계좌 없음'}
-            amount={account ? `${formatWonNumber(account.accountBalance)}원` : '-'}
-            last
-          />
-        </View>
-      ) : null}
+  return (
+    <ContentCard style={[styles.assetsCard, { padding: theme.space.xl, gap: theme.space.sm }]}>
+      <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+        내 자산 현황
+      </Text>
+      <View>
+        <DetailRow
+          icon={<SavingsIcon />}
+          title="예적금"
+          subtitle="3개 상품에 저축 중"
+          amount={formatPoint(3000)}
+        />
+        <DetailRow
+          icon={<InvestIcon />}
+          title="투자"
+          subtitle="3개 회사 보유 중"
+          amount={formatPoint(3000)}
+        />
+        <DetailRow
+          icon={<AccountIcon bankCode={account?.bankCode} />}
+          title="연동 계좌"
+          subtitle={account?.bankName ?? '연동된 계좌 없음'}
+          amount={account ? `${formatWonNumber(account.accountBalance)}원` : '-'}
+          last
+        />
+      </View>
+    </ContentCard>
+  );
+}
+
+/** 몇 번째 장인지 알려주는 점. 현재 장만 길쭉한 알약이 된다. */
+function PageDots({ count, active }: { count: number; active: number }) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.dots, { gap: theme.space.sm }]}>
+      {Array.from({ length: count }, (_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            {
+              width: i === active ? 22 : 8,
+              borderRadius: theme.radius.full,
+              backgroundColor: i === active ? theme.color.text.muted : theme.color.border.default,
+            },
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -158,7 +242,7 @@ type DetailRowProps = {
   last?: boolean;
 };
 
-/** 펼침 목록 한 줄 (예적금·투자·내 계좌 공용). */
+/** 자산 목록 한 줄 (예적금·투자·연동 계좌 공용). */
 function DetailRow({ icon, title, subtitle, amount, last }: DetailRowProps) {
   const theme = useTheme();
 
@@ -167,9 +251,9 @@ function DetailRow({ icon, title, subtitle, amount, last }: DetailRowProps) {
       style={[
         styles.detailRow,
         {
-          paddingVertical: theme.space.lg,
+          paddingVertical: theme.space.md,
           borderBottomWidth: last ? 0 : 1,
-          borderBottomColor: theme.color.border.default,
+          borderBottomColor: theme.color.border.card,
         },
       ]}
     >
@@ -183,13 +267,9 @@ function DetailRow({ icon, title, subtitle, amount, last }: DetailRowProps) {
       <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
         {amount}
       </Text>
-      <Ionicons name="chevron-forward" size={16} color={theme.color.text.muted} />
     </View>
   );
 }
-
-/** 잔액 카드 아래 띠 색. 그라디언트 위에 흰색을 옅게 덮어 한 톤 밝게 만든다 */
-const EXPAND_BAND_OVERLAY = 'rgba(255, 255, 255, 0.18)';
 
 const MOCK_CIRCLE = { backgroundColor: '#F3D9D9' };
 
@@ -218,15 +298,16 @@ function AccountIcon({ bankCode }: { bankCode: string | undefined }) {
 }
 
 const styles = StyleSheet.create({
-  card: { overflow: 'hidden' },
-  inner: {},
+  walletCard: { flex: 1, overflow: 'hidden' },
+  walletInner: { flex: 1, justifyContent: 'space-between' },
+  assetsCard: { flex: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center' },
   acornIcon: { width: 18, height: 18 },
   actionRow: { flexDirection: 'row' },
   action: { flex: 1 },
   pill: { minHeight: 46, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  expandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  detailSheet: { paddingHorizontal: 20 },
+  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  dot: { height: 8 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   detailIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });
