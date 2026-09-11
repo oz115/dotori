@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { CodeInput, connectFamilyErrorMessage, useConnectFamily } from '@/features/family';
+import { connectFamilyErrorMessage, useConnectFamily } from '@/features/family';
 import { useTheme } from '@/shared/theme';
-import { Button, Callout, Header, Screen } from '@/shared/ui';
+import { Button, Callout, CodeInput, Header, Screen } from '@/shared/ui';
 
 const CODE_LENGTH = 6;
 

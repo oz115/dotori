@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { signOut } from '@/features/auth';
+import { signOut, WithdrawButton } from '@/features/auth';
 import { savedFamilyId, useDeleteFamily, useFamilyStatus } from '@/features/family';
 import { Button } from '@/shared/ui';
 import { useTheme } from '@/shared/theme';
@@ -84,6 +84,7 @@ export default function ParentHomeScreen() {
         )}
 
         <Button label="로그아웃" variant="secondary" onPress={signOut} />
+        <WithdrawButton />
       </View>
     </SafeAreaView>
   );

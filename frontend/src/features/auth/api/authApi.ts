@@ -47,4 +47,8 @@ export const authApi = {
     verificationToken: string;
     newPassword: string;
   }) => httpClient.post('/api/v1/auth/password-reset', body),
+
+  /** 회원 탈퇴 (soft delete) — 본인 확인용 비밀번호 필요, 틀리면 PASSWORD_MISMATCH */
+  withdraw: (userId: number, password: string) =>
+    httpClient.delete(`/api/v1/users/${userId}`, { data: { password } }),
 };

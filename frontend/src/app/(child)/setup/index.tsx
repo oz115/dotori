@@ -1,22 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { signOut, useAuthStore } from '@/features/auth';
+import { useMyAccount } from '@/features/account';
+import { signOut, useAuthStore, WithdrawButton } from '@/features/auth';
 import { useFamilyStatus } from '@/features/family';
 import { useTheme } from '@/shared/theme';
 import { Button, Screen } from '@/shared/ui';
 
 /**
- * 자녀 온보딩 허브. 로그인한 자녀가 아직 앱을 쓸 준비가 안 됐을 때 진입한다.
+ * 자녀 온보딩 허브. 자녀가 아직 앱을 쓸 준비가 안 됐을 때((child)/index 게이트) 진입한다.
  * 1) 가족 연결(초대 코드) → 2) 본인 계좌 연동 순서로 안내한다.
  */
 export default function ChildOnboardingHomeScreen() {
   const theme = useTheme();
   const name = useAuthStore((s) => s.user?.name);
-  const status = useFamilyStatus();
+  const family = useFamilyStatus();
+  const account = useMyAccount();
 
-  const hasFamily = status.data?.hasFamily ?? false;
+  const hasFamily = family.data?.hasFamily === true;
+  const hasAccount = account.data != null;
 
   return (
     <Screen scroll>
@@ -32,76 +36,86 @@ export default function ChildOnboardingHomeScreen() {
       </View>
 
       <View style={{ marginTop: theme.space['4xl'], gap: theme.space.lg }}>
-        {/* 1. 가족 연결 */}
-        <View
-          style={[
-            styles.card,
-            {
-              borderColor: hasFamily ? theme.color.border.default : theme.color.brand.solid,
-              backgroundColor: hasFamily ? theme.color.background.surface : theme.color.brand.tint,
-              borderRadius: theme.radius.lg,
-              padding: theme.space.lg,
-              gap: theme.space.md,
-              opacity: hasFamily ? 0.6 : 1,
-            },
-          ]}
-        >
-          <View style={styles.cardHead}>
-            <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-              가족 연결하기
-            </Text>
-            {hasFamily ? (
-              <Ionicons name="checkmark-circle" size={20} color={theme.color.brand.solid} />
-            ) : null}
-          </View>
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-            부모님께 받은 6자리 코드를 넣으면 끝나요.
-          </Text>
-          {!hasFamily ? (
+        <StepCard
+          title="가족 연결하기"
+          description="부모님께 받은 6자리 코드를 넣으면 끝나요."
+          done={hasFamily}
+          enabled={!hasFamily}
+          action={
             <Button
               label="코드 입력하기"
               variant="gradient"
               onPress={() => router.push('/setup/connect')}
             />
-          ) : null}
-        </View>
-
-        {/* 2. 계좌 연동 */}
-        <View
-          style={[
-            styles.card,
-            {
-              borderColor: theme.color.border.default,
-              backgroundColor: theme.color.background.surface,
-              borderRadius: theme.radius.lg,
-              padding: theme.space.lg,
-              gap: theme.space.md,
-              opacity: hasFamily ? 1 : 0.6,
-            },
-          ]}
-        >
-          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            계좌 연동하기
-          </Text>
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-            {hasFamily
+          }
+        />
+        <StepCard
+          title="계좌 연동하기"
+          description={
+            hasFamily
               ? '본인의 계좌를 연동해주세요.'
-              : '가족 연결 후에 할 수 있어요. 본인의 계좌를 연동해주세요.'}
-          </Text>
-          {/* 계좌 연동 화면은 S15P21A505-164 에서 붙인다. 지금은 항상 비활성 */}
-          <Button label="연동 하러 가기" variant="secondary" onPress={() => {}} disabled />
-        </View>
+              : '가족 연결 후에 할 수 있어요. 본인의 계좌를 연동해주세요.'
+          }
+          done={hasAccount}
+          enabled={hasFamily && !hasAccount}
+          action={
+            <Button
+              label="연동 하러 가기"
+              variant={hasFamily ? 'primary' : 'secondary'}
+              onPress={() => router.push('/setup/account/link')}
+              disabled={!hasFamily}
+            />
+          }
+        />
       </View>
 
       <View style={styles.spacer} />
 
-      <Button
-        label="로그아웃"
-        variant="ghost"
-        onPress={signOut}
-        style={{ marginTop: theme.space.lg }}
-      />
+      <View style={{ marginTop: theme.space.lg, gap: theme.space.xs }}>
+        <Button label="로그아웃" variant="ghost" onPress={signOut} />
+        <WithdrawButton />
+      </View>
     </Screen>
+  );
+}
+
+type StepCardProps = {
+  title: string;
+  description: string;
+  /** 이미 완료된 단계 */
+  done: boolean;
+  /** 지금 할 수 있는 단계 (강조) */
+  enabled: boolean;
+  action: ReactNode;
+};
+
+function StepCard({ title, description, done, enabled, action }: StepCardProps) {
+  const theme = useTheme();
+  const highlighted = enabled && !done;
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: highlighted ? theme.color.brand.solid : theme.color.border.default,
+          backgroundColor: highlighted ? theme.color.brand.tint : theme.color.background.surface,
+          borderRadius: theme.radius.lg,
+          padding: theme.space.lg,
+          gap: theme.space.md,
+          opacity: done || enabled ? 1 : 0.6,
+        },
+      ]}
+    >
+      <View style={styles.cardHead}>
+        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>{title}</Text>
+        {done ? (
+          <Ionicons name="checkmark-circle" size={20} color={theme.color.brand.solid} />
+        ) : null}
+      </View>
+      <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{description}</Text>
+      {done ? null : action}
+    </View>
   );
 }
 
