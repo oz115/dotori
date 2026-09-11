@@ -15,6 +15,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -72,7 +73,16 @@ public class FamilyServiceImpl implements FamilyService {
 			.family(family)
 			.user(user)
 			.build());
+
 		return familyMapper.toCreateResponse(family);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public FamilyStatusResponse getStatus(Integer userId) {
+		// 존재 여부만 따로 세지 않고 familyId 조회 하나로 판정한다 — 두 쿼리의 기준이 갈리지 않게
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId).orElse(null);
+		return new FamilyStatusResponse(familyId != null, familyId);
 	}
 
 	/**

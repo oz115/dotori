@@ -42,7 +42,7 @@ class EmailVerificationServiceImplTest {
 	@Test
 	@DisplayName("SIGNUP 용도에서 미가입 이메일이면 코드를 저장하고 메일을 발송한다")
 	void sendCode_signupWithNewEmail() {
-		given(userRepository.existsByEmail(EMAIL)).willReturn(false);
+		given(userRepository.existsByEmailAndDeletedAtIsNull(EMAIL)).willReturn(false);
 
 		emailVerificationService.sendCode(EMAIL, EmailVerificationPurpose.SIGNUP);
 
@@ -53,7 +53,7 @@ class EmailVerificationServiceImplTest {
 	@Test
 	@DisplayName("SIGNUP 용도에서 이미 가입된 이메일이면 DUPLICATE_EMAIL 예외가 발생하고 코드도 메일도 나가지 않는다")
 	void sendCode_signupWithRegisteredEmail() {
-		given(userRepository.existsByEmail(EMAIL)).willReturn(true);
+		given(userRepository.existsByEmailAndDeletedAtIsNull(EMAIL)).willReturn(true);
 
 		assertThatThrownBy(() -> emailVerificationService.sendCode(EMAIL, EmailVerificationPurpose.SIGNUP))
 			.isInstanceOf(BusinessException.class)
@@ -67,13 +67,13 @@ class EmailVerificationServiceImplTest {
 	@Test
 	@DisplayName("SIGNUP 중복 검사는 소문자로 정규화한 이메일로 한다 (대소문자 우회 차단)")
 	void sendCode_signupNormalizesEmailBeforeDuplicateCheck() {
-		given(userRepository.existsByEmail(EMAIL)).willReturn(true);
+		given(userRepository.existsByEmailAndDeletedAtIsNull(EMAIL)).willReturn(true);
 
 		assertThatThrownBy(() -> emailVerificationService.sendCode("Dotori@Example.COM",
 			EmailVerificationPurpose.SIGNUP))
 			.isInstanceOf(BusinessException.class);
 
-		verify(userRepository).existsByEmail(EMAIL);
+		verify(userRepository).existsByEmailAndDeletedAtIsNull(EMAIL);
 	}
 
 	@Test

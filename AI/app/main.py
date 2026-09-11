@@ -1,7 +1,7 @@
 """도토리 AI 서버 (FastAPI).
 
-가격 책정, 퀴즈 생성, 투자 회사/뉴스 생성을 담당한다.
-자세한 배경은 `backend/AI-docs/` 의 설계 문서를 참고한다.
+상점 가격 책정, 할일 보상 책정, 퀴즈 생성, 투자 회사/뉴스 생성을 담당한다.
+자세한 배경은 노션 「AI 기능 정리」와 그 하위 페이지를 참고한다 (설계의 유일한 원본).
 
 핸들러는 `async def` 가 아니라 `def` 로 쓴다. FastAPI 가 `def` 핸들러를
 스레드풀에서 돌려 주므로, 동기 방식인 SQLAlchemy 를 써도 서버가 멈추지 않는다.
@@ -12,12 +12,16 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
-from app.db import get_session
+from app.core.config import get_settings
+from app.core.database import get_session
+from app.domains.investment.router import router as investment_router
+from app.domains.quiz.router import router as quiz_router
+from app.domains.shopping.router import router as shopping_router
+from app.domains.work.router import router as work_router
 
 app = FastAPI(
     title="도토리 AI 서버",
-    description="가격 책정·퀴즈·투자 뉴스 생성을 담당하는 내부 서비스",
+    description="상점·할일 가격 책정, 퀴즈, 투자 뉴스 생성을 담당하는 내부 서비스",
     version="0.1.0",
 )
 
@@ -49,3 +53,7 @@ def health_db(session: Session = Depends(get_session)) -> dict[str, str]:
 
 
 app.include_router(health_router)
+app.include_router(shopping_router)
+app.include_router(work_router)
+app.include_router(quiz_router)
+app.include_router(investment_router)

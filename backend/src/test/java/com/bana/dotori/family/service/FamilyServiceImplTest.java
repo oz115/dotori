@@ -30,6 +30,7 @@ import com.bana.dotori.family.dto.FamilyCreateRequest;
 import com.bana.dotori.family.dto.FamilyCreateResponse;
 import com.bana.dotori.family.dto.FamilyMembersResponse;
 import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
 import com.bana.dotori.family.dto.FamilyUpdateRequest;
 import com.bana.dotori.family.dto.FamilyUpdateResponse;
 import com.bana.dotori.family.dto.InvitationCodeResponse;
@@ -178,6 +179,29 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있으면 hasFamily=true와 familyId를 함께 반환한다")
+	void getStatus_hasFamily() {
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.of(3));
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isTrue();
+		// 초대 코드 만료 후 재발급으로 이어 가려면 화면이 familyId 를 알아야 한다
+		assertThat(response.familyId()).isEqualTo(3);
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있지 않으면 hasFamily=false, familyId=null을 반환한다")
+	void getStatus_noFamily() {
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.empty());
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isFalse();
+		assertThat(response.familyId()).isNull();
 	}
 
 	private Family onboardedFamily() {

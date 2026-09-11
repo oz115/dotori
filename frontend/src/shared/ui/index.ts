@@ -2,6 +2,7 @@ export { BottomNav } from './BottomNav';
 export { Button } from './Button';
 export { Callout } from './Callout';
 export { Checkbox } from './Checkbox';
+export { CodeInput } from './CodeInput';
 export { Header } from './Header';
 export { Input } from './Input';
 export { ProgressBar } from './ProgressBar';

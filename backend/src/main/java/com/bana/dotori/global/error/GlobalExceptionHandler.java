@@ -6,6 +6,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +51,46 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
 		return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
 			.body(ErrorResponse.of(ErrorCode.INVALID_REQUEST));
+	}
+
+	/**
+	 * 업로드 용량 초과 (CHORE-13).
+	 *
+	 * <p>스프링이 {@code spring.servlet.multipart.max-file-size} 를 넘는 요청을 컨트롤러에
+	 * 닿기 전에 끊는다. 이 핸들러가 없으면 아래 {@code Exception} 으로 떨어져 500 이 나가는데,
+	 * 용량 초과는 클라이언트가 고칠 수 있는 문제라 400 이어야 한다.
+	 */
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+		return ResponseEntity.status(ErrorCode.INVALID_FILE.getStatus())
+			.body(ErrorResponse.of(ErrorCode.INVALID_FILE));
+	}
+
+	/**
+	 * 파일 파트가 없거나 이름이 다른 요청 (CHORE-13).
+	 *
+	 * <p>{@code @RequestPart("photo")} 가 찾는 파트가 없으면 스프링이 이 예외를 던진다.
+	 * 클라이언트가 파트 이름을 {@code file} 로 보내는 흔한 실수인데, 핸들러가 없으면 아래
+	 * {@code Exception} 으로 떨어져 500 이 나가고 프론트는 서버 장애로 오해한다.
+	 */
+	@ExceptionHandler(MissingServletRequestPartException.class)
+	public ResponseEntity<ErrorResponse> handleMissingServletRequestPart(MissingServletRequestPartException e) {
+		log.warn("multipart part missing: {}", e.getRequestPartName());
+		return ResponseEntity.status(ErrorCode.INVALID_FILE.getStatus())
+			.body(ErrorResponse.of(ErrorCode.INVALID_FILE));
+	}
+
+	/**
+	 * multipart 본문 자체가 깨진 요청.
+	 *
+	 * <p>경계 문자열이 어긋나거나 전송이 중간에 끊긴 경우다. 위 두 핸들러가 더 구체적이라
+	 * 용량 초과·파트 누락은 그쪽이 먼저 잡고, 여기는 남는 경우를 받는다.
+	 */
+	@ExceptionHandler(MultipartException.class)
+	public ResponseEntity<ErrorResponse> handleMultipart(MultipartException e) {
+		log.warn("malformed multipart request: {}", e.getMessage());
+		return ResponseEntity.status(ErrorCode.INVALID_FILE.getStatus())
+			.body(ErrorResponse.of(ErrorCode.INVALID_FILE));
 	}
 
 	@ExceptionHandler(Exception.class)

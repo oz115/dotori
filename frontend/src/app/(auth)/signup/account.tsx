@@ -3,13 +3,12 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
-  apiErrorCode,
-  isNetworkError,
   SignupStepLayout,
   useCheckLoginId,
   useSignupStore,
   validateAccountStep,
 } from '@/features/auth';
+import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
 import { Button, Input } from '@/shared/ui';
 

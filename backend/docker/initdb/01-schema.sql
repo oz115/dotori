@@ -29,6 +29,8 @@
 ========================================================= */
 
 DROP TABLE IF EXISTS
+"notifications",
+"device_tokens",
 "point_transactions",
 "point_cashout_requests",
 "investment_transactions",
@@ -61,6 +63,8 @@ CASCADE;
 ========================================================= */
 
 DROP TYPE IF EXISTS
+notifications_type,
+device_tokens_platform,
 point_transactions_transaction_type,
 point_cashout_requests_status,
 users_role,
@@ -73,13 +77,33 @@ chores_repeat_type,
 task_difficulty,
 chore_completion_requests_status,
 store_products_category,
-words_category
+words_category,
+investment_news_impact
 CASCADE;
 
 
 /* =========================================================
 3. ENUM TYPE CREATION
 ========================================================= */
+
+/* 알림 타입 */
+CREATE TYPE notifications_type AS ENUM (
+    'INVITATION',
+    'PURCHASE',
+    'CHARGE',
+    'CASHOUT',
+    'CHORE',
+    'SAVINGS',
+    'INVESTMENT'
+);
+
+
+/* FCM 푸시를 수신할 디바이스 플랫폼 */
+CREATE TYPE device_tokens_platform AS ENUM (
+    'ANDROID',
+    'IOS'
+);
+
 
 /* 포인트 거래 발생 사유
    입출금 방향이 아닌 "왜 포인트가 변했는지"를 저장 */
@@ -187,10 +211,17 @@ CREATE TYPE task_difficulty AS ENUM (
 );
 
 
-/* 집안일 완료 요청 상태 */
+/* 집안일 완료 요청 상태
+
+   PENDING 에서 시작해 SUCCEED · REJECTED · CANCELLED 중 하나로 한 번만 옮겨 간다.
+   되돌아오는 전이는 없다.
+
+   PROGRESS(처리 중)를 두지 않는다. 아이가 사진과 내용을 한 번에 올려 요청이 완성되고,
+   부모가 거절하면 그 행을 고치는 게 아니라 아이가 새 요청을 올린다. 즉 "올리는 중"
+   이나 "고치는 중" 으로 머무를 구간이 없다.
+   (현금화처럼 외부 송금을 기다리는 요청은 그 구간이 있어 PROGRESS 를 쓴다.) */
 CREATE TYPE chore_completion_requests_status AS ENUM (
     'PENDING',
-    'PROGRESS',
     'CANCELLED',
     'SUCCEED',
     'REJECTED'
@@ -218,6 +249,13 @@ CREATE TYPE words_category AS ENUM (
     'BANKING',
     'ECONOMY',
     'OTHER'
+);
+
+
+/* 투자 뉴스가 상품 가격에 주는 영향 방향 */
+CREATE TYPE investment_news_impact AS ENUM (
+    'POSITIVE',
+    'NEGATIVE'
 );
 
 
@@ -323,11 +361,17 @@ CREATE TABLE "savings_subscriptions" (
 );
 
 
+/* photo_key: 인증 사진의 S3 저장 키다 (CHORE-13). URL 이 아니다.
+             형식은 chores/{family_id}/{child_id}/{uuid}.jpg 로 약 55자다.
+
+             버킷이 비공개라 URL 을 저장해도 그 URL 로는 아무도 볼 수 없다. 볼 수 있는
+             presigned URL 은 서명과 만료시각이 붙어 500자를 넘고 몇 분 뒤 죽으므로
+             저장할 값이 아니다. 화면에 보여 줄 때마다 이 키로 새로 발급한다. */
 CREATE TABLE "chore_completion_requests" (
     "chore_completion_request_id"   SERIAL      NOT NULL,
     "chore_id"                      INTEGER     NOT NULL,
     "child_id"                      INTEGER     NOT NULL,
-    "photo_url"                     VARCHAR(100) NULL,
+    "photo_key"                     VARCHAR(100) NULL,
     "description"                   VARCHAR(255) NULL,
     "status"                        chore_completion_requests_status DEFAULT 'PENDING' NOT NULL,
     "requested_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -353,6 +397,7 @@ CREATE TABLE "investment_products" (
     "name"                  VARCHAR(100) NOT NULL,
     "description"           VARCHAR(255) NULL,
     "category"              investment_products_category NULL,
+    "news_context"          TEXT        NOT NULL,
     "current_price"         INTEGER     NOT NULL,
     "is_active"             BOOLEAN     DEFAULT TRUE NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -374,6 +419,7 @@ CREATE TABLE "point_cashout_requests" (
 
 CREATE TABLE "investment_price_history" (
     "investment_price_history_id"  SERIAL      NOT NULL,
+    "family_id"                    INTEGER     NOT NULL,
     "investment_product_id"        INTEGER     NOT NULL,
     "price"                        INTEGER     NOT NULL,
     "recorded_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -387,6 +433,33 @@ CREATE TABLE "refresh_tokens" (
     "expires_at"            TIMESTAMPTZ NOT NULL,
     "revoked_at"            TIMESTAMPTZ NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+/* ref_id: 딥링크용 연관 리소스 ID (예: chore_id). 알림 타입마다 가리키는 대상 테이블이
+           달라 FK 를 걸 수 없다 */
+CREATE TABLE "notifications" (
+    "notification_id"       SERIAL      NOT NULL,
+    "user_id"               INTEGER     NOT NULL,
+    "type"                  notifications_type NOT NULL,
+    "title"                 VARCHAR(100) NOT NULL,
+    "body"                  VARCHAR(255) NOT NULL,
+    "ref_id"                INTEGER     NULL,
+    "is_read"               BOOLEAN     DEFAULT FALSE NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+/* fcm_token: 유일해야 upsert(등록 API가 이미 있는 토큰이면 user_id 를 갈아치우는 방식)로
+              기기 재로그인 시 이전 계정 소유권을 정리할 수 있다.
+   last_used_at: 등록/갱신 API 호출마다 갱신. 오래 미사용된 토큰 정리 기준으로 쓴다. */
+CREATE TABLE "device_tokens" (
+    "device_token_id"       SERIAL      NOT NULL,
+    "user_id"               INTEGER     NOT NULL,
+    "fcm_token"             VARCHAR(255) NOT NULL,
+    "platform"              device_tokens_platform NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "last_used_at"          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -412,6 +485,7 @@ CREATE TABLE "investment_news" (
     "investment_news_id"    SERIAL      NOT NULL,
     "title"                 VARCHAR(255) NOT NULL,
     "content"               VARCHAR(255) NOT NULL,
+    "impact"                investment_news_impact NOT NULL,
     "published_at"          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -484,6 +558,7 @@ CREATE TABLE "purchases" (
     "family_id"             INTEGER     NOT NULL,
     "child_id"              INTEGER     NOT NULL,
     "store_product_id"      INTEGER     NOT NULL,
+    "product_name"          VARCHAR(100) NOT NULL,
     "quantity"              INTEGER     DEFAULT 1 NOT NULL,
     "price"                 INTEGER     NOT NULL,
     "purchase_date"         DATE        DEFAULT CURRENT_DATE NOT NULL,
@@ -606,6 +681,16 @@ ADD CONSTRAINT "PK_REFRESH_TOKENS"
 PRIMARY KEY ("refresh_token_id");
 
 
+ALTER TABLE "notifications"
+ADD CONSTRAINT "PK_NOTIFICATIONS"
+PRIMARY KEY ("notification_id");
+
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "PK_DEVICE_TOKENS"
+PRIMARY KEY ("device_token_id");
+
+
 ALTER TABLE "family_codes"
 ADD CONSTRAINT "PK_FAMILY_CODES"
 PRIMARY KEY ("family_code_id");
@@ -724,6 +809,20 @@ FOREIGN KEY ("user_id")
 REFERENCES "users" ("user_id");
 
 
+/* notifications */
+ALTER TABLE "notifications"
+ADD CONSTRAINT "FK_NOTIFICATIONS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
+/* device_tokens */
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "FK_DEVICE_TOKENS_USER"
+FOREIGN KEY ("user_id")
+REFERENCES "users" ("user_id");
+
+
 /* point_cashout_requests */
 ALTER TABLE "point_cashout_requests"
 ADD CONSTRAINT "FK_POINT_CASHOUT_REQUESTS_FAMILY"
@@ -787,6 +886,11 @@ ALTER TABLE "investment_price_history"
 ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_PRODUCT"
 FOREIGN KEY ("investment_product_id")
 REFERENCES "investment_products" ("investment_product_id");
+
+ALTER TABLE "investment_price_history"
+ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
 
 
 /* investment_news_products */
@@ -895,17 +999,24 @@ REFERENCES "users" ("user_id");
 /* ---------------------------------------------------------
 users
 
-로그인 아이디와 이메일은 전체 시스템에서 유일해야 함
+로그인 아이디와 이메일은 살아있는 회원끼리만 유일해야 함.
+
+탈퇴(MYPAGE-05)는 이력 보존 때문에 행을 지우지 않고 deleted_at 만 찍는
+소프트 삭제라, 전체 UNIQUE 로 걸면 탈퇴자가 쓰던 이메일·아이디로
+다시 가입할 수 없다. 부분 유니크 인덱스로 탈퇴 행을 제외한다.
+(중복 검사 쿼리도 같은 기준 — UserRepository 의 *AndDeletedAtIsNull)
+
+위반(23505)은 UserServiceImpl.resolveDuplicateError 가 잡아 409 로 바꾼다.
 --------------------------------------------------------- */
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_LOGIN_ID"
-UNIQUE ("login_id");
+CREATE UNIQUE INDEX "UX_USERS_LOGIN_ID_ACTIVE"
+ON "users" ("login_id")
+WHERE "deleted_at" IS NULL;
 
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_EMAIL"
-UNIQUE ("email");
+CREATE UNIQUE INDEX "UX_USERS_EMAIL_ACTIVE"
+ON "users" ("email")
+WHERE "deleted_at" IS NULL;
 
 
 /* ---------------------------------------------------------
@@ -1004,6 +1115,19 @@ CHECK ("financial_knowledge_level" IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED'));
 
 
 /* ---------------------------------------------------------
+device_tokens
+
+같은 FCM 토큰이 여러 user_id 에 동시에 남아있으면 안 됨.
+기기가 재로그인하면 등록 API 가 이 유니크를 이용해
+기존 소유자를 새 user_id 로 갈아치우는 upsert 로 동작한다.
+--------------------------------------------------------- */
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "UQ_DEVICE_TOKENS_FCM_TOKEN"
+UNIQUE ("fcm_token");
+
+
+/* ---------------------------------------------------------
 store_products
 
 1. 가치 가중치는 양수 (AI 산정 전 NULL 은 허용)
@@ -1060,6 +1184,17 @@ ON "point_transactions" ("child_id", "created_at", "point_transaction_id");
 
 
 /* ---------------------------------------------------------
+notifications
+
+알림 목록 조회(NOTI-01)의 페이징이 쓰는 인덱스. point_transactions 와 같은 이유로
+정렬 키(created_at)와 순서를 맞춰 커서 지점부터 필요한 만큼만 읽고 멈추게 한다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_NOTIFICATIONS_USER_CREATED_AT"
+ON "notifications" ("user_id", "created_at", "notification_id");
+
+
+/* ---------------------------------------------------------
 chores
 
 FK 제약은 인덱스를 만들어 주지 않는다. PostgreSQL 은 참조받는 쪽(users.user_id)에만
@@ -1077,7 +1212,7 @@ FAMILY_CHILD: 할 일 목록 조회(CHORE-01)가 쓴다.
 
 FAMILY: 완료 요청 목록(CHORE-08)이 chore_completion_requests 와 chores 를
 조인해 family_id 로 좁힐 때 쓴다. 그쪽은 삭제 여부를 보지 않으므로 family_id 만 건다.
-아직 그 API 가 없어 지금은 쓰이지 않는다.
+지워진 할 일에 걸려 있는 요청도 부모가 처리할 수 있어야 하기 때문이다.
 --------------------------------------------------------- */
 
 CREATE INDEX "IX_CHORES_FAMILY_CHILD"
@@ -1087,3 +1222,64 @@ WHERE "deleted_at" IS NULL;
 
 CREATE INDEX "IX_CHORES_FAMILY"
 ON "chores" ("family_id");
+
+
+/* ---------------------------------------------------------
+chore_completion_requests
+
+FK 는 인덱스를 만들어 주지 않으므로 chore_id 쪽은 비어 있다. 조회가 두 가지다.
+
+1. 주기당 지급 여부(CHORE-09) — chore_id 로 좁히고 status='SUCCEED' 인 것 중
+   processed_at 이 이번 주기 시작 이후인지 본다. 세 컬럼이 앞에서부터 그대로 쓰인다.
+2. 부모 대기함(CHORE-08) — chores 와 조인해 status='PENDING' 만 고른다.
+   (chore_id, status) 까지만 쓰지만 그건 아래 인덱스의 앞머리라 같은 인덱스를 탄다.
+
+그래서 하나로 충분하다. 컬럼 순서는 등호로 좁히는 것(chore_id, status)이 앞이고
+범위로 보는 것(processed_at)이 뒤다. 범위 조건을 앞에 두면 그 뒤 컬럼은
+인덱스로 걸러지지 않고 읽은 뒤 버려진다.
+
+CHILD_STATUS: 부모 대기함(CHORE-08)이 쓴다. 경로가 아이를 지목하므로 child_id 로
+좁히고 status 로 거른 뒤 requested_at 역순으로 정렬한다. 앞의 두 컬럼이 등호라
+인덱스를 타고, 뒤의 requested_at·id 는 정렬을 인덱스로 처리해 별도 sort 를 없앤다.
+CHORE_STATUS 로는 대신할 수 없다 — 그쪽 앞머리가 chore_id 라서 아이로 좁히는
+조회에서는 첫 컬럼부터 어긋난다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHORE_STATUS"
+ON "chore_completion_requests" ("chore_id", "status", "processed_at");
+
+
+CREATE INDEX "IX_CHORE_COMPLETION_REQUESTS_CHILD_STATUS"
+ON "chore_completion_requests" ("child_id", "status", "requested_at", "chore_completion_request_id");
+
+
+/* ---------------------------------------------------------
+chore_completion_requests — 대기 중 요청은 할 일당 하나
+
+한 집안일에 처리 대기 중(PENDING)인 요청이 둘 이상 있을 수 없다는 불변식이다.
+부분 유니크 인덱스라 PENDING 행만 유일성을 따지고, 처리가 끝난
+SUCCEED·REJECTED·CANCELLED 는 몇 건이든 쌓인다 — 그래야 거절당한 아이가
+같은 주기에 다시 요청할 수 있다.
+
+애플리케이션 검사(existsByChoreIdAndStatus)만으로는 못 막는다. 그 검사와 INSERT
+사이에 틈이 있어서 아이가 버튼을 연타하면 요청이 여러 건 들어가고, 부모 대기함에
+같은 항목이 여러 줄 뜬다. 지급은 멱등키가 한 번으로 막지만 대기함은 지저분해진다.
+
+위반(23505)은 서비스가 잡아 409 로 바꾼다. 그냥 두면 500 이 나간다
+(지갑의 멱등키 위반 처리와 같은 방식이다).
+--------------------------------------------------------- */
+
+CREATE UNIQUE INDEX "UX_CHORE_COMPLETION_REQUESTS_PENDING"
+ON "chore_completion_requests" ("chore_id")
+WHERE "status" = 'PENDING';
+
+
+/* ---------------------------------------------------------
+investment_price_history
+
+가족별 상품 가격 추이 조회용. 조회가 가족·상품으로 좁히고
+recorded_at 순으로 정렬하므로 그 순서 그대로 건다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_INVESTMENT_PRICE_HISTORY_FAMILY_PRODUCT_RECORDED_AT"
+ON "investment_price_history" ("family_id", "investment_product_id", "recorded_at");

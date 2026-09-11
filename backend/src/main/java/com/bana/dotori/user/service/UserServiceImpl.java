@@ -49,10 +49,10 @@ public class UserServiceImpl implements UserService {
 		SignupRequest normalized = normalizeEmail(request);
 		// 이메일 인증(AUTH-07)을 통과한 요청인지부터 확인한다. 인증 안 된 이메일로는 가입할 수 없다.
 		emailVerificationCodeManager.requireValidToken(normalized.email(), normalized.verificationToken());
-		if (userRepository.existsByLoginId(normalized.loginId())) {
+		if (userRepository.existsByLoginIdAndDeletedAtIsNull(normalized.loginId())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
 		}
-		if (userRepository.existsByEmail(normalized.email())) {
+		if (userRepository.existsByEmailAndDeletedAtIsNull(normalized.email())) {
 			throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
 		}
 
@@ -89,7 +89,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	@Transactional(readOnly = true)
 	public void checkLoginIdAvailable(String loginId) {
-		if (userRepository.existsByLoginId(loginId)) {
+		if (userRepository.existsByLoginIdAndDeletedAtIsNull(loginId)) {
 			throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
 		}
 	}

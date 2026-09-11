@@ -1,5 +1,5 @@
 export { useAuthStore } from './model/authStore';
-export { signIn, signOut, restoreSession } from './model/session';
+export { signIn, signOut, restoreSession, withdrawAccount } from './model/session';
 export { useLogin } from './model/useLogin';
 export { useSignup } from './model/useSignup';
 export { useSignupStore } from './model/signupStore';
@@ -12,10 +12,9 @@ export { loginErrorMessage } from './lib/loginError';
 export { signupErrorMessage } from './lib/signupError';
 export { emailVerificationErrorMessage } from './lib/emailVerificationError';
 export { findIdErrorMessage, resetPasswordErrorMessage } from './lib/accountRecoveryError';
-export { apiErrorCode, isNetworkError } from './lib/apiError';
 export { isValidEmail, validateAccountStep } from './lib/signupValidation';
-export { useCountdown } from './lib/useCountdown';
 export { BrandHero } from './ui/BrandHero';
 export { SignupStepLayout } from './ui/SignupStepLayout';
 export { EmailVerification } from './ui/EmailVerification';
+export { WithdrawButton } from './ui/WithdrawButton';
 export type { AuthUser, AuthStatus, UserRole, EmailVerificationPurpose } from './model/types';
