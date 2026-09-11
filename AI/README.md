@@ -62,8 +62,26 @@ fastapi dev app/main.py
 | GET | `/health` | 없음 | 서버 생존 확인. DB 를 건드리지 않는다. 컨테이너 헬스체크용 |
 | GET | `/health/db` | 없음 | DB 까지 왕복. 실패 시 503 |
 | GET | `/docs` | 없음 | 자동 생성된 API 문서 (Swagger UI) |
+| POST | `/internal/quiz/generate` | `X-Internal-Token` | 오늘자 퀴즈 9개 생성 + 가족 배정. 하루 한 번 호출을 가정한다(백엔드 스케줄러가 어떻게 물릴지는 별도 이슈) |
 
-업무 엔드포인트는 아직 없다. 추가할 때는 `dependencies=[Depends(require_internal_token)]` 를 붙인다.
+새 업무 엔드포인트를 추가할 때는 `dependencies=[Depends(require_internal_token)]` 를 붙인다.
+
+## 배치 스크립트
+
+FastAPI 서버 없이 DB 세션만 붙여 도는 스크립트다. 백엔드 스케줄러가 매일 한 번
+`/internal/quiz/generate` 를 호출하는 게 최종 그림이지만(그 스케줄러 구현은 별도 이슈),
+그 전까지, 또는 로컬 확인용으로는 이 스크립트로 직접 돌린다. 둘 다 결국
+`app.domains.quiz.services.generate_daily_quizzes()` 하나를 부른다.
+
+```powershell
+# ssh -N A505 터널이 열려 있어야 한다
+.\.venv\Scripts\Activate.ps1
+python -m scripts.generate_daily_quizzes
+```
+
+| 스크립트 | 설명 |
+| --- | --- |
+| `scripts/generate_daily_quizzes.py` | 상/중/하 티어별 문제를 LLM 으로 만들고, 가족의 `financial_knowledge_level` 에 맞춰 그 가족 자녀 전원에게 오늘자 `quizzes` 행을 넣는다. 재실행해도 이미 있는 `(child_id, quiz_date)` 는 건너뛴다 |
 
 ## 환경변수
 
@@ -79,6 +97,9 @@ DB 정보를 두 번 관리하지 않으려고 백엔드와 같은 루트 `.env`
 | `POSTGRES_PASSWORD` | ✅ | | 루트 `.env` 재사용 |
 | `AI_PORT` | | `8000` | 서버 포트 |
 | `INTERNAL_TOKEN` | 배포 시 ✅ | (빈 값) | Spring 과 공유하는 내부 호출 토큰. **빈 값이면 토큰 검증을 건너뛴다** |
+| `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. 루트 `.env` 재사용, LLM 호출(가격 책정 근거·퀴즈·투자 뉴스)에 필요 |
+| `GMS_BASE` | | `https://gms.ssafy.io/gmsapi` | GMS 게이트웨이 주소. 루트 `.env` 재사용 |
+| `OPENAI_MODEL` | | `gpt-4o-mini` | GMS 가 중계하는 모델 이름 |
 
 ## 인프라 담당자 확인 사항
 
