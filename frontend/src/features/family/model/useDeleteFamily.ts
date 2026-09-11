@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { familyApi } from '@/features/family/api/familyApi';
 import { familyKeys } from '@/features/family/model/familyKeys';
-import { savedFamilyId } from '@/features/family/lib/savedFamilyId';
 
 /**
  * 가족 삭제 mutation. `DELETE /api/v1/families/{familyId}`.
@@ -14,8 +13,7 @@ export function useDeleteFamily() {
   return useMutation({
     mutationFn: (familyId: number) => familyApi.remove(familyId),
     onSuccess: () => {
-      void savedFamilyId.clear();
-      queryClient.setQueryData(familyKeys.status(), { hasFamily: false });
+      queryClient.setQueryData(familyKeys.status(), { hasFamily: false, familyId: null });
       queryClient.invalidateQueries({ queryKey: familyKeys.all });
     },
   });

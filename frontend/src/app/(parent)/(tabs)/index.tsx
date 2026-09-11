@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signOut, WithdrawButton } from '@/features/auth';
-import { savedFamilyId, useDeleteFamily, useFamilyStatus } from '@/features/family';
+import { useDeleteFamily, useFamilyId, useFamilyStatus } from '@/features/family';
 import { Button } from '@/shared/ui';
 import { useTheme } from '@/shared/theme';
 
@@ -18,11 +17,7 @@ export default function ParentHomeScreen() {
   const theme = useTheme();
   const status = useFamilyStatus();
   const deleteFamily = useDeleteFamily();
-  const [familyId, setFamilyId] = useState<number | null>(null);
-
-  useEffect(() => {
-    void savedFamilyId.get().then(setFamilyId);
-  }, [status.data?.hasFamily]);
+  const { data: familyId } = useFamilyId();
 
   const hasFamily = status.data?.hasFamily ?? false;
 
@@ -35,10 +30,7 @@ export default function ParentHomeScreen() {
         style: 'destructive',
         onPress: () =>
           deleteFamily.mutate(familyId, {
-            onSuccess: () => {
-              setFamilyId(null);
-              Alert.alert('삭제됐어요', '온보딩을 다시 진행할 수 있어요.');
-            },
+            onSuccess: () => Alert.alert('삭제됐어요', '온보딩을 다시 진행할 수 있어요.'),
             onError: () => Alert.alert('삭제 실패', '잠시 후 다시 시도해주세요.'),
           }),
       },
