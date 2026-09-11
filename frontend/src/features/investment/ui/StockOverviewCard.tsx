@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { formatNumber, signedAcorns } from '@/features/investment/lib/format';
 import type { StockDetail } from '@/features/investment/model/types';
@@ -32,14 +32,13 @@ export function StockOverviewCard({ detail }: Props) {
     >
       <View style={styles.topRow}>
         <View style={[styles.nameBlock, { gap: theme.space.md }]}>
-          {/* 상품 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */}
           <View
             style={[
               styles.icon,
               { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.lg },
             ]}
           >
-            <Text style={styles.iconEmoji}>{detail.emoji}</Text>
+            <Image source={detail.image} style={styles.iconImage} resizeMode="contain" />
           </View>
           <Text
             numberOfLines={1}
@@ -118,8 +117,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconEmoji: {
-    fontSize: 30,
+  iconImage: {
+    width: 44,
+    height: 44,
   },
   name: {
     flexShrink: 1,

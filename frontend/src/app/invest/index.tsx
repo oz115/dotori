@@ -14,6 +14,10 @@ import { useTheme } from '@/shared/theme';
 import { Header } from '@/shared/ui';
 import { MainTabBar } from '@/widgets/main-tab-bar';
 
+// Figma 아이콘 시트에서 추출한 섹션 아이콘
+const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
+const CLIPBOARD = require('@/assets/images/invest/clipboard.png');
+
 /**
  * 자녀 투자 탭 (Figma: 투자 상품 상세 보기). 투자 요약·오늘의 뉴스·주식 리스트를
  * 보여준다. 백엔드 투자 API 연동 전이라 목업 데이터로 배치만 잡아둔 상태.
@@ -39,13 +43,13 @@ export default function InvestScreen() {
         <InvestmentSummaryCards summary={mockInvestmentSummary} />
 
         <View style={{ gap: theme.space.lg }}>
-          <SectionTitle emoji="📢" title="오늘의 뉴스" />
+          <SectionTitle icon={MEGAPHONE} title="오늘의 뉴스" />
           <NewsCarousel items={mockInvestmentNews} />
         </View>
 
         <View style={{ gap: theme.space.lg }}>
           <SectionTitle
-            emoji="📋"
+            icon={CLIPBOARD}
             title="주식 리스트"
             action={{
               label: '보유한 주식 보기',

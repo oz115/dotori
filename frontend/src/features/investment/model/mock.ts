@@ -11,6 +11,12 @@ import type {
  * API가 생기면 api/ + TanStack Query 훅으로 교체하고 이 파일은 삭제한다.
  */
 
+// 종목 캐릭터 — Figma 마스코트 시트(우리 마스코트)에서 추출한 이미지
+const BEAR = require('@/assets/images/invest/bear.png');
+const FOX = require('@/assets/images/invest/fox.png');
+const RABBIT = require('@/assets/images/invest/rabbit.png');
+const RACCOON = require('@/assets/images/invest/raccoon.png');
+
 export const mockInvestmentSummary: InvestmentSummary = {
   investedPoints: 7300,
   earnedPoints: 7300,
@@ -53,7 +59,7 @@ export const mockStocks: StockSummary[] = [
     id: 1,
     name: '튼튼 마트',
     category: '생활 소비',
-    emoji: '🏪',
+    image: BEAR,
     currentPrice: 980,
     change: 20,
     trend: [900, 930, 910, 950, 940, 960, 980],
@@ -62,7 +68,7 @@ export const mockStocks: StockSummary[] = [
     id: 2,
     name: '태수 마트',
     category: '생활 소비',
-    emoji: '🛒',
+    image: FOX,
     currentPrice: 860,
     change: -15,
     trend: [900, 890, 905, 880, 895, 875, 860],
@@ -71,7 +77,7 @@ export const mockStocks: StockSummary[] = [
     id: 3,
     name: '새싹 에너지',
     category: '친환경 기업',
-    emoji: '🌍',
+    image: RABBIT,
     currentPrice: 1120,
     change: 40,
     trend: [650, 760, 720, 850, 930, 1080, 1120],
@@ -80,7 +86,7 @@ export const mockStocks: StockSummary[] = [
     id: 4,
     name: '미래 로봇',
     category: '기술',
-    emoji: '🤖',
+    image: RACCOON,
     currentPrice: 1450,
     change: 120,
     trend: [1100, 1180, 1150, 1260, 1300, 1330, 1450],
@@ -93,7 +99,7 @@ export const mockStockDetails: StockDetail[] = [
     id: 1,
     name: '튼튼 마트',
     category: '생활 소비',
-    emoji: '🏪',
+    image: BEAR,
     description: '우리 동네 알뜰 마트예요. 생활에 필요한 물건을 팔아요.',
     holding: true,
     currentPrice: 980,
@@ -104,7 +110,7 @@ export const mockStockDetails: StockDetail[] = [
     id: 2,
     name: '태수 마트',
     category: '생활 소비',
-    emoji: '🛒',
+    image: FOX,
     description: '싱싱한 먹거리를 파는 마트예요. 요즘은 손님이 조금 줄었어요.',
     holding: false,
     currentPrice: 860,
@@ -115,7 +121,7 @@ export const mockStockDetails: StockDetail[] = [
     id: 3,
     name: '새싹 에너지',
     category: '친환경 기업',
-    emoji: '🌍',
+    image: RABBIT,
     description: '지구를 위한 깨끗한 에너지, 더 밝은 내일을 만들어요.',
     holding: true,
     currentPrice: 1120,
@@ -126,7 +132,7 @@ export const mockStockDetails: StockDetail[] = [
     id: 4,
     name: '미래 로봇',
     category: '기술',
-    emoji: '🤖',
+    image: RACCOON,
     description: '집안일을 도와주는 로봇을 만드는 회사예요.',
     holding: true,
     currentPrice: 1450,
