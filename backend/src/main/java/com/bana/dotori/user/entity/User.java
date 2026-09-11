@@ -13,17 +13,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * login_id·email 의 유일성은 부분 유니크 인덱스(UX_USERS_*_ACTIVE, deleted_at IS NULL)가
+ * 보장한다. 탈퇴가 소프트 삭제라 살아있는 행끼리만 유일하면 되는데, JPA 의
+ * uniqueConstraints 로는 부분 인덱스를 표현할 수 없어 스키마(01-schema.sql)에만 둔다.
+ */
 @Entity
-@Table(name = "users", uniqueConstraints = {
-	@UniqueConstraint(name = "uk_users_login_id", columnNames = "login_id"),
-	@UniqueConstraint(name = "uk_users_email", columnNames = "email")
-})
+@Table(name = "users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {

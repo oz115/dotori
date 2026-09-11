@@ -78,7 +78,7 @@ class AuthServiceImplTest {
 	@DisplayName("로그인 성공 시 토큰과 유저 요약 정보를 반환하고 Refresh Token을 저장한다")
 	void login_success() {
 		User user = user(1);
-		given(userRepository.findByLoginId("dotori123")).willReturn(Optional.of(user));
+		given(userRepository.findByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(Optional.of(user));
 		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
 		given(jwtTokenProvider.createAccessToken(1, UserRole.PARENT)).willReturn("access-token");
 		given(jwtTokenProvider.createRefreshToken(1)).willReturn("refresh-token");
@@ -99,7 +99,7 @@ class AuthServiceImplTest {
 	@Test
 	@DisplayName("존재하지 않는 아이디면 INVALID_CREDENTIALS 예외가 발생한다")
 	void login_unknownLoginId() {
-		given(userRepository.findByLoginId("nobody")).willReturn(Optional.empty());
+		given(userRepository.findByLoginIdAndDeletedAtIsNull("nobody")).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> authService.login(new LoginRequest("nobody", "P@ssw0rd!")))
 			.isInstanceOf(BusinessException.class)
@@ -110,7 +110,7 @@ class AuthServiceImplTest {
 	@Test
 	@DisplayName("비밀번호가 일치하지 않으면 INVALID_CREDENTIALS 예외가 발생한다")
 	void login_wrongPassword() {
-		given(userRepository.findByLoginId("dotori123")).willReturn(Optional.of(user(1)));
+		given(userRepository.findByLoginIdAndDeletedAtIsNull("dotori123")).willReturn(Optional.of(user(1)));
 		given(passwordEncoder.matches("wrong", "encoded-password")).willReturn(false);
 
 		assertThatThrownBy(() -> authService.login(new LoginRequest("dotori123", "wrong")))

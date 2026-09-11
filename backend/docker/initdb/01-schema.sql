@@ -983,17 +983,24 @@ REFERENCES "users" ("user_id");
 /* ---------------------------------------------------------
 users
 
-로그인 아이디와 이메일은 전체 시스템에서 유일해야 함
+로그인 아이디와 이메일은 살아있는 회원끼리만 유일해야 함.
+
+탈퇴(MYPAGE-05)는 이력 보존 때문에 행을 지우지 않고 deleted_at 만 찍는
+소프트 삭제라, 전체 UNIQUE 로 걸면 탈퇴자가 쓰던 이메일·아이디로
+다시 가입할 수 없다. 부분 유니크 인덱스로 탈퇴 행을 제외한다.
+(중복 검사 쿼리도 같은 기준 — UserRepository 의 *AndDeletedAtIsNull)
+
+위반(23505)은 UserServiceImpl.resolveDuplicateError 가 잡아 409 로 바꾼다.
 --------------------------------------------------------- */
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_LOGIN_ID"
-UNIQUE ("login_id");
+CREATE UNIQUE INDEX "UX_USERS_LOGIN_ID_ACTIVE"
+ON "users" ("login_id")
+WHERE "deleted_at" IS NULL;
 
 
-ALTER TABLE "users"
-ADD CONSTRAINT "UQ_USERS_EMAIL"
-UNIQUE ("email");
+CREATE UNIQUE INDEX "UX_USERS_EMAIL_ACTIVE"
+ON "users" ("email")
+WHERE "deleted_at" IS NULL;
 
 
 /* ---------------------------------------------------------
