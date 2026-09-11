@@ -13,6 +13,11 @@ export function formatPoints(points: number): string {
   return `${thousands(points)}P`;
 }
 
+/** 단위 없이 천 단위 구분만 (차트 축·현재가 큰 숫자처럼 단위를 따로 그리는 자리) */
+export function formatNumber(value: number): string {
+  return thousands(value);
+}
+
 export function formatAcorns(amount: number): string {
   return `${thousands(amount)} 도토리`;
 }
