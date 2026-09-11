@@ -32,6 +32,7 @@ AI/
 │   ├── core/         도메인에 종속되지 않는 공통 코드
 │   │   ├── config.py     설정 로딩
 │   │   ├── database.py   엔진/세션, ORM Base (경계 규칙 주석 필독)
+│   │   ├── logging_setup.py 로그 설정. uvicorn 이 루트 로거를 안 건드려서 필요하다
 │   │   ├── models.py     여러 도메인이 공유하는 읽기 전용 매핑 (families)
 │   │   ├── points.py     가중치 -> 포인트 환산 규칙 (반올림, CHECK > 0 대응)
 │   │   └── security.py   내부 호출 토큰 검증

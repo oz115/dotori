@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     # Spring -> AI 서버 내부 호출 인증용 공유 토큰. 비어 있으면 검증을 건너뛴다(로컬 개발용).
     internal_token: str = ""
 
+    # --- 로깅 ---
+    # app.* 로거 레벨. 상점 근거(reason)와 LLM 호출 이력을 로그로만 남기므로
+    # INFO 가 기본이다 (`app/core/logging_setup.py` 참고).
+    log_level: str = "INFO"
+
     # --- RabbitMQ (루트 ../.env 재사용 — Spring 과 같은 브로커를 쓴다) ---
     rabbitmq_host: str = "localhost"
     rabbitmq_port: int = 5672

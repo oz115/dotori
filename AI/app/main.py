@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_session
+from app.core.logging_setup import configure_logging
 from app.domains.investment.router import router as investment_router
 from app.domains.quiz.router import router as quiz_router
 from app.domains.shopping.consumer import SUBSCRIPTION as SHOPPING_SUBSCRIPTION
@@ -42,7 +43,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     DB 나 브로커가 없어도 서버는 뜬다. 컨슈머 스레드가 알아서 재연결을 반복하므로
     로컬에서 터널이나 docker compose 없이도 `/docs` 를 열어 볼 수 있다.
+
+    로그 설정을 먼저 한다 — uvicorn 은 루트 로거를 손대지 않아서, 설정하지 않으면
+    컨슈머가 남기는 INFO 가 전부 버려진다 (`configure_logging` docstring 참고).
     """
+    configure_logging()
     if get_settings().store_pricing_consumer_enabled:
         consumer.start(SHOPPING_SUBSCRIPTION)
     try:
