@@ -37,7 +37,7 @@ export function HoldingCard({ detail, onPress }: Props) {
         },
       ]}
     >
-      {/* 종목 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */}
+      {/* 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
       <View
         style={[
           styles.icon,

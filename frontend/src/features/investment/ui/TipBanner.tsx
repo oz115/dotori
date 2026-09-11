@@ -1,6 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '@/shared/theme';
+
+const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
 
 type Props = {
   message: string;
@@ -24,8 +26,7 @@ export function TipBanner({ message }: Props) {
         },
       ]}
     >
-      {/* 도토리 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */}
-      <Text style={styles.emoji}>🌰</Text>
+      <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
       <Text style={[theme.typography.bodySm, styles.message, { color: theme.color.text.default }]}>
         {message}
       </Text>
@@ -38,8 +39,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 28,
+  acorn: {
+    width: 32,
+    height: 35,
   },
   message: {
     flex: 1,

@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { formatPoints } from '@/features/investment/lib/format';
@@ -10,8 +11,7 @@ type Props = {
 
 /**
  * 화면 상단의 투자 요약 카드 2장 (넣은 돈 / 번 돈).
- * Figma 시안의 카드 그린이 semantic 토큰에 없어 palette.green 을 직접 쓴다
- * (semantic 에 어울리는 자리가 생기면 교체).
+ * 로그인 버튼과 같은 그린 그라디언트(palette.gradient.deep)로 칠한다 — Figma 시안 색감.
  */
 export function InvestmentSummaryCards({ summary }: Props) {
   const theme = useTheme();
@@ -24,25 +24,27 @@ export function InvestmentSummaryCards({ summary }: Props) {
   return (
     <View style={[styles.row, { gap: theme.space.md }]}>
       {cards.map((card) => (
-        <View
+        <LinearGradient
           key={card.label}
+          colors={theme.palette.gradient.deep}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[
             styles.card,
             {
-              backgroundColor: theme.palette.green[300],
-              borderRadius: theme.radius.lg,
+              borderRadius: theme.radius.xl,
               padding: theme.space.lg,
               gap: theme.space.xs,
             },
           ]}
         >
-          <Text style={[theme.typography.caption, { color: theme.color.text.strong }]}>
+          <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
             {card.label}
           </Text>
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+          <Text style={[theme.typography.h3, { color: theme.color.text.onBrand }]}>
             {formatPoints(card.value)}
           </Text>
-        </View>
+        </LinearGradient>
       ))}
     </View>
   );
