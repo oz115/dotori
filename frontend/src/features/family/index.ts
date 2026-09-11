@@ -21,7 +21,6 @@ export {
 export { OnboardingStepLayout } from './ui/OnboardingStepLayout';
 export { AmountStepInput } from './ui/AmountStepInput';
 export { StepFooter } from './ui/StepFooter';
-export { CodeInput } from './ui/CodeInput';
 export type {
   FinancialKnowledgeLevel,
   FamilyCreateBody,
