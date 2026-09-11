@@ -20,7 +20,8 @@ public interface FamilyService {
 
 	/**
 	 * 현재 사용자가 이미 어느 가족에든 속해 있는지 확인한다. 온보딩 분기(가족 생성/연결 화면 vs
-	 * 홈)에 쓴다.
+	 * 홈)에 쓴다. 속해 있으면 familyId 도 함께 준다 — 초대 코드가 만료된 부모가 가족을
+	 * 다시 만드는 대신 그 id 로 코드 재발급으로 이어 가기 위해서다.
 	 */
 	FamilyStatusResponse getStatus(Integer userId);
 

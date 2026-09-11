@@ -23,6 +23,18 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 	boolean existsActiveMembership(@Param("userId") Integer userId);
 
 	/**
+	 * 사용자가 속한 살아 있는 가족의 id (가족 상태 조회).
+	 *
+	 * <p>초대 코드가 만료된 부모는 가족을 다시 만드는 게 아니라(ALREADY_IN_FAMILY 로 막힌다)
+	 * 기존 가족에서 코드를 재발급해야 하는데, 그러려면 화면이 familyId 를 알아야 한다.
+	 * 존재 여부(existsActiveMembership)와 같은 기준으로 걸러야 hasFamily 와 어긋나지 않는다.
+	 * 활성 소속은 정책상 최대 1개다 — 생성·연결이 existsActiveMembership 으로 막는다.
+	 */
+	@Query("select fm.family.id from FamilyMember fm "
+		+ "where fm.user.id = :userId and fm.deletedAt is null and fm.user.deletedAt is null")
+	Optional<Integer> findActiveFamilyId(@Param("userId") Integer userId);
+
+	/**
 	 * 그 가족의 살아 있는 구성원인지 확인한다. 접근 권한 판정에 쓴다.
 	 *
 	 * <p>탈퇴한 회원은 구성원으로 보지 않는다.

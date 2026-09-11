@@ -80,7 +80,9 @@ public class FamilyServiceImpl implements FamilyService {
 	@Override
 	@Transactional(readOnly = true)
 	public FamilyStatusResponse getStatus(Integer userId) {
-		return new FamilyStatusResponse(familyMemberRepository.existsActiveMembership(userId));
+		// 존재 여부만 따로 세지 않고 familyId 조회 하나로 판정한다 — 두 쿼리의 기준이 갈리지 않게
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId).orElse(null);
+		return new FamilyStatusResponse(familyId != null, familyId);
 	}
 
 	/**
