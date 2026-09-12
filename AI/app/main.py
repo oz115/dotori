@@ -26,6 +26,7 @@ from app.core.logging_setup import configure_logging
 from app.domains.investment.router import router as investment_router
 from app.domains.quiz.router import router as quiz_router
 from app.domains.shopping.consumer import SUBSCRIPTION as SHOPPING_SUBSCRIPTION
+from app.domains.work.consumer import SUBSCRIPTION as WORK_SUBSCRIPTION
 from app.domains.shopping.router import router as shopping_router
 from app.domains.work.router import router as work_router
 from app.messaging import consumer
@@ -50,6 +51,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     if get_settings().store_pricing_consumer_enabled:
         consumer.start(SHOPPING_SUBSCRIPTION)
+        consumer.start(WORK_SUBSCRIPTION)
     try:
         yield
     finally:

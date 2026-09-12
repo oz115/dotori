@@ -61,8 +61,9 @@ class Subscription:
     handler: Handler
 
 
+# 종료 신호는 모든 컨슈머 스레드가 공유한다. 스레드는 구독마다 하나씩이라 리스트로 추적한다.
 _stop = threading.Event()
-_thread: threading.Thread | None = None
+_threads: list[threading.Thread] = []
 
 
 def _connection_parameters() -> pika.ConnectionParameters:
@@ -174,28 +175,35 @@ def run_forever(sub: Subscription) -> None:
 
 
 def start(sub: Subscription) -> None:
-    """백그라운드 스레드로 띄운다. 이미 돌고 있으면 아무것도 하지 않는다.
+    """구독 하나를 백그라운드 스레드로 띄운다. 여러 번 불러 여러 큐를 구독할 수 있다.
 
-    `daemon=True` 는 안전망이다 — 스레드가 물려도 프로세스 종료를 막지 않는다. 정상 종료는
-    `stop()` 이 담당한다.
+    각 구독이 자기 스레드·자기 연결을 갖는다. `BlockingConnection` 이 스레드 안전하지 않아
+    하나의 연결로 두 큐를 돌릴 수 없기 때문이다 — 큐가 몇 개 안 되므로 스레드 하나씩이 단순하다.
+
+    같은 큐를 두 번 start 하지 않는다 (중복 구독 방지). `daemon=True` 는 안전망이라 스레드가
+    물려도 프로세스 종료를 막지 않는다. 정상 종료는 `stop()` 이 담당한다.
     """
-    global _thread
-    if _thread is not None and _thread.is_alive():
+    if any(t.name == f"mq-{sub.queue}" and t.is_alive() for t in _threads):
+        logger.warning("event=already_started queue=%s", sub.queue)
         return
     _stop.clear()
-    _thread = threading.Thread(target=run_forever, args=(sub,), name="mq-consumer", daemon=True)
-    _thread.start()
+    thread = threading.Thread(target=run_forever, args=(sub,), name=f"mq-{sub.queue}", daemon=True)
+    thread.start()
+    _threads.append(thread)
 
 
 def stop(timeout: float = 10.0) -> None:
-    """종료 신호를 세우고 스레드를 기다린다. 메인 스레드는 pika 를 건드리지 않는다."""
-    global _thread
+    """모든 컨슈머에 종료 신호를 세우고 스레드를 기다린다. 메인 스레드는 pika 를 건드리지 않는다.
+
+    `_stop` 이 공유 신호라 한 번 세우면 스레드 전부가 다음 유휴 틈(최대 `_IDLE_TIMEOUT`)에
+    빠져나온다. 그래서 timeout 은 스레드마다가 아니라 전체에 한 번 준다 — 동시에 멈추므로.
+    """
     _stop.set()
-    if _thread is not None:
-        _thread.join(timeout)
-        if _thread.is_alive():
-            logger.error("event=consumer_join_timeout")
-        _thread = None
+    for thread in _threads:
+        thread.join(timeout)
+        if thread.is_alive():
+            logger.error("event=consumer_join_timeout queue=%s", thread.name)
+    _threads.clear()
 
 
 def parse_json(body: bytes) -> dict | None:
