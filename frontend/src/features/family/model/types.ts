@@ -26,9 +26,38 @@ export type FamilyCreateResponse = {
   createdAt: string;
 };
 
-/** GET /api/v1/families/status */
+/** GET /api/v1/families/status — 소속 가족이 없으면 familyId 는 null */
 export type FamilyStatus = {
   hasFamily: boolean;
+  familyId: number | null;
+};
+
+/** GET /api/v1/families/{familyId} — 가족 이름과 온보딩 설정 (금액은 원) */
+export type Family = {
+  familyId: number;
+  name: string;
+  createdBy: number;
+  memberCount: number;
+  weeklyAllowance: number;
+  weeklyRewardLimit: number;
+  financialKnowledgeLevel: FinancialKnowledgeLevel;
+  createdAt: string;
+};
+
+/** PATCH /api/v1/families/{familyId} — 보낸 필드만 바뀐다 */
+export type FamilyUpdateBody = {
+  name?: string;
+  weeklyAllowance?: number;
+  weeklyRewardLimit?: number;
+  financialKnowledgeLevel?: FinancialKnowledgeLevel;
+};
+
+/** GET /api/v1/families/{familyId}/members 의 한 줄 */
+export type FamilyMember = {
+  userId: number;
+  name: string;
+  role: 'PARENT' | 'CHILD';
+  joinedAt: string;
 };
 
 /** POST /api/v1/families/{familyId}/invitations 응답 (201). code 는 6자리, 10분 TTL. */

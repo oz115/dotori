@@ -2,12 +2,16 @@ import { authApi } from '@/features/auth/api/authApi';
 import { tokenStorage } from '@/features/auth/lib/tokenStorage';
 import { useAuthStore } from '@/features/auth/model/authStore';
 import { restoreSession, signIn, signOut } from '@/features/auth/model/session';
+import { queryClient } from '@/shared/api';
+import { clearSessionScopedStorage } from '@/shared/lib/sessionScopedStorage';
 
 jest.mock('@/features/auth/api/authApi');
 jest.mock('@/features/auth/lib/tokenStorage');
+jest.mock('@/shared/lib/sessionScopedStorage');
 
 const mockedApi = jest.mocked(authApi);
 const mockedStorage = jest.mocked(tokenStorage);
+const mockedSessionStorage = jest.mocked(clearSessionScopedStorage);
 
 // payload: {"sub":"7","role":"PARENT","exp":9999999999}
 const PARENT_ACCESS = 'x.eyJzdWIiOiI3Iiwicm9sZSI6IlBBUkVOVCIsImV4cCI6OTk5OTk5OTk5OX0.y';
@@ -55,6 +59,22 @@ describe('signOut', () => {
       accessToken: null,
       user: null,
     });
+  });
+
+  it('wipes the query cache and session-scoped storage so the next user sees nothing', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      accessToken: 'a',
+      user: { userId: 7, role: 'PARENT' },
+    });
+    mockedApi.logout.mockResolvedValue(undefined as never);
+    // 이전 사용자의 계좌 정보가 캐시에 남아 있는 상황
+    queryClient.setQueryData(['account', 'me'], { accountBalance: 13250 });
+
+    await signOut();
+
+    expect(queryClient.getQueryData(['account', 'me'])).toBeUndefined();
+    expect(mockedSessionStorage).toHaveBeenCalled();
   });
 });
 

@@ -12,11 +12,16 @@ function errorMessage(e: unknown): string {
   return '탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.';
 }
 
+type WithdrawButtonProps = {
+  /** 'link' 는 마이페이지 하단처럼 밑줄 친 작은 글씨로 (기본은 버튼 모양) */
+  variant?: 'button' | 'link';
+};
+
 /**
- * 회원 탈퇴 버튼 + 비밀번호 확인 모달. (현재는 계정 재생성 테스트용 임시 UI)
+ * 회원 탈퇴 트리거 + 비밀번호 확인 모달.
  * 성공하면 세션이 비워져 루트 가드가 로그인 화면으로 되돌린다.
  */
-export function WithdrawButton() {
+export function WithdrawButton({ variant = 'button' }: WithdrawButtonProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -44,7 +49,15 @@ export function WithdrawButton() {
 
   return (
     <>
-      <Button label="회원 탈퇴 (임시)" variant="ghost" onPress={() => setOpen(true)} />
+      {variant === 'link' ? (
+        <Pressable onPress={() => setOpen(true)} hitSlop={8} accessibilityRole="button">
+          <Text style={[theme.typography.bodySm, styles.link, { color: theme.color.text.muted }]}>
+            회원탈퇴
+          </Text>
+        </Pressable>
+      ) : (
+        <Button label="회원 탈퇴" variant="ghost" onPress={() => setOpen(true)} />
+      )}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
         <Pressable style={styles.backdrop} onPress={close}>
@@ -105,4 +118,5 @@ const styles = StyleSheet.create({
   sheet: { width: '100%' },
   actions: { flexDirection: 'row', marginTop: 4 },
   flex: { flex: 1 },
+  link: { textDecorationLine: 'underline' },
 });

@@ -1,4 +1,11 @@
-import { formatPoint, formatWon, formatWonNumber, formatWonShort } from './money';
+import {
+  formatPoint,
+  formatWon,
+  formatWonNumber,
+  formatWonShort,
+  pointToWon,
+  wonToPoint,
+} from './money';
 
 describe('formatWon', () => {
   it('groups thousands and appends 원', () => {
@@ -19,6 +26,17 @@ describe('formatPoint', () => {
   it('groups thousands and appends P', () => {
     expect(formatPoint(12400)).toBe('12,400P');
     expect(formatPoint(0)).toBe('0P');
+  });
+});
+
+describe('원 ↔ 포인트 환산', () => {
+  it('converts at 10원 = 1P in both directions', () => {
+    expect(wonToPoint(10_000)).toBe(1_000);
+    expect(pointToWon(1_000)).toBe(10_000);
+  });
+
+  it('drops the remainder below the 10원 unit', () => {
+    expect(wonToPoint(1_005)).toBe(100);
   });
 });
 

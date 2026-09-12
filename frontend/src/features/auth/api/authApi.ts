@@ -6,6 +6,7 @@ import type {
   LoginResponse,
   RefreshResponse,
   SignupBody,
+  UserProfile,
 } from '@/features/auth/model/types';
 
 /**
@@ -20,6 +21,13 @@ export const authApi = {
     httpClient.post('/api/v1/auth/signup', body).then((res) => res.data),
 
   logout: (refreshToken: string) => httpClient.post('/api/v1/auth/logout', { refreshToken }),
+
+  /**
+   * 회원 정보 조회. 자동 로그인(토큰 복원)은 JWT 에 이름이 없어 세션에 이름이 비므로,
+   * 마이페이지처럼 이름이 필요한 화면은 이 API 로 받아온다.
+   */
+  getProfile: (userId: number) =>
+    httpClient.get<UserProfile>(`/api/v1/users/${userId}`).then((res) => res.data),
 
   refresh: (refreshToken: string) =>
     httpClient

@@ -3,11 +3,27 @@ import { decodeJwt } from '@/features/auth/lib/decodeJwt';
 import { tokenStorage } from '@/features/auth/lib/tokenStorage';
 import { useAuthStore } from '@/features/auth/model/authStore';
 import type { LoginBody } from '@/features/auth/model/types';
+import { queryClient } from '@/shared/api';
+import { clearSessionScopedStorage } from '@/shared/lib/sessionScopedStorage';
 
 /**
  * 세션 오케스트레이션 — HTTP 호출 결과를 토큰 저장소와 authStore 에 반영한다.
  * 화면에서는 이 함수들만 부르고 authApi 를 직접 부르지 않는다.
  */
+
+/**
+ * 세션 종료 시 남는 흔적을 전부 지운다.
+ *
+ * 서버 데이터 캐시(TanStack Query)는 앱 프로세스 단위라 계정을 바꿔도 그대로 남는다.
+ * 특히 `['account','me']` 처럼 키에 사용자 정보가 없는 쿼리는 다음 사용자에게
+ * 이전 사용자의 금융정보를 그대로 보여줄 수 있어, 로그아웃 시 통째로 비운다.
+ */
+async function clearLocalSession(): Promise<void> {
+  await tokenStorage.clear();
+  await clearSessionScopedStorage();
+  useAuthStore.getState().clearSession();
+  queryClient.clear();
+}
 
 /** 로그인: 토큰 저장 + 세션 설정 */
 export async function signIn(body: LoginBody): Promise<void> {
@@ -27,8 +43,7 @@ export async function withdrawAccount(password: string): Promise<void> {
   const userId = useAuthStore.getState().user?.userId;
   if (userId == null) throw new Error('세션이 없습니다');
   await authApi.withdraw(userId, password);
-  await tokenStorage.clear();
-  useAuthStore.getState().clearSession();
+  await clearLocalSession();
 }
 
 /** 로그아웃: 서버 무효화(실패 무시) + 로컬 정리 */
@@ -41,8 +56,7 @@ export async function signOut(): Promise<void> {
   } catch {
     // 네트워크 문제 등으로 서버 로그아웃이 실패해도 로컬은 정리한다.
   }
-  await tokenStorage.clear();
-  useAuthStore.getState().clearSession();
+  await clearLocalSession();
 }
 
 /**

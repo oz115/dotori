@@ -1,9 +1,12 @@
 import { httpClient } from '@/shared/api';
 import type {
+  Family,
   FamilyConnectResponse,
   FamilyCreateBody,
   FamilyCreateResponse,
+  FamilyMember,
   FamilyStatus,
+  FamilyUpdateBody,
   InvitationResponse,
 } from '@/features/family/model/types';
 
@@ -18,6 +21,20 @@ export const familyApi = {
 
   /** 현재 사용자의 가족 소속 여부 — 온보딩 진입 분기에 쓴다 */
   getStatus: () => httpClient.get<FamilyStatus>('/api/v1/families/status').then((res) => res.data),
+
+  /** 가족 정보 조회 (이름·온보딩 설정) */
+  get: (familyId: number) =>
+    httpClient.get<Family>(`/api/v1/families/${familyId}`).then((res) => res.data),
+
+  /** 가족 이름·설정 부분 수정 — 보낸 필드만 바뀐다 */
+  update: (familyId: number, body: FamilyUpdateBody) =>
+    httpClient.patch<Family>(`/api/v1/families/${familyId}`, body).then((res) => res.data),
+
+  /** 가족 구성원 목록 — 부모 홈이 자녀(childId·이름)를 찾는 데 쓴다 */
+  getMembers: (familyId: number) =>
+    httpClient
+      .get<{ members: FamilyMember[] }>(`/api/v1/families/${familyId}/members`)
+      .then((res) => res.data.members),
 
   /** 아이 초대 코드 발급 — 부모(가족 생성자)만. 6자리, 10분 TTL. 재호출하면 새 코드 */
   createInvitation: (familyId: number) =>

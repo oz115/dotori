@@ -22,7 +22,8 @@ export const colorLight = {
     link: palette.green[600],
   },
   border: {
-    default: '#E6E6E6', // 카드/인풋/디바이더 hairline
+    default: '#E6E6E6', // 인풋/디바이더 hairline
+    card: '#F3F4F6', // 흰 콘텐츠 카드 테두리 (그림자와 함께 씀)
     strong: palette.neutral[400],
     focus: palette.green[500], // 인풋 포커스
   },

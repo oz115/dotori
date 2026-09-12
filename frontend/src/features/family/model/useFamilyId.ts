@@ -1,19 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-
-import { savedFamilyId } from '@/features/family/lib/savedFamilyId';
-import { familyKeys } from '@/features/family/model/familyKeys';
+import { useFamilyStatus } from '@/features/family/model/useFamilyStatus';
 
 /**
- * 로컬(SecureStore)에 저장된 내 가족 id. 서버에 "내 가족 id" 조회 API가 없어서
- * (savedFamilyId 참고) 기기에 저장된 값을 읽어온다.
+ * 내 가족 id. 서버의 가족 상태 조회(`GET /families/status`)가 함께 내려준다.
  *
- * `familyKeys.all` 아래에 있어 가족 생성·연동·삭제 mutation 이 캐시를 무효화할 때
- * 같이 다시 읽힌다. 지갑·집안일·상점처럼 familyId 가 필요한 화면에서 쓴다.
+ * 예전에는 기기(SecureStore)에 저장해 둔 값을 읽었는데, 로그아웃하면 지워지고
+ * 다시 로그인해도 채울 방법이 없어 화면이 영영 로딩 상태로 남았다. 서버가 값을 주는 지금은
+ * 그쪽이 유일한 출처다 — 계정을 바꿔도 항상 그 계정의 가족을 가리킨다.
+ *
+ * `useFamilyStatus` 와 같은 쿼리를 공유하므로 요청이 더 늘지 않는다.
  */
 export function useFamilyId() {
-  return useQuery({
-    queryKey: familyKeys.id(),
-    queryFn: () => savedFamilyId.get(),
-    staleTime: Infinity,
-  });
+  const status = useFamilyStatus();
+
+  return {
+    data: status.data?.familyId ?? undefined,
+    isPending: status.isPending,
+    isError: status.isError,
+  };
 }

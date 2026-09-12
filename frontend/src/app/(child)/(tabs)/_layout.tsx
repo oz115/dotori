@@ -8,6 +8,12 @@ import { useTheme } from '@/shared/theme';
 import { tabIcon, tabScreenOptions } from '@/shared/ui';
 
 /**
+ * 탭은 화면 순서(할 일·상점·홈·저축·투자)대로 선언하는데, 그러면 첫 번째인 '할 일'이
+ * 진입 탭이 된다. 앱을 켜면 홈이 나와야 하므로 시작 탭을 따로 지정한다.
+ */
+export const unstable_settings = { initialRouteName: 'index' };
+
+/**
  * 자녀 탭 레이아웃. 가족 연결·계좌 연동이 끝난 자녀만 탭 화면들을 볼 수 있어서
  * (child)/index.tsx 에 있던 가드를 여기로 옮겼다 — 탭 밖(setup)으로 보내는 판단은
  * 탭이 생기기 전에 해야 하므로 레이아웃이 맡는 게 맞다.
@@ -30,7 +36,7 @@ export default function ChildTabsLayout() {
   }
 
   return (
-    <Tabs screenOptions={tabScreenOptions(theme, insets.bottom)}>
+    <Tabs initialRouteName="index" screenOptions={tabScreenOptions(theme, insets.bottom)}>
       <Tabs.Screen name="task" options={{ tabBarLabel: '할 일', tabBarIcon: tabIcon('task') }} />
       <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />

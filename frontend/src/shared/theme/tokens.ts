@@ -39,16 +39,24 @@ export const radius = {
 } as const;
 
 /**
- * 그림자. Figma drop shadow: X0 Y8 Blur24 #272C26 4%.
- * 박스형 인풋·카드 등 떠 있는 표면에 얹는다. (iOS: shadow*, Android: elevation)
+ * 그림자. 떠 있는 표면에 얹는다. (iOS: shadow*, Android: elevation)
  */
 export const shadow = {
+  /** 박스형 인풋·투자 카드. Figma drop shadow: X0 Y8 Blur24 #272C26 4% */
   card: {
     shadowColor: '#272C26',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04,
     shadowRadius: 24,
     elevation: 3,
+  },
+  /** 홈의 흰 콘텐츠 카드(할 일·상품·활동 보드). Figma drop shadow: X0 Y4 Blur20 #000000 5% */
+  contentCard: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 1,
   },
 } as const;
 
