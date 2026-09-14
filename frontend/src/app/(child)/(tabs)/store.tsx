@@ -1,5 +1,7 @@
-import { ComingSoonScreen } from '@/shared/ui';
+import { useFamilyId } from '@/features/family';
+import { StoreCatalog } from '@/features/store';
 
 export default function ChildStoreScreen() {
-  return <ComingSoonScreen title="상점" />;
+  const { data: familyId } = useFamilyId();
+  return <StoreCatalog familyId={familyId ?? undefined} />;
 }

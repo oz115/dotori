@@ -5,6 +5,7 @@ function product(overrides: Partial<StoreProductSummary>): StoreProductSummary {
   return {
     storeProductId: 1,
     name: '놀이공원 가기',
+    description: null,
     category: 'OUTING',
     price: 15000,
     quantity: 1,
