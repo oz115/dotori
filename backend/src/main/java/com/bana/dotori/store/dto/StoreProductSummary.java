@@ -12,6 +12,7 @@ import com.bana.dotori.store.entity.StoreProductCategory;
 public record StoreProductSummary(
 	Integer storeProductId,
 	String name,
+	String description,
 	StoreProductCategory category,
 	Integer price,
 	int quantity,

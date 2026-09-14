@@ -6,6 +6,7 @@ export type StoreProductCategory = 'GAME' | 'SNACK' | 'TOY' | 'OUTING' | 'PRIVIL
 export type StoreProductSummary = {
   storeProductId: number;
   name: string;
+  description: string | null;
   category: StoreProductCategory;
   /** AI 가치 산정 전이면 null (= 가격 산정 중) */
   price: number | null;

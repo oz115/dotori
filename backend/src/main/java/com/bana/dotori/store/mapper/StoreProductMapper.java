@@ -19,8 +19,8 @@ public class StoreProductMapper {
 	}
 
 	public StoreProductSummary toSummary(StoreProduct product) {
-		return new StoreProductSummary(product.getId(), product.getName(), product.getCategory(),
-			product.getPrice(), product.getQuantity(), product.getCreatedAt());
+		return new StoreProductSummary(product.getId(), product.getName(), product.getDescription(),
+			product.getCategory(), product.getPrice(), product.getQuantity(), product.getCreatedAt());
 	}
 
 	public StoreProductDetailResponse toDetailResponse(StoreProduct product) {
