@@ -57,7 +57,7 @@ class InvestmentProductControllerTest {
 	}
 
 	private InvestmentProductSummary summary() {
-		return new InvestmentProductSummary(1, "시원아이스", InvestmentProductCategory.STOCK, 1200, 4.35, true);
+		return new InvestmentProductSummary(1, "시원아이스", InvestmentProductCategory.STOCK, 1100, 100, true);
 	}
 
 	@Test
@@ -72,8 +72,8 @@ class InvestmentProductControllerTest {
 			.andExpect(jsonPath("$.products[0].investmentProductId").value(1))
 			.andExpect(jsonPath("$.products[0].name").value("시원아이스"))
 			.andExpect(jsonPath("$.products[0].category").value("STOCK"))
-			.andExpect(jsonPath("$.products[0].currentPrice").value(1200))
-			.andExpect(jsonPath("$.products[0].changeRate").value(4.35))
+			.andExpect(jsonPath("$.products[0].currentPrice").value(1100))
+			.andExpect(jsonPath("$.products[0].changeAmount").value(100))
 			.andExpect(jsonPath("$.products[0].isActive").value(true));
 	}
 

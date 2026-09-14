@@ -87,7 +87,7 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가격 이력이 없으면 시작가를 현재가로 쓰고 등락률은 0이 된다")
+	@DisplayName("가격 이력이 없으면 시작가를 현재가로 쓰고 변동 포인트는 0이 된다")
 	void getProducts_noHistory() {
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findAllByOrderByIdAsc())
@@ -104,32 +104,32 @@ class InvestmentProductServiceImplTest {
 		assertThat(summary.name()).isEqualTo("시원아이스");
 		assertThat(summary.category()).isEqualTo(InvestmentProductCategory.STOCK);
 		assertThat(summary.currentPrice()).isEqualTo(10000);
-		assertThat(summary.changeRate()).isEqualTo(0.0);
+		assertThat(summary.changeAmount()).isZero();
 		assertThat(summary.isActive()).isTrue();
 	}
 
 	@Test
-	@DisplayName("오늘·전일 이력이 있으면 가족별 최신가와 전일 대비 등락률을 계산한다")
+	@DisplayName("오늘·전일 이력이 있으면 가족별 최신가와 전일 대비 변동 포인트를 계산한다")
 	void getProducts_withHistory() {
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findAllByOrderByIdAsc())
 			.willReturn(List.of(product(1, "시원아이스", 10000)));
-		// 전일가 1150 → 현재가 1200: 50 / 1150 * 100 = 4.347... → 4.35 (명세 예시와 같은 형식)
+		// 전일가 1000 → 현재가 1100: +100 포인트
 		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID),
 			eq(todayStart().plusDays(1))))
-			.willReturn(List.of(history(1, 1200, todayStart().plusHours(1))));
+			.willReturn(List.of(history(1, 1100, todayStart().plusHours(1))));
 		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID), eq(todayStart())))
-			.willReturn(List.of(history(1, 1150, todayStart().minusHours(23))));
+			.willReturn(List.of(history(1, 1000, todayStart().minusHours(23))));
 
 		InvestmentProductListResponse response = investmentProductService.getProducts(USER_ID, null);
 
 		InvestmentProductSummary summary = response.products().get(0);
-		assertThat(summary.currentPrice()).isEqualTo(1200);
-		assertThat(summary.changeRate()).isEqualTo(4.35);
+		assertThat(summary.currentPrice()).isEqualTo(1100);
+		assertThat(summary.changeAmount()).isEqualTo(100);
 	}
 
 	@Test
-	@DisplayName("오늘 이력만 있으면 시작가를 전일가로 보고 등락률을 계산한다")
+	@DisplayName("오늘 이력만 있으면 시작가를 전일가로 보고 변동 포인트를 계산한다")
 	void getProducts_onlyTodayHistory() {
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findAllByOrderByIdAsc())
@@ -144,8 +144,8 @@ class InvestmentProductServiceImplTest {
 
 		InvestmentProductSummary summary = response.products().get(0);
 		assertThat(summary.currentPrice()).isEqualTo(9500);
-		// (9500 - 10000) / 10000 * 100 = -5.00
-		assertThat(summary.changeRate()).isEqualTo(-5.0);
+		// 시작가 10000 → 오늘 9500: -500 포인트
+		assertThat(summary.changeAmount()).isEqualTo(-500);
 	}
 
 	@Test
