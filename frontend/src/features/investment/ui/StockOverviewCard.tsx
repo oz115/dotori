@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { formatNumber, signedAcorns } from '@/features/investment/lib/format';
 import type { StockDetail } from '@/features/investment/model/types';
@@ -23,7 +23,7 @@ export function StockOverviewCard({ detail }: Props) {
       style={[
         styles.card,
         {
-          backgroundColor: theme.color.brand.tint,
+          backgroundColor: theme.color.brand.subtle,
           borderRadius: theme.radius.xl,
           padding: theme.space.xl,
           gap: theme.space.lg,
@@ -32,15 +32,12 @@ export function StockOverviewCard({ detail }: Props) {
     >
       <View style={styles.topRow}>
         <View style={[styles.nameBlock, { gap: theme.space.md }]}>
-          {/* 상품 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
-          <View
-            style={[
-              styles.icon,
-              { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.lg },
-            ]}
-          >
-            <Text style={styles.iconEmoji}>{detail.emoji}</Text>
-          </View>
+          {/* 아이콘 원본이 흰 배경이라 연녹색 카드 위에서 흰 둥근 타일로 보이게 자른다 */}
+          <Image
+            source={detail.image}
+            style={[styles.icon, { borderRadius: theme.radius.lg }]}
+            resizeMode="cover"
+          />
           <Text
             numberOfLines={1}
             style={[theme.typography.h3, styles.name, { color: theme.color.text.strong }]}
@@ -115,11 +112,6 @@ const styles = StyleSheet.create({
   icon: {
     width: 52,
     height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconEmoji: {
-    fontSize: 30,
   },
   name: {
     flexShrink: 1,

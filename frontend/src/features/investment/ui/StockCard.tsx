@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Polyline, Svg } from 'react-native-svg';
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import { sparklinePoints } from '@/features/investment/lib/sparkline';
 import type { StockSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
+
+const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
 
 type Props = {
   stock: StockSummary;
@@ -33,10 +35,9 @@ export function StockCard({ stock, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
-          borderRadius: theme.radius.lg,
+          borderRadius: theme.radius.xl,
           borderColor: theme.color.border.default,
           padding: theme.space.lg,
           gap: theme.space.md,
@@ -44,15 +45,12 @@ export function StockCard({ stock, onPress }: Props) {
         },
       ]}
     >
-      {/* 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
-      <View
-        style={[
-          styles.icon,
-          { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.md },
-        ]}
-      >
-        <Text style={styles.iconEmoji}>{stock.emoji}</Text>
-      </View>
+      {/* 아이콘 원본이 흰 배경이라 배경색 없이 둥근 모서리로만 자른다 */}
+      <Image
+        source={stock.image}
+        style={[styles.icon, { borderRadius: theme.radius.md }]}
+        resizeMode="cover"
+      />
 
       <View style={styles.nameBlock}>
         <Text
@@ -87,16 +85,9 @@ export function StockCard({ stock, onPress }: Props) {
           </Text>
         </View>
         <View style={styles.priceRow}>
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-            전일 대비
-          </Text>
-          <View
-            style={[
-              styles.chip,
-              { backgroundColor: chipColors.subtle, borderRadius: theme.radius.full },
-            ]}
-          >
-            <Text style={[theme.typography.caption, { color: chipColors.text }]}>
+          <View style={styles.change}>
+            <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
+            <Text style={[theme.typography.label, { color: chipColors.text }]}>
               {signedAcorns(stock.change)}
             </Text>
           </View>
@@ -117,11 +108,6 @@ const styles = StyleSheet.create({
   icon: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconEmoji: {
-    fontSize: 24,
   },
   nameBlock: {
     flex: 1,
@@ -135,8 +121,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  change: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  acorn: {
+    width: 14,
+    height: 15,
   },
 });

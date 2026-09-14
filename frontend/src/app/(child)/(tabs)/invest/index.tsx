@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
@@ -7,8 +8,10 @@ import {
   mockInvestmentSummary,
   mockStocks,
   NewsCarousel,
+  NewsDetailModal,
   SectionTitle,
   StockCard,
+  type InvestmentNews,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Header } from '@/shared/ui';
@@ -23,6 +26,7 @@ const CLIPBOARD = require('@/assets/images/invest/clipboard.png');
  */
 export default function InvestScreen() {
   const theme = useTheme();
+  const [selectedNews, setSelectedNews] = useState<InvestmentNews | null>(null);
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
@@ -43,7 +47,7 @@ export default function InvestScreen() {
 
         <View style={{ gap: theme.space.lg }}>
           <SectionTitle icon={MEGAPHONE} title="오늘의 뉴스" />
-          <NewsCarousel items={mockInvestmentNews} />
+          <NewsCarousel items={mockInvestmentNews} onPressItem={setSelectedNews} />
         </View>
 
         <View style={{ gap: theme.space.lg }}>
@@ -71,6 +75,8 @@ export default function InvestScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <NewsDetailModal news={selectedNews} onClose={() => setSelectedNews(null)} />
     </View>
   );
 }

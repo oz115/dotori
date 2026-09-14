@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -14,13 +15,15 @@ import { useTheme } from '@/shared/theme';
 
 type Props = {
   items: InvestmentNews[];
+  /** 카드 탭 — 상세 팝업(NewsDetailModal)을 여는 데 쓴다 */
+  onPressItem?: (news: InvestmentNews) => void;
 };
 
 /**
  * 오늘의 뉴스 가로 캐러셀. 카드 한 장이 화면 폭을 꽉 채우고 스냅으로 넘기며,
- * 아래 점 인디케이터가 현재 위치를 보여준다.
+ * 아래 점 인디케이터가 현재 위치를 보여준다. 카드를 탭하면 onPressItem 으로 알린다.
  */
-export function NewsCarousel({ items }: Props) {
+export function NewsCarousel({ items, onPressItem }: Props) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -52,8 +55,11 @@ export function NewsCarousel({ items }: Props) {
         scrollEventThrottle={16}
         ItemSeparatorComponent={() => <View style={{ width: gap }} />}
         renderItem={({ item }) => (
-          <View
-            style={[
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title.replace('\n', ' ')} 자세히 보기`}
+            onPress={() => onPressItem?.(item)}
+            style={({ pressed }) => [
               styles.card,
               {
                 width: cardWidth,
@@ -61,6 +67,7 @@ export function NewsCarousel({ items }: Props) {
                 borderRadius: theme.radius.xl,
                 padding: theme.space.xl,
                 gap: theme.space.sm,
+                opacity: pressed ? 0.85 : 1,
               },
             ]}
           >
@@ -94,7 +101,7 @@ export function NewsCarousel({ items }: Props) {
             >
               {item.date}
             </Text>
-          </View>
+          </Pressable>
         )}
       />
 
