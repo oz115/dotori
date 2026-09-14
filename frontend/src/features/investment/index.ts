@@ -16,6 +16,7 @@ export {
   findMockStockDetail,
 } from './model/mock';
 export { formatPoints, formatAcorns, formatNumber, signedAcorns } from './lib/format';
+export { summarizeHoldings } from './lib/holdings';
 export type {
   InvestmentSummary,
   InvestmentNews,
