@@ -9,13 +9,20 @@ export type InvestmentSummary = {
   earnedPoints: number;
 };
 
-/** 오늘의 뉴스 카드 한 장 */
+/** 오늘의 뉴스 카드 한 장 + 상세 팝업 내용 */
 export type InvestmentNews = {
   id: number;
   /** 분류 배지 (환경, 기술, 생활 …) */
   tag: string;
   title: string;
+  /** 카드에 보이는 요약 한 줄 */
   body: string;
+  /** 상세 팝업 본문 (API 의 content) */
+  content: string;
+  /** 종목 가격에 주는 영향 방향 (API 의 impact) */
+  impact: 'POSITIVE' | 'NEGATIVE';
+  /** 관련 회사 이름 (API 의 relatedProducts[0].productName — 설계상 뉴스당 1개) */
+  relatedProductName: string;
   /** 표시용 날짜 문자열 (예: 2025. 09. 07) */
   date: string;
   /** 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */

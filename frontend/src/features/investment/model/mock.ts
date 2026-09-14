@@ -16,30 +16,47 @@ export const mockInvestmentSummary: InvestmentSummary = {
   earnedPoints: 7300,
 };
 
+// 설계(상승 2건 + 하락 1건)에 맞춰 하락 뉴스 하나를 두고, 종목 목업(mockStocks)의
+// 등락 방향과도 맞춘다 — 새싹 에너지·미래 로봇은 오르고 태수 마트는 내리는 중.
 export const mockInvestmentNews: InvestmentNews[] = [
   {
     id: 1,
     tag: '환경',
     title: '새싹 에너지,\n친환경 발전소 확대',
     body: '깨끗한 에너지 기업의 성장세가 지속되고 있어요.',
+    content:
+      '요즘 깨끗한 에너지를 찾는 사람들이 부쩍 늘었어요. 새싹 에너지는 새 태양광 발전소를 ' +
+      '지어서 더 많은 전기를 만들 수 있게 됐답니다. 지구도 지키고 회사도 쑥쑥 크고 있어요!',
+    impact: 'POSITIVE',
+    relatedProductName: '새싹 에너지',
     date: '2025. 09. 07',
     emoji: '🌍',
   },
   {
     id: 2,
     tag: '기술',
-    title: '로봇 친구들,\n공장에서 대활약',
+    title: '미래 로봇,\n공장에서 대활약',
     body: '로봇 기술 회사들이 새 공장을 열고 있어요.',
+    content:
+      '미래 로봇이 만든 집안일 도우미 로봇이 큰 인기예요. 주문이 많아져서 새 공장을 ' +
+      '열었고, 로봇 친구들이 더 많은 집으로 갈 준비를 하고 있어요.',
+    impact: 'POSITIVE',
+    relatedProductName: '미래 로봇',
     date: '2025. 09. 07',
     emoji: '🤖',
   },
   {
     id: 3,
     tag: '생활',
-    title: '간식 회사,\n신제품 인기몰이',
-    body: '새로 나온 간식이 친구들 사이에서 인기예요.',
+    title: '태수 마트,\n손님이 줄었어요',
+    body: '근처에 큰 마트가 새로 생겨서 걱정이에요.',
+    content:
+      '태수 마트 근처에 아주 큰 마트가 새로 문을 열었어요. 손님들이 새 마트로 가면서 ' +
+      '태수 마트의 매출이 줄고 있대요. 다시 손님을 모을 방법을 고민하고 있어요.',
+    impact: 'NEGATIVE',
+    relatedProductName: '태수 마트',
     date: '2025. 09. 07',
-    emoji: '🍪',
+    emoji: '🛒',
   },
 ];
 
