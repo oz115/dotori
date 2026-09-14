@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { categoryImage } from '@/features/store/lib/categoryImage';
@@ -9,24 +9,29 @@ import { useTheme } from '@/shared/theme';
 
 type StoreProductCardProps = {
   product: StoreProductSummary;
+  onPress?: () => void;
 };
 
-/**
- * 상점 목록의 상품 카드 (SHOP-01). 지금은 목록 조회 전용이라 탭해도 아무 동작이 없다 —
- * 구매 플로우가 생기면 onPress 를 추가한다.
- */
-export function StoreProductCard({ product }: StoreProductCardProps) {
+/** 상점 목록의 상품 카드 (SHOP-01). 탭하면 상세(SHOP-02)로 이동한다. */
+export function StoreProductCard({ product, onPress }: StoreProductCardProps) {
   const theme = useTheme();
   const badge = categoryBadgeColors(theme, product.category);
   const soldOut = isSoldOut(product.quantity);
   const priceReady = isPriceReady(product.price);
 
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${product.name} 상세 보기`}
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.card,
         theme.shadow.card,
-        { backgroundColor: theme.color.background.surface, borderRadius: theme.radius.lg },
+        {
+          backgroundColor: theme.color.background.surface,
+          borderRadius: theme.radius.lg,
+          opacity: pressed ? 0.9 : 1,
+        },
       ]}
     >
       <View
@@ -114,7 +119,7 @@ export function StoreProductCard({ product }: StoreProductCardProps) {
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
