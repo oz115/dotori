@@ -37,7 +37,7 @@ export function HoldingsSummaryCard({ holdings }: Props) {
       style={[
         styles.card,
         {
-          backgroundColor: theme.color.brand.tint,
+          backgroundColor: theme.color.brand.subtle,
           borderRadius: theme.radius.xl,
           padding: theme.space.xl,
           gap: theme.space.lg,
@@ -64,6 +64,7 @@ export function HoldingsSummaryCard({ holdings }: Props) {
               styles.tile,
               {
                 backgroundColor: theme.color.background.surface,
+                borderColor: theme.color.border.default,
                 borderRadius: theme.radius.lg,
                 padding: theme.space.md,
                 gap: theme.space.xs,
@@ -108,6 +109,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   tileIcon: {
     width: 24,

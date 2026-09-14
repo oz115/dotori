@@ -23,7 +23,7 @@ export function StockOverviewCard({ detail }: Props) {
       style={[
         styles.card,
         {
-          backgroundColor: theme.color.brand.tint,
+          backgroundColor: theme.color.brand.subtle,
           borderRadius: theme.radius.xl,
           padding: theme.space.xl,
           gap: theme.space.lg,

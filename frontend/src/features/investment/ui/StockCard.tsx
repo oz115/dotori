@@ -7,6 +7,8 @@ import { sparklinePoints } from '@/features/investment/lib/sparkline';
 import type { StockSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
+const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
+
 type Props = {
   stock: StockSummary;
   onPress?: () => void;
@@ -33,10 +35,9 @@ export function StockCard({ stock, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
-          borderRadius: theme.radius.lg,
+          borderRadius: theme.radius.xl,
           borderColor: theme.color.border.default,
           padding: theme.space.lg,
           gap: theme.space.md,
@@ -84,16 +85,9 @@ export function StockCard({ stock, onPress }: Props) {
           </Text>
         </View>
         <View style={styles.priceRow}>
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-            전일 대비
-          </Text>
-          <View
-            style={[
-              styles.chip,
-              { backgroundColor: chipColors.subtle, borderRadius: theme.radius.full },
-            ]}
-          >
-            <Text style={[theme.typography.caption, { color: chipColors.text }]}>
+          <View style={styles.change}>
+            <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
+            <Text style={[theme.typography.label, { color: chipColors.text }]}>
               {signedAcorns(stock.change)}
             </Text>
           </View>
@@ -127,8 +121,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  change: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  acorn: {
+    width: 14,
+    height: 15,
   },
 });

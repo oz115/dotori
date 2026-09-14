@@ -5,6 +5,8 @@ import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { StockDetail } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
+const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
+
 type Props = {
   detail: StockDetail;
   onPress?: () => void;
@@ -26,10 +28,9 @@ export function HoldingCard({ detail, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
-          borderRadius: theme.radius.lg,
+          borderRadius: theme.radius.xl,
           borderColor: theme.color.border.default,
           padding: theme.space.lg,
           gap: theme.space.md,
@@ -68,13 +69,9 @@ export function HoldingCard({ detail, onPress }: Props) {
         <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
           {formatAcorns(detail.currentPrice)}
         </Text>
-        <View
-          style={[
-            styles.chip,
-            { backgroundColor: chipColors.subtle, borderRadius: theme.radius.full },
-          ]}
-        >
-          <Text style={[theme.typography.caption, { color: chipColors.text }]}>
+        <View style={styles.change}>
+          <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
+          <Text style={[theme.typography.label, { color: chipColors.text }]}>
             {signedAcorns(detail.changeFromYesterday)}
           </Text>
         </View>
@@ -110,8 +107,13 @@ const styles = StyleSheet.create({
   priceBlock: {
     alignItems: 'flex-end',
   },
-  chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  change: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  acorn: {
+    width: 14,
+    height: 15,
   },
 });

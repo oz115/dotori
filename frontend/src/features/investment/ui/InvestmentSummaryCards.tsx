@@ -4,8 +4,8 @@ import { formatPoints } from '@/features/investment/lib/format';
 import type { InvestmentSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
-// 마스코트 시트에서 추출한 여우 — 투자 화면의 안내 캐릭터 (보유 화면의 다람쥐와 짝)
-const FOX = require('@/assets/images/invest/fox.png'); // 400 x 616
+// 여우 마스코트(설명하기 포즈) — 투자 화면의 안내 캐릭터 (보유 화면의 다람쥐와 짝)
+const FOX = require('@/assets/images/invest/fox.png'); // 400 x 424
 
 type Props = {
   summary: InvestmentSummary;
@@ -28,7 +28,7 @@ export function InvestmentSummaryCards({ summary }: Props) {
       style={[
         styles.card,
         {
-          backgroundColor: theme.color.brand.tint,
+          backgroundColor: theme.color.brand.subtle,
           borderRadius: theme.radius.xl,
           padding: theme.space.xl,
           gap: theme.space.lg,
@@ -43,6 +43,7 @@ export function InvestmentSummaryCards({ summary }: Props) {
               styles.tile,
               {
                 backgroundColor: theme.color.background.surface,
+                borderColor: theme.color.border.default,
                 borderRadius: theme.radius.lg,
                 padding: theme.space.md,
                 gap: theme.space.xs,
@@ -75,9 +76,11 @@ const styles = StyleSheet.create({
   tiles: {
     flex: 1,
   },
-  tile: {},
+  tile: {
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   mascot: {
-    width: 84,
-    height: 129,
+    width: 96,
+    height: 102,
   },
 });
