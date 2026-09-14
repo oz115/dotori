@@ -72,6 +72,12 @@ finance:
   fintech-app-no: ${FINANCE_FINTECH_APP_NO:001}
   auth-text: ${FINANCE_AUTH_TEXT:도토리}
 
+# AI 서버(FastAPI) 내부 호출 — 투자 뉴스 생성·가격 반영 트리거 (NEWS-02·03)
+# internal-token 은 AI 쪽 INTERNAL_TOKEN 과 같은 값 (비어 있으면 AI 도 검증 생략 — 로컬용)
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}
+  internal-token: ${INTERNAL_TOKEN:}
+
 # 인증 사진 저장 (CHORE-13)
 #
 # 버킷은 비공개다. 앱만 액세스 키로 접근하고, 아이·부모 화면은 서버가 발급한
