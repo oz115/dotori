@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 /**
  * 투자 기능이 다루는 도메인 타입. 아직 백엔드 투자 API가 없어 화면 구현에 필요한
  * 모양을 먼저 정의한 것 — API 명세(노션)가 확정되면 응답 타입에 맞춰 조정한다.
@@ -40,10 +42,10 @@ export type PricePoint = {
 export type StockDetail = {
   id: number;
   name: string;
-  /** 업종 분류 배지 텍스트 (친환경 기업 …) */
+  /** 업종 분류 배지 텍스트 (아이스크림, 항공 …) */
   category: string;
-  /** 상품 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */
-  emoji: string;
+  /** 종목 아이콘 (Figma 투자 종목 시트에서 추출) */
+  image: ImageSourcePropType;
   description: string;
   /** 아이가 이 상품을 보유 중인지 (보유중 배지) */
   holding: boolean;
@@ -68,10 +70,10 @@ export type HoldingsSummary = {
 export type StockSummary = {
   id: number;
   name: string;
-  /** 업종 분류 (생활 소비 …) */
+  /** 업종 분류 (아이스크림, 항공 …) */
   category: string;
-  /** 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */
-  emoji: string;
+  /** 종목 아이콘 (Figma 투자 종목 시트에서 추출) */
+  image: ImageSourcePropType;
   /** 현재가, 단위는 도토리 */
   currentPrice: number;
   /** 전일 대비 등락, 단위는 도토리 (+오름 / -내림) */

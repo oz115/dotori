@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { StockDetail } from '@/features/investment/model/types';
@@ -37,15 +37,12 @@ export function HoldingCard({ detail, onPress }: Props) {
         },
       ]}
     >
-      {/* 종목 일러스트 자리 표시자 — 상품용 에셋이 생기면 이미지로 교체 */}
-      <View
-        style={[
-          styles.icon,
-          { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.md },
-        ]}
-      >
-        <Text style={styles.iconEmoji}>{detail.emoji}</Text>
-      </View>
+      {/* 아이콘 원본이 흰 배경이라 배경색 없이 둥근 모서리로만 자른다 */}
+      <Image
+        source={detail.image}
+        style={[styles.icon, { borderRadius: theme.radius.md }]}
+        resizeMode="cover"
+      />
 
       <View style={[styles.nameBlock, { gap: theme.space.sm }]}>
         <Text
@@ -97,11 +94,6 @@ const styles = StyleSheet.create({
   icon: {
     width: 52,
     height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconEmoji: {
-    fontSize: 28,
   },
   nameBlock: {
     flex: 1,
