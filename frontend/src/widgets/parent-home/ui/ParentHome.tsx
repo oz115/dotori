@@ -75,14 +75,14 @@ export function ParentHome() {
 
         <ChildAssetsSection onOpenSavings={openSaveTab} onOpenInvestment={openInvestmentTab} />
 
-        <ChildActivityBoard />
-
         <ChildTodayProgress
           familyId={familyId}
           childId={childId}
           familyPending={familyPending}
           onMorePress={openChoreTab}
         />
+
+        <ChildActivityBoard />
       </ScrollView>
     </SafeAreaView>
   );
