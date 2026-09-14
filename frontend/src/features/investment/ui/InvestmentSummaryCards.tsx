@@ -1,61 +1,83 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { formatPoints } from '@/features/investment/lib/format';
 import type { InvestmentSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
+
+// 마스코트 시트에서 추출한 여우 — 투자 화면의 안내 캐릭터 (보유 화면의 다람쥐와 짝)
+const FOX = require('@/assets/images/invest/fox.png'); // 400 x 616
 
 type Props = {
   summary: InvestmentSummary;
 };
 
 /**
- * 화면 상단의 투자 요약 카드 2장 (넣은 돈 / 번 돈).
- * 로그인 버튼과 같은 그린 그라디언트(palette.gradient.deep)로 칠한다 — Figma 시안 색감.
+ * 화면 상단의 투자 요약 카드 — 넣은 돈/번 돈 타일과 여우 캐릭터.
+ * 보유 화면 요약(HoldingsSummaryCard)과 같은 패밀리 룩(연녹색 카드 + 흰 타일 + 캐릭터)이다.
  */
 export function InvestmentSummaryCards({ summary }: Props) {
   const theme = useTheme();
 
-  const cards = [
+  const tiles = [
     { label: '넣은 돈', value: summary.investedPoints },
     { label: '번 돈', value: summary.earnedPoints },
   ];
 
   return (
-    <View style={[styles.row, { gap: theme.space.md }]}>
-      {cards.map((card) => (
-        <LinearGradient
-          key={card.label}
-          colors={theme.palette.gradient.deep}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[
-            styles.card,
-            {
-              borderRadius: theme.radius.xl,
-              padding: theme.space.lg,
-              gap: theme.space.xs,
-            },
-          ]}
-        >
-          <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-            {card.label}
-          </Text>
-          <Text style={[theme.typography.h3, { color: theme.color.text.onBrand }]}>
-            {formatPoints(card.value)}
-          </Text>
-        </LinearGradient>
-      ))}
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.color.brand.tint,
+          borderRadius: theme.radius.xl,
+          padding: theme.space.xl,
+          gap: theme.space.lg,
+        },
+      ]}
+    >
+      <View style={[styles.tiles, { gap: theme.space.sm }]}>
+        {tiles.map((tile) => (
+          <View
+            key={tile.label}
+            style={[
+              styles.tile,
+              {
+                backgroundColor: theme.color.background.surface,
+                borderRadius: theme.radius.lg,
+                padding: theme.space.md,
+                gap: theme.space.xs,
+              },
+            ]}
+          >
+            <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+              {tile.label}
+            </Text>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+            >
+              {formatPoints(tile.value)}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Image source={FOX} style={styles.mascot} resizeMode="contain" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-  },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tiles: {
     flex: 1,
-    minHeight: 92,
+  },
+  tile: {},
+  mascot: {
+    width: 84,
+    height: 129,
   },
 });
