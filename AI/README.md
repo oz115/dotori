@@ -99,8 +99,8 @@ Spring 과 같은 DB·브로커라도 여기에 적는다. (모노레포로 함�
 | `POSTGRES_PASSWORD` | ✅ | | |
 | `RABBITMQ_HOST` | | `localhost` | Spring 과 같은 브로커. 로컬은 docker-compose 의 rabbitmq |
 | `RABBITMQ_PORT` | | `5672` | |
-| `RABBITMQ_USERNAME` | | `guest` | 빈 값이면 `guest` 로 보정 (`config.rabbitmq_credentials`) |
-| `RABBITMQ_PASSWORD` | | `guest` | 빈 값이면 `guest` 로 보정 |
+| `RABBITMQ_USERNAME` | ✅ | (빈 값) | Spring 과 공유하는 브로커 계정. 로컬 docker-compose 는 `guest` |
+| `RABBITMQ_PASSWORD` | ✅ | (빈 값) | 빈 값이면 AMQP 403 이 난다 — `.env` 를 채우라는 신호 |
 | `AI_PORT` | | `8000` | 서버 포트 |
 | `INTERNAL_TOKEN` | 배포 시 ✅ | (빈 값) | Spring 과 공유하는 내부 호출 토큰. **빈 값이면 토큰 검증을 건너뛴다** |
 | `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. **AI 서버만 GMS 를 호출한다**(Spring 은 안 씀). LLM 호출에 필요 |

@@ -27,8 +27,6 @@ from app.domains.investment.router import router as investment_router
 from app.domains.quiz.router import router as quiz_router
 from app.domains.shopping.consumer import SUBSCRIPTION as SHOPPING_SUBSCRIPTION
 from app.domains.work.consumer import SUBSCRIPTION as WORK_SUBSCRIPTION
-from app.domains.shopping.router import router as shopping_router
-from app.domains.work.router import router as work_router
 from app.messaging import consumer
 
 
@@ -93,7 +91,5 @@ def health_db(session: Session = Depends(get_session)) -> dict[str, str]:
 
 
 app.include_router(health_router)
-app.include_router(shopping_router)
-app.include_router(work_router)
 app.include_router(quiz_router)
 app.include_router(investment_router)

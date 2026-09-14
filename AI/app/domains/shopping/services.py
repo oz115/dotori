@@ -137,7 +137,7 @@ def evaluate_product(
 def price_product(session: Session, store_product_id: int) -> Valuation | None:
     """상품 하나를 조회해 산정하고 `store_products` 에 저장한다. 실패하면 None.
 
-    호출하는 쪽(큐 컨슈머 또는 복구 엔드포인트)은 None 이면 그냥 넘어가면 된다. 두 컬럼이
+    호출하는 쪽(큐 컨슈머)은 None 이면 그냥 넘어가면 된다. 두 컬럼이
     NULL 로 남아 "가격 산정 중" 상태가 유지되고, 사유는 로그에 있다.
     """
     context = load_context(session, store_product_id)
