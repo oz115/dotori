@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
@@ -29,7 +30,15 @@ export function StoreCatalog({ familyId }: StoreCatalogProps) {
         numColumns={2}
         renderItem={({ item }) => (
           <View style={styles.cell}>
-            <StoreProductCard product={item} />
+            <StoreProductCard
+              product={item}
+              onPress={() =>
+                router.push({
+                  pathname: '/store/[productId]',
+                  params: { productId: String(item.storeProductId) },
+                })
+              }
+            />
           </View>
         )}
         columnWrapperStyle={{ gap: theme.space.md }}

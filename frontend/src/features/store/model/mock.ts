@@ -12,6 +12,7 @@ export const mockStoreProducts: StoreProductSummary[] = [
   {
     storeProductId: -1,
     name: '놀이공원 가기',
+    description: null,
     category: 'OUTING',
     price: 15_000,
     quantity: 1,
@@ -20,6 +21,7 @@ export const mockStoreProducts: StoreProductSummary[] = [
   {
     storeProductId: -2,
     name: '무선 이어폰',
+    description: null,
     category: 'TOY',
     price: 20_000,
     quantity: 1,
@@ -28,6 +30,7 @@ export const mockStoreProducts: StoreProductSummary[] = [
   {
     storeProductId: -3,
     name: '치킨 먹기',
+    description: null,
     category: 'SNACK',
     price: 3_000,
     quantity: 1,
