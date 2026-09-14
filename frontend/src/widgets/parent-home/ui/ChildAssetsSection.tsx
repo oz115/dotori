@@ -103,7 +103,7 @@ function InvestmentCard({ onPress }: { onPress: () => void }) {
       <ContentCard style={[styles.cardBody, { padding: theme.space.lg }]}>
         <View style={{ gap: theme.space.md }}>
           <View style={[styles.cardHeadRow, { gap: theme.space.xs }]}>
-            <SectionIcon source={require('@/assets/images/invest/candles.png')} />
+            <SectionIcon source={require('@/assets/images/invest/sprout.png')} />
             <Text style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}>
               투자
             </Text>
