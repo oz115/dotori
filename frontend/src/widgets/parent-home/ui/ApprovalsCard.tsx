@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
-import { mockPendingApprovals, usePendingApprovals } from '@/features/chore';
+import { usePendingApprovals } from '@/features/chore';
 import { mockCashoutRequests, useCashoutRequests } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
-import { MockBadge } from '@/shared/ui';
+import { Callout, MockBadge } from '@/shared/ui';
 
 type ApprovalsCardProps = {
   familyId: number | undefined;
@@ -17,8 +17,9 @@ type ApprovalsCardProps = {
 };
 
 /**
- * 부모 홈의 핵심 섹션. 아이가 올린 집안일 완료 인증과 환전 요청은 부모가 승인해야
- * 다음으로 넘어가므로, 홈에서 바로 몇 건이 밀려 있는지 보이게 한다.
+ * 부모 홈의 승인 대기 배너. 아이가 올린 집안일 완료 인증과 환전 요청은 부모가 승인해야
+ * 다음으로 넘어가므로, 홈에서 바로 눈에 띄게 알려준다. 여러 건이 밀려 있어도 한 줄로
+ * 가장 급한 것 하나만 보여주고(환전 → 집안일 순), 나머지는 눌러서 들어간 목록에서 본다.
  *
  * 홈은 요약만 맡고 실제 처리(사진 확인·승인·거절)는 탭 안 목록 화면이 한다.
  */
@@ -36,128 +37,53 @@ export function ApprovalsCard({
   // 아이가 없으면 두 조회가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다
   const isPending = familyPending || (childId != null && (chores.isPending || cashouts.isPending));
-  const isError = chores.isError || cashouts.isError;
 
   // 대기 건이 하나도 없으면(아이 미연결·조회 실패 포함) 예시로 자리를 채운다 —
-  // 그러지 않으면 이 섹션이 부모 홈에서 가장 중요한데도 늘 빈 칸으로만 보인다
+  // 그러지 않으면 이 배너가 부모 홈에서 가장 중요한데도 늘 안 보이기만 한다
   const usingMock = !isPending && (chores.data?.length ?? 0) + (cashouts.data?.length ?? 0) === 0;
-  const choreCount = usingMock ? mockPendingApprovals.length : (chores.data?.length ?? 0);
   const cashoutCount = usingMock ? mockCashoutRequests.length : (cashouts.data?.length ?? 0);
-  const total = choreCount + cashoutCount;
+
+  if (isPending) return null;
+
+  const showCashout = cashoutCount > 0 || usingMock;
+  const title = showCashout
+    ? '자녀가 포인트 → 돈 환전을 요청했어요!'
+    : '아이가 집안일 완료를 올렸어요. 확인해주세요!';
+  const onPress = showCashout ? onOpenCashouts : onOpenChores;
 
   return (
-    <View style={{ gap: theme.space.md }}>
-      <View style={styles.headRow}>
-        <View style={[styles.titleRow, { gap: theme.space.xs }]}>
-          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            확인해주세요
-          </Text>
-          {usingMock ? <MockBadge /> : null}
-        </View>
-        {!isPending && !usingMock && total > 0 ? (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      <Callout
+        icon={
           <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor: theme.color.status.danger.subtle,
-                borderRadius: theme.radius.full,
-              },
-            ]}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: theme.radius.md,
+              backgroundColor: theme.color.brand.subtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              {total}건
-            </Text>
+            <Image
+              source={require('@/assets/images/invest/squirrel.png')}
+              style={styles.squirrel}
+              resizeMode="contain"
+            />
           </View>
-        ) : null}
-      </View>
-
-      {isPending ? (
-        <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-          불러오는 중...
-        </Text>
-      ) : (
-        <View style={{ gap: theme.space.sm }}>
-          {isError ? (
-            <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              승인 대기 목록을 불러오지 못해 예시를 보여주고 있어요.
-            </Text>
-          ) : null}
-          {choreCount > 0 ? (
-            <ApprovalRow
-              icon="checkmark-done-outline"
-              title="집안일 완료 승인"
-              description="아이가 올린 인증을 확인해주세요"
-              count={choreCount}
-              onPress={onOpenChores}
-            />
-          ) : null}
-          {cashoutCount > 0 ? (
-            <ApprovalRow
-              icon="swap-horizontal-outline"
-              title="환전 요청"
-              description="승인하면 아이 계좌로 송금돼요"
-              count={cashoutCount}
-              onPress={onOpenCashouts}
-            />
-          ) : null}
-        </View>
-      )}
-    </View>
-  );
-}
-
-type ApprovalRowProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  count: number;
-  onPress: () => void;
-};
-
-function ApprovalRow({ icon, title, description, count, onPress }: ApprovalRowProps) {
-  const theme = useTheme();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={[
-        styles.row,
-        {
-          borderColor: theme.color.brand.solid,
-          backgroundColor: theme.color.brand.tint,
-          borderRadius: theme.radius.lg,
-          padding: theme.space.md,
-          gap: theme.space.md,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.iconBox,
-          { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.md },
-        ]}
-      >
-        <Ionicons name={icon} size={20} color={theme.color.brand.solid} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>{title}</Text>
-        <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
-          {description}
-        </Text>
-      </View>
-      <Text style={[theme.typography.label, { color: theme.color.brand.subtleText }]}>
-        {count}건
-      </Text>
-      <Ionicons name="chevron-forward" size={16} color={theme.color.text.muted} />
+        }
+        title={title}
+        action={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.xs }}>
+            {usingMock ? <MockBadge /> : null}
+            <Ionicons name="chevron-forward" size={18} color={theme.color.text.muted} />
+          </View>
+        }
+      />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleRow: { flexDirection: 'row', alignItems: 'center' },
-  badge: { paddingHorizontal: 10, paddingVertical: 3 },
-  row: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5 },
-  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  squirrel: { width: 28, height: 28 },
 });
