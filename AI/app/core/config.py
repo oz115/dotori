@@ -1,12 +1,13 @@
 """설정 로딩.
 
+AI 서버는 나중에 독립 프로세스로 뜨므로 필요한 값을 `AI/.env` 에 자체적으로 둔다 —
+Spring 과 같은 DB·브로커라도 여기에 적는다.
+
 값의 우선순위는 다음과 같다 (뒤가 이긴다).
 
-1. 루트 `../.env`  — DB 접속 정보처럼 팀이 공유하는 값
-2. `AI/.env`       — AI 서버에만 필요한 값 (LLM 키 등)
-3. 실제 환경변수    — 배포 시 컨테이너에 주입하는 값
-
-백엔드(`application.yaml`)도 루트 `.env`를 읽으므로 DB 정보를 두 번 관리하지 않는다.
+1. 루트 `../.env`  — 모노레포로 함께 돌릴 때 먼저 읽는다
+2. `AI/.env`       — AI 서버가 실제로 쓰는 값 (위를 덮는다)
+3. 실제 환경변수    — 배포 시 컨테이너에 주입하는 값 (항상 최우선)
 """
 
 from functools import lru_cache
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- DB (루트 .env 재사용) ---
+    # --- DB (Spring 과 같은 Postgres) ---
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "dotori_town"
@@ -41,11 +42,13 @@ class Settings(BaseSettings):
     # INFO 가 기본이다 (`app/core/logging_setup.py` 참고).
     log_level: str = "INFO"
 
-    # --- RabbitMQ (루트 ../.env 재사용 — Spring 과 같은 브로커를 쓴다) ---
+    # --- RabbitMQ (Spring 과 같은 브로커) ---
     rabbitmq_host: str = "localhost"
     rabbitmq_port: int = 5672
-    rabbitmq_username: str = "guest"
-    rabbitmq_password: str = "guest"
+    # 자격증명은 소스에 두지 않는다. 값은 .env 에서 와야 한다 (로컬은 guest/guest).
+    # 미설정이면 빈 값으로 접속을 시도하다 AMQP 403 이 나므로, .env 를 반드시 채운다.
+    rabbitmq_username: str = ""
+    rabbitmq_password: str = ""
     rabbitmq_vhost: str = "/"
     # LLM 호출로 핸들러가 붙잡혀 있어도 하트비트가 끊기지 않게 넉넉히 둔다.
     # BlockingConnection 은 우리가 pika 를 호출할 때만 I/O 를 처리한다.
@@ -54,8 +57,9 @@ class Settings(BaseSettings):
     store_pricing_consumer_enabled: bool = True
 
     # --- LLM (SSAFY GMS — OpenAI 호환 게이트웨이) ---
-    # 값은 루트 ../.env 에 있다. OpenAI 에 직접 붙지 않고 GMS 를 거치므로 base 가 필요하다.
-    # 실제 요청 주소는 `{gms_base}/api.openai.com/v1` 이다 (`app.llm.client` 참고).
+    # AI 서버만 GMS 를 호출하므로(Spring 은 안 씀) 값은 AI/.env 에 둔다. OpenAI 에 직접
+    # 붙지 않고 GMS 를 거치므로 base 가 필요하다 — 실제 요청 주소는
+    # `{gms_base}/api.openai.com/v1` 이다 (`app.llm.client` 참고).
     gms_key: str = ""
     gms_base: str = "https://gms.ssafy.io/gmsapi"
     # GMS 가 여러 모델을 중계한다. 모델을 바꾸면 토큰 파라미터 이름이 달라질 수 있다 —
@@ -71,16 +75,6 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-
-    @property
-    def rabbitmq_credentials(self) -> tuple[str, str]:
-        """빈 문자열은 "미설정"으로 본다.
-
-        pydantic-settings 는 변수가 *없을* 때만 기본값을 쓴다. 루트 `.env.example` 처럼
-        `RABBITMQ_USERNAME=` 로 비어 있으면 그 빈 문자열이 그대로 들어와 AMQP 가 403 을
-        낸다 — 원인을 찾기 어려운 실패라 여기서 막는다.
-        """
-        return (self.rabbitmq_username or "guest", self.rabbitmq_password or "guest")
 
 @lru_cache
 def get_settings() -> Settings:

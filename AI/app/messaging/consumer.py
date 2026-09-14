@@ -69,7 +69,9 @@ _threads: list[threading.Thread] = []
 def _connection_parameters() -> pika.ConnectionParameters:
     """`URLParameters` 를 쓰지 않는다 — 비밀번호에 특수문자가 있으면 URL 이 깨진다."""
     settings = get_settings()
-    username, password = settings.rabbitmq_credentials
+    # 자격증명은 .env 에서 온다 (config 가 소스에 박지 않는다). 미설정이면 여기서 빈 값이
+    # 넘어가 AMQP 403 이 난다 — .env 를 채우라는 신호다.
+    username, password = settings.rabbitmq_username, settings.rabbitmq_password
     return pika.ConnectionParameters(
         host=settings.rabbitmq_host,
         port=settings.rabbitmq_port,
