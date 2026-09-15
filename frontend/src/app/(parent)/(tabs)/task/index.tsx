@@ -36,6 +36,12 @@ export default function ParentTaskScreen() {
           params: { choreId: String(chore.choreId), childId: String(chore.childId) },
         })
       }
+      onEditChore={(chore) =>
+        router.push({
+          pathname: '/task/[choreId]/edit',
+          params: { choreId: String(chore.choreId), childId: String(chore.childId) },
+        })
+      }
     />
   );
 }

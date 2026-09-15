@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 
 import { ParentChoreDetail } from '@/features/chore';
@@ -28,6 +28,12 @@ export default function ParentChoreDetailScreen() {
       childId={Number(childId) || undefined}
       choreId={Number(choreId) || undefined}
       childName={childName}
+      onEdit={() =>
+        router.push({
+          pathname: '/task/[choreId]/edit',
+          params: { choreId: String(choreId), childId: String(childId) },
+        })
+      }
     />
   );
 }

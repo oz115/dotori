@@ -19,6 +19,8 @@ export { useRequestCompletion } from './model/useRequestCompletion';
 export { useCancelCompletion } from './model/useCancelCompletion';
 export { useApproveCompletion } from './model/useApproveCompletion';
 export { useRejectCompletion } from './model/useRejectCompletion';
+export { ParentChoreEditForm } from './ui/ParentChoreEditForm';
+export { DeleteChoreModal } from './ui/DeleteChoreModal';
 export { ParentChoreDetail } from './ui/ParentChoreDetail';
 export { ParentChoreForm } from './ui/ParentChoreForm';
 export { ChoreFormFields } from './ui/ChoreFormFields';

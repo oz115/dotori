@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { difficultyLabel, isRewardReady, repeatLabel } from '@/features/chore/lib/choreLabels';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
 import { useChore } from '@/features/chore/model/useChore';
 import { useChoreStatus } from '@/features/chore/model/useChoreStatus';
+import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
+import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { useTheme } from '@/shared/theme';
 import { Button, ContentCard, Header, Screen } from '@/shared/ui';
 
@@ -15,9 +18,8 @@ type ParentChoreDetailProps = {
   choreId: number | undefined;
   /** 담당 아이 이름. 가족 슬라이스 값이라 라우트가 넘겨준다 */
   childName: string | undefined;
-  /** 수정·삭제 화면이 생기면 라우트가 채운다. 없으면 헤더에 버튼이 뜨지 않는다 */
+  /** 수정 화면으로 보내는 일은 라우트가 한다 (feature 가 경로를 알지 않도록) */
   onEdit?: () => void;
-  onDelete?: () => void;
 };
 
 const STATUS_LABEL: Record<TodayChoreStatus, string> = {
@@ -41,11 +43,24 @@ export function ParentChoreDetail({
   choreId,
   childName,
   onEdit,
-  onDelete,
 }: ParentChoreDetailProps) {
   const theme = useTheme();
   const { data: chore, isPending, isError } = useChore(familyId, childId, choreId);
   const status = useChoreStatus(familyId, childId, chore);
+  const [confirming, setConfirming] = useState(false);
+  const deleteChore = useDeleteChore(familyId, childId);
+
+  // 지우고 나면 이 화면이 가리키던 할 일이 목록에 없다. 상세에 머무르지 않고 목록으로 돌아간다.
+  const handleDelete = () => {
+    if (choreId == null) return;
+    deleteChore.mutate(choreId, {
+      onSuccess: () => {
+        setConfirming(false);
+        if (router.canGoBack()) router.back();
+        else router.replace('/task');
+      },
+    });
+  };
 
   return (
     <Screen
@@ -54,14 +69,18 @@ export function ParentChoreDetail({
           title="할 일 상세"
           onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
           right={
-            onEdit || onDelete ? (
+            chore && !chore.deletedAt ? (
               <View style={[styles.actions, { gap: theme.space.sm }]}>
                 {onEdit ? (
                   <Button label="수정" variant="outline" size="sm" onPress={onEdit} />
                 ) : null}
-                {onDelete ? (
-                  <Button label="삭제" variant="ghost" size="sm" onPress={onDelete} />
-                ) : null}
+                <Button
+                  label="삭제"
+                  variant="outline"
+                  tone="danger"
+                  size="sm"
+                  onPress={() => setConfirming(true)}
+                />
               </View>
             ) : undefined
           }
@@ -122,6 +141,14 @@ export function ParentChoreDetail({
           ) : null}
         </View>
       )}
+
+      <DeleteChoreModal
+        title={confirming ? (chore?.title ?? null) : null}
+        onCancel={() => setConfirming(false)}
+        onConfirm={handleDelete}
+        loading={deleteChore.isPending}
+        isError={deleteChore.isError}
+      />
     </Screen>
   );
 }

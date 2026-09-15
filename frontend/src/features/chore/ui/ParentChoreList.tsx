@@ -14,7 +14,9 @@ import {
 } from '@/features/chore/model/useChildrenPendingRequests';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChildBadge } from '@/features/chore/ui/ChildBadge';
+import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
 import { ChoreActionSheet } from '@/features/chore/ui/ChoreActionSheet';
+import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useTheme } from '@/shared/theme';
@@ -27,11 +29,10 @@ type ParentChoreListProps = {
   familyId: number | undefined;
   /** 가족 슬라이스에서 온 값이라 라우트가 넘겨준다 */
   childList: ChoreChild[];
-  /** 아래 네 가지는 해당 화면이 생기면 라우트가 채운다. 없으면 그 자리는 눌러도 조용하다 */
+  /** 화면 이동은 라우트가 맡는다. 안 넘기면 그 자리는 눌러도 조용하다 */
   onRegisterPress?: () => void;
   onChorePress?: (chore: ParentChore) => void;
   onEditChore?: (chore: ParentChore) => void;
-  onDeleteChore?: (chore: ParentChore) => void;
   onRequestPress?: (request: ParentCompletionRequest) => void;
   onSeeAllRequests?: () => void;
   onHistoryPress?: () => void;
@@ -51,7 +52,6 @@ export function ParentChoreList({
   onRegisterPress,
   onChorePress,
   onEditChore,
-  onDeleteChore,
   onRequestPress,
   onSeeAllRequests,
   onHistoryPress,
@@ -59,6 +59,10 @@ export function ParentChoreList({
   const theme = useTheme();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [menuTarget, setMenuTarget] = useState<ParentChore | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ParentChore | null>(null);
+
+  // 지울 대상이 정해져야 어느 아이의 경로로 부를지 알 수 있다. 대상이 바뀌면 훅도 따라간다.
+  const deleteChore = useDeleteChore(familyId, deleteTarget?.childId);
 
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
@@ -142,11 +146,21 @@ export function ParentChoreList({
           if (target) onEditChore?.(target);
         }}
         onDelete={() => {
-          const target = menuTarget;
+          setDeleteTarget(menuTarget);
           setMenuTarget(null);
-          if (target) onDeleteChore?.(target);
         }}
         onClose={() => setMenuTarget(null)}
+      />
+
+      <DeleteChoreModal
+        title={deleteTarget?.title ?? null}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() =>
+          deleteTarget &&
+          deleteChore.mutate(deleteTarget.choreId, { onSuccess: () => setDeleteTarget(null) })
+        }
+        loading={deleteChore.isPending}
+        isError={deleteChore.isError}
       />
     </Screen>
   );
