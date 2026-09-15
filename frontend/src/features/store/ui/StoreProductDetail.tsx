@@ -5,6 +5,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { categoryImage } from '@/features/store/lib/categoryImage';
+import { categoryLabel } from '@/features/store/lib/categoryLabel';
 import { isPriceReady, isSoldOut } from '@/features/store/lib/productStatus';
 import { useStoreProduct } from '@/features/store/model/useStoreProduct';
 import { useTheme } from '@/shared/theme';
@@ -124,7 +125,7 @@ function StoreProductDetailBody({ product, registrantName, role }: BodyProps) {
             ]}
           >
             <Text style={[theme.typography.caption, { color: badge.text }]}>
-              {product.category}
+              {categoryLabel(product.category)}
             </Text>
           </View>
           <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
