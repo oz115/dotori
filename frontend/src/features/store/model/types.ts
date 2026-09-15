@@ -38,6 +38,20 @@ export type StoreProductUpdateBody = {
   quantity: number;
 };
 
+/**
+ * GET .../store/purchases 목록의 한 건 (SHOP-07).
+ * category 는 지금 상품의 카테고리다 — 상품이 삭제됐으면 null (화면에서 "기타"로 대신 표시).
+ */
+export type PurchaseHistoryItem = {
+  purchaseId: number;
+  storeProductId: number;
+  productName: string;
+  category: StoreProductCategory | null;
+  quantity: number;
+  totalPrice: number;
+  purchasedAt: string;
+};
+
 /** POST .../store/products/{productId}/purchases 응답 (SHOP-06) */
 export type StorePurchaseResult = {
   purchaseId: number;

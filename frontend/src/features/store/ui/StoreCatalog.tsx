@@ -28,6 +28,8 @@ type StoreCatalogProps = {
    * 않고, 어느 그룹인지 아는 라우트가 정확한 경로를 만들어 콜백으로 넘긴다.
    */
   onPressProduct: (productId: number) => void;
+  /** 헤더 우측 "구매 내역" 아이콘 버튼의 이동 동작 (SHOP-07). 부모·자녀 둘 다 쓴다. */
+  onHistoryPress: () => void;
 };
 
 /** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터·상세 이동은 라우트가 결정한다. */
@@ -36,6 +38,7 @@ export function StoreCatalog({
   character,
   onRegisterPress,
   onPressProduct,
+  onHistoryPress,
 }: StoreCatalogProps) {
   const theme = useTheme();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
@@ -51,8 +54,31 @@ export function StoreCatalog({
     }, [refetch]),
   );
 
+  const historyButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="구매 내역"
+      onPress={onHistoryPress}
+      hitSlop={8}
+      style={[
+        styles.historyChip,
+        {
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.color.background.surfaceSunken,
+        },
+      ]}
+    >
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.caption, { color: theme.color.text.default }]}
+      >
+        구매 내역
+      </Text>
+    </Pressable>
+  );
+
   return (
-    <Screen header={<Header title="상점" />} padded={false}>
+    <Screen header={<Header title="상점" right={historyButton} />} padded={false}>
       <FlatList
         data={products}
         keyExtractor={(item) => String(item.storeProductId)}
@@ -121,6 +147,7 @@ const styles = StyleSheet.create({
   // 짝을 못 만나 행 전체 너비로 늘어난다(이미지·글자까지 통째로 커짐). 50%로 캡을 건다.
   cell: { flex: 1, maxWidth: '50%' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   fab: {
     position: 'absolute',
     right: 20,
