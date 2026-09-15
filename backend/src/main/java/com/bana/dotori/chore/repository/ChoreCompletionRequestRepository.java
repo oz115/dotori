@@ -79,7 +79,7 @@ public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCom
 	Optional<ChoreCompletionRequest> findByIdForUpdate(@Param("id") Integer id);
 
 	/**
-	 * 부모 대기함 한 화면 (CHORE-08).
+	 * 완료 요청 목록 한 화면 (CHORE-08).
 	 *
 	 * <p>경로가 아이를 지목하므로 그 아이 것만 모은다. 가족 조건도 함께 거는 것은 방어용이다 —
 	 * 접근 검증이 이미 childId 가 그 가족의 자녀임을 확인하지만, 조회 조건에서 가족 경계를
