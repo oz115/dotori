@@ -27,4 +27,9 @@ export const storeApi = {
     httpClient
       .patch<StoreProductDetail>(`/api/v1/families/${familyId}/store/products/${productId}`, body)
       .then((res) => res.data),
+
+  deleteProduct: (familyId: number, productId: number) =>
+    httpClient
+      .delete<void>(`/api/v1/families/${familyId}/store/products/${productId}`)
+      .then(() => undefined),
 };
