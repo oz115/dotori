@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo } from 'react';
 
 import { ParentChoreList } from '@/features/chore';
@@ -9,8 +10,8 @@ import { useFamilyId, useFamilyMembers } from '@/features/family';
  * 집안일 조회 경로가 전부 childId 를 요구하는데 그 값과 이름은 가족 슬라이스에 있다.
  * features 끼리는 서로 import 하지 않으므로 라우트가 엮어서 넘긴다.
  *
- * 등록·상세·수정·삭제·완료 요청 화면은 아직 없어서 콜백을 넘기지 않는다. 각 화면이
- * 생길 때 여기에 한 줄씩 붙는다.
+ *  * 상세·수정·삭제·완료 요청 화면은 아직 없어서 콜백을 넘기지 않는다. 각 화면이 생길 때
+ * 여기에 한 줄씩 붙는다.
  */
 export default function ParentTaskScreen() {
   const { data: familyId } = useFamilyId();
@@ -24,5 +25,11 @@ export default function ParentTaskScreen() {
     [members],
   );
 
-  return <ParentChoreList familyId={familyId ?? undefined} childList={children} />;
+  return (
+    <ParentChoreList
+      familyId={familyId ?? undefined}
+      childList={children}
+      onRegisterPress={() => router.push('/task/new')}
+    />
+  );
 }

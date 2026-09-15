@@ -18,6 +18,8 @@ export { useRequestCompletion } from './model/useRequestCompletion';
 export { useCancelCompletion } from './model/useCancelCompletion';
 export { useApproveCompletion } from './model/useApproveCompletion';
 export { useRejectCompletion } from './model/useRejectCompletion';
+export { ParentChoreForm } from './ui/ParentChoreForm';
+export { ChoreFormFields } from './ui/ChoreFormFields';
 export { ParentChoreList } from './ui/ParentChoreList';
 export { ChoreActionSheet } from './ui/ChoreActionSheet';
 export { ChildChoreHistory } from './ui/ChildChoreHistory';

@@ -24,6 +24,7 @@ import { apiErrorCode } from '@/shared/api';
 // 부작용 import — react-native-calendars에 한글 월/요일 이름을 등록한다
 import '@/shared/lib/calendarLocale';
 import { formatWon } from '@/shared/lib/money';
+import { buildCalendarTheme } from '@/shared/lib/calendarTheme';
 import { fontFamily, useTheme, type Theme } from '@/shared/theme';
 import { Button, Header, Screen } from '@/shared/ui';
 
@@ -516,25 +517,6 @@ function buildRangeMarking(startStr: string, endStr: string, theme: Theme) {
     cursor = addDays(cursor, 1);
   }
   return marks;
-}
-
-/** 앱 디자인 토큰을 react-native-calendars의 theme 프롭 형태로 옮긴다. */
-function buildCalendarTheme(theme: Theme) {
-  return {
-    backgroundColor: theme.color.background.surface,
-    calendarBackground: theme.color.background.surface,
-    textSectionTitleColor: theme.color.text.muted,
-    dayTextColor: theme.color.text.default,
-    textDisabledColor: theme.color.text.muted,
-    todayTextColor: theme.color.brand.solid,
-    monthTextColor: theme.color.text.strong,
-    arrowColor: theme.color.brand.solid,
-    selectedDayBackgroundColor: theme.color.brand.solid,
-    selectedDayTextColor: theme.color.text.onBrand,
-    textDayFontFamily: fontFamily.regular,
-    textMonthFontFamily: fontFamily.semibold,
-    textDayHeaderFontFamily: fontFamily.medium,
-  };
 }
 
 function TransactionRow({ transaction }: { transaction: AccountTransaction }) {
