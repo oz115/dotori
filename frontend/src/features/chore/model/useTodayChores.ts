@@ -37,7 +37,8 @@ export function useTodayChores(familyId: number | undefined, childId: number | u
       },
       {
         queryKey: choreKeys.pendingRequests(familyId ?? -1, childId ?? -1),
-        queryFn: () => choreApi.getPendingCompletionRequests(familyId as number, childId as number),
+        queryFn: () =>
+          choreApi.getCompletionRequests(familyId as number, childId as number, 'PENDING'),
         enabled,
       },
       {
