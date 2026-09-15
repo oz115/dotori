@@ -44,6 +44,7 @@ export default function ParentTaskScreen() {
       }
       onRequestPress={() => router.push('/task/requests')}
       onSeeAllRequests={() => router.push('/task/requests')}
+      onHistoryPress={() => router.push('/task/history')}
     />
   );
 }
