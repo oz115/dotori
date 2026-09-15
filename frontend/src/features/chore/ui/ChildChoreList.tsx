@@ -4,6 +4,7 @@ import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
+import { ChildChoreDetailModal } from '@/features/chore/ui/ChildChoreDetailModal';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
@@ -13,8 +14,6 @@ import { Header, Screen } from '@/shared/ui';
 type ChildChoreListProps = {
   familyId: number | undefined;
   childId: number | undefined;
-  /** 할 일을 눌렀을 때. 상세 모달은 아직 없어서 넘기지 않으면 눌러도 아무 일도 없다 */
-  onChorePress?: (choreId: number) => void;
 };
 
 const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
@@ -25,10 +24,14 @@ const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
  * 서버가 활성 집안일만 주므로 기간이 지난 것은 애초에 내려오지 않는다 - 화면에서 따로
  * 거르지 않는다. 반복 주기 필터는 이미 받아 둔 목록을 클라이언트에서 거르는 것이다.
  */
-export function ChildChoreList({ familyId, childId, onChorePress }: ChildChoreListProps) {
+export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   const theme = useTheme();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
+  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const { items, isPending, isError } = useTodayChores(familyId, childId);
+
+  // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
+  const openChore = items.find((chore) => chore.choreId === openChoreId);
 
   const visible = useMemo(
     () => (repeatType == null ? items : items.filter((chore) => chore.repeatType === repeatType)),
@@ -66,7 +69,7 @@ export function ChildChoreList({ familyId, childId, onChorePress }: ChildChoreLi
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
             pending={item.status === 'PENDING'}
-            onPress={onChorePress ? () => onChorePress(item.choreId) : undefined}
+            onPress={() => setOpenChoreId(item.choreId)}
           />
         )}
         ListEmptyComponent={
@@ -83,6 +86,15 @@ export function ChildChoreList({ familyId, childId, onChorePress }: ChildChoreLi
             showMascot={!isPending && !isError}
           />
         }
+      />
+
+      <ChildChoreDetailModal
+        key={openChoreId}
+        familyId={familyId}
+        childId={childId}
+        choreId={openChoreId}
+        status={openChore?.status}
+        onClose={() => setOpenChoreId(null)}
       />
     </Screen>
   );
