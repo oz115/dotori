@@ -1,7 +1,14 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { findBank, transferErrorMessage, useTransfer, useTransferStore } from '@/features/account';
+import {
+  BankBadge,
+  findBank,
+  transferErrorMessage,
+  useTransfer,
+  useTransferStore,
+} from '@/features/account';
 import { formatWonNumber } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
 import { Button, Header, Input, Screen } from '@/shared/ui';
@@ -50,7 +57,7 @@ export default function TransferConfirmScreen() {
           이 내용대로 보낼까요?
         </Text>
         <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>
-          받는 분 정보는 다시 확인해주세요. 이체는 되돌릴 수 없어요.
+          받는 분 정보는 다시 확인해주세요.{'\n'}이체는 되돌릴 수 없어요.
         </Text>
       </View>
 
@@ -67,7 +74,11 @@ export default function TransferConfirmScreen() {
           },
         ]}
       >
-        <SummaryRow label="받는 은행" value={bank?.name ?? '-'} />
+        <SummaryRow
+          label="받는 은행"
+          value={bank?.name ?? '-'}
+          icon={bank ? <BankBadge bank={bank} size={20} /> : undefined}
+        />
         <SummaryRow label="계좌번호" value={toAccountNo} />
         <SummaryRow label="보낼 금액" value={`${formatWonNumber(amount)}원`} strong />
       </View>
@@ -90,21 +101,24 @@ export default function TransferConfirmScreen() {
   );
 }
 
-type SummaryRowProps = { label: string; value: string; strong?: boolean };
+type SummaryRowProps = { label: string; value: string; strong?: boolean; icon?: ReactNode };
 
-function SummaryRow({ label, value, strong }: SummaryRowProps) {
+function SummaryRow({ label, value, strong, icon }: SummaryRowProps) {
   const theme = useTheme();
   return (
     <View style={styles.summaryRow}>
       <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{label}</Text>
-      <Text
-        style={[
-          strong ? theme.typography.h2 : theme.typography.body,
-          { color: theme.color.text.strong },
-        ]}
-      >
-        {value}
-      </Text>
+      <View style={[styles.valueRow, { gap: theme.space.xs }]}>
+        <Text
+          style={[
+            strong ? theme.typography.h2 : theme.typography.body,
+            { color: theme.color.text.strong },
+          ]}
+        >
+          {value}
+        </Text>
+        {icon}
+      </View>
     </View>
   );
 }
@@ -112,5 +126,6 @@ function SummaryRow({ label, value, strong }: SummaryRowProps) {
 const styles = StyleSheet.create({
   summary: { borderWidth: 1.5 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  valueRow: { flexDirection: 'row', alignItems: 'center' },
   spacer: { flex: 1, minHeight: 24 },
 });
