@@ -33,7 +33,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-Copy-Item .env.example .env    # 필요한 값만 채운다 (DB 정보는 루트 .env 재사용)
+Copy-Item .env.example .env    # 값을 채운다 (GMS_KEY·POSTGRES_PASSWORD 등)
 ```
 
 `Activate.ps1` 이 실행 정책 때문에 막히면 한 번만:
@@ -86,20 +86,28 @@ python -m scripts.generate_daily_quizzes
 ## 환경변수
 
 값의 우선순위는 **루트 `../.env` → `AI/.env` → 실제 환경변수** 순으로 뒤가 이긴다.
-DB 정보를 두 번 관리하지 않으려고 백엔드와 같은 루트 `.env` 를 읽는다.
+AI 서버는 나중에 독립 프로세스로 뜨므로 필요한 값을 `AI/.env` 에 자체적으로 둔다 —
+Spring 과 같은 DB·브로커라도 여기에 적는다. (모노레포로 함께 돌릴 땐 루트 `../.env` 를 먼저
+읽으므로 둘 다 동작한다.)
 
 | 이름 | 필수 | 기본값 | 설명 |
 | --- | --- | --- | --- |
-| `POSTGRES_HOST` | | `localhost` | 루트 `.env` 재사용 |
-| `POSTGRES_PORT` | | `5432` | 루트 `.env` 재사용 |
-| `POSTGRES_DB` | | `dotori_town` | 루트 `.env` 재사용 |
-| `POSTGRES_USER` | ✅ | `dotori` | 루트 `.env` 재사용 |
-| `POSTGRES_PASSWORD` | ✅ | | 루트 `.env` 재사용 |
+| `POSTGRES_HOST` | | `localhost` | Spring 과 같은 Postgres. 로컬은 `ssh -N A505` 터널 |
+| `POSTGRES_PORT` | | `5432` | |
+| `POSTGRES_DB` | | `dotori_town` | |
+| `POSTGRES_USER` | ✅ | `dotori` | |
+| `POSTGRES_PASSWORD` | ✅ | | |
+| `RABBITMQ_HOST` | | `localhost` | Spring 과 같은 브로커. 로컬은 docker-compose 의 rabbitmq |
+| `RABBITMQ_PORT` | | `5672` | |
+| `RABBITMQ_USERNAME` | ✅ | (빈 값) | Spring 과 공유하는 브로커 계정. 로컬 docker-compose 는 `guest` |
+| `RABBITMQ_PASSWORD` | ✅ | (빈 값) | 빈 값이면 AMQP 403 이 난다 — `.env` 를 채우라는 신호 |
 | `AI_PORT` | | `8000` | 서버 포트 |
 | `INTERNAL_TOKEN` | 배포 시 ✅ | (빈 값) | Spring 과 공유하는 내부 호출 토큰. **빈 값이면 토큰 검증을 건너뛴다** |
-| `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. 루트 `.env` 재사용, LLM 호출(가격 책정 근거·퀴즈·투자 뉴스)에 필요 |
-| `GMS_BASE` | | `https://gms.ssafy.io/gmsapi` | GMS 게이트웨이 주소. 루트 `.env` 재사용 |
+| `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. **AI 서버만 GMS 를 호출한다**(Spring 은 안 씀). LLM 호출에 필요 |
+| `GMS_BASE` | | `https://gms.ssafy.io/gmsapi` | GMS 게이트웨이 주소 |
 | `OPENAI_MODEL` | | `gpt-4o-mini` | GMS 가 중계하는 모델 이름 |
+| `LOG_LEVEL` | | `INFO` | `app.*` 로거 레벨 |
+| `STORE_PRICING_CONSUMER_ENABLED` | | `true` | `false` 면 큐를 구독하지 않는다 |
 
 ## 인프라 담당자 확인 사항
 
@@ -122,6 +130,8 @@ DB 정보를 두 번 관리하지 않으려고 백엔드와 같은 루트 `.env`
       Nginx 에도 이 서버로 가는 경로를 만들지 않는다.
 - [ ] `INTERNAL_TOKEN` 을 Jenkins Credentials 에 등록하고 **Spring 과 AI 서버에 같은 값**을 주입.
       생성: `openssl rand -hex 32`
+- [ ] `GMS_KEY` 를 Jenkins Credentials 에 등록하고 AI 서버 컨테이너에 주입. AI 서버만 쓴다
+      (Spring 은 GMS 를 호출하지 않는다). 없으면 LLM 호출이 401 로 실패한다.
 - [ ] DB 계정: AI 서버용 role 을 따로 줄지, `dotori` 공용으로 쓸지 결정.
       따로 준다면 [`docs/db-boundary.md`](docs/db-boundary.md) 의 범위
       (대부분 `SELECT`, 일부 테이블에 `INSERT`/`UPDATE`)면 충분하다.

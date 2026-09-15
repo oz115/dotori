@@ -11,3 +11,8 @@ openai==3.11.0
 # 테스트. LLM 은 unittest.mock 으로 대체하고, DB 는 in-memory SQLite 를 쓴다 —
 # 실제 Postgres/GMS 는 테스트에서 안 건드린다.
 pytest==9.1.1
+
+# RabbitMQ 컨슈머. Spring 이 상품 등록 직후 store.product.exchange 로 발행하고
+# AI 서버가 그걸 받아 value/price 를 채운다 (app/messaging).
+# 동기(BlockingConnection) 방식을 쓴다 — 핸들러를 def 로 쓰는 이 서버 스타일과 맞는다.
+pika==1.4.4

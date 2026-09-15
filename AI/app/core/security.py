@@ -5,7 +5,7 @@
 
 업무 엔드포인트를 추가할 때 이렇게 붙인다.
 
-    @router.post("/internal/price/store-item", dependencies=[Depends(require_internal_token)])
+    @router.post("/internal/quiz/generate", dependencies=[Depends(require_internal_token)])
 """
 
 import secrets
