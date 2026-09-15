@@ -61,7 +61,7 @@ export function ParentHome() {
           account={account.data}
           isPending={account.isPending}
           onLinkAccount={() => router.push('/account/link')}
-          onTransfer={notReady}
+          onTransfer={() => router.push('/account/transfer')}
           onHistory={notReady}
         />
 

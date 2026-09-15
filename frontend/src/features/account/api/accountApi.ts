@@ -5,6 +5,8 @@ import type {
   AccountInfo,
   AccountVerifyBody,
   LinkedAccount,
+  TransferBody,
+  TransferResult,
 } from '@/features/account/model/types';
 
 /**
@@ -24,4 +26,12 @@ export const accountApi = {
 
   /** 계좌 연동 해제 — 성공 시 204 */
   unlink: () => httpClient.delete('/api/v1/accounts/me'),
+
+  /** 연동 계좌 → 임의 계좌 이체. 자기 계좌면 SELF_TRANSFER_NOT_ALLOWED */
+  transfer: (body: TransferBody, idempotencyKey: string) =>
+    httpClient
+      .post<TransferResult>('/api/v1/accounts/transfer', body, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
+      .then((res) => res.data),
 };
