@@ -4,6 +4,11 @@ export { useTodayChores } from './model/useTodayChores';
 export { mockTodayChores, mockPendingApprovals } from './model/mock';
 export { usePendingApprovals } from './model/usePendingApprovals';
 export { usePendingCompletionRequest } from './model/usePendingCompletionRequest';
+export { useChildrenChores, type ChoreChild, type ParentChore } from './model/useChildrenChores';
+export {
+  useChildrenPendingRequests,
+  type ParentCompletionRequest,
+} from './model/useChildrenPendingRequests';
 export { useCompletions } from './model/useCompletions';
 export { useChore } from './model/useChore';
 export { useCreateChore } from './model/useCreateChore';
@@ -13,6 +18,8 @@ export { useRequestCompletion } from './model/useRequestCompletion';
 export { useCancelCompletion } from './model/useCancelCompletion';
 export { useApproveCompletion } from './model/useApproveCompletion';
 export { useRejectCompletion } from './model/useRejectCompletion';
+export { ParentChoreList } from './ui/ParentChoreList';
+export { ChoreActionSheet } from './ui/ChoreActionSheet';
 export { ChildChoreHistory } from './ui/ChildChoreHistory';
 export { ChildChoreDetailModal } from './ui/ChildChoreDetailModal';
 export { ChildChoreList } from './ui/ChildChoreList';
