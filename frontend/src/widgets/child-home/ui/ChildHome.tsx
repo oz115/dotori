@@ -48,16 +48,7 @@ export function ChildHome() {
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores familyId={familyId} childId={childId} />
-        <SavingGoals
-          familyId={familyId}
-          balance={balance.data?.balance}
-          onPressGoal={(productId) =>
-            router.push({
-              pathname: '/(child)/(tabs)/store/[productId]',
-              params: { productId: String(productId) },
-            })
-          }
-        />
+        <SavingGoals familyId={familyId} balance={balance.data?.balance} />
         <ActivityBoard />
       </ScrollView>
     </SafeAreaView>
