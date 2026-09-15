@@ -31,6 +31,12 @@ type StoreProductDetailProps = {
   balance: number | undefined;
   /** 구매 성공 후 라우트가 지갑 잔액 캐시를 갱신할 수 있게 알려준다. */
   onPurchased?: () => void;
+  /**
+   * 뒤로 갈 스택이 없을 때(딥링크 등)와 삭제 성공 후 목록으로 돌아갈 때 쓴다.
+   * (child)/(parent) 둘 다 `/store`가 있어 그룹 접두사 없이 push/replace하면
+   * expo-router가 어느 쪽인지 못 정한다 — 그래서 라우트가 정확한 경로를 만들어 넘긴다.
+   */
+  onNavigateToList: () => void;
 };
 
 /**
@@ -43,6 +49,7 @@ export function StoreProductDetailScreen({
   registrantName,
   balance,
   onPurchased,
+  onNavigateToList,
 }: StoreProductDetailProps) {
   const theme = useTheme();
   const { data: product, isPending, isError } = useStoreProduct(familyId, productId);
@@ -51,7 +58,7 @@ export function StoreProductDetailScreen({
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
       <Header
         title={product?.name ?? '상품 상세'}
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/store'))}
+        onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
       />
 
       {isPending ? (
@@ -74,6 +81,7 @@ export function StoreProductDetailScreen({
           role={role}
           balance={balance}
           onPurchased={onPurchased}
+          onNavigateToList={onNavigateToList}
         />
       )}
     </View>
@@ -91,6 +99,7 @@ type BodyProps = {
   role: 'PARENT' | 'CHILD' | undefined;
   balance: number | undefined;
   onPurchased?: () => void;
+  onNavigateToList: () => void;
 };
 
 function StoreProductDetailBody({
@@ -100,6 +109,7 @@ function StoreProductDetailBody({
   role,
   balance,
   onPurchased,
+  onNavigateToList,
 }: BodyProps) {
   const theme = useTheme();
   const badge = categoryBadgeColors(theme, product.category);
@@ -118,7 +128,7 @@ function StoreProductDetailBody({
     deleteProduct.mutate(undefined, {
       onSuccess: () => {
         setDeleteOpen(false);
-        router.replace('/store');
+        onNavigateToList();
       },
     });
   };

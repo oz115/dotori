@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAuthStore } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
@@ -29,6 +29,7 @@ export default function ChildStoreProductDetailScreen() {
       registrantName={registrantName}
       balance={balance.data?.balance}
       onPurchased={() => balance.refetch()}
+      onNavigateToList={() => router.replace('/(child)/(tabs)/store')}
     />
   );
 }
