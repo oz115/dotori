@@ -42,6 +42,8 @@ export default function ParentTaskScreen() {
           params: { choreId: String(chore.choreId), childId: String(chore.childId) },
         })
       }
+      onRequestPress={() => router.push('/task/requests')}
+      onSeeAllRequests={() => router.push('/task/requests')}
     />
   );
 }
