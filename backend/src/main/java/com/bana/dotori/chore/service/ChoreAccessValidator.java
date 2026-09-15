@@ -77,10 +77,14 @@ public class ChoreAccessValidator {
 	}
 
 	/**
-	 * 부모만 할 수 있는 동작(CHORE-08·09·10)을 막는다.
+	 * 부모만 할 수 있는 동작(CHORE-09·10)을 막는다.
 	 *
-	 * <p>{@link #validate} 만으로는 아이가 자기 대기함을 들여다볼 수 있다. 승인·거절 화면은
-	 * 부모 것이라 여기서 한 번 더 좁힌다.
+	 * <p>{@link #validate} 는 "아이라면 자기 것인가"만 보므로 아이도 통과한다. 승인·거절은
+	 * 지급을 일으키는 결정이라 여기서 한 번 더 좁힌다.
+	 *
+	 * <p>완료 요청 <b>목록</b>(CHORE-08)은 한때 여기 묶여 있었으나 풀었다. 그 목록은 부모의
+	 * 대기함이기도 하지만 아이에게는 "내가 보낸 요청" 화면의 데이터이기도 해서, 화면 기준으로
+	 * 좁히면 아이 쪽 화면이 통째로 막힌다. 누구의 요청인지는 {@link #validate} 가 이미 가린다.
 	 */
 	public void requireParent(Integer userId) {
 		if (findUser(userId).getRole() != UserRole.PARENT) {

@@ -59,7 +59,7 @@ public class ChoreCompletionMapper {
 	}
 
 	/**
-	 * 부모 대기함의 한 줄 (CHORE-08).
+	 * 완료 요청 목록의 한 줄 (CHORE-08).
 	 *
 	 * <p>{@code photoUrl} 을 인자로 받는다. DB 에 있는 것은 S3 키라 링크를 발급해야 하는데,
 	 * 그 호출을 여기 두면 매퍼가 저장소에 의존하게 되고 서비스 테스트가 매퍼까지 모킹해야 한다.
