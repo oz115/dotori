@@ -60,8 +60,20 @@ export function StoreCatalog({
       accessibilityLabel="구매 내역"
       onPress={onHistoryPress}
       hitSlop={8}
+      style={[
+        styles.historyChip,
+        {
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.color.background.surfaceSunken,
+        },
+      ]}
     >
-      <Ionicons name="receipt-outline" size={24} color={theme.color.text.strong} />
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.caption, { color: theme.color.text.default }]}
+      >
+        구매 내역
+      </Text>
     </Pressable>
   );
 
@@ -135,6 +147,7 @@ const styles = StyleSheet.create({
   // 짝을 못 만나 행 전체 너비로 늘어난다(이미지·글자까지 통째로 커짐). 50%로 캡을 건다.
   cell: { flex: 1, maxWidth: '50%' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   fab: {
     position: 'absolute',
     right: 20,
