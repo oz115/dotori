@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useStoreProducts } from '@/features/store/model/useStoreProducts';
 import type { StoreProductSummary } from '@/features/store/model/types';
@@ -12,18 +13,34 @@ import { Header, Screen } from '@/shared/ui';
 
 type StoreCatalogProps = {
   familyId: number | undefined;
+  /**
+   * 넘기면 헤더 우측에 "+ 상품 등록" 버튼이 뜬다 (부모 전용). 자녀 화면은 이 prop을
+   * 아예 넘기지 않는다 — role 을 이 feature 가 직접 알 필요가 없도록 라우트가 결정한다.
+   */
+  onRegisterPress?: () => void;
 };
 
-/** 자녀용 상점 목록 화면 (SHOP-01). 지금은 조회 전용이고, 구매는 이후 작업 범위다. */
-export function StoreCatalog({ familyId }: StoreCatalogProps) {
+/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무만 라우트가 결정한다. */
+export function StoreCatalog({ familyId, onRegisterPress }: StoreCatalogProps) {
   const theme = useTheme();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
   const { data, isPending, isError } = useStoreProducts(familyId);
 
   const products = useMemo(() => filterByCategory(data ?? [], category), [data, category]);
 
+  const registerButton = onRegisterPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="상품 등록"
+      onPress={onRegisterPress}
+      hitSlop={8}
+    >
+      <Ionicons name="add" size={26} color={theme.color.text.strong} />
+    </Pressable>
+  ) : undefined;
+
   return (
-    <Screen header={<Header title="상점" />} padded={false}>
+    <Screen header={<Header title="상점" right={registerButton} />} padded={false}>
       <FlatList
         data={products}
         keyExtractor={(item) => String(item.storeProductId)}
