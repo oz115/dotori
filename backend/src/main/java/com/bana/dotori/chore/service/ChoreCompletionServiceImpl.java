@@ -168,13 +168,20 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	}
 
 	/**
-	 * 부모가 대기함을 본다 (CHORE-08).
+	 * 완료 요청 목록을 본다 (CHORE-08). 부모는 대기함으로, 아이는 "내가 보낸 요청"으로 쓴다.
 	 *
 	 * <p>기본 필터는 PENDING 이다. 이 화면은 "지금 처리할 것"을 보러 오는 곳이라
 	 * 아무 것도 지정하지 않았을 때 처리 끝난 이력까지 섞어 주면 목록이 쓸데없이 길어진다.
 	 *
-	 * <p>아이는 자기 대기함도 볼 수 없다. 승인 권한이 없는 사람에게 보여 줄 이유가 없고,
-	 * 아이가 볼 목록은 완료 내역(CHORE-12)으로 따로 있다.
+	 * <p><b>아이도 부른다.</b> 한동안 {@code requireParent} 로 부모만 통과시켰는데, 그러면
+	 * 아이 쪽이 두 군데서 막힌다. 하나는 할 일 목록의 "확인 중" 표시다 — 이미 보낸 요청을
+	 * 구분하지 못해 다시 눌렀다가 {@code PENDING_REQUEST_EXISTS} 를 보게 된다. 다른 하나는
+	 * 요청 취소(CHORE-12)로, 아이 전용 API 인데 거기 필요한 requestId 를 얻을 곳이 이 목록뿐이라
+	 * 사실상 호출할 수 없었다.
+	 *
+	 * <p>열어도 새로 보이는 것은 "아이 자신의 요청"뿐이다. 경로가 아이를 지목하고
+	 * {@link ChoreAccessValidator#validate} 가 아이 호출자에게 자기 자신만 허용하므로,
+	 * 형제 것은 403 이고 남의 가족은 404 다. 승인·거절(CHORE-09·10)은 그대로 부모 전용이다.
 	 *
 	 * <p>사진은 저장된 키를 그대로 내보내지 않는다. 버킷이 비공개라 키로는 볼 수 없으므로
 	 * 건마다 presigned URL 을 발급해 담는다. 발급은 서명 계산뿐이라 네트워크를 타지 않아
@@ -185,7 +192,6 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	public ChoreCompletionListResponse getCompletionRequests(Integer userId, Integer familyId, Integer childId,
 			ChoreCompletionStatus status) {
 		accessValidator.validate(userId, familyId, childId);
-		accessValidator.requireParent(userId);
 
 		return completionMapper.toListResponse(
 			completionRequestRepository.findSummaries(familyId, childId, status).stream()

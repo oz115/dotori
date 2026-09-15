@@ -171,8 +171,10 @@ class ChoreCompletionControllerTest {
 	}
 
 	@Test
-	@DisplayName("아이가 대기함을 조회하면 403을 반환한다")
+	@DisplayName("볼 수 없는 목록을 조회하면 403을 반환한다")
 	void getCompletionRequests_forbidden() throws Exception {
+		// 누가 막히는지는 서비스·검증기가 정한다 (아이는 자기 것만 본다). 여기서는
+		// FORBIDDEN 이 403 과 코드로 나가는지만 본다.
 		givenAuthenticated();
 		given(choreCompletionService.getCompletionRequests(any(), any(), any(), any()))
 			.willThrow(new BusinessException(ErrorCode.FORBIDDEN));
