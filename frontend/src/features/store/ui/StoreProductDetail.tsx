@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { categoryImage } from '@/features/store/lib/categoryImage';
 import { categoryLabel } from '@/features/store/lib/categoryLabel';
 import { isPriceReady, isSoldOut } from '@/features/store/lib/productStatus';
+import { useDeleteStoreProduct } from '@/features/store/model/useDeleteStoreProduct';
 import { useStoreProduct } from '@/features/store/model/useStoreProduct';
+import { DeleteProductModal } from '@/features/store/ui/DeleteProductModal';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
 
@@ -23,7 +26,7 @@ type StoreProductDetailProps = {
 
 /**
  * 상점 상품 상세 (SHOP-02). 부모/아이 공통 화면이고, 하단 액션만 역할로 갈린다.
- * 구매(S15P21A505-186)·수정(184)·삭제(185)는 아직 별도 작업이라 버튼만 배치해 둔다.
+ * 구매(S15P21A505-186)는 아직 별도 작업이라 버튼만 배치해 둔다.
  */
 export function StoreProductDetailScreen({
   familyId,
@@ -54,7 +57,12 @@ export function StoreProductDetailScreen({
           </Text>
         </Centered>
       ) : (
-        <StoreProductDetailBody product={product} registrantName={registrantName} role={role} />
+        <StoreProductDetailBody
+          familyId={familyId}
+          product={product}
+          registrantName={registrantName}
+          role={role}
+        />
       )}
     </View>
   );
@@ -65,16 +73,28 @@ function Centered({ children }: { children: ReactNode }) {
 }
 
 type BodyProps = {
+  familyId: number | undefined;
   product: NonNullable<ReturnType<typeof useStoreProduct>['data']>;
   registrantName: string | undefined;
   role: 'PARENT' | 'CHILD' | undefined;
 };
 
-function StoreProductDetailBody({ product, registrantName, role }: BodyProps) {
+function StoreProductDetailBody({ familyId, product, registrantName, role }: BodyProps) {
   const theme = useTheme();
   const badge = categoryBadgeColors(theme, product.category);
   const soldOut = isSoldOut(product.quantity);
   const priceReady = isPriceReady(product.price);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteProduct = useDeleteStoreProduct(familyId, product.storeProductId);
+
+  const handleDeleteConfirm = () => {
+    deleteProduct.mutate(undefined, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        router.replace('/store');
+      },
+    });
+  };
   const registeredAt = new Date(product.createdAt).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -202,22 +222,22 @@ function StoreProductDetailBody({ product, registrantName, role }: BodyProps) {
         {role === 'PARENT' ? (
           <>
             <Button
+              label="삭제"
+              variant="outline"
+              tone="danger"
+              style={styles.deleteButton}
+              onPress={() => setDeleteOpen(true)}
+            />
+            <Button
               label="수정"
               variant="outline"
-              style={styles.flex}
+              style={styles.editButton}
               onPress={() =>
                 router.push({
                   pathname: '/store/[productId]/edit',
                   params: { productId: String(product.storeProductId) },
                 })
               }
-            />
-            <Button
-              label="삭제"
-              variant="outline"
-              style={styles.flex}
-              // TODO: S15P21A505-185 상품 삭제 확인 태스크에서 연결한다
-              onPress={() => {}}
             />
           </>
         ) : (
@@ -231,6 +251,13 @@ function StoreProductDetailBody({ product, registrantName, role }: BodyProps) {
           />
         )}
       </View>
+
+      <DeleteProductModal
+        visible={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        loading={deleteProduct.isPending}
+      />
     </>
   );
 }
@@ -247,6 +274,9 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // 삭제는 덜 강조되게 좁게, 수정은 더 크게 — 부모가 주로 하는 건 수정 쪽이라서다.
+  deleteButton: { flex: 1 },
+  editButton: { flex: 2 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageBox: { aspectRatio: 1.5, alignItems: 'center', justifyContent: 'center' },
   image: { height: '75%', aspectRatio: 1 },

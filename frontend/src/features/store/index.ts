@@ -4,6 +4,7 @@ export { useStoreProducts } from './model/useStoreProducts';
 export { useStoreProduct } from './model/useStoreProduct';
 export { useCreateStoreProduct } from './model/useCreateStoreProduct';
 export { useUpdateStoreProduct } from './model/useUpdateStoreProduct';
+export { useDeleteStoreProduct } from './model/useDeleteStoreProduct';
 export { mockStoreProducts } from './model/mock';
 export { nearestSavingGoals, type SavingGoal } from './lib/savingGoals';
 export { categoryIcon } from './lib/categoryIcon';
