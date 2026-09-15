@@ -1,9 +1,22 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { mascotImage, type StoreMascotCharacter } from '@/features/store/lib/mascotImage';
 import { useTheme } from '@/shared/theme';
 
-/** 상점 화면 상단 배너. Figma 마스코트 일러스트가 없어 기존 도토리 아이콘으로 대체한다. */
-export function StoreBanner() {
+type StoreBannerProps = {
+  /** 부모/자녀 화면이 서로 다른 마스코트·설명 문구를 보여준다. role 을 이 feature 가 직접
+   * 알 필요가 없도록, 어떤 캐릭터를 쓸지는 호출하는 쪽(StoreCatalog → 라우트)이 정해서 넘긴다. */
+  character: StoreMascotCharacter;
+};
+
+/** 부모는 상품을 등록·관리하는 입장, 자녀는 둘러보고 사는 입장이라 문구가 다르다. */
+const BANNER_DESCRIPTION: Record<StoreMascotCharacter, string> = {
+  child: '도토리로 원하는 보상을 골라보세요!',
+  parent: '아이에게 줄 보상을 자유롭게 등록해보세요!',
+};
+
+/** 상점 화면 상단 배너. */
+export function StoreBanner({ character }: StoreBannerProps) {
   const theme = useTheme();
 
   return (
@@ -23,19 +36,15 @@ export function StoreBanner() {
           우리 가족 상점
         </Text>
         <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-          도토리로 원하는 보상을 골라보세요!
+          {BANNER_DESCRIPTION[character]}
         </Text>
       </View>
-      <Image
-        source={require('@/assets/images/acorn.png')}
-        style={styles.mascot}
-        resizeMode="contain"
-      />
+      <Image source={mascotImage(character)} style={styles.mascot} resizeMode="contain" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: { flexDirection: 'row', alignItems: 'center' },
-  mascot: { width: 56, height: 56 },
+  mascot: { width: 88, height: 88 },
 });

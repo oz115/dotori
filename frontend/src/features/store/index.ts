@@ -2,9 +2,16 @@ export { storeApi } from './api/storeApi';
 export { storeKeys } from './model/storeKeys';
 export { useStoreProducts } from './model/useStoreProducts';
 export { useStoreProduct } from './model/useStoreProduct';
+export { useCreateStoreProduct } from './model/useCreateStoreProduct';
 export { mockStoreProducts } from './model/mock';
 export { nearestSavingGoals, type SavingGoal } from './lib/savingGoals';
 export { categoryIcon } from './lib/categoryIcon';
 export { StoreCatalog } from './ui/StoreCatalog';
 export { StoreProductDetailScreen } from './ui/StoreProductDetail';
-export type { StoreProductCategory, StoreProductSummary, StoreProductDetail } from './model/types';
+export { StoreProductForm } from './ui/StoreProductForm';
+export type {
+  StoreProductCategory,
+  StoreProductSummary,
+  StoreProductDetail,
+  StoreProductCreateBody,
+} from './model/types';

@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { categoryImage } from '@/features/store/lib/categoryImage';
+import { categoryLabel } from '@/features/store/lib/categoryLabel';
 import { isPriceReady, isSoldOut } from '@/features/store/lib/productStatus';
 import type { StoreProductSummary } from '@/features/store/model/types';
 import { useTheme } from '@/shared/theme';
@@ -60,7 +61,9 @@ export function StoreProductCard({ product, onPress }: StoreProductCardProps) {
             { backgroundColor: badge.bg, borderRadius: theme.radius.full, alignSelf: 'flex-start' },
           ]}
         >
-          <Text style={[theme.typography.caption, { color: badge.text }]}>{product.category}</Text>
+          <Text style={[theme.typography.caption, { color: badge.text }]}>
+            {categoryLabel(product.category)}
+          </Text>
         </View>
 
         <Text

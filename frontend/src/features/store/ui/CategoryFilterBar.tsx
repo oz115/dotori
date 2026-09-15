@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
+import { categoryLabel } from '@/features/store/lib/categoryLabel';
 import type { StoreProductCategory } from '@/features/store/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -7,12 +8,12 @@ export type CategoryFilterKey = StoreProductCategory | 'ALL';
 
 const FILTERS: { key: CategoryFilterKey; label: string }[] = [
   { key: 'ALL', label: '전체' },
-  { key: 'GAME', label: 'GAME' },
-  { key: 'SNACK', label: 'SNACK' },
-  { key: 'TOY', label: 'TOY' },
-  { key: 'OUTING', label: 'OUTING' },
-  { key: 'PRIVILEGE', label: 'PRIVILEGE' },
-  { key: 'ETC', label: 'ETC' },
+  { key: 'GAME', label: categoryLabel('GAME') },
+  { key: 'SNACK', label: categoryLabel('SNACK') },
+  { key: 'TOY', label: categoryLabel('TOY') },
+  { key: 'OUTING', label: categoryLabel('OUTING') },
+  { key: 'PRIVILEGE', label: categoryLabel('PRIVILEGE') },
+  { key: 'ETC', label: categoryLabel('ETC') },
 ];
 
 type CategoryFilterBarProps = {

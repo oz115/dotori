@@ -14,6 +14,17 @@ export type StoreProductSummary = {
   createdAt: string;
 };
 
+/**
+ * POST .../store/products 요청 바디 (SHOP-03).
+ * price 는 없다 — AI 가 카테고리·설명을 근거로 비동기 산정한다.
+ */
+export type StoreProductCreateBody = {
+  name: string;
+  description: string | null;
+  category: StoreProductCategory;
+  quantity: number;
+};
+
 /** GET .../store/products/{productId} 상세 (SHOP-02) */
 export type StoreProductDetail = {
   storeProductId: number;
