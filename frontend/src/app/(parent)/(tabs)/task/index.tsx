@@ -30,6 +30,12 @@ export default function ParentTaskScreen() {
       familyId={familyId ?? undefined}
       childList={children}
       onRegisterPress={() => router.push('/task/new')}
+      onChorePress={(chore) =>
+        router.push({
+          pathname: '/task/[choreId]',
+          params: { choreId: String(chore.choreId), childId: String(chore.childId) },
+        })
+      }
     />
   );
 }

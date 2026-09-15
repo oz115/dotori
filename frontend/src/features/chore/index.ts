@@ -10,6 +10,7 @@ export {
   type ParentCompletionRequest,
 } from './model/useChildrenPendingRequests';
 export { useCompletions } from './model/useCompletions';
+export { useChoreStatus } from './model/useChoreStatus';
 export { useChore } from './model/useChore';
 export { useCreateChore } from './model/useCreateChore';
 export { useUpdateChore } from './model/useUpdateChore';
@@ -18,6 +19,7 @@ export { useRequestCompletion } from './model/useRequestCompletion';
 export { useCancelCompletion } from './model/useCancelCompletion';
 export { useApproveCompletion } from './model/useApproveCompletion';
 export { useRejectCompletion } from './model/useRejectCompletion';
+export { ParentChoreDetail } from './ui/ParentChoreDetail';
 export { ParentChoreForm } from './ui/ParentChoreForm';
 export { ChoreFormFields } from './ui/ChoreFormFields';
 export { ParentChoreList } from './ui/ParentChoreList';
