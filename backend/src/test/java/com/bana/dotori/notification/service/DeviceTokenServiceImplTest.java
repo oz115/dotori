@@ -22,6 +22,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterRequest;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterResponse;
+import com.bana.dotori.notification.dto.DeviceTokenStatusResponse;
 import com.bana.dotori.notification.entity.DeviceToken;
 import com.bana.dotori.notification.entity.DeviceTokenPlatform;
 import com.bana.dotori.notification.mapper.DeviceTokenMapper;
@@ -141,6 +142,42 @@ class DeviceTokenServiceImplTest {
 	@DisplayName("fcmToken이 비어 있으면 INVALID_REQUEST 예외가 발생하고 조회하지 않는다")
 	void unregister_blankFcmToken() {
 		assertThatThrownBy(() -> deviceTokenService.unregister(1, " "))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(deviceTokenRepository, never()).findByUser_IdAndFcmToken(any(), any());
+	}
+
+	@Test
+	@DisplayName("본인 소유로 등록된 토큰이면 registered=true를 반환한다")
+	void getStatus_registered() {
+		DeviceToken existing = DeviceToken.builder()
+			.user(user(1))
+			.fcmToken("fcm-token-abc")
+			.platform(DeviceTokenPlatform.ANDROID)
+			.build();
+		given(deviceTokenRepository.findByUser_IdAndFcmToken(1, "fcm-token-abc")).willReturn(Optional.of(existing));
+
+		DeviceTokenStatusResponse response = deviceTokenService.getStatus(1, "fcm-token-abc");
+
+		assertThat(response.registered()).isTrue();
+	}
+
+	@Test
+	@DisplayName("등록돼 있지 않거나 다른 사용자 소유면 registered=false를 반환한다")
+	void getStatus_notRegistered() {
+		given(deviceTokenRepository.findByUser_IdAndFcmToken(1, "fcm-token-abc")).willReturn(Optional.empty());
+
+		DeviceTokenStatusResponse response = deviceTokenService.getStatus(1, "fcm-token-abc");
+
+		assertThat(response.registered()).isFalse();
+	}
+
+	@Test
+	@DisplayName("조회 시 fcmToken이 비어 있으면 INVALID_REQUEST 예외가 발생한다")
+	void getStatus_blankFcmToken() {
+		assertThatThrownBy(() -> deviceTokenService.getStatus(1, " "))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.INVALID_REQUEST);

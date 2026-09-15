@@ -2,6 +2,7 @@ package com.bana.dotori.notification.service;
 
 import com.bana.dotori.notification.dto.DeviceTokenRegisterRequest;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterResponse;
+import com.bana.dotori.notification.dto.DeviceTokenStatusResponse;
 
 public interface DeviceTokenService {
 
@@ -16,4 +17,10 @@ public interface DeviceTokenService {
 	 * 조회 조건에 사용자를 포함해 애초에 대상이 되지 않는다.
 	 */
 	void unregister(Integer userId, String fcmToken);
+
+	/**
+	 * 이 토큰이 요청 사용자 소유로 등록돼 있는지 조회한다 (NOTI-10). 다른 사용자 소유거나
+	 * 존재하지 않는 토큰은 구분하지 않고 똑같이 false 다 — 소유 여부 자체를 노출하지 않기 위해서다.
+	 */
+	DeviceTokenStatusResponse getStatus(Integer userId, String fcmToken);
 }

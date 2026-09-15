@@ -7,6 +7,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterRequest;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterResponse;
+import com.bana.dotori.notification.dto.DeviceTokenStatusResponse;
 import com.bana.dotori.notification.entity.DeviceToken;
 import com.bana.dotori.notification.mapper.DeviceTokenMapper;
 import com.bana.dotori.notification.repository.DeviceTokenRepository;
@@ -49,6 +50,16 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
 		DeviceToken deviceToken = deviceTokenRepository.findByUser_IdAndFcmToken(userId, fcmToken)
 			.orElseThrow(() -> new BusinessException(ErrorCode.DEVICE_TOKEN_NOT_FOUND));
 		deviceTokenRepository.delete(deviceToken);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public DeviceTokenStatusResponse getStatus(Integer userId, String fcmToken) {
+		if (fcmToken == null || fcmToken.isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "fcmToken은 필수입니다");
+		}
+		boolean registered = deviceTokenRepository.findByUser_IdAndFcmToken(userId, fcmToken).isPresent();
+		return new DeviceTokenStatusResponse(registered);
 	}
 
 	private User findUser(Integer userId) {

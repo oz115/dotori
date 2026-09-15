@@ -3,6 +3,7 @@ package com.bana.dotori.notification.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.notification.dto.DeviceTokenRegisterRequest;
 import com.bana.dotori.notification.dto.DeviceTokenRegisterResponse;
+import com.bana.dotori.notification.dto.DeviceTokenStatusResponse;
 import com.bana.dotori.notification.service.DeviceTokenService;
 
 import jakarta.validation.Valid;
@@ -34,5 +36,11 @@ public class DeviceTokenController {
 			@RequestParam(required = false) String fcmToken) {
 		deviceTokenService.unregister(userId, fcmToken);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping
+	public ResponseEntity<DeviceTokenStatusResponse> getStatus(@AuthenticationPrincipal Integer userId,
+			@RequestParam(required = false) String fcmToken) {
+		return ResponseEntity.ok(deviceTokenService.getStatus(userId, fcmToken));
 	}
 }
