@@ -3,6 +3,7 @@ import type {
   StoreProductCreateBody,
   StoreProductDetail,
   StoreProductSummary,
+  StoreProductUpdateBody,
 } from '@/features/store/model/types';
 
 /** 상점 원시 HTTP 호출. 세션·토큰은 httpClient 인터셉터가, 캐시 갱신은 model 훅이 담당. */
@@ -20,5 +21,10 @@ export const storeApi = {
   createProduct: (familyId: number, body: StoreProductCreateBody) =>
     httpClient
       .post<StoreProductDetail>(`/api/v1/families/${familyId}/store/products`, body)
+      .then((res) => res.data),
+
+  updateProduct: (familyId: number, productId: number, body: StoreProductUpdateBody) =>
+    httpClient
+      .patch<StoreProductDetail>(`/api/v1/families/${familyId}/store/products/${productId}`, body)
       .then((res) => res.data),
 };

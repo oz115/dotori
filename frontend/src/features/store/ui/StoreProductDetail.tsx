@@ -205,8 +205,12 @@ function StoreProductDetailBody({ product, registrantName, role }: BodyProps) {
               label="수정"
               variant="outline"
               style={styles.flex}
-              // TODO: S15P21A505-184 상품 수정 태스크에서 연결한다
-              onPress={() => {}}
+              onPress={() =>
+                router.push({
+                  pathname: '/store/[productId]/edit',
+                  params: { productId: String(product.storeProductId) },
+                })
+              }
             />
             <Button
               label="삭제"

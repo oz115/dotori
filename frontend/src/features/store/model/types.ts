@@ -25,6 +25,19 @@ export type StoreProductCreateBody = {
   quantity: number;
 };
 
+/**
+ * PATCH .../store/products/{productId} 요청 바디 (SHOP-04). 부분 수정이라 다 선택적이지만,
+ * 이 앱의 수정 화면은 항상 전체 필드를 채워서 보낸다(현재 값 프리필 방식이라 실질적으로 전체 수정).
+ * price 는 AI 산정값이지만 부모가 직접 덮어쓸 수 있다 — 산정 전(null)이면 화면에서 아예 막는다.
+ */
+export type StoreProductUpdateBody = {
+  name: string;
+  description: string | null;
+  category: StoreProductCategory;
+  price?: number;
+  quantity: number;
+};
+
 /** GET .../store/products/{productId} 상세 (SHOP-02) */
 export type StoreProductDetail = {
   storeProductId: number;
