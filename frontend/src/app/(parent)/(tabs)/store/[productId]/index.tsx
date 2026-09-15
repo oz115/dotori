@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAuthStore } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
@@ -24,6 +24,8 @@ export default function ParentStoreProductDetailScreen() {
       productId={numericProductId}
       role={role}
       registrantName={registrantName}
+      balance={undefined}
+      onNavigateToList={() => router.replace('/(parent)/(tabs)/store')}
     />
   );
 }

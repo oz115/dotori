@@ -38,6 +38,18 @@ export type StoreProductUpdateBody = {
   quantity: number;
 };
 
+/** POST .../store/products/{productId}/purchases 응답 (SHOP-06) */
+export type StorePurchaseResult = {
+  purchaseId: number;
+  storeProductId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  pointBalanceAfter: number;
+  purchasedAt: string;
+};
+
 /** GET .../store/products/{productId} 상세 (SHOP-02) */
 export type StoreProductDetail = {
   storeProductId: number;

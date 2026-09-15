@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -21,10 +21,22 @@ type StoreCatalogProps = {
    * 아예 넘기지 않는다 — role 을 이 feature 가 직접 알 필요가 없도록 라우트가 결정한다.
    */
   onRegisterPress?: () => void;
+  /**
+   * 카드 탭 시 상세로 이동한다. (child)/(parent) 둘 다 `/store/[productId]` 모양의
+   * 동적 라우트를 갖고 있어서, 그룹 접두사 없는 경로로 push하면 expo-router가 어느
+   * 쪽으로 갈지 못 정하고 조용히 무시해버린다 — 그래서 이 feature가 직접 push하지
+   * 않고, 어느 그룹인지 아는 라우트가 정확한 경로를 만들어 콜백으로 넘긴다.
+   */
+  onPressProduct: (productId: number) => void;
 };
 
-/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터는 라우트가 결정한다. */
-export function StoreCatalog({ familyId, character, onRegisterPress }: StoreCatalogProps) {
+/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터·상세 이동은 라우트가 결정한다. */
+export function StoreCatalog({
+  familyId,
+  character,
+  onRegisterPress,
+  onPressProduct,
+}: StoreCatalogProps) {
   const theme = useTheme();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
   const { data, isPending, isError, refetch } = useStoreProducts(familyId);
@@ -47,15 +59,7 @@ export function StoreCatalog({ familyId, character, onRegisterPress }: StoreCata
         numColumns={2}
         renderItem={({ item }) => (
           <View style={styles.cell}>
-            <StoreProductCard
-              product={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/store/[productId]',
-                  params: { productId: String(item.storeProductId) },
-                })
-              }
-            />
+            <StoreProductCard product={item} onPress={() => onPressProduct(item.storeProductId)} />
           </View>
         )}
         columnWrapperStyle={{ gap: theme.space.md }}
