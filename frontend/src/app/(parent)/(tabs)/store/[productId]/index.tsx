@@ -24,6 +24,7 @@ export default function ParentStoreProductDetailScreen() {
       productId={numericProductId}
       role={role}
       registrantName={registrantName}
+      balance={undefined}
     />
   );
 }
