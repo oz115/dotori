@@ -3,8 +3,10 @@ import type {
   AccountAuthBody,
   AccountAuthResponse,
   AccountInfo,
+  AccountTransactionHistory,
   AccountVerifyBody,
   LinkedAccount,
+  TransactionHistoryParams,
   TransferBody,
   TransferResult,
 } from '@/features/account/model/types';
@@ -23,6 +25,12 @@ export const accountApi = {
 
   /** 연동 계좌 상세 (금융망 실시간). 연동 없으면 ACCOUNT_NOT_LINKED */
   getMyAccount: () => httpClient.get<AccountInfo>('/api/v1/accounts/me').then((res) => res.data),
+
+  /** 연동 계좌 거래내역 — 커서 기반. period 생략 시 서버 기본값(MONTH) */
+  getTransactions: (params: TransactionHistoryParams) =>
+    httpClient
+      .get<AccountTransactionHistory>('/api/v1/accounts/transactions', { params })
+      .then((res) => res.data),
 
   /** 계좌 연동 해제 — 성공 시 204 */
   unlink: () => httpClient.delete('/api/v1/accounts/me'),

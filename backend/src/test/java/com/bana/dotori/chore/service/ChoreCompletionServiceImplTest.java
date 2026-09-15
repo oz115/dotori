@@ -350,13 +350,29 @@ class ChoreCompletionServiceImplTest {
 		}
 
 		@Test
-		@DisplayName("아이가 조회하면 403으로 막는다")
-		void 아이는_볼_수_없다() {
-			willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(accessValidator).requireParent(CHILD_ID);
+		@DisplayName("역할을 따로 좁히지 않는다")
+		void 부모와_아이_모두_본다() {
+			given(completionRequestRepository.findSummaries(FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+				.willReturn(List.of());
 
-			// 아이가 볼 목록은 완료 내역(CHORE-12)으로 따로 있다.
+			choreCompletionService.getCompletionRequests(CHILD_ID, FAMILY_ID, CHILD_ID,
+				ChoreCompletionStatus.PENDING);
+
+			// 이 목록은 부모의 대기함이면서 아이의 "내가 보낸 요청"이다. requireParent 를 부르면
+			// 아이가 확인 중 표시도, 요청 취소(CHORE-12)에 필요한 requestId 도 얻지 못한다.
+			verify(accessValidator).validate(CHILD_ID, FAMILY_ID, CHILD_ID);
+			verify(accessValidator, never()).requireParent(any());
+		}
+
+		@Test
+		@DisplayName("형제 것을 보려 하면 접근 검증이 막는다")
+		void 형제_것은_못_본다() {
+			willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+				.given(accessValidator).validate(CHILD_ID, FAMILY_ID, SIBLING_ID);
+
+			// 역할이 아니라 "누구의 요청인가"로 가린다 — 그 판단은 검증기 몫이다.
 			assertThatThrownBy(() -> choreCompletionService.getCompletionRequests(
-					CHILD_ID, FAMILY_ID, CHILD_ID, ChoreCompletionStatus.PENDING))
+					CHILD_ID, FAMILY_ID, SIBLING_ID, ChoreCompletionStatus.PENDING))
 				.isInstanceOf(BusinessException.class)
 				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
 

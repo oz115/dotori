@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 
 /**
- * 부모 대기함의 한 줄 (CHORE-08).
+ * 완료 요청 목록의 한 줄 (CHORE-08). 부모는 대기함으로, 아이는 "내가 보낸 요청"으로 본다.
  *
  * <p>choreTitle 과 childName 은 완료 요청 행에 없다. 부모가 목록만 보고 "누가 무엇을
  * 했다는 것인지" 알 수 있어야 해서 chores·users 에서 끌어온다.
