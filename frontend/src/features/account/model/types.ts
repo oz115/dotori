@@ -47,3 +47,47 @@ export type AccountInfo = {
   oneTimeTransferLimit: number;
   currency: string;
 };
+
+/** GET /api/v1/accounts/transactions 의 period 파라미터 — 상대 기간 (지정 안 하면 서버 기본값은 MONTH) */
+export type TransactionPeriod = 'WEEK' | 'MONTH' | 'THREE_MONTHS';
+
+export type TransactionDirection = 'DEPOSIT' | 'WITHDRAWAL';
+
+/** GET /api/v1/accounts/transactions 요청 — period 와 startDate/endDate 는 함께 줄 수 없다 */
+export type TransactionHistoryParams = {
+  period?: TransactionPeriod;
+  startDate?: string;
+  endDate?: string;
+  cursor?: string;
+  size?: number;
+  transactionType?: TransactionDirection;
+};
+
+/**
+ * 조회 기간 지정 방식 — 서버가 `period`와 `startDate`/`endDate`를 함께 받지 않으므로
+ * 화면에서도 상대 기간과 직접 지정 기간을 같은 시점에 하나만 갖도록 유니온으로 강제한다.
+ * `startDate`/`endDate`는 'YYYY-MM-DD'.
+ */
+export type TransactionRangeFilter =
+  | { mode: 'period'; period: TransactionPeriod }
+  | { mode: 'custom'; startDate: string; endDate: string };
+
+/** 거래내역 한 건 */
+export type AccountTransaction = {
+  transactionUniqueNo: string;
+  transactionType: TransactionDirection;
+  /** 은행이 내려준 원본 거래 유형명 (예: "출금(이체)") */
+  transactionTypeName: string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  /** ISO-8601, KST */
+  transactedAt: string;
+};
+
+/** GET /api/v1/accounts/transactions 응답 — 커서 기반, 항상 최신순 */
+export type AccountTransactionHistory = {
+  transactions: AccountTransaction[];
+  nextCursor: string | null;
+  hasNext: boolean;
+};
