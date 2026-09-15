@@ -1,9 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { categoryImage } from '@/features/store/lib/categoryImage';
 import { categoryLabel } from '@/features/store/lib/categoryLabel';
-import type { StoreProductFormErrors } from '@/features/store/lib/storeProductForm';
+import {
+  DESCRIPTION_MAX,
+  NAME_MAX,
+  type StoreProductFormErrors,
+} from '@/features/store/lib/storeProductForm';
 import type { StoreProductCategory } from '@/features/store/model/types';
 import { useTheme } from '@/shared/theme';
 import { Input, SelectableCard } from '@/shared/ui';
@@ -41,28 +46,36 @@ export function StoreProductFields({
 
   return (
     <>
-      <Input
-        label="상품명"
-        variant="box"
-        placeholder="예: 게임 30분 이용권"
-        value={name}
-        onChangeText={onNameChange}
-        error={errors.name}
-      />
+      <View style={{ gap: 6 }}>
+        <FieldLabel required>상품명</FieldLabel>
+        <Input
+          variant="box"
+          placeholder="예: 게임 30분 이용권"
+          value={name}
+          onChangeText={onNameChange}
+          maxLength={NAME_MAX}
+          error={errors.name}
+        />
+        <CharCounter current={name.length} max={NAME_MAX} />
+      </View>
 
-      <Input
-        label="설명 (선택)"
-        variant="box"
-        placeholder="예: 정해진 시간 외에 추가로 게임을 하고 싶을 때 구매"
-        value={description}
-        onChangeText={onDescriptionChange}
-        multiline
-        numberOfLines={3}
-        error={errors.description}
-      />
+      <View style={{ gap: 6 }}>
+        <FieldLabel>설명 (선택)</FieldLabel>
+        <Input
+          variant="box"
+          placeholder="예: 정해진 시간 외에 추가로 게임을 하고 싶을 때 구매"
+          value={description}
+          onChangeText={onDescriptionChange}
+          multiline
+          numberOfLines={3}
+          maxLength={DESCRIPTION_MAX}
+          error={errors.description}
+        />
+        <CharCounter current={description.length} max={DESCRIPTION_MAX} />
+      </View>
 
       <View style={{ gap: theme.space.sm }}>
-        <Text style={[theme.typography.label, { color: theme.color.text.label }]}>카테고리</Text>
+        <FieldLabel required>카테고리</FieldLabel>
         <View style={styles.categoryGrid}>
           {CATEGORIES.map((key) => {
             const selected = category === key;
@@ -104,6 +117,27 @@ export function StoreProductFields({
   );
 }
 
+/** 필드 라벨. required 면 빨간 별표를 옆에 붙인다 — Input의 label prop은 문자열만 받아서 못 쓴다. */
+function FieldLabel({ children, required = false }: { children: ReactNode; required?: boolean }) {
+  const theme = useTheme();
+  return (
+    <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
+      {children}
+      {required ? <Text style={{ color: theme.color.status.danger.solid }}> *</Text> : null}
+    </Text>
+  );
+}
+
+/** 입력 아래 우측에 붙는 글자수 카운터. 백엔드 제약(NAME_MAX/DESCRIPTION_MAX)과 같은 값을 쓴다. */
+function CharCounter({ current, max }: { current: number; max: number }) {
+  const theme = useTheme();
+  return (
+    <Text style={[theme.typography.caption, styles.charCounter, { color: theme.color.text.muted }]}>
+      {current}/{max}
+    </Text>
+  );
+}
+
 type QuantityStepperProps = {
   value: number;
   onChange: (value: number) => void;
@@ -116,7 +150,7 @@ function QuantityStepper({ value, onChange, error }: QuantityStepperProps) {
 
   return (
     <View style={{ gap: 6 }}>
-      <Text style={[theme.typography.label, { color: theme.color.text.label }]}>재고 수량</Text>
+      <FieldLabel required>재고 수량</FieldLabel>
       <View
         style={[
           styles.stepperBox,
@@ -172,7 +206,10 @@ const styles = StyleSheet.create({
     width: '31%',
   },
   categoryImage: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
+  },
+  charCounter: {
+    textAlign: 'right',
   },
 });

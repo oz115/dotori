@@ -1,7 +1,7 @@
 import type { StoreProductCategory } from '@/features/store/model/types';
 
-const NAME_MAX = 100;
-const DESCRIPTION_MAX = 255;
+export const NAME_MAX = 100;
+export const DESCRIPTION_MAX = 255;
 
 export type StoreProductFormInput = {
   name: string;

@@ -1,8 +1,11 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { categoryImage } from '@/features/store/lib/categoryImage';
+import { categoryLabel } from '@/features/store/lib/categoryLabel';
+import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { validatePrice, validateStoreProductForm } from '@/features/store/lib/storeProductForm';
 import { useStoreProduct } from '@/features/store/model/useStoreProduct';
 import { useUpdateStoreProduct } from '@/features/store/model/useUpdateStoreProduct';
@@ -73,6 +76,8 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
   const [priceError, setPriceError] = useState<string | undefined>();
 
   const priceEditable = product.price != null;
+  const priceTouched = priceEditable && price.trim().length > 0;
+  const registeredAt = formatDate(product.createdAt);
 
   const handleSubmit = () => {
     const nextErrors = validateStoreProductForm({
@@ -81,7 +86,8 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
       category,
       quantity: String(quantity),
     });
-    const nextPriceError = priceEditable ? validatePrice(price) : undefined;
+    // 가격은 비워두면 "안 바꿈"이라 검증 대상이 아니다 — 값을 입력했을 때만 유효성을 본다.
+    const nextPriceError = priceTouched ? validatePrice(price) : undefined;
     setErrors(nextErrors);
     setPriceError(nextPriceError);
     if (Object.keys(nextErrors).length > 0 || nextPriceError != null || category == null) return;
@@ -92,7 +98,7 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
         description: description.trim().length > 0 ? description.trim() : null,
         category,
         quantity,
-        ...(priceEditable ? { price: Number(price) } : {}),
+        ...(priceTouched ? { price: Number(price) } : {}),
       },
       { onSuccess: () => router.back() },
     );
@@ -100,6 +106,8 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
 
   return (
     <View style={{ gap: theme.space.xl }}>
+      <ProductPreviewCard product={product} registeredAt={registeredAt} />
+
       <StoreProductFields
         name={name}
         onNameChange={setName}
@@ -112,16 +120,23 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
         errors={errors}
       />
 
-      <Input
-        label="가격"
-        variant="box"
-        placeholder={priceEditable ? '예: 3000' : 'AI 산정 후 수정할 수 있어요'}
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="number-pad"
-        editable={priceEditable}
-        error={priceError}
-      />
+      <View style={{ gap: 6 }}>
+        <Input
+          label="가격 (도토리)"
+          variant="box"
+          placeholder={priceEditable ? '예: 3000' : 'AI 산정 후 수정할 수 있어요'}
+          value={price}
+          onChangeText={setPrice}
+          keyboardType="number-pad"
+          editable={priceEditable}
+          error={priceError}
+        />
+        {priceEditable ? (
+          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+            비워두면 기존 가격이 유지됩니다.
+          </Text>
+        ) : null}
+      </View>
 
       {updateProduct.isError ? (
         <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
@@ -138,3 +153,65 @@ function StoreProductEditFormBody({ familyId, product }: BodyProps) {
     </View>
   );
 }
+
+/** 지금 뭘 수정하는지 한눈에 보여주는 미리보기 카드. 입력값이 아니라 항상 원본 product 기준이다. */
+function ProductPreviewCard({
+  product,
+  registeredAt,
+}: {
+  product: StoreProductDetail;
+  registeredAt: string;
+}) {
+  const theme = useTheme();
+  const badge = categoryBadgeColors(theme, product.category);
+
+  return (
+    <View style={styles.previewRow}>
+      <View
+        style={[styles.previewThumb, { backgroundColor: badge.bg, borderRadius: theme.radius.lg }]}
+      >
+        <Image
+          source={categoryImage(product.category)}
+          style={styles.previewImage}
+          resizeMode="contain"
+        />
+      </View>
+      <View style={{ flex: 1, gap: theme.space.xs }}>
+        <View
+          style={[
+            styles.previewBadge,
+            { backgroundColor: badge.bg, borderRadius: theme.radius.full },
+          ]}
+        >
+          <Text style={[theme.typography.caption, { color: badge.text }]}>
+            {categoryLabel(product.category)}
+          </Text>
+        </View>
+        <Text
+          numberOfLines={1}
+          style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+        >
+          {product.name}
+        </Text>
+        <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+          등록일 {registeredAt}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** "2026-09-01T..." → "2026. 09. 01" */
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}. ${month}. ${day}`;
+}
+
+const styles = StyleSheet.create({
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  previewThumb: { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
+  previewImage: { width: 48, height: 48 },
+  previewBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3 },
+});
