@@ -11,6 +11,20 @@ export { useRequestCompletion } from './model/useRequestCompletion';
 export { useCancelCompletion } from './model/useCancelCompletion';
 export { useApproveCompletion } from './model/useApproveCompletion';
 export { useRejectCompletion } from './model/useRejectCompletion';
+export { ChoreFilterChips, type FilterOption } from './ui/ChoreFilterChips';
+export { ChoreHeroBanner } from './ui/ChoreHeroBanner';
+export { ChoreListRow } from './ui/ChoreListRow';
+export { ChildBadge } from './ui/ChildBadge';
+export { RepeatBadge } from './ui/RepeatBadge';
+export { RewardChip } from './ui/RewardChip';
+export {
+  DIFFICULTIES,
+  REPEAT_TYPES,
+  difficultyLabel,
+  isRewardReady,
+  repeatLabel,
+  sumRewards,
+} from './lib/choreLabels';
 export type {
   ChoreApprovalResult,
   ChoreCompletionCreateBody,

@@ -41,6 +41,12 @@ export const colorLight = {
     acorn: palette.acorn,
     cream: palette.cream,
   },
+  chip: {
+    // 선택되지 않은 필터 칩. Figma 할 일 목록 기준 - 회색 채움 + 흰 글씨라
+    // surfaceSunken(거의 흰색)으로는 대체되지 않는다.
+    idle: palette.neutral[400],
+    idleText: palette.neutral[0],
+  },
   status: {
     success: { solid: palette.green[500], subtle: palette.green[50], text: palette.green[700] },
     info: { solid: palette.blue[500], subtle: palette.blue[100], text: palette.blue[700] },
