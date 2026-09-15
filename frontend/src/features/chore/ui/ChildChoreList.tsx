@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 
@@ -44,7 +45,15 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   );
 
   return (
-    <Screen header={<Header title="할 일" />} padded={false}>
+    <Screen
+      header={
+        <Header
+          title="할 일"
+          action={{ label: '완료 이력', onPress: () => router.push('/task/history') }}
+        />
+      }
+      padded={false}
+    >
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
