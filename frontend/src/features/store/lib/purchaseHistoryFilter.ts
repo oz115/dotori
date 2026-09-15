@@ -1,10 +1,18 @@
-export type PurchaseHistoryFilterKey = 'ALL' | 'THIS_MONTH' | 'LAST_MONTH';
+/** 연-월. month 는 1~12 (Date의 0-indexed month와 헷갈리지 않도록). */
+export type YearMonth = { year: number; month: number };
 
-export const PURCHASE_HISTORY_FILTERS: { key: PurchaseHistoryFilterKey; label: string }[] = [
-  { key: 'ALL', label: '전체' },
-  { key: 'THIS_MONTH', label: '이번 달' },
-  { key: 'LAST_MONTH', label: '지난 달' },
-];
+export function currentYearMonth(now: Date = new Date()): YearMonth {
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
+/** delta만큼 달을 옮긴다 (음수면 과거로). 연도 경계를 자동으로 넘나든다. */
+export function shiftYearMonth(yearMonth: YearMonth, delta: number): YearMonth {
+  const zeroBasedTotal = yearMonth.year * 12 + (yearMonth.month - 1) + delta;
+  return {
+    year: Math.floor(zeroBasedTotal / 12),
+    month: (((zeroBasedTotal % 12) + 12) % 12) + 1,
+  };
+}
 
 /** "YYYY-MM-DD" (로컬 날짜, UTC 변환 없이). */
 function toDateString(date: Date): string {
@@ -14,29 +22,17 @@ function toDateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * 프리셋 필터를 API 가 받는 날짜 범위로 바꾼다. ALL 이면 undefined — 기간 조건 없이 전체 조회.
- * 새 날짜 선택 라이브러리 없이 자체 계산만으로 처리한다(전체/이번 달/지난 달로 충분해서).
- */
-export function purchaseHistoryDateRange(
-  filter: PurchaseHistoryFilterKey,
-  now: Date = new Date(),
-): { startDate: string; endDate: string } | undefined {
-  if (filter === 'ALL') return undefined;
-
-  const year = now.getFullYear();
-  const month = now.getMonth();
-
-  if (filter === 'THIS_MONTH') {
-    return {
-      startDate: toDateString(new Date(year, month, 1)),
-      endDate: toDateString(now),
-    };
-  }
-
-  // LAST_MONTH: 지난 달 1일 ~ 마지막 날. new Date(y, m, 0) 은 m월의 "0번째 날" = 전월 말일.
+/** 해당 월의 1일 ~ 말일을 API가 받는 날짜 범위로 바꾼다. */
+export function yearMonthDateRange(yearMonth: YearMonth): { startDate: string; endDate: string } {
   return {
-    startDate: toDateString(new Date(year, month - 1, 1)),
-    endDate: toDateString(new Date(year, month, 0)),
+    startDate: toDateString(new Date(yearMonth.year, yearMonth.month - 1, 1)),
+    // new Date(y, m, 0) 은 m월의 "0번째 날" = 전월 말일 → month 그대로 넘기면 이번 달 말일.
+    endDate: toDateString(new Date(yearMonth.year, yearMonth.month, 0)),
   };
+}
+
+/** 날짜 바에 쓰는 "2026.08.01 ~ 2026.08.31" 형태. */
+export function formatYearMonthRange(yearMonth: YearMonth): string {
+  const { startDate, endDate } = yearMonthDateRange(yearMonth);
+  return `${startDate.replaceAll('-', '.')} ~ ${endDate.replaceAll('-', '.')}`;
 }

@@ -21,7 +21,10 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.PurchaseHistoryResponse;
 import com.bana.dotori.store.entity.Purchase;
+import com.bana.dotori.store.entity.StoreProduct;
+import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.repository.PurchaseRepository;
+import com.bana.dotori.store.repository.StoreProductRepository;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
@@ -35,6 +38,9 @@ class PurchaseHistoryServiceTest {
 
 	@Mock
 	private PurchaseRepository purchaseRepository;
+
+	@Mock
+	private StoreProductRepository storeProductRepository;
 
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
@@ -71,6 +77,18 @@ class PurchaseHistoryServiceTest {
 		return purchase;
 	}
 
+	private StoreProduct storeProduct(Integer id, StoreProductCategory category) {
+		StoreProduct product = StoreProduct.builder()
+			.familyId(FAMILY_ID)
+			.createdBy(PARENT_ID)
+			.name("상품")
+			.category(category)
+			.quantity(1)
+			.build();
+		ReflectionTestUtils.setField(product, "id", id);
+		return product;
+	}
+
 	@Test
 	@DisplayName("자녀가 본인 구매 내역을 조회하면 목록을 반환한다")
 	void getPurchases_selfSuccess() {
@@ -100,6 +118,37 @@ class PurchaseHistoryServiceTest {
 			null);
 
 		assertThat(response.purchases().get(0).totalPrice()).isEqualTo(6000);
+	}
+
+	@Test
+	@DisplayName("구매한 상품이 살아있으면 지금 카테고리를 보여준다")
+	void getPurchases_categoryFromLiveProduct() {
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(userRepository.findById(CHILD_ID)).willReturn(Optional.of(user(CHILD_ID, UserRole.CHILD)));
+		given(purchaseRepository.findAllByChildIdAndPeriod(CHILD_ID, null, null))
+			.willReturn(List.of(purchase(1, "게임 30분 이용권", 1, 3000)));
+		given(storeProductRepository.findAllById(List.of(99)))
+			.willReturn(List.of(storeProduct(99, StoreProductCategory.GAME)));
+
+		PurchaseHistoryResponse response = purchaseHistoryService.getPurchases(FAMILY_ID, CHILD_ID, CHILD_ID, null,
+			null);
+
+		assertThat(response.purchases().get(0).category()).isEqualTo(StoreProductCategory.GAME);
+	}
+
+	@Test
+	@DisplayName("구매한 상품이 삭제돼 조회되지 않으면 카테고리는 null이다")
+	void getPurchases_categoryNullWhenProductGone() {
+		given(familyMemberRepository.existsActiveMember(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(userRepository.findById(CHILD_ID)).willReturn(Optional.of(user(CHILD_ID, UserRole.CHILD)));
+		given(purchaseRepository.findAllByChildIdAndPeriod(CHILD_ID, null, null))
+			.willReturn(List.of(purchase(1, "게임 30분 이용권", 1, 3000)));
+		given(storeProductRepository.findAllById(List.of(99))).willReturn(List.of());
+
+		PurchaseHistoryResponse response = purchaseHistoryService.getPurchases(FAMILY_ID, CHILD_ID, CHILD_ID, null,
+			null);
+
+		assertThat(response.purchases().get(0).category()).isNull();
 	}
 
 	@Test

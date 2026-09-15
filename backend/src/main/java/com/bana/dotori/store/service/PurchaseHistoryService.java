@@ -2,6 +2,8 @@ package com.bana.dotori.store.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +14,10 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.PurchaseHistoryItem;
 import com.bana.dotori.store.dto.PurchaseHistoryResponse;
 import com.bana.dotori.store.entity.Purchase;
+import com.bana.dotori.store.entity.StoreProduct;
+import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.repository.PurchaseRepository;
+import com.bana.dotori.store.repository.StoreProductRepository;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
@@ -31,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 public class PurchaseHistoryService {
 
 	private final PurchaseRepository purchaseRepository;
+	private final StoreProductRepository storeProductRepository;
 	private final FamilyMemberRepository familyMemberRepository;
 	private final UserRepository userRepository;
 
@@ -43,12 +49,26 @@ public class PurchaseHistoryService {
 		validateReadAccess(familyId, childId, loginUserId);
 
 		List<Purchase> purchases = purchaseRepository.findAllByChildIdAndPeriod(childId, startDate, endDate);
-		return new PurchaseHistoryResponse(purchases.stream().map(this::toItem).toList());
+		Map<Integer, StoreProductCategory> categoryByProductId = loadCategories(purchases);
+		return new PurchaseHistoryResponse(
+			purchases.stream().map(p -> toItem(p, categoryByProductId)).toList());
 	}
 
-	private PurchaseHistoryItem toItem(Purchase purchase) {
+	/**
+	 * 구매 건이 가리키는 상품의 지금 카테고리를 한 번에 조회한다. purchases 테이블엔 카테고리를
+	 * 안 남기므로(스키마 변경 없이 처리하려고), 상품이 살아있으면 지금 카테고리를 보여주고
+	 * 삭제됐으면 못 채운다 — Map 에 없는 storeProductId 는 호출부에서 null 로 처리된다.
+	 */
+	private Map<Integer, StoreProductCategory> loadCategories(List<Purchase> purchases) {
+		List<Integer> productIds = purchases.stream().map(Purchase::getStoreProductId).distinct().toList();
+		return storeProductRepository.findAllById(productIds).stream()
+			.collect(Collectors.toMap(StoreProduct::getId, StoreProduct::getCategory));
+	}
+
+	private PurchaseHistoryItem toItem(Purchase purchase, Map<Integer, StoreProductCategory> categoryByProductId) {
 		return new PurchaseHistoryItem(purchase.getId(), purchase.getStoreProductId(), purchase.getProductName(),
-			purchase.getQuantity(), purchase.getPrice() * purchase.getQuantity(), purchase.getPurchasedAt());
+			categoryByProductId.get(purchase.getStoreProductId()), purchase.getQuantity(),
+			purchase.getPrice() * purchase.getQuantity(), purchase.getPurchasedAt());
 	}
 
 	/**

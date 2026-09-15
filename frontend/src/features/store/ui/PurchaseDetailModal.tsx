@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { categoryLabel } from '@/features/store/lib/categoryLabel';
+import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import type { PurchaseHistoryItem } from '@/features/store/model/types';
 import { useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
@@ -10,10 +12,7 @@ type PurchaseDetailModalProps = {
   onClose: () => void;
 };
 
-/**
- * 구매 내역 한 건의 상세 (SHOP-07). 목록 행이 이미 보여주는 정보를 그대로 크게 보여주는
- * 수준이다 — 백엔드 PurchaseHistoryItem 자체에 더 뽑아낼 필드가 없다(단가·카테고리 없음).
- */
+/** 구매 내역 한 건의 상세 (SHOP-07). 목록 행이 이미 보여주는 정보를 그대로 크게 보여준다. */
 export function PurchaseDetailModal({ item, onClose }: PurchaseDetailModalProps) {
   const theme = useTheme();
 
@@ -34,9 +33,12 @@ export function PurchaseDetailModal({ item, onClose }: PurchaseDetailModalProps)
         >
           {item ? (
             <>
-              <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-                {item.productName}
-              </Text>
+              <View style={{ gap: theme.space.sm }}>
+                <CategoryBadge category={item.category} />
+                <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+                  {item.productName}
+                </Text>
+              </View>
 
               <View
                 style={[
@@ -82,6 +84,25 @@ export function PurchaseDetailModal({ item, onClose }: PurchaseDetailModalProps)
   );
 }
 
+function CategoryBadge({ category }: { category: PurchaseHistoryItem['category'] }) {
+  const theme = useTheme();
+  const resolved = category ?? 'ETC';
+  const colors = categoryBadgeColors(theme, resolved);
+
+  return (
+    <View
+      style={[
+        styles.categoryBadge,
+        { backgroundColor: colors.bg, borderRadius: theme.radius.full },
+      ]}
+    >
+      <Text style={[theme.typography.caption, { color: colors.text }]}>
+        {categoryLabel(resolved)}
+      </Text>
+    </View>
+  );
+}
+
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   const theme = useTheme();
   return (
@@ -114,4 +135,5 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   acornIcon: { width: 16, height: 16 },
+  categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2 },
 });
