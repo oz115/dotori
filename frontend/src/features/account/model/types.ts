@@ -91,3 +91,24 @@ export type AccountTransactionHistory = {
   nextCursor: string | null;
   hasNext: boolean;
 };
+
+/**
+ * POST /api/v1/accounts/transfer 요청.
+ * toAccountNo 는 연동 계좌로 한정되지 않는 임의의 은행 계좌번호 — 은행 코드는 받지 않는다
+ * (SSAFY 금융망은 계좌번호가 전역 유일해 은행 구분이 필요 없다).
+ */
+export type TransferBody = {
+  toAccountNo: string;
+  /** 원 단위 */
+  amount: number;
+  /** 생략하면 서버가 "계좌 이체" 로 채운다 */
+  memo?: string;
+};
+
+/** POST /api/v1/accounts/transfer 응답 */
+export type TransferResult = {
+  fromAccountNo: string;
+  toAccountNo: string;
+  amount: number;
+  transactedAt: string;
+};
