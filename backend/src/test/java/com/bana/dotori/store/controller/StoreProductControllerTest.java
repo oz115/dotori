@@ -72,8 +72,9 @@ class StoreProductControllerTest {
 		givenAuthenticated(1);
 		OffsetDateTime createdAt = OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(storeProductService.getProducts(1, 10)).willReturn(new StoreProductListResponse(List.of(
-			new StoreProductSummary(1, "게임 30분 이용권", StoreProductCategory.GAME, 3000, 5, createdAt),
-			new StoreProductSummary(2, "자전거", StoreProductCategory.TOY, null, 1, createdAt))));
+			new StoreProductSummary(1, "게임 30분 이용권", "좋아하는 게임을 30분 더!", StoreProductCategory.GAME, 3000,
+				5, createdAt),
+			new StoreProductSummary(2, "자전거", null, StoreProductCategory.TOY, null, 1, createdAt))));
 
 		mockMvc.perform(get(PRODUCTS_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
@@ -81,6 +82,7 @@ class StoreProductControllerTest {
 			.andExpect(jsonPath("$.products.length()").value(2))
 			.andExpect(jsonPath("$.products[0].storeProductId").value(1))
 			.andExpect(jsonPath("$.products[0].name").value("게임 30분 이용권"))
+			.andExpect(jsonPath("$.products[0].description").value("좋아하는 게임을 30분 더!"))
 			.andExpect(jsonPath("$.products[0].category").value("GAME"))
 			.andExpect(jsonPath("$.products[0].price").value(3000))
 			.andExpect(jsonPath("$.products[0].quantity").value(5))

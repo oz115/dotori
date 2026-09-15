@@ -10,8 +10,10 @@ import { useParentFamily } from '@/widgets/parent-home/model/useParentFamily';
 
 import { AccountCard } from './AccountCard';
 import { ApprovalsCard } from './ApprovalsCard';
+import { ChildActivityBoard } from './ChildActivityBoard';
+import { ChildAssetsSection } from './ChildAssetsSection';
 import { ChildBalanceCard } from './ChildBalanceCard';
-import { ChildSummaryCard } from './ChildSummaryCard';
+import { ChildTodayProgress } from './ChildTodayProgress';
 
 /**
  * 부모 홈 화면 본체. 자녀 홈이 "내 자산 + 내 할 일"이라면 이쪽은
@@ -27,8 +29,11 @@ export function ParentHome() {
 
   const notReady = () => Alert.alert('준비 중이에요', '곧 만나볼 수 있어요.');
 
-  // '/task' 는 부모·자녀 그룹 모두에 있는 경로라 그룹까지 적어야 부모 탭으로 간다
+  // '/task', '/save', '/investment' 는 부모·자녀 그룹 모두에 있는 경로라
+  // 그룹까지 적어야 부모 탭으로 간다
   const openChoreTab = () => router.push('/(parent)/(tabs)/task');
+  const openSaveTab = () => router.push('/(parent)/(tabs)/save');
+  const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
 
   return (
     <SafeAreaView
@@ -49,13 +54,15 @@ export function ParentHome() {
           childId={childId}
           childName={childName}
           familyPending={familyPending}
-          onGrant={notReady}
+          onCashout={openChoreTab}
         />
 
         <AccountCard
           account={account.data}
           isPending={account.isPending}
           onLinkAccount={() => router.push('/account/link')}
+          onTransfer={notReady}
+          onHistory={notReady}
         />
 
         <ApprovalsCard
@@ -66,13 +73,16 @@ export function ParentHome() {
           onOpenCashouts={openChoreTab}
         />
 
-        <ChildSummaryCard
+        <ChildAssetsSection onOpenSavings={openSaveTab} onOpenInvestment={openInvestmentTab} />
+
+        <ChildTodayProgress
           familyId={familyId}
           childId={childId}
-          childName={childName}
           familyPending={familyPending}
-          onPress={openChoreTab}
+          onMorePress={openChoreTab}
         />
+
+        <ChildActivityBoard />
       </ScrollView>
     </SafeAreaView>
   );
