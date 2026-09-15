@@ -222,21 +222,22 @@ function StoreProductDetailBody({ familyId, product, registrantName, role }: Bod
         {role === 'PARENT' ? (
           <>
             <Button
+              label="삭제"
+              variant="outline"
+              tone="danger"
+              style={styles.deleteButton}
+              onPress={() => setDeleteOpen(true)}
+            />
+            <Button
               label="수정"
               variant="outline"
-              style={styles.flex}
+              style={styles.editButton}
               onPress={() =>
                 router.push({
                   pathname: '/store/[productId]/edit',
                   params: { productId: String(product.storeProductId) },
                 })
               }
-            />
-            <Button
-              label="삭제"
-              variant="outline"
-              style={styles.flex}
-              onPress={() => setDeleteOpen(true)}
             />
           </>
         ) : (
@@ -273,6 +274,9 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // 삭제는 덜 강조되게 좁게, 수정은 더 크게 — 부모가 주로 하는 건 수정 쪽이라서다.
+  deleteButton: { flex: 1 },
+  editButton: { flex: 2 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageBox: { aspectRatio: 1.5, alignItems: 'center', justifyContent: 'center' },
   image: { height: '75%', aspectRatio: 1 },

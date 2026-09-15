@@ -84,9 +84,10 @@ export function DeleteProductModal({
             <Button
               label="삭제하기"
               variant="primary"
+              tone="danger"
               onPress={onConfirm}
               loading={loading}
-              style={[styles.flex, { backgroundColor: theme.color.status.danger.solid }]}
+              style={styles.flex}
             />
           </View>
         </Pressable>

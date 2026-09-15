@@ -6,11 +6,14 @@ import { useTheme } from '@/shared/theme';
 
 type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'md' | 'sm';
+/** primary/outline 의 브랜드 그린 자리를 danger 빨강으로 바꾼다 (삭제 등 파괴적 액션용). */
+type ButtonTone = 'brand' | 'danger';
 
 type ButtonProps = PressableProps & {
   label: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  tone?: ButtonTone;
   loading?: boolean;
   /** 라벨 오른쪽 아이콘 (예: 회원가입 › 의 chevron) */
   trailingIcon?: ReactNode;
@@ -25,6 +28,7 @@ export function Button({
   label,
   variant = 'primary',
   size = 'md',
+  tone = 'brand',
   loading = false,
   trailingIcon,
   disabled,
@@ -34,14 +38,18 @@ export function Button({
   const theme = useTheme();
   const isDisabled = disabled || loading;
   const sm = size === 'sm';
+  const danger = tone === 'danger';
+  const toneSolid = danger ? theme.color.status.danger.solid : theme.color.brand.solid;
+  const toneSubtle = danger ? theme.color.status.danger.subtle : theme.color.brand.subtle;
 
   const surface = (pressed: boolean) => {
     if (variant === 'gradient') return 'transparent';
     if (variant === 'primary') {
-      return pressed ? theme.color.brand.solidPressed : theme.color.brand.solid;
+      // danger 톤은 브랜드처럼 눌림 전용 진한 색이 따로 없어 solid 하나로 통일한다.
+      return pressed && !danger ? theme.color.brand.solidPressed : toneSolid;
     }
     if (variant === 'outline') {
-      return pressed ? theme.color.brand.subtle : theme.color.background.surface;
+      return pressed ? toneSubtle : theme.color.background.surface;
     }
     if (variant === 'ghost') {
       return pressed ? theme.color.background.surfaceSunken : theme.color.background.surface;
@@ -53,7 +61,7 @@ export function Button({
     variant === 'primary' || variant === 'gradient'
       ? theme.color.text.onBrand
       : variant === 'outline'
-        ? theme.color.brand.solid
+        ? toneSolid
         : theme.color.text.default; // secondary, ghost
 
   const content = loading ? (
@@ -83,7 +91,7 @@ export function Button({
           paddingHorizontal: sm ? theme.space.md : theme.space.lg,
           backgroundColor: surface(state.pressed),
           borderWidth: variant === 'outline' ? 1.5 : variant === 'ghost' ? 1 : 0,
-          borderColor: variant === 'ghost' ? theme.color.border.default : theme.color.brand.solid,
+          borderColor: variant === 'ghost' ? theme.color.border.default : toneSolid,
           opacity: isDisabled ? 0.5 : state.pressed && variant === 'gradient' ? 0.92 : 1,
         },
         typeof style === 'function' ? style(state) : style,
