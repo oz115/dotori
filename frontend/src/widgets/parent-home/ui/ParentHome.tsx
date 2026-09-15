@@ -62,7 +62,7 @@ export function ParentHome() {
           isPending={account.isPending}
           onLinkAccount={() => router.push('/account/link')}
           onTransfer={notReady}
-          onHistory={notReady}
+          onHistory={() => router.push('/account/transactions')}
         />
 
         <ApprovalsCard
