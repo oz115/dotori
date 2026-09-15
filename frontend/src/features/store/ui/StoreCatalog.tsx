@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { StoreMascotCharacter } from '@/features/store/lib/mascotImage';
 import { useStoreProducts } from '@/features/store/model/useStoreProducts';
 import type { StoreProductSummary } from '@/features/store/model/types';
 import { CategoryFilterBar, type CategoryFilterKey } from '@/features/store/ui/CategoryFilterBar';
@@ -13,34 +14,33 @@ import { Header, Screen } from '@/shared/ui';
 
 type StoreCatalogProps = {
   familyId: number | undefined;
+  /** 배너에 쓸 마스코트. 라우트가 role 에 맞춰 넘긴다. */
+  character: StoreMascotCharacter;
   /**
-   * 넘기면 헤더 우측에 "+ 상품 등록" 버튼이 뜬다 (부모 전용). 자녀 화면은 이 prop을
+   * 넘기면 우측 하단에 "+" 플로팅 버튼이 뜬다 (부모 전용). 자녀 화면은 이 prop을
    * 아예 넘기지 않는다 — role 을 이 feature 가 직접 알 필요가 없도록 라우트가 결정한다.
    */
   onRegisterPress?: () => void;
 };
 
-/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무만 라우트가 결정한다. */
-export function StoreCatalog({ familyId, onRegisterPress }: StoreCatalogProps) {
+/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터는 라우트가 결정한다. */
+export function StoreCatalog({ familyId, character, onRegisterPress }: StoreCatalogProps) {
   const theme = useTheme();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
-  const { data, isPending, isError } = useStoreProducts(familyId);
+  const { data, isPending, isError, refetch } = useStoreProducts(familyId);
 
   const products = useMemo(() => filterByCategory(data ?? [], category), [data, category]);
 
-  const registerButton = onRegisterPress ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="상품 등록"
-      onPress={onRegisterPress}
-      hitSlop={8}
-    >
-      <Ionicons name="add" size={26} color={theme.color.text.strong} />
-    </Pressable>
-  ) : undefined;
+  // 탭 화면은 전환해도 언마운트되지 않아서, 다른 탭에서 등록/구매가 일어나도 이 화면은
+  // 그 변화를 모른다. 상점 탭으로 돌아올 때마다(앱을 껐다 켜지 않아도) 다시 받아온다.
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   return (
-    <Screen header={<Header title="상점" right={registerButton} />} padded={false}>
+    <Screen header={<Header title="상점" />} padded={false}>
       <FlatList
         data={products}
         keyExtractor={(item) => String(item.storeProductId)}
@@ -65,7 +65,7 @@ export function StoreCatalog({ familyId, onRegisterPress }: StoreCatalogProps) {
         ]}
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <StoreBanner />
+            <StoreBanner character={character} />
             <CategoryFilterBar selected={category} onSelect={setCategory} />
           </View>
         }
@@ -82,6 +82,24 @@ export function StoreCatalog({ familyId, onRegisterPress }: StoreCatalogProps) {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {onRegisterPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="상품 등록"
+          onPress={onRegisterPress}
+          style={({ pressed }) => [
+            styles.fab,
+            theme.shadow.card,
+            {
+              backgroundColor: pressed ? theme.color.brand.solidPressed : theme.color.brand.solid,
+              borderRadius: theme.radius.full,
+            },
+          ]}
+        >
+          <Ionicons name="add" size={28} color={theme.color.text.onBrand} />
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }
@@ -95,6 +113,17 @@ function filterByCategory(
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 40, flexGrow: 1 },
-  cell: { flex: 1 },
+  // maxWidth 없이 flex:1 만 쓰면, 상품이 홀수 개일 때 마지막 줄의 카드 하나가
+  // 짝을 못 만나 행 전체 너비로 늘어난다(이미지·글자까지 통째로 커짐). 50%로 캡을 건다.
+  cell: { flex: 1, maxWidth: '50%' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

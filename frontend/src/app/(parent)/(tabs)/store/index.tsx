@@ -9,6 +9,7 @@ export default function ParentStoreScreen() {
   return (
     <StoreCatalog
       familyId={familyId ?? undefined}
+      character="parent"
       onRegisterPress={() => router.push('/store/new')}
     />
   );
