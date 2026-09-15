@@ -48,3 +48,14 @@ export function parseQuantity(raw: string): number | null {
   if (!/^\d+$/.test(raw.trim())) return null;
   return Number(raw.trim());
 }
+
+/**
+ * 수정 화면 전용 가격 검증. 백엔드 StoreProductUpdateRequest의 `@Positive`와 맞춘다 —
+ * 0 이하는 안 되고, 1 이상의 정수만 허용한다.
+ */
+export function validatePrice(raw: string): string | undefined {
+  if (!/^\d+$/.test(raw.trim()) || Number(raw.trim()) <= 0) {
+    return '1 이상의 숫자를 입력해주세요.';
+  }
+  return undefined;
+}
