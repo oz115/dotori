@@ -66,13 +66,14 @@ class PurchaseControllerTest {
 		OffsetDateTime purchasedAt = OffsetDateTime.of(2026, 8, 28, 14, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(purchaseHistoryService.getPurchases(eq(10), eq(1), eq(1), isNull(), isNull()))
 			.willReturn(new PurchaseHistoryResponse(
-				List.of(new PurchaseHistoryItem(1, "게임 30분 이용권", 1, 3000, purchasedAt))));
+				List.of(new PurchaseHistoryItem(1, 5, "게임 30분 이용권", 1, 3000, purchasedAt))));
 
 		mockMvc.perform(get(PURCHASES_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.purchases.length()").value(1))
 			.andExpect(jsonPath("$.purchases[0].purchaseId").value(1))
+			.andExpect(jsonPath("$.purchases[0].storeProductId").value(5))
 			.andExpect(jsonPath("$.purchases[0].productName").value("게임 30분 이용권"))
 			.andExpect(jsonPath("$.purchases[0].quantity").value(1))
 			.andExpect(jsonPath("$.purchases[0].totalPrice").value(3000))

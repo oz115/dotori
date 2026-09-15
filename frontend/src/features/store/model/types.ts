@@ -38,6 +38,16 @@ export type StoreProductUpdateBody = {
   quantity: number;
 };
 
+/** GET .../store/purchases 목록의 한 건 (SHOP-07) */
+export type PurchaseHistoryItem = {
+  purchaseId: number;
+  storeProductId: number;
+  productName: string;
+  quantity: number;
+  totalPrice: number;
+  purchasedAt: string;
+};
+
 /** POST .../store/products/{productId}/purchases 응답 (SHOP-06) */
 export type StorePurchaseResult = {
   purchaseId: number;

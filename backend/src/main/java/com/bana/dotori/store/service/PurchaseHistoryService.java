@@ -47,8 +47,8 @@ public class PurchaseHistoryService {
 	}
 
 	private PurchaseHistoryItem toItem(Purchase purchase) {
-		return new PurchaseHistoryItem(purchase.getId(), purchase.getProductName(), purchase.getQuantity(),
-			purchase.getPrice() * purchase.getQuantity(), purchase.getPurchasedAt());
+		return new PurchaseHistoryItem(purchase.getId(), purchase.getStoreProductId(), purchase.getProductName(),
+			purchase.getQuantity(), purchase.getPrice() * purchase.getQuantity(), purchase.getPurchasedAt());
 	}
 
 	/**
