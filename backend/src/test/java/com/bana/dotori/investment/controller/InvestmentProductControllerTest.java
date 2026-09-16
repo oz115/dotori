@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,7 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
@@ -126,5 +128,38 @@ class InvestmentProductControllerTest {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
 		then(investmentProductService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("상품 상세 조회 성공 시 200과 명세 형식의 상세를 반환한다")
+	void getProductDetail_success() throws Exception {
+		givenAuthenticated();
+		given(investmentProductService.getProductDetail(1, 1)).willReturn(new InvestmentProductDetailResponse(
+			1, "시원아이스", "아이스크림을 만드는 회사", InvestmentProductCategory.STOCK, 1100, 100, 1000, true,
+			OffsetDateTime.parse("2026-09-16T00:05:00+09:00")));
+
+		mockMvc.perform(get(PRODUCTS_URL + "/1").header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.investmentProductId").value(1))
+			.andExpect(jsonPath("$.name").value("시원아이스"))
+			.andExpect(jsonPath("$.description").value("아이스크림을 만드는 회사"))
+			.andExpect(jsonPath("$.category").value("STOCK"))
+			.andExpect(jsonPath("$.currentPrice").value(1100))
+			.andExpect(jsonPath("$.changeAmount").value(100))
+			.andExpect(jsonPath("$.previousPrice").value(1000))
+			.andExpect(jsonPath("$.isActive").value(true))
+			.andExpect(jsonPath("$.updatedAt").exists());
+	}
+
+	@Test
+	@DisplayName("없는 상품을 상세 조회하면 404와 PRODUCT_NOT_FOUND 에러를 반환한다")
+	void getProductDetail_notFound() throws Exception {
+		givenAuthenticated();
+		given(investmentProductService.getProductDetail(1, 99))
+			.willThrow(new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		mockMvc.perform(get(PRODUCTS_URL + "/99").header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
 	}
 }
