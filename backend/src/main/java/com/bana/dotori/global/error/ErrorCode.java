@@ -101,6 +101,9 @@ public enum ErrorCode {
 	ALREADY_HOLDING(HttpStatus.CONFLICT, "이미 보유 중인 종목입니다"),
 	INSUFFICIENT_QUANTITY(HttpStatus.BAD_REQUEST, "보유하지 않은 종목입니다"),
 
+	// 단어장 (WORD)
+	WORD_NOT_FOUND(HttpStatus.NOT_FOUND, "단어를 찾을 수 없습니다"),
+
 	// 알림 (NOTI)
 	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다"),
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
