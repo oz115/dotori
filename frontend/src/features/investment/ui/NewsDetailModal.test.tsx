@@ -1,8 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type { ReactElement } from 'react';
 
+import { investmentApi } from '@/features/investment/api/investmentApi';
 import type { InvestmentNews } from '@/features/investment/model/types';
 
 import { NewsDetailModal } from './NewsDetailModal';
+
+jest.mock('@/features/investment/api/investmentApi', () => ({
+  investmentApi: {
+    getNewsDetail: jest.fn(),
+  },
+}));
 
 const content = '태수 마트 근처에 아주 큰 마트가 새로 문을 열었어요.';
 
@@ -18,30 +27,56 @@ const news: InvestmentNews = {
   emoji: '🛒',
 };
 
+/** useQuery 를 쓰는 컴포넌트라 매 테스트 새 QueryClient 로 감싼다 */
+function renderWithQuery(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
+
 describe('NewsDetailModal', () => {
   it('news 가 null 이면 아무것도 그리지 않는다', async () => {
-    await render(<NewsDetailModal news={null} onClose={jest.fn()} />);
+    await renderWithQuery(<NewsDetailModal news={null} onClose={jest.fn()} />);
 
     expect(screen.queryByText('확인')).toBeNull();
   });
 
   it('뉴스 본문·관련 회사·영향 방향을 보여준다', async () => {
-    await render(<NewsDetailModal news={news} onClose={jest.fn()} />);
+    await renderWithQuery(<NewsDetailModal news={news} onClose={jest.fn()} />);
 
     expect(screen.getByText(content)).toBeTruthy();
     expect(screen.getByText('태수 마트')).toBeTruthy();
     expect(screen.getByText('📉 내리는 뉴스')).toBeTruthy();
   });
 
+  it('본문이 없으면 상세 API 로 채운다', async () => {
+    jest.mocked(investmentApi.getNewsDetail).mockResolvedValue({
+      investmentNewsId: 3,
+      title: news.title,
+      content,
+      impact: 'NEGATIVE',
+      relatedProducts: [],
+      publishedAt: '2025-09-07T06:00:00+09:00',
+    });
+
+    await renderWithQuery(
+      <NewsDetailModal news={{ ...news, content: undefined }} onClose={jest.fn()} />,
+    );
+
+    expect(await screen.findByText(content)).toBeTruthy();
+    expect(jest.mocked(investmentApi.getNewsDetail)).toHaveBeenCalledWith(3);
+  });
+
   it('오르는 뉴스는 상승 배지를 보여준다', async () => {
-    await render(<NewsDetailModal news={{ ...news, impact: 'POSITIVE' }} onClose={jest.fn()} />);
+    await renderWithQuery(
+      <NewsDetailModal news={{ ...news, impact: 'POSITIVE' }} onClose={jest.fn()} />,
+    );
 
     expect(screen.getByText('📈 오르는 뉴스')).toBeTruthy();
   });
 
   it('확인 버튼을 누르면 onClose 가 호출된다', async () => {
     const onClose = jest.fn();
-    await render(<NewsDetailModal news={news} onClose={onClose} />);
+    await renderWithQuery(<NewsDetailModal news={news} onClose={onClose} />);
 
     fireEvent.press(screen.getByText('확인'));
 
