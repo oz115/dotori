@@ -1,0 +1,26 @@
+package com.bana.dotori.investment.repository;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.bana.dotori.investment.entity.InvestmentPriceHistory;
+
+public interface InvestmentPriceHistoryRepository extends JpaRepository<InvestmentPriceHistory, Integer> {
+
+	/**
+	 * 가족의 상품별 최신 가격 행 — 기록 시각이 before 미만인 것 중 가장 최근 것 하나씩.
+	 * before 에 먼 미래를 주면 현재가, 오늘(KST) 자정을 주면 전일가가 된다.
+	 * (family_id, investment_product_id, recorded_at) 인덱스를 탄다.
+	 */
+	@Query("select ph from InvestmentPriceHistory ph "
+		+ "where ph.familyId = :familyId and ph.recordedAt < :before "
+		+ "and ph.recordedAt = (select max(ph2.recordedAt) from InvestmentPriceHistory ph2 "
+		+ "where ph2.familyId = ph.familyId "
+		+ "and ph2.investmentProductId = ph.investmentProductId and ph2.recordedAt < :before)")
+	List<InvestmentPriceHistory> findLatestPerProductBefore(@Param("familyId") Integer familyId,
+		@Param("before") OffsetDateTime before);
+}
