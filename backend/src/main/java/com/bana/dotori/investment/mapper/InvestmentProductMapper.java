@@ -33,10 +33,10 @@ public class InvestmentProductMapper {
 			product.getIsActive(), updatedAt.atZoneSameInstant(KST).toOffsetDateTime());
 	}
 
-	/** 보유 종목 한 건 — 수량·평균 매수 단가는 거래 집계값, currentPrice 는 가족별 최신가. */
+	/** 보유 종목 한 건 — 수량·매수 가격은 investment_holdings 행 그대로, currentPrice 는 가족별 최신가. */
 	public InvestmentHoldingSummary toHoldingSummary(InvestmentProduct product, int quantity,
-		int averageBuyPrice, int currentPrice) {
-		return new InvestmentHoldingSummary(product.getId(), product.getName(), quantity, averageBuyPrice,
+		int buyPrice, int currentPrice) {
+		return new InvestmentHoldingSummary(product.getId(), product.getName(), quantity, buyPrice,
 			currentPrice);
 	}
 }

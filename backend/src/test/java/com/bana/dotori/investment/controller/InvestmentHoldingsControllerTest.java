@@ -69,7 +69,7 @@ class InvestmentHoldingsControllerTest {
 			.andExpect(jsonPath("$.holdings[0].investmentProductId").value(1))
 			.andExpect(jsonPath("$.holdings[0].productName").value("시원아이스"))
 			.andExpect(jsonPath("$.holdings[0].quantity").value(15))
-			.andExpect(jsonPath("$.holdings[0].averageBuyPrice").value(1100))
+			.andExpect(jsonPath("$.holdings[0].buyPrice").value(1100))
 			.andExpect(jsonPath("$.holdings[0].currentPrice").value(1300));
 	}
 

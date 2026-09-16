@@ -240,13 +240,13 @@ class InvestmentProductServiceImplTest {
 
 	private static final Integer CHILD_ID = 20;
 
-	private InvestmentHolding holding(Integer childId, Integer productId, int quantity, int averageBuyPrice) {
+	private InvestmentHolding holding(Integer childId, Integer productId, int quantity, int buyPrice) {
 		return InvestmentHolding.builder()
 			.familyId(FAMILY_ID)
 			.childId(childId)
 			.investmentProductId(productId)
 			.quantity(quantity)
-			.averageBuyPrice(averageBuyPrice)
+			.buyPrice(buyPrice)
 			.build();
 	}
 
@@ -322,7 +322,7 @@ class InvestmentProductServiceImplTest {
 		assertThat(holding.investmentProductId()).isEqualTo(1);
 		assertThat(holding.productName()).isEqualTo("시원아이스");
 		assertThat(holding.quantity()).isEqualTo(15);
-		assertThat(holding.averageBuyPrice()).isEqualTo(1100);
+		assertThat(holding.buyPrice()).isEqualTo(1100);
 		assertThat(holding.currentPrice()).isEqualTo(1300);
 	}
 
@@ -342,7 +342,7 @@ class InvestmentProductServiceImplTest {
 
 		InvestmentHoldingSummary holding = response.holdings().get(0);
 		assertThat(holding.quantity()).isEqualTo(2);
-		assertThat(holding.averageBuyPrice()).isEqualTo(10000);
+		assertThat(holding.buyPrice()).isEqualTo(10000);
 		assertThat(holding.currentPrice()).isEqualTo(10000);
 	}
 

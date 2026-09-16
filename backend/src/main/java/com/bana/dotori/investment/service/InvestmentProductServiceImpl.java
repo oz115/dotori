@@ -132,7 +132,7 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			.map(holding -> {
 				InvestmentProduct product = products.get(holding.getInvestmentProductId());
 				return investmentProductMapper.toHoldingSummary(product, holding.getQuantity(),
-					holding.getAverageBuyPrice(),
+					holding.getBuyPrice(),
 					latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()));
 			})
 			.toList());

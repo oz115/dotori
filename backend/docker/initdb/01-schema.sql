@@ -430,14 +430,14 @@ CREATE TABLE "investment_price_history" (
 
 /* 아이별 현재 보유 현황. 매수/매도 API 가 investment_transactions 기록과
    같은 트랜잭션으로 이 테이블을 갱신하고, 보유 조회(INV-T-03)는 이 테이블만 읽는다.
-   average_buy_price 는 매수 시점 가격의 수량 가중 평균 — 전량 매도 시 행을 지운다. */
+   buy_price 는 샀을 때 그 시점의 종목 가격(종목당 1주 규칙) — 매도 시 행을 지운다. */
 CREATE TABLE "investment_holdings" (
     "investment_holding_id" SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
     "child_id"              INTEGER     NOT NULL,
     "investment_product_id" INTEGER     NOT NULL,
     "quantity"              INTEGER     NOT NULL,
-    "average_buy_price"     INTEGER     NOT NULL,
+    "buy_price"     INTEGER     NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
