@@ -27,6 +27,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
@@ -204,5 +205,25 @@ class NotificationServiceImplTest {
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
 		assertThat(notification.isRead()).isFalse();
+	}
+
+	@Test
+	@DisplayName("전체 읽음 처리 시 리포지토리가 반환한 건수를 그대로 updatedCount에 담는다")
+	void markAllAsRead_returnsUpdatedCount() {
+		given(notificationRepository.markAllAsRead(USER_ID)).willReturn(3);
+
+		NotificationReadAllResponse response = notificationService.markAllAsRead(USER_ID);
+
+		assertThat(response.updatedCount()).isEqualTo(3);
+	}
+
+	@Test
+	@DisplayName("안 읽은 알림이 없으면 updatedCount 0을 반환한다")
+	void markAllAsRead_noUnread_returnsZero() {
+		given(notificationRepository.markAllAsRead(USER_ID)).willReturn(0);
+
+		NotificationReadAllResponse response = notificationService.markAllAsRead(USER_ID);
+
+		assertThat(response.updatedCount()).isEqualTo(0);
 	}
 }

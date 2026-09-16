@@ -33,6 +33,7 @@ import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
@@ -230,6 +231,27 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰 없이 읽음 처리를 호출하면 401을 반환한다")
 	void markAsRead_unauthenticated() throws Exception {
 		mockMvc.perform(patch(NOTIFICATIONS_URL + "/1/read"))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("전체 읽음 처리 성공 시 200과 updatedCount를 반환한다")
+	void markAllAsRead_success() throws Exception {
+		givenAuthenticated(1);
+		given(notificationService.markAllAsRead(1)).willReturn(new NotificationReadAllResponse(3));
+
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/read-all")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.updatedCount").value(3));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 전체 읽음 처리를 호출하면 401을 반환한다")
+	void markAllAsRead_unauthenticated() throws Exception {
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/read-all"))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();

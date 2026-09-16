@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
@@ -43,5 +44,10 @@ public class NotificationController {
 	public ResponseEntity<NotificationReadResponse> markAsRead(@AuthenticationPrincipal Integer userId,
 			@PathVariable Integer notificationId) {
 		return ResponseEntity.ok(notificationService.markAsRead(userId, notificationId));
+	}
+
+	@PatchMapping("/read-all")
+	public ResponseEntity<NotificationReadAllResponse> markAllAsRead(@AuthenticationPrincipal Integer userId) {
+		return ResponseEntity.ok(notificationService.markAllAsRead(userId));
 	}
 }

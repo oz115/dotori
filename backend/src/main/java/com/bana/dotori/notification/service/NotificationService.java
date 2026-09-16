@@ -2,6 +2,7 @@ package com.bana.dotori.notification.service;
 
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 
@@ -26,4 +27,10 @@ public interface NotificationService {
 	 * 알림에 다시 호출해도 에러 없이 그대로 성공한다(멱등).
 	 */
 	NotificationReadResponse markAsRead(Integer userId, Integer notificationId);
+
+	/**
+	 * 본인의 안 읽은 알림을 전부 읽음 처리한다 (NOTI-04). 대상 id 를 지정하지 않으므로
+	 * 소유권 검증이 없다.
+	 */
+	NotificationReadAllResponse markAllAsRead(Integer userId);
 }

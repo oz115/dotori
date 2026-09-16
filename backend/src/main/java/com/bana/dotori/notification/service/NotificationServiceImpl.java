@@ -14,6 +14,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
@@ -56,6 +57,13 @@ public class NotificationServiceImpl implements NotificationService {
 		Notification notification = findOwnedOrThrow(userId, notificationId);
 		notification.markAsRead();
 		return new NotificationReadResponse(notification.getId(), notification.isRead());
+	}
+
+	@Override
+	@Transactional
+	public NotificationReadAllResponse markAllAsRead(Integer userId) {
+		int updatedCount = notificationRepository.markAllAsRead(userId);
+		return new NotificationReadAllResponse(updatedCount);
 	}
 
 	private Notification findOwnedOrThrow(Integer userId, Integer notificationId) {
