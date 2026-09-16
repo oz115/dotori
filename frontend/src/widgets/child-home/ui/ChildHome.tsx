@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useMyAccount } from '@/features/account';
+import { useUnreadNotificationCount } from '@/features/notification';
 import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
 import { AppTopBar } from '@/shared/ui';
@@ -24,13 +25,18 @@ export function ChildHome() {
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
   const account = useMyAccount();
+  const unreadCount = useUnreadNotificationCount();
 
   return (
     <SafeAreaView
       edges={['top']}
       style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
     >
-      <AppTopBar onProfilePress={() => router.push('/mypage')} />
+      <AppTopBar
+        onProfilePress={() => router.push('/mypage')}
+        onNotificationsPress={() => router.push('/(child)/notifications')}
+        unreadCount={unreadCount.data?.unreadCount}
+      />
 
       <ScrollView
         contentContainerStyle={[
