@@ -25,8 +25,10 @@ import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
 import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
 import com.bana.dotori.user.entity.UserRole;
+import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.service.PointDeductionService;
+import com.bana.dotori.wallet.service.PointWalletService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -52,6 +54,7 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 	private final FamilyMemberRepository familyMemberRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 	private final PointDeductionService pointDeductionService;
+	private final PointWalletService pointWalletService;
 
 	@Override
 	@Transactional
@@ -89,6 +92,33 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 			throw new BusinessException(ErrorCode.ALREADY_HOLDING);
 		}
 
+		return investmentProductMapper.toOrderResponse(transaction, balanceAfter);
+	}
+
+	/**
+	 * 매도 = 들고 있는 1주 전량. 거래 중지(is_active=false) 종목도 팔 수는 있어야
+	 * 아이 포인트가 묶이지 않는다 — 매수와 달리 활성 검사를 하지 않는 이유.
+	 */
+	@Override
+	@Transactional
+	public InvestmentOrderResponse sell(Integer userId, InvestmentOrderRequest request) {
+		Integer familyId = requireChildFamily(userId);
+
+		InvestmentProduct product = investmentProductRepository.findById(request.investmentProductId())
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		// 보유 확인을 겸하는 삭제 — 지운 행이 없으면 팔 것이 없다.
+		// 동시 매도(연타)도 행 잠금 덕에 한쪽만 1을 받아, 포인트가 두 번 지급되지 않는다.
+		if (investmentHoldingRepository.deleteHolding(familyId, userId, product.getId()) == 0) {
+			throw new BusinessException(ErrorCode.INSUFFICIENT_QUANTITY);
+		}
+
+		int unitPrice = currentPrice(familyId, product);
+		int balanceAfter = pointWalletService.deposit(PointChangeCommand.of(userId, unitPrice,
+			PointTransactionReason.INVESTMENT_SELL, "투자 매도: " + product.getName(), null)).balanceAfter();
+
+		InvestmentTransaction transaction = investmentTransactionRepository.save(
+			transaction(familyId, userId, product.getId(), InvestmentTransactionType.SELL, unitPrice));
 		return investmentProductMapper.toOrderResponse(transaction, balanceAfter);
 	}
 

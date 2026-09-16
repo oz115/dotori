@@ -43,9 +43,11 @@ import com.bana.dotori.investment.repository.InvestmentProductRepository;
 import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
+import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 import com.bana.dotori.wallet.service.PointDeductionService;
+import com.bana.dotori.wallet.service.PointWalletService;
 
 @ExtendWith(MockitoExtension.class)
 class InvestmentOrderServiceImplTest {
@@ -70,6 +72,9 @@ class InvestmentOrderServiceImplTest {
 
 	@Mock
 	private PointDeductionService pointDeductionService;
+
+	@Mock
+	private PointWalletService pointWalletService;
 
 	@Spy
 	private InvestmentProductMapper investmentProductMapper;
@@ -223,6 +228,64 @@ class InvestmentOrderServiceImplTest {
 			.extracting("errorCode")
 			.isEqualTo(ErrorCode.ALREADY_HOLDING);
 		then(pointDeductionService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("매도 성공 시 보유 행을 지우고 현재가만큼 지급한 뒤 체결 결과를 반환한다")
+	void sell_success() {
+		givenChild();
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, true)));
+		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(1);
+		givenCurrentPrice(1, 1300);
+		given(pointWalletService.deposit(any(PointChangeCommand.class)))
+			.willReturn(new PointChangeResult(2, CHILD_ID, PointTransactionReason.INVESTMENT_SELL, 1300,
+				9300, OffsetDateTime.now(), false));
+		givenTransactionSaved();
+
+		InvestmentOrderResponse response = investmentOrderService.sell(CHILD_ID, new InvestmentOrderRequest(1));
+
+		assertThat(response.transactionType()).isEqualTo(InvestmentTransactionType.SELL);
+		assertThat(response.quantity()).isEqualTo(1);
+		assertThat(response.unitPrice()).isEqualTo(1300);
+		assertThat(response.totalAmount()).isEqualTo(1300);
+		assertThat(response.pointBalanceAfter()).isEqualTo(9300);
+
+		ArgumentCaptor<PointChangeCommand> commandCaptor = ArgumentCaptor.forClass(PointChangeCommand.class);
+		then(pointWalletService).should().deposit(commandCaptor.capture());
+		assertThat(commandCaptor.getValue().amount()).isEqualTo(1300);
+		assertThat(commandCaptor.getValue().reason()).isEqualTo(PointTransactionReason.INVESTMENT_SELL);
+	}
+
+	@Test
+	@DisplayName("거래 중지된 종목도 매도는 가능하다 — 아이 포인트가 묶이지 않게")
+	void sell_inactiveProductAllowed() {
+		givenChild();
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, false)));
+		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(1);
+		givenCurrentPrice(1, 900);
+		given(pointWalletService.deposit(any(PointChangeCommand.class)))
+			.willReturn(new PointChangeResult(2, CHILD_ID, PointTransactionReason.INVESTMENT_SELL, 900,
+				900, OffsetDateTime.now(), false));
+		givenTransactionSaved();
+
+		InvestmentOrderResponse response = investmentOrderService.sell(CHILD_ID, new InvestmentOrderRequest(1));
+
+		assertThat(response.unitPrice()).isEqualTo(900);
+	}
+
+	@Test
+	@DisplayName("보유하지 않은 종목을 매도하면 INSUFFICIENT_QUANTITY 예외가 발생하고 지급하지 않는다")
+	void sell_notHolding() {
+		givenChild();
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, true)));
+		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(0);
+
+		assertThatThrownBy(() -> investmentOrderService.sell(CHILD_ID, new InvestmentOrderRequest(1)))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INSUFFICIENT_QUANTITY);
+		then(pointWalletService).shouldHaveNoInteractions();
+		then(investmentTransactionRepository).shouldHaveNoInteractions();
 	}
 
 	@Test

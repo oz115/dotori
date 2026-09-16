@@ -27,4 +27,10 @@ public class InvestmentOrderController {
 		@Valid @RequestBody InvestmentOrderRequest request) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(investmentOrderService.buy(userId, request));
 	}
+
+	@PostMapping("/sell")
+	public ResponseEntity<InvestmentOrderResponse> sell(@AuthenticationPrincipal Integer userId,
+		@Valid @RequestBody InvestmentOrderRequest request) {
+		return ResponseEntity.status(HttpStatus.CREATED).body(investmentOrderService.sell(userId, request));
+	}
 }

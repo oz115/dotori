@@ -41,6 +41,7 @@ import com.bana.dotori.investment.service.InvestmentOrderService;
 class InvestmentOrderControllerTest {
 
 	private static final String BUY_URL = "/api/v1/investments/orders/buy";
+	private static final String SELL_URL = "/api/v1/investments/orders/sell";
 	private static final String BEARER = "Bearer valid-access-token";
 
 	@Autowired
@@ -126,6 +127,41 @@ class InvestmentOrderControllerTest {
 				.content("{\"investmentProductId\": 1}"))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("PRODUCT_INACTIVE"));
+	}
+
+	@Test
+	@DisplayName("매도 성공 시 201과 체결 결과를 반환한다")
+	void sell_success() throws Exception {
+		givenAuthenticated();
+		given(investmentOrderService.sell(eq(1), any(InvestmentOrderRequest.class)))
+			.willReturn(new InvestmentOrderResponse(101, InvestmentTransactionType.SELL, 1, 1300, 1300, 9300,
+				OffsetDateTime.parse("2026-09-16T13:00:00+09:00")));
+
+		mockMvc.perform(post(SELL_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"investmentProductId\": 1}"))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.investmentTransactionId").value(101))
+			.andExpect(jsonPath("$.transactionType").value("SELL"))
+			.andExpect(jsonPath("$.quantity").value(1))
+			.andExpect(jsonPath("$.unitPrice").value(1300))
+			.andExpect(jsonPath("$.pointBalanceAfter").value(9300));
+	}
+
+	@Test
+	@DisplayName("보유하지 않은 종목을 매도하면 400과 INSUFFICIENT_QUANTITY 에러를 반환한다")
+	void sell_notHolding() throws Exception {
+		givenAuthenticated();
+		given(investmentOrderService.sell(eq(1), any(InvestmentOrderRequest.class)))
+			.willThrow(new BusinessException(ErrorCode.INSUFFICIENT_QUANTITY));
+
+		mockMvc.perform(post(SELL_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"investmentProductId\": 1}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INSUFFICIENT_QUANTITY"));
 	}
 
 	@Test

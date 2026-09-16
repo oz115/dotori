@@ -6,4 +6,6 @@ import com.bana.dotori.investment.dto.InvestmentOrderResponse;
 public interface InvestmentOrderService {
 
 	InvestmentOrderResponse buy(Integer userId, InvestmentOrderRequest request);
+
+	InvestmentOrderResponse sell(Integer userId, InvestmentOrderRequest request);
 }
