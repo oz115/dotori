@@ -4,6 +4,7 @@ import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
+import com.bana.dotori.notification.dto.NotificationUnreadCountResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 
 public interface NotificationService {
@@ -39,4 +40,10 @@ public interface NotificationService {
 	 * notifications 테이블엔 deleted_at 이 없어 hard delete 한다.
 	 */
 	void deleteNotification(Integer userId, Integer notificationId);
+
+	/**
+	 * 벨 아이콘 배지용으로 본인의 안 읽은 알림 개수만 가볍게 조회한다 (NOTI-11).
+	 * getNotifications의 unreadCount와 같은 방식(필터 무관, 본인 전체 미읽)으로 계산한다.
+	 */
+	NotificationUnreadCountResponse getUnreadCount(Integer userId);
 }
