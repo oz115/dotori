@@ -34,6 +34,7 @@ DROP TABLE IF EXISTS
 "point_transactions",
 "point_cashout_requests",
 "investment_transactions",
+"investment_holdings",
 "savings_transactions",
 "chore_completion_requests",
 "investment_price_history",
@@ -427,6 +428,21 @@ CREATE TABLE "investment_price_history" (
 );
 
 
+/* 아이별 현재 보유 현황. 매수/매도 API 가 investment_transactions 기록과
+   같은 트랜잭션으로 이 테이블을 갱신하고, 보유 조회(INV-T-03)는 이 테이블만 읽는다.
+   average_buy_price 는 매수 시점 가격의 수량 가중 평균 — 전량 매도 시 행을 지운다. */
+CREATE TABLE "investment_holdings" (
+    "investment_holding_id" SERIAL      NOT NULL,
+    "family_id"             INTEGER     NOT NULL,
+    "child_id"              INTEGER     NOT NULL,
+    "investment_product_id" INTEGER     NOT NULL,
+    "quantity"              INTEGER     NOT NULL,
+    "average_buy_price"     INTEGER     NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
 CREATE TABLE "refresh_tokens" (
     "refresh_token_id"      SERIAL      NOT NULL,
     "user_id"               INTEGER     NOT NULL,
@@ -677,6 +693,11 @@ ADD CONSTRAINT "PK_INVESTMENT_PRICE_HISTORY"
 PRIMARY KEY ("investment_price_history_id");
 
 
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "PK_INVESTMENT_HOLDINGS"
+PRIMARY KEY ("investment_holding_id");
+
+
 ALTER TABLE "refresh_tokens"
 ADD CONSTRAINT "PK_REFRESH_TOKENS"
 PRIMARY KEY ("refresh_token_id");
@@ -892,6 +913,23 @@ ALTER TABLE "investment_price_history"
 ADD CONSTRAINT "FK_INVESTMENT_PRICE_HISTORY_FAMILY"
 FOREIGN KEY ("family_id")
 REFERENCES "families" ("family_id");
+
+
+/* investment_holdings */
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_PRODUCT"
+FOREIGN KEY ("investment_product_id")
+REFERENCES "investment_products" ("investment_product_id");
 
 
 /* investment_news_products */
@@ -1297,3 +1335,16 @@ recorded_at 순으로 정렬하므로 그 순서 그대로 건다.
 
 CREATE INDEX "IX_INVESTMENT_PRICE_HISTORY_FAMILY_PRODUCT_RECORDED_AT"
 ON "investment_price_history" ("family_id", "investment_product_id", "recorded_at");
+
+
+/* ---------------------------------------------------------
+investment_holdings — 아이·종목당 보유 행은 하나
+
+보유는 (child_id, investment_product_id)당 한 행을 매수/매도가 갱신하는
+구조라는 불변식이다. 애플리케이션 upsert 만으로는 동시 매수(연타)가
+같은 종목 행을 두 개 만들 수 있어 DB 가 막는다. 조회(가족+아이로 좁힘)도
+이 인덱스의 child_id 를 타므로 별도 조회용 인덱스는 두지 않는다.
+--------------------------------------------------------- */
+
+CREATE UNIQUE INDEX "UX_INVESTMENT_HOLDINGS_CHILD_PRODUCT"
+ON "investment_holdings" ("child_id", "investment_product_id");

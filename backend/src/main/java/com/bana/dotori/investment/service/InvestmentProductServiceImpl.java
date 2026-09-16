@@ -3,7 +3,6 @@ package com.bana.dotori.investment.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,15 +18,14 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
+import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
-import com.bana.dotori.investment.entity.InvestmentTransaction;
-import com.bana.dotori.investment.entity.InvestmentTransactionType;
 import com.bana.dotori.investment.mapper.InvestmentProductMapper;
+import com.bana.dotori.investment.repository.InvestmentHoldingRepository;
 import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
-import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
 import com.bana.dotori.user.entity.UserRole;
 
 import lombok.RequiredArgsConstructor;
@@ -40,7 +38,7 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
-	private final InvestmentTransactionRepository investmentTransactionRepository;
+	private final InvestmentHoldingRepository investmentHoldingRepository;
 	private final FamilyMemberRepository familyMemberRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 
@@ -98,9 +96,9 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	}
 
 	/**
-	 * 보유 종목은 별도 테이블 없이 매수/매도 거래의 집계다 (명세 INV-T-03 각주) —
-	 * 수량 = 매수 합 - 매도 합, 평균 매수 단가 = 매수 총액 ÷ 매수 총수량 (반올림).
-	 * childId 를 주면 그 자녀의 보유를 조회한다 — 내 가족의 자녀가 아니면 403.
+	 * 보유는 investment_holdings 에서 읽는다 — 매수/매도 API 가 거래 기록과 같은
+	 * 트랜잭션으로 갱신해 두는 아이·종목당 한 행이다. childId 를 주면 그 자녀의 보유를
+	 * 조회한다 (부모용) — 내 가족의 자녀가 아니면 403.
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -117,68 +115,27 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			}
 		}
 
-		List<InvestmentTransaction> transactions = investmentTransactionRepository
-			.findAllByFamilyIdAndChildId(familyId, targetUserId);
-
-		Map<Integer, HoldingAccumulator> accumulators = new LinkedHashMap<>();
-		for (InvestmentTransaction transaction : transactions) {
-			accumulators.computeIfAbsent(transaction.getInvestmentProductId(), id -> new HoldingAccumulator())
-				.add(transaction);
-		}
-		// 전량 매도한 종목(수량 0 이하)은 보유 목록에서 뺀다
-		Map<Integer, HoldingAccumulator> held = accumulators.entrySet().stream()
-			.filter(entry -> entry.getValue().quantity() > 0)
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-				(first, second) -> first, LinkedHashMap::new));
-		if (held.isEmpty()) {
+		List<InvestmentHolding> holdings = investmentHoldingRepository
+			.findAllByFamilyIdAndChildIdOrderByInvestmentProductIdAsc(familyId, targetUserId);
+		if (holdings.isEmpty()) {
 			return new InvestmentHoldingsResponse(List.of());
 		}
 
-		Map<Integer, InvestmentProduct> products = investmentProductRepository.findAllById(held.keySet())
+		Map<Integer, InvestmentProduct> products = investmentProductRepository
+			.findAllById(holdings.stream().map(InvestmentHolding::getInvestmentProductId).toList())
 			.stream()
 			.collect(Collectors.toMap(InvestmentProduct::getId, product -> product));
 		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
 		Map<Integer, Integer> latestPrices = latestPriceByProductId(familyId, todayStart.plusDays(1));
 
-		return new InvestmentHoldingsResponse(held.entrySet().stream()
-			.sorted(Map.Entry.comparingByKey())
-			.map(entry -> {
-				InvestmentProduct product = products.get(entry.getKey());
-				HoldingAccumulator accumulator = entry.getValue();
-				return investmentProductMapper.toHoldingSummary(product, accumulator.quantity(),
-					accumulator.averageBuyPrice(),
+		return new InvestmentHoldingsResponse(holdings.stream()
+			.map(holding -> {
+				InvestmentProduct product = products.get(holding.getInvestmentProductId());
+				return investmentProductMapper.toHoldingSummary(product, holding.getQuantity(),
+					holding.getAverageBuyPrice(),
 					latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()));
 			})
 			.toList());
-	}
-
-	/** 한 종목의 매수/매도 누계. 수량과 평균 매수 단가를 거래에서 집계한다. */
-	private static final class HoldingAccumulator {
-
-		private long buyQuantity;
-		private long sellQuantity;
-		private long buyAmount;
-
-		private void add(InvestmentTransaction transaction) {
-			if (transaction.getTransactionType() == InvestmentTransactionType.BUY) {
-				buyQuantity += transaction.getQuantity();
-				buyAmount += transaction.getTotalAmount();
-			} else {
-				sellQuantity += transaction.getQuantity();
-			}
-		}
-
-		private int quantity() {
-			return (int)(buyQuantity - sellQuantity);
-		}
-
-		/** 매수 총액 ÷ 매수 총수량, 반올림. 매도는 평균 매수가를 바꾸지 않는다. */
-		private int averageBuyPrice() {
-			if (buyQuantity <= 0) {
-				return 0;
-			}
-			return (int)Math.round((double)buyAmount / buyQuantity);
-		}
 	}
 
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {

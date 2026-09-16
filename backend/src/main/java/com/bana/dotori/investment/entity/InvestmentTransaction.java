@@ -16,9 +16,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 투자 매수/매도 거래. 보유 수량·평균 매수 단가는 별도 테이블 없이
- * 이 거래들의 집계로 산출한다 (명세 INV-T-03 각주). 지금은 보유 조회가 읽기만 하고,
- * 행을 쓰는 것은 매수·매도 API 태스크의 몫이다.
+ * 투자 매수/매도 거래 이력. 회차별 매수 가격의 원본 기록이고,
+ * 현재 보유 현황은 investment_holdings 가 따로 들고 있다 — 매수·매도 API 태스크가
+ * 두 테이블을 같은 트랜잭션으로 쓴다 (지금 이 엔티티를 읽는 곳은 없다).
  */
 @Entity
 @Table(name = "investment_transactions")
