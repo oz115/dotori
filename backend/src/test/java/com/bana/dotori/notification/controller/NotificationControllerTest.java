@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,6 +33,7 @@ import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
 
@@ -181,6 +183,53 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰 없이 상세 조회를 호출하면 401을 반환한다")
 	void getNotification_unauthenticated() throws Exception {
 		mockMvc.perform(get(NOTIFICATIONS_URL + "/1"))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("읽음 처리 성공 시 200과 isRead=true를 반환한다")
+	void markAsRead_success() throws Exception {
+		givenAuthenticated(1);
+		given(notificationService.markAsRead(1, 1)).willReturn(new NotificationReadResponse(1, true));
+
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/1/read")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.notificationId").value(1))
+			.andExpect(jsonPath("$.isRead").value(true));
+	}
+
+	@Test
+	@DisplayName("본인 알림이 아니면 403과 FORBIDDEN 에러를 반환한다")
+	void markAsRead_forbidden() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(notificationService).markAsRead(1, 1);
+
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/1/read")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("알림이 없으면 404와 NOTIFICATION_NOT_FOUND 에러를 반환한다")
+	void markAsRead_notFound() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND)).given(notificationService)
+			.markAsRead(1, 999);
+
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/999/read")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 읽음 처리를 호출하면 401을 반환한다")
+	void markAsRead_unauthenticated() throws Exception {
+		mockMvc.perform(patch(NOTIFICATIONS_URL + "/1/read"))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();

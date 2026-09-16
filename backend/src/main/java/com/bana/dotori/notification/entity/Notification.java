@@ -71,4 +71,12 @@ public class Notification {
 		this.refId = refId;
 		this.read = false;
 	}
+
+	/**
+	 * 읽음 처리 (NOTI-03). 이미 읽은 알림에 다시 불러도 결과가 같으므로(멱등) 별도 상태
+	 * 검사를 하지 않는다.
+	 */
+	public void markAsRead() {
+		this.read = true;
+	}
 }

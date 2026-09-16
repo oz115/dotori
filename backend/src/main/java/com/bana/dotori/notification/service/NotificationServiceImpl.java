@@ -14,6 +14,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.repository.NotificationRepository;
@@ -46,12 +47,24 @@ public class NotificationServiceImpl implements NotificationService {
 	@Override
 	@Transactional(readOnly = true)
 	public NotificationItem getNotification(Integer userId, Integer notificationId) {
+		return toItem(findOwnedOrThrow(userId, notificationId));
+	}
+
+	@Override
+	@Transactional
+	public NotificationReadResponse markAsRead(Integer userId, Integer notificationId) {
+		Notification notification = findOwnedOrThrow(userId, notificationId);
+		notification.markAsRead();
+		return new NotificationReadResponse(notification.getId(), notification.isRead());
+	}
+
+	private Notification findOwnedOrThrow(Integer userId, Integer notificationId) {
 		Notification notification = notificationRepository.findById(notificationId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
 		if (!notification.getUser().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		return toItem(notification);
+		return notification;
 	}
 
 	private NotificationItem toItem(Notification n) {

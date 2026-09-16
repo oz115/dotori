@@ -3,6 +3,7 @@ package com.bana.dotori.notification.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
 
@@ -35,5 +37,11 @@ public class NotificationController {
 	public ResponseEntity<NotificationItem> getNotification(@AuthenticationPrincipal Integer userId,
 			@PathVariable Integer notificationId) {
 		return ResponseEntity.ok(notificationService.getNotification(userId, notificationId));
+	}
+
+	@PatchMapping("/{notificationId}/read")
+	public ResponseEntity<NotificationReadResponse> markAsRead(@AuthenticationPrincipal Integer userId,
+			@PathVariable Integer notificationId) {
+		return ResponseEntity.ok(notificationService.markAsRead(userId, notificationId));
 	}
 }

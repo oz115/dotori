@@ -27,6 +27,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.repository.NotificationRepository;
@@ -155,5 +156,53 @@ class NotificationServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("본인 알림을 읽음 처리하면 isRead가 true로 바뀐다")
+	void markAsRead_success() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		NotificationReadResponse response = notificationService.markAsRead(USER_ID, 1);
+
+		assertThat(response.notificationId()).isEqualTo(1);
+		assertThat(response.isRead()).isTrue();
+		assertThat(notification.isRead()).isTrue();
+	}
+
+	@Test
+	@DisplayName("이미 읽은 알림을 다시 읽음 처리해도 그대로 성공한다(멱등)")
+	void markAsRead_alreadyRead_staysSuccessful() {
+		Notification notification = notification(1, NotificationType.CASHOUT, true);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		NotificationReadResponse response = notificationService.markAsRead(USER_ID, 1);
+
+		assertThat(response.isRead()).isTrue();
+	}
+
+	@Test
+	@DisplayName("읽음 처리 대상 알림이 없으면 NOTIFICATION_NOT_FOUND 예외가 발생한다")
+	void markAsRead_notFound() {
+		given(notificationRepository.findById(999)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> notificationService.markAsRead(USER_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("다른 사용자의 알림을 읽음 처리하려 하면 FORBIDDEN 예외가 발생한다")
+	void markAsRead_otherUsersNotification() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		assertThatThrownBy(() -> notificationService.markAsRead(999, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		assertThat(notification.isRead()).isFalse();
 	}
 }

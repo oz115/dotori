@@ -2,6 +2,7 @@ package com.bana.dotori.notification.service;
 
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
+import com.bana.dotori.notification.dto.NotificationReadResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 
 public interface NotificationService {
@@ -19,4 +20,10 @@ public interface NotificationService {
 	 * (명세가 두 상태를 명시적으로 구분).
 	 */
 	NotificationItem getNotification(Integer userId, Integer notificationId);
+
+	/**
+	 * 알림을 읽음 처리한다 (NOTI-03). 소유권 규칙은 getNotification과 같다. 이미 읽은
+	 * 알림에 다시 호출해도 에러 없이 그대로 성공한다(멱등).
+	 */
+	NotificationReadResponse markAsRead(Integer userId, Integer notificationId);
 }
