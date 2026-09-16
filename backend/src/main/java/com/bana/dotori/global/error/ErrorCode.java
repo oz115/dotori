@@ -96,7 +96,10 @@ public enum ErrorCode {
 	FILE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "사진 저장에 실패했습니다"),
 
 	// 투자 (INVEST)
-	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다");
+	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다"),
+
+	// 알림 (NOTI)
+	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다");
 
 	private final HttpStatus status;
 	private final String message;

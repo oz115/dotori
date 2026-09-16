@@ -16,6 +16,7 @@ export default function ChildStoreScreen() {
           params: { productId: String(productId) },
         })
       }
+      onHistoryPress={() => router.push('/(child)/purchases')}
     />
   );
 }

@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { walletApi } from '@/features/wallet/api/walletApi';
-import { newIdempotencyKey } from '@/features/wallet/lib/idempotencyKey';
 import { walletKeys } from '@/features/wallet/model/walletKeys';
+import { newIdempotencyKey } from '@/shared/lib/idempotencyKey';
 import type { ChargeBody } from '@/features/wallet/model/types';
 
 /**
