@@ -29,6 +29,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
+import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
@@ -344,6 +345,70 @@ class InvestmentProductServiceImplTest {
 		assertThat(holding.quantity()).isEqualTo(2);
 		assertThat(holding.buyPrice()).isEqualTo(10000);
 		assertThat(holding.currentPrice()).isEqualTo(10000);
+	}
+
+	@Test
+	@DisplayName("없는 상품의 가격 이력을 조회하면 PRODUCT_NOT_FOUND 예외가 발생한다")
+	void getPriceHistory_notFound() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> investmentProductService.getPriceHistory(USER_ID, 99, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("시작일이 종료일보다 늦으면 INVALID_DATE_RANGE 예외가 발생한다")
+	void getPriceHistory_invalidRange() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+
+		assertThatThrownBy(() -> investmentProductService.getPriceHistory(USER_ID, 1,
+			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 1)))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INVALID_DATE_RANGE);
+		then(investmentPriceHistoryRepository).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("날짜를 안 주면 최근 30일 범위(KST 하루 경계)로 조회한다")
+	void getPriceHistory_defaultRange() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		given(investmentPriceHistoryRepository.findAllInRange(eq(FAMILY_ID), eq(1), any(OffsetDateTime.class),
+			any(OffsetDateTime.class))).willReturn(List.of());
+
+		InvestmentPriceHistoryResponse response = investmentProductService.getPriceHistory(USER_ID, 1, null,
+			null);
+
+		assertThat(response.investmentProductId()).isEqualTo(1);
+		assertThat(response.history()).isEmpty();
+		then(investmentPriceHistoryRepository).should().findAllInRange(FAMILY_ID, 1,
+			todayStart().minusDays(30), todayStart().plusDays(1));
+	}
+
+	@Test
+	@DisplayName("기간을 주면 그 범위의 이력을 시간 오름차순 그대로 한국 시간으로 내려 준다")
+	void getPriceHistory_withDates() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		OffsetDateTime start = LocalDate.of(2026, 9, 1).atStartOfDay(KST).toOffsetDateTime();
+		OffsetDateTime end = LocalDate.of(2026, 9, 16).atStartOfDay(KST).toOffsetDateTime();
+		given(investmentPriceHistoryRepository.findAllInRange(FAMILY_ID, 1, start, end)).willReturn(List.of(
+			history(1, 1150, OffsetDateTime.parse("2026-09-14T00:05:00+09:00")),
+			history(1, 1200, OffsetDateTime.parse("2026-09-15T00:05:00+09:00"))));
+
+		InvestmentPriceHistoryResponse response = investmentProductService.getPriceHistory(USER_ID, 1,
+			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 15));
+
+		assertThat(response.history()).hasSize(2);
+		assertThat(response.history().get(0).price()).isEqualTo(1150);
+		assertThat(response.history().get(0).recordedAt())
+			.isEqualTo(OffsetDateTime.parse("2026-09-14T00:05:00+09:00"));
+		assertThat(response.history().get(1).price()).isEqualTo(1200);
 	}
 
 	private OffsetDateTime todayStart() {

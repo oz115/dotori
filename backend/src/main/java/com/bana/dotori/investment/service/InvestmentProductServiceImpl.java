@@ -16,6 +16,7 @@ import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
+import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.entity.InvestmentHolding;
@@ -136,6 +137,34 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 					latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()));
 			})
 			.toList());
+	}
+
+	/**
+	 * 상세 화면 차트용 가격 이력 (INV-T-06). 가격이 가족별이라 조회한 사용자의 가족 기준이고,
+	 * 기간 기본값은 명세대로 최근 30일 [30일 전, 오늘]이다. AI 가 아직 가격을 안 움직인
+	 * 기간은 행이 없어 빈 배열이 나갈 수 있다 — 프론트는 그때 시작가 한 점으로 그린다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public InvestmentPriceHistoryResponse getPriceHistory(Integer userId, Integer productId, LocalDate startDate,
+		LocalDate endDate) {
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		InvestmentProduct product = investmentProductRepository.findById(productId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		LocalDate end = endDate != null ? endDate : LocalDate.now(KST);
+		LocalDate start = startDate != null ? startDate : end.minusDays(30);
+		if (start.isAfter(end)) {
+			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
+		}
+
+		// recorded_at 이 TIMESTAMPTZ 라 날짜 동등 비교 대신 KST 하루 경계 범위로 거른다 (뉴스와 같은 방식)
+		List<InvestmentPriceHistory> rows = investmentPriceHistoryRepository.findAllInRange(familyId,
+			product.getId(), start.atStartOfDay(KST).toOffsetDateTime(),
+			end.plusDays(1).atStartOfDay(KST).toOffsetDateTime());
+		return investmentProductMapper.toPriceHistoryResponse(product.getId(), rows);
 	}
 
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {

@@ -31,4 +31,16 @@ public interface InvestmentPriceHistoryRepository extends JpaRepository<Investme
 		+ "and ph2.investmentProductId = ph.investmentProductId and ph2.recordedAt < :before)")
 	List<InvestmentPriceHistory> findLatestPerProductBefore(@Param("familyId") Integer familyId,
 		@Param("before") OffsetDateTime before);
+
+	/**
+	 * 한 상품의 기간 내 가격 이력, 시간 오름차순 (INV-T-06 차트 데이터).
+	 * 날짜 필터는 서비스가 한국 시간 기준 [시작일 00:00, 종료일 다음날 00:00) 범위로 바꿔 넘긴다.
+	 */
+	@Query("select ph from InvestmentPriceHistory ph "
+		+ "where ph.familyId = :familyId and ph.investmentProductId = :productId "
+		+ "and ph.recordedAt >= :start and ph.recordedAt < :end "
+		+ "order by ph.recordedAt asc, ph.id asc")
+	List<InvestmentPriceHistory> findAllInRange(@Param("familyId") Integer familyId,
+		@Param("productId") Integer productId, @Param("start") OffsetDateTime start,
+		@Param("end") OffsetDateTime end);
 }
