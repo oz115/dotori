@@ -71,6 +71,8 @@ users_role,
 investment_transactions_transaction_type,
 investment_products_category,
 savings_products_product_type,
+savings_products_contribution_style,
+savings_products_payout_timing,
 savings_subscriptions_status,
 savings_transactions_transaction_type,
 chores_repeat_type,
@@ -158,19 +160,40 @@ CREATE TYPE investment_products_category AS ENUM (
 );
 
 
-/* 예적금 상품 유형 */
+/* 예적금 상품 유형 — 6개 고정 상품(SAV 기획 문서) 그대로가 곧 코드다. 부모가 새로 만들지 않는다 */
 CREATE TYPE savings_products_product_type AS ENUM (
-    'INSTALLMENT',
-    'DEPOSIT'
+    'ORDINARY',
+    'SIMPLE_INTEREST',
+    'COMPOUND_INTEREST',
+    'SMALL_INSTALLMENT',
+    'GOAL_INSTALLMENT',
+    'LONG_TERM_INSTALLMENT'
+);
+
+
+/* 예적금 납입 방식 — 상품마다 완전히 달라서 계산·화면 분기 기준으로 쓴다 */
+CREATE TYPE savings_products_contribution_style AS ENUM (
+    'FREE',              -- 보통예금: 수시입출금
+    'LUMP_SUM',           -- 단리·복리예금: 가입 시 최초 1회 납입
+    'FIXED_INSTALLMENT',  -- 소액·장기적금: 매주 동일 금액 납입
+    'FLEXIBLE_GOAL'       -- 목표적금: 목표 금액 안에서 자유 납입
+);
+
+
+/* 예적금 지급 시점 */
+CREATE TYPE savings_products_payout_timing AS ENUM (
+    'WEEKLY_IMMEDIATE',   -- 보통예금: 매주 정산일에 이자 즉시 지급
+    'MATURITY_LUMP_SUM',  -- 단리·복리·소액·장기: 만기에 원금+이자 일괄 지급
+    'ON_GOAL_ACHIEVED'    -- 목표적금: 목표 달성 즉시 지급
 );
 
 
 /* 예적금 가입 상태 */
 CREATE TYPE savings_subscriptions_status AS ENUM (
-    'ACTIVE',
-    'PROGRESS',
-    'EXPIRED',
-    'CANCELLED'
+    'ACTIVE',      -- 정상 진행 중
+    'MATURED',     -- 만기 도달, 지급 대기
+    'CANCELLED',   -- 중도 해지
+    'COMPLETED'    -- 수령 완료
 );
 
 
@@ -263,15 +286,22 @@ CREATE TYPE investment_news_impact AS ENUM (
 4. TABLE CREATION
 ========================================================= */
 
+/* 6개 고정 상품의 스펙 메타데이터. 가족마다 달라지는 "최대 납입/예치 가능 금액"은
+   여기 저장하지 않는다 — 가족의 weekly_reward_limit 로 가입 시점에 계산해
+   savings_subscriptions.principal 에 스냅샷한다 (SavingsProductType 참고). */
 CREATE TABLE "savings_products" (
     "savings_product_id"    SERIAL          NOT NULL,
     "name"                  VARCHAR(100)    NOT NULL,
     "product_type"          savings_products_product_type NOT NULL,
     "description"           VARCHAR(255)    NULL,
-    "interest"              INTEGER         NOT NULL,
-    "term_months"           INTEGER         NOT NULL,
-    "minimum_amount"        INTEGER         DEFAULT 0 NOT NULL,
-    "due_term"              INTEGER         NULL,
+    "interest_rate"         INTEGER         NOT NULL,
+    "reward_ratio"          NUMERIC(3, 2)   NOT NULL,
+    "contribution_style"    savings_products_contribution_style NOT NULL,
+    "payout_timing"         savings_products_payout_timing NOT NULL,
+    "term_weeks"            INTEGER         NULL,
+    "installment_count"     INTEGER         NULL,
+    "education_goal"        VARCHAR(255)    NULL,
+    "pre_signup_message"    VARCHAR(500)    NULL,
     "is_active"             BOOLEAN         DEFAULT TRUE NOT NULL,
     "created_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at"            TIMESTAMPTZ     DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -346,6 +376,17 @@ CREATE TABLE "families" (
 );
 
 
+/* principal: 가입 시점에 확정한 금액 스냅샷 (거치식=최초원금, 적립식=주당 약정액,
+              목표적금=목표 금액). 이후 가족의 weekly_reward_limit 이 바뀌어도
+              이미 가입된 건은 영향받지 않는다.
+   current_amount: 납입 원금 누계. 이자는 여기 섞지 않는다.
+   accrued_interest: 정산으로 쌓인 이자 누계. 원금과 분리해 두면 복리예금은
+              (current_amount + accrued_interest) 를 다음 이자의 기준으로 삼는 것만으로
+              복리가 되고, 만기 지급액은 모든 상품이 똑같이 원금+이자가 된다.
+   maturity_at: 보통예금(무기한)은 NULL 이 된다.
+   next_settlement_at: 다음 주간 정산 시각. 정산이 끝났거나 필요 없는 건은 NULL.
+   idempotency_key: 가입 요청의 멱등키. 재시도로 같은 키가 다시 오면 새 가입을 만들지 않고
+              이 컬럼으로 기존 가입을 찾아 그대로 돌려준다 (point_transactions 와 같은 방식). */
 CREATE TABLE "savings_subscriptions" (
     "savings_subscription_id"   SERIAL      NOT NULL,
     "family_id"                 INTEGER     NOT NULL,
@@ -353,9 +394,13 @@ CREATE TABLE "savings_subscriptions" (
     "savings_product_id"        INTEGER     NOT NULL,
     "principal"                 INTEGER     NOT NULL,
     "current_amount"            INTEGER     NOT NULL,
+    "accrued_interest"          INTEGER     DEFAULT 0 NOT NULL,
+    "contribution_count"        INTEGER     DEFAULT 0 NOT NULL,
     "status"                    savings_subscriptions_status DEFAULT 'ACTIVE' NOT NULL,
+    "idempotency_key"           VARCHAR(100) NULL,
     "started_at"                TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "maturity_at"               TIMESTAMPTZ NOT NULL,
+    "maturity_at"               TIMESTAMPTZ NULL,
+    "next_settlement_at"        TIMESTAMPTZ NULL,
     "terminated_at"             TIMESTAMPTZ NULL,
     "received_at"               TIMESTAMPTZ NULL
 );
@@ -1164,6 +1209,40 @@ ADD CONSTRAINT "CK_CHORES_REWARD_POINTS_POSITIVE"
 CHECK ("reward_points" IS NULL OR "reward_points" > 0);
 
 
+/* ---------------------------------------------------------
+savings_subscriptions
+
+1. 동일 가입 요청 재시도로 인한 이중 가입 방지
+2. 금액 컬럼은 음수가 될 수 없음
+
+멱등키의 유일성 범위를 자녀 안으로 좁히는 이유는 point_transactions 와 같다.
+키는 클라이언트가 정하는 값이라 전역으로 두면 남의 가입을 자기 것으로 돌려받는다.
+NULL 은 서로 다른 값으로 취급되므로 멱등키 없는 가입은 여러 건 허용된다.
+--------------------------------------------------------- */
+
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "UQ_SAVINGS_SUBSCRIPTIONS_CHILD_IDEMPOTENCY_KEY"
+UNIQUE ("child_id", "idempotency_key");
+
+
+ALTER TABLE "savings_subscriptions"
+ADD CONSTRAINT "CK_SAVINGS_SUBSCRIPTIONS_AMOUNTS_NON_NEGATIVE"
+CHECK ("principal" > 0 AND "current_amount" >= 0 AND "accrued_interest" >= 0
+    AND "contribution_count" >= 0);
+
+
+/* ---------------------------------------------------------
+savings_transactions
+
+예적금 거래 금액은 반드시 양수. 방향(납입/이자/지급)은 transaction_type 이 정하므로
+금액에 음수를 허용하면 같은 사실을 두 곳에서 다르게 말하게 된다.
+--------------------------------------------------------- */
+
+ALTER TABLE "savings_transactions"
+ADD CONSTRAINT "CK_SAVINGS_TRANSACTIONS_AMOUNT_POSITIVE"
+CHECK ("amount" > 0);
+
+
 /* =========================================================
 8. INDEX
 ========================================================= */
@@ -1283,3 +1362,29 @@ recorded_at 순으로 정렬하므로 그 순서 그대로 건다.
 
 CREATE INDEX "IX_INVESTMENT_PRICE_HISTORY_FAMILY_PRODUCT_RECORDED_AT"
 ON "investment_price_history" ("family_id", "investment_product_id", "recorded_at");
+
+
+/* ---------------------------------------------------------
+savings_subscriptions
+
+1. 주간 정산 스케줄러 — 정산 시각이 지난 ACTIVE 건만 골라낸다. 이 인덱스가 없으면
+   매주 전체 가입 건을 훑는다.
+2. 아이별 가입 목록 조회(SAV-04) — 최신 가입순 정렬까지 인덱스로 끝낸다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_SAVINGS_SUBSCRIPTIONS_STATUS_NEXT_SETTLEMENT"
+ON "savings_subscriptions" ("status", "next_settlement_at");
+
+
+CREATE INDEX "IX_SAVINGS_SUBSCRIPTIONS_FAMILY_CHILD_STARTED_AT"
+ON "savings_subscriptions" ("family_id", "child_id", "started_at");
+
+
+/* ---------------------------------------------------------
+savings_transactions
+
+가입 건별 거래 이력을 최신순으로 읽는다.
+--------------------------------------------------------- */
+
+CREATE INDEX "IX_SAVINGS_TRANSACTIONS_SUBSCRIPTION_CREATED_AT"
+ON "savings_transactions" ("savings_subscription_id", "created_at");

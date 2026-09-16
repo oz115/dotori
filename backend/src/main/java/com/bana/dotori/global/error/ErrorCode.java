@@ -96,7 +96,17 @@ public enum ErrorCode {
 	FILE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "사진 저장에 실패했습니다"),
 
 	// 투자 (INVEST)
-	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다");
+	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다"),
+
+	// 예적금 (SAVINGS)
+	SAVINGS_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 상품을 찾을 수 없습니다"),
+	SAVINGS_PRODUCT_INACTIVE(HttpStatus.BAD_REQUEST, "가입할 수 없는 상품입니다"),
+	SAVINGS_AMOUNT_EXCEEDS_LIMIT(HttpStatus.BAD_REQUEST, "가입 가능한 최대 금액을 초과했습니다"),
+	SAVINGS_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 가입 내역을 찾을 수 없습니다"),
+	SAVINGS_SUBSCRIPTION_NOT_ACTIVE(HttpStatus.CONFLICT, "진행 중인 예적금이 아닙니다"),
+	SAVINGS_CONTRIBUTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "추가 납입할 수 없는 상품입니다"),
+	SAVINGS_INVALID_CONTRIBUTION_AMOUNT(HttpStatus.BAD_REQUEST, "납입 금액이 올바르지 않습니다"),
+	SAVINGS_NOT_MATURED(HttpStatus.CONFLICT, "아직 만기가 되지 않았습니다");
 
 	private final HttpStatus status;
 	private final String message;
