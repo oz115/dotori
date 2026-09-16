@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel } from '@/features/chore/lib/choreLabels';
 import {
@@ -19,6 +19,7 @@ import { ChoreActionSheet } from '@/features/chore/ui/ChoreActionSheet';
 import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
+import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import { Button, ContentCard, Header, Screen } from '@/shared/ui';
 
@@ -57,6 +58,7 @@ export function ParentChoreList({
   onHistoryPress,
 }: ParentChoreListProps) {
   const theme = useTheme();
+  const { refreshing, onRefresh } = useChoreRefresh();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [menuTarget, setMenuTarget] = useState<ParentChore | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ParentChore | null>(null);
@@ -86,6 +88,7 @@ export function ParentChoreList({
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },

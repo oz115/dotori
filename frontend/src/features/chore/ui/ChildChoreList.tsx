@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
@@ -9,6 +9,7 @@ import { ChildChoreDetailModal } from '@/features/chore/ui/ChildChoreDetailModal
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
+import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import { Header, Screen } from '@/shared/ui';
 
@@ -27,6 +28,7 @@ const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
  */
 export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   const theme = useTheme();
+  const { refreshing, onRefresh } = useChoreRefresh();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const { items, isPending, isError } = useTodayChores(familyId, childId);
@@ -58,6 +60,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },

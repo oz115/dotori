@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import {
   useChildrenPendingRequests,
@@ -10,6 +10,7 @@ import type { ChoreChild } from '@/features/chore/model/useChildrenChores';
 import { ChildBadge } from '@/features/chore/ui/ChildBadge';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { CompletionRequestModal } from '@/features/chore/ui/CompletionRequestModal';
+import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import { Button, ContentCard, Header, Screen } from '@/shared/ui';
 
@@ -34,6 +35,7 @@ export function ParentCompletionRequestList({
   onApproved,
 }: ParentCompletionRequestListProps) {
   const theme = useTheme();
+  const { refreshing, onRefresh } = useChoreRefresh();
   const [childId, setChildId] = useState<string | null>(null);
   const [openRequest, setOpenRequest] = useState<ParentCompletionRequest | null>(null);
 
@@ -64,6 +66,7 @@ export function ParentCompletionRequestList({
         data={visible}
         keyExtractor={(item) => String(item.choreCompletionRequestId)}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },

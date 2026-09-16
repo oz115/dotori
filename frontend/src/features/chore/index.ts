@@ -10,6 +10,7 @@ export {
   type ParentCompletionRequest,
 } from './model/useChildrenPendingRequests';
 export { useCompletions } from './model/useCompletions';
+export { useChoreRefresh } from './model/useChoreRefresh';
 export { useChoreStatus } from './model/useChoreStatus';
 export { useChore } from './model/useChore';
 export { useCreateChore } from './model/useCreateChore';

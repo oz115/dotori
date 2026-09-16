@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { summarizeWeek } from '@/features/chore/lib/choreHistory';
 import { useCompletions } from '@/features/chore/model/useCompletions';
 import type { ChoreCompletionHistoryItem } from '@/features/chore/model/types';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
+import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import { ContentCard, Header, Screen } from '@/shared/ui';
 
@@ -23,6 +24,7 @@ type ChildChoreHistoryProps = {
  */
 export function ChildChoreHistory({ familyId, childId }: ChildChoreHistoryProps) {
   const theme = useTheme();
+  const { refreshing, onRefresh } = useChoreRefresh();
   const { data, isPending, isError } = useCompletions(familyId, childId);
 
   const completions = useMemo(() => data ?? [], [data]);
@@ -42,6 +44,7 @@ export function ChildChoreHistory({ familyId, childId }: ChildChoreHistoryProps)
         data={completions}
         keyExtractor={(item, index) => `${item.choreId}-${item.processedAt}-${index}`}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
