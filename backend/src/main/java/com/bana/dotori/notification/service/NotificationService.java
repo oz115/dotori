@@ -33,4 +33,10 @@ public interface NotificationService {
 	 * 소유권 검증이 없다.
 	 */
 	NotificationReadAllResponse markAllAsRead(Integer userId);
+
+	/**
+	 * 알림을 삭제한다 (NOTI-05). 소유권 규칙은 getNotification/markAsRead와 같다.
+	 * notifications 테이블엔 deleted_at 이 없어 hard delete 한다.
+	 */
+	void deleteNotification(Integer userId, Integer notificationId);
 }

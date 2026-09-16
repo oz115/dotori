@@ -2,6 +2,7 @@ package com.bana.dotori.notification.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,5 +50,12 @@ public class NotificationController {
 	@PatchMapping("/read-all")
 	public ResponseEntity<NotificationReadAllResponse> markAllAsRead(@AuthenticationPrincipal Integer userId) {
 		return ResponseEntity.ok(notificationService.markAllAsRead(userId));
+	}
+
+	@DeleteMapping("/{notificationId}")
+	public ResponseEntity<Void> deleteNotification(@AuthenticationPrincipal Integer userId,
+			@PathVariable Integer notificationId) {
+		notificationService.deleteNotification(userId, notificationId);
+		return ResponseEntity.noContent().build();
 	}
 }

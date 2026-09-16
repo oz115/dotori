@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -225,5 +226,41 @@ class NotificationServiceImplTest {
 		NotificationReadAllResponse response = notificationService.markAllAsRead(USER_ID);
 
 		assertThat(response.updatedCount()).isEqualTo(0);
+	}
+
+	@Test
+	@DisplayName("본인 알림이면 삭제한다")
+	void deleteNotification_success() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		notificationService.deleteNotification(USER_ID, 1);
+
+		then(notificationRepository).should().delete(notification);
+	}
+
+	@Test
+	@DisplayName("삭제 대상 알림이 없으면 NOTIFICATION_NOT_FOUND 예외가 발생한다")
+	void deleteNotification_notFound() {
+		given(notificationRepository.findById(999)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> notificationService.deleteNotification(USER_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+		then(notificationRepository).should(never()).delete(any(Notification.class));
+	}
+
+	@Test
+	@DisplayName("다른 사용자의 알림을 삭제하려 하면 FORBIDDEN 예외가 발생하고 삭제되지 않는다")
+	void deleteNotification_otherUsersNotification() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		assertThatThrownBy(() -> notificationService.deleteNotification(999, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		then(notificationRepository).should(never()).delete(any(Notification.class));
 	}
 }

@@ -66,6 +66,12 @@ public class NotificationServiceImpl implements NotificationService {
 		return new NotificationReadAllResponse(updatedCount);
 	}
 
+	@Override
+	@Transactional
+	public void deleteNotification(Integer userId, Integer notificationId) {
+		notificationRepository.delete(findOwnedOrThrow(userId, notificationId));
+	}
+
 	private Notification findOwnedOrThrow(Integer userId, Integer notificationId) {
 		Notification notification = notificationRepository.findById(notificationId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));

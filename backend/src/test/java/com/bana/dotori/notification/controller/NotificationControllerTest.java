@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -252,6 +253,52 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰 없이 전체 읽음 처리를 호출하면 401을 반환한다")
 	void markAllAsRead_unauthenticated() throws Exception {
 		mockMvc.perform(patch(NOTIFICATIONS_URL + "/read-all"))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("삭제 성공 시 204를 반환한다")
+	void deleteNotification_success() throws Exception {
+		givenAuthenticated(1);
+
+		mockMvc.perform(delete(NOTIFICATIONS_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNoContent());
+
+		then(notificationService).should().deleteNotification(1, 1);
+	}
+
+	@Test
+	@DisplayName("본인 알림이 아니면 403과 FORBIDDEN 에러를 반환한다")
+	void deleteNotification_forbidden() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(notificationService).deleteNotification(1, 1);
+
+		mockMvc.perform(delete(NOTIFICATIONS_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("알림이 없으면 404와 NOTIFICATION_NOT_FOUND 에러를 반환한다")
+	void deleteNotification_notFound() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND)).given(notificationService)
+			.deleteNotification(1, 999);
+
+		mockMvc.perform(delete(NOTIFICATIONS_URL + "/999")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 삭제를 호출하면 401을 반환한다")
+	void deleteNotification_unauthenticated() throws Exception {
+		mockMvc.perform(delete(NOTIFICATIONS_URL + "/1"))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();
