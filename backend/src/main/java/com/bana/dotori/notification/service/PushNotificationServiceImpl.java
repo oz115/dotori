@@ -1,0 +1,106 @@
+package com.bana.dotori.notification.service;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bana.dotori.notification.entity.DeviceToken;
+import com.bana.dotori.notification.entity.Notification;
+import com.bana.dotori.notification.entity.NotificationType;
+import com.bana.dotori.notification.repository.DeviceTokenRepository;
+import com.bana.dotori.notification.repository.NotificationRepository;
+import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.repository.UserRepository;
+import com.google.firebase.messaging.BatchResponse;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.MessagingErrorCode;
+import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.SendResponse;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * FCM 발송 + 알림함(notifications) 기록을 한 진입점으로 묶는다 (S15P21A505-228).
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PushNotificationServiceImpl implements PushNotificationService {
+
+	private final NotificationRepository notificationRepository;
+	private final DeviceTokenRepository deviceTokenRepository;
+	private final UserRepository userRepository;
+	private final FirebaseMessaging firebaseMessaging;
+
+	// 호출자가 거의 항상 @TransactionalEventListener(AFTER_COMMIT) 안에서 부른다. 그 시점엔
+	// 원래 트랜잭션의 리소스가 아직 스레드에 바인딩돼 있어(cleanup은 afterCommit 이후) 기본
+	// REQUIRED 전파로는 이미 커밋된 트랜잭션에 조인해버려 이 메서드의 쓰기가 커밋되지 않는다.
+	// REQUIRES_NEW 로 별도 트랜잭션을 강제한다.
+	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void notify(Integer userId, NotificationType type, String title, String body, Integer refId) {
+		User user = userRepository.getReferenceById(userId);
+		notificationRepository.save(Notification.builder()
+			.user(user)
+			.type(type)
+			.title(title)
+			.body(body)
+			.refId(refId)
+			.build());
+
+		List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUser_Id(userId);
+		if (deviceTokens.isEmpty()) {
+			// 푸시 미허용이거나 등록된 기기가 없는 정상 케이스 — 알림함 기록만으로 끝낸다.
+			return;
+		}
+
+		sendPush(deviceTokens, title, body);
+	}
+
+	private void sendPush(List<DeviceToken> deviceTokens, String title, String body) {
+		MulticastMessage message = MulticastMessage.builder()
+			.setNotification(com.google.firebase.messaging.Notification.builder()
+				.setTitle(title)
+				.setBody(body)
+				.build())
+			.addAllTokens(deviceTokens.stream().map(DeviceToken::getFcmToken).toList())
+			.build();
+
+		BatchResponse response;
+		try {
+			response = firebaseMessaging.sendEachForMulticast(message);
+		} catch (FirebaseMessagingException e) {
+			log.warn("FCM 발송 실패. tokenCount={}", deviceTokens.size(), e);
+			return;
+		}
+
+		if (response.getFailureCount() == 0) {
+			return;
+		}
+		cleanUpInvalidTokens(deviceTokens, response.getResponses());
+	}
+
+	/**
+	 * 응답 순서는 요청에 넣은 토큰 순서와 1:1로 대응한다 (sendEachForMulticast 계약).
+	 * 기기가 앱을 지웠거나 토큰이 만료된 경우(UNREGISTERED/INVALID_ARGUMENT)만 정리한다 —
+	 * 일시적 오류(UNAVAILABLE 등)까지 지우면 멀쩡한 토큰을 잃는다.
+	 */
+	private void cleanUpInvalidTokens(List<DeviceToken> deviceTokens, List<SendResponse> responses) {
+		for (int i = 0; i < responses.size(); i++) {
+			SendResponse sendResponse = responses.get(i);
+			if (sendResponse.isSuccessful()) {
+				continue;
+			}
+			MessagingErrorCode errorCode = sendResponse.getException().getMessagingErrorCode();
+			if (errorCode == MessagingErrorCode.UNREGISTERED || errorCode == MessagingErrorCode.INVALID_ARGUMENT) {
+				DeviceToken invalidToken = deviceTokens.get(i);
+				log.info("무효 FCM 토큰 정리. deviceTokenId={}, errorCode={}", invalidToken.getId(), errorCode);
+				deviceTokenRepository.delete(invalidToken);
+			}
+		}
+	}
+}
