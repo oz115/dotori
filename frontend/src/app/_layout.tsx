@@ -3,7 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { restoreSession, setupAuthInterceptor, useAuthStore } from '@/features/auth';
-import { ensurePushRegistered } from '@/features/notification';
+import { ensurePushRegistered, useNotificationNavigation } from '@/features/notification';
 import { AppProviders } from '@/shared/lib/providers';
 import { useAppFonts } from '@/shared/theme';
 
@@ -32,6 +32,9 @@ export default function RootLayout() {
       ensurePushRegistered(false);
     }
   }, [status]);
+
+  // 알림을 탭해서 앱을 열었을 때(콜드 스타트 포함) 그 알림이 가리키는 화면으로 이동한다.
+  useNotificationNavigation(role);
 
   const ready = (fontsLoaded || fontError) && status !== 'loading';
 

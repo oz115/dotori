@@ -2,13 +2,20 @@ package com.bana.dotori.investment.mapper;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
+import com.bana.dotori.investment.dto.InvestmentOrderResponse;
+import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
+import com.bana.dotori.investment.dto.InvestmentPricePoint;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
+import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
+import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
+import com.bana.dotori.investment.entity.InvestmentTransaction;
 
 @Component
 public class InvestmentProductMapper {
@@ -38,5 +45,29 @@ public class InvestmentProductMapper {
 		int buyPrice, int currentPrice) {
 		return new InvestmentHoldingSummary(product.getId(), product.getName(), quantity, buyPrice,
 			currentPrice);
+	}
+
+	/** 매수/매도 체결 결과 — 남긴 거래 행 + 지갑이 계산해 준 거래 후 잔액. */
+	public InvestmentOrderResponse toOrderResponse(InvestmentTransaction transaction, int pointBalanceAfter) {
+		return new InvestmentOrderResponse(transaction.getId(), transaction.getTransactionType(),
+			transaction.getQuantity(), transaction.getUnitPrice(), transaction.getTotalAmount(),
+			pointBalanceAfter, transaction.getCreatedAt().atZoneSameInstant(KST).toOffsetDateTime());
+	}
+
+	/** 가격 이력 (차트용) — 기록 일시를 한국 시간으로 바꿔 시간 오름차순 그대로 내려 준다. */
+	public InvestmentPriceHistoryResponse toPriceHistoryResponse(Integer productId,
+		List<InvestmentPriceHistory> rows) {
+		return new InvestmentPriceHistoryResponse(productId, rows.stream()
+			.map(row -> new InvestmentPricePoint(row.getPrice(),
+				row.getRecordedAt().atZoneSameInstant(KST).toOffsetDateTime()))
+			.toList());
+	}
+
+	/** 거래 이력 한 건 — 거래 행 그대로에 종목명만 붙인다. */
+	public InvestmentTransactionSummary toTransactionSummary(InvestmentTransaction transaction,
+		String productName) {
+		return new InvestmentTransactionSummary(transaction.getId(), productName,
+			transaction.getTransactionType(), transaction.getQuantity(), transaction.getUnitPrice(),
+			transaction.getTotalAmount(), transaction.getCreatedAt().atZoneSameInstant(KST).toOffsetDateTime());
 	}
 }

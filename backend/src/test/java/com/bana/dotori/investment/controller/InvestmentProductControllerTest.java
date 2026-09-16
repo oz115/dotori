@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -29,6 +30,8 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
+import com.bana.dotori.investment.dto.InvestmentPricePoint;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
@@ -161,5 +164,53 @@ class InvestmentProductControllerTest {
 		mockMvc.perform(get(PRODUCTS_URL + "/99").header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("가격 이력 조회 성공 시 200과 시간 오름차순 이력을 반환한다")
+	void getPriceHistory_success() throws Exception {
+		givenAuthenticated();
+		given(investmentProductService.getPriceHistory(eq(1), eq(1), any(), any()))
+			.willReturn(new InvestmentPriceHistoryResponse(1, List.of(
+				new InvestmentPricePoint(1150, OffsetDateTime.parse("2026-09-14T00:05:00+09:00")),
+				new InvestmentPricePoint(1200, OffsetDateTime.parse("2026-09-15T00:05:00+09:00")))));
+
+		mockMvc.perform(get(PRODUCTS_URL + "/1/price-history").header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.investmentProductId").value(1))
+			.andExpect(jsonPath("$.history[0].price").value(1150))
+			.andExpect(jsonPath("$.history[0].recordedAt").exists())
+			.andExpect(jsonPath("$.history[1].price").value(1200));
+	}
+
+	@Test
+	@DisplayName("startDate·endDate 쿼리 파라미터를 서비스에 그대로 전달한다")
+	void getPriceHistory_withDates() throws Exception {
+		givenAuthenticated();
+		given(investmentProductService.getPriceHistory(eq(1), eq(1), any(), any()))
+			.willReturn(new InvestmentPriceHistoryResponse(1, List.of()));
+
+		mockMvc.perform(get(PRODUCTS_URL + "/1/price-history")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.param("startDate", "2026-09-01")
+				.param("endDate", "2026-09-15"))
+			.andExpect(status().isOk());
+
+		then(investmentProductService).should().getPriceHistory(eq(1), eq(1),
+			eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 9, 15)));
+	}
+
+	@Test
+	@DisplayName("날짜 형식이 올바르지 않으면 400과 INVALID_REQUEST 에러를 반환하고 서비스는 호출되지 않는다")
+	void getPriceHistory_invalidDate() throws Exception {
+		givenAuthenticated();
+
+		mockMvc.perform(get(PRODUCTS_URL + "/1/price-history")
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.param("startDate", "2026-13-99"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		then(investmentProductService).shouldHaveNoInteractions();
 	}
 }

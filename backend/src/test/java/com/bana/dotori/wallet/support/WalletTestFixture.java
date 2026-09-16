@@ -117,6 +117,10 @@ public final class WalletTestFixture {
 				+ " OR family_id IN (SELECT family_id FROM families WHERE created_by IN (" + TEST_USER_IDS + "))");
 		jdbcTemplate.update("DELETE FROM families WHERE created_by IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM refresh_tokens WHERE user_id IN (" + TEST_USER_IDS + ")");
+		// 알림과 디바이스 토큰도 users 를 FK 로 참조한다(NOTI). 위 집안일 주석과 같은 이유로,
+		// 테이블이 늘어날 때 여기를 같이 늘리지 않으면 뒷정리가 통째로 깨진다.
+		jdbcTemplate.update("DELETE FROM notifications WHERE user_id IN (" + TEST_USER_IDS + ")");
+		jdbcTemplate.update("DELETE FROM device_tokens WHERE user_id IN (" + TEST_USER_IDS + ")");
 		jdbcTemplate.update("DELETE FROM users WHERE email LIKE '%@autotest.local'");
 	}
 
