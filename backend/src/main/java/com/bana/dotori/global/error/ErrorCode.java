@@ -102,7 +102,8 @@ public enum ErrorCode {
 	INSUFFICIENT_QUANTITY(HttpStatus.BAD_REQUEST, "보유하지 않은 종목입니다"),
 
 	// 알림 (NOTI)
-	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다");
+	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다"),
+	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다");
 
 	private final HttpStatus status;
 	private final String message;
