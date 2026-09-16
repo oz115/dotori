@@ -11,17 +11,22 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
+import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
 import com.bana.dotori.investment.mapper.InvestmentProductMapper;
+import com.bana.dotori.investment.repository.InvestmentHoldingRepository;
 import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
+import com.bana.dotori.user.entity.UserRole;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,6 +38,7 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
+	private final InvestmentHoldingRepository investmentHoldingRepository;
 	private final FamilyMemberRepository familyMemberRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 
@@ -87,6 +93,49 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			latest.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
 			previous.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
 			latest.map(InvestmentPriceHistory::getRecordedAt).orElse(product.getUpdatedAt()));
+	}
+
+	/**
+	 * 보유는 investment_holdings 에서 읽는다 — 매수/매도 API 가 거래 기록과 같은
+	 * 트랜잭션으로 갱신해 두는 아이·종목당 한 행이다. childId 를 주면 그 자녀의 보유를
+	 * 조회한다 (부모용) — 내 가족의 자녀가 아니면 403.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public InvestmentHoldingsResponse getHoldings(Integer userId, Integer childId) {
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		Integer targetUserId = childId != null ? childId : userId;
+		if (childId != null && !childId.equals(userId)) {
+			FamilyMember target = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FAMILY_CHILD));
+			if (target.getUser().getRole() != UserRole.CHILD) {
+				throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD);
+			}
+		}
+
+		List<InvestmentHolding> holdings = investmentHoldingRepository
+			.findAllByFamilyIdAndChildIdOrderByInvestmentProductIdAsc(familyId, targetUserId);
+		if (holdings.isEmpty()) {
+			return new InvestmentHoldingsResponse(List.of());
+		}
+
+		Map<Integer, InvestmentProduct> products = investmentProductRepository
+			.findAllById(holdings.stream().map(InvestmentHolding::getInvestmentProductId).toList())
+			.stream()
+			.collect(Collectors.toMap(InvestmentProduct::getId, product -> product));
+		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
+		Map<Integer, Integer> latestPrices = latestPriceByProductId(familyId, todayStart.plusDays(1));
+
+		return new InvestmentHoldingsResponse(holdings.stream()
+			.map(holding -> {
+				InvestmentProduct product = products.get(holding.getInvestmentProductId());
+				return investmentProductMapper.toHoldingSummary(product, holding.getQuantity(),
+					holding.getBuyPrice(),
+					latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()));
+			})
+			.toList());
 	}
 
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {
