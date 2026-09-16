@@ -6,12 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,18 +24,26 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
+import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
+import com.bana.dotori.investment.entity.InvestmentTransaction;
+import com.bana.dotori.investment.entity.InvestmentTransactionType;
 import com.bana.dotori.investment.mapper.InvestmentProductMapper;
 import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
+import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
+import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.entity.UserRole;
 
 @ExtendWith(MockitoExtension.class)
 class InvestmentProductServiceImplTest {
@@ -47,6 +57,9 @@ class InvestmentProductServiceImplTest {
 
 	@Mock
 	private InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
+
+	@Mock
+	private InvestmentTransactionRepository investmentTransactionRepository;
 
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
@@ -225,6 +238,121 @@ class InvestmentProductServiceImplTest {
 		assertThat(response.previousPrice()).isEqualTo(1000);
 		assertThat(response.changeAmount()).isEqualTo(100);
 		assertThat(response.updatedAt()).isEqualTo(recordedToday);
+	}
+
+	private static final Integer CHILD_ID = 20;
+
+	private InvestmentTransaction transaction(Integer productId, InvestmentTransactionType type, int quantity,
+		int totalAmount) {
+		return InvestmentTransaction.builder()
+			.familyId(FAMILY_ID)
+			.childId(CHILD_ID)
+			.investmentProductId(productId)
+			.transactionType(type)
+			.quantity(quantity)
+			.unitPrice(quantity > 0 ? totalAmount / quantity : 0)
+			.totalAmount(totalAmount)
+			.createdAt(SEED_AT)
+			.build();
+	}
+
+	private FamilyMember familyChild() {
+		return FamilyMember.builder()
+			.user(User.builder().loginId("kid").name("아이").email("kid@test.local").role(UserRole.CHILD).build())
+			.build();
+	}
+
+	@Test
+	@DisplayName("childId가 내 가족의 자녀가 아니면 NOT_FAMILY_CHILD 예외가 발생한다")
+	void getHoldings_childNotInFamily() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, CHILD_ID))
+			.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> investmentProductService.getHoldings(USER_ID, CHILD_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.NOT_FAMILY_CHILD);
+	}
+
+	@Test
+	@DisplayName("childId가 자녀가 아니라 부모면 NOT_FAMILY_CHILD 예외가 발생한다")
+	void getHoldings_targetIsParent() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		FamilyMember parentMember = FamilyMember.builder()
+			.user(User.builder().loginId("mom").name("부모").email("mom@test.local").role(UserRole.PARENT).build())
+			.build();
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, CHILD_ID))
+			.willReturn(Optional.of(parentMember));
+
+		assertThatThrownBy(() -> investmentProductService.getHoldings(USER_ID, CHILD_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.NOT_FAMILY_CHILD);
+	}
+
+	@Test
+	@DisplayName("거래가 없으면 빈 보유 목록을 반환한다")
+	void getHoldings_noTransactions() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentTransactionRepository.findAllByFamilyIdAndChildId(FAMILY_ID, USER_ID))
+			.willReturn(List.of());
+
+		InvestmentHoldingsResponse response = investmentProductService.getHoldings(USER_ID, null);
+
+		assertThat(response.holdings()).isEmpty();
+		// childId 없이 부르면 본인 보유라 자녀 검증을 하지 않는다
+		then(familyMemberRepository).should(never()).findWithUserByFamilyIdAndUserId(eq(FAMILY_ID), any());
+	}
+
+	@Test
+	@DisplayName("매수/매도를 집계해 수량·평균 매수 단가·현재가를 계산하고 전량 매도 종목은 뺀다")
+	void getHoldings_aggregation() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, CHILD_ID))
+			.willReturn(Optional.of(familyChild()));
+		given(investmentTransactionRepository.findAllByFamilyIdAndChildId(FAMILY_ID, CHILD_ID)).willReturn(List.of(
+			// 종목 1: 10주@1000 + 10주@1200 매수, 5주 매도 → 15주, 평단 22000/20 = 1100
+			transaction(1, InvestmentTransactionType.BUY, 10, 10000),
+			transaction(1, InvestmentTransactionType.BUY, 10, 12000),
+			transaction(1, InvestmentTransactionType.SELL, 5, 6500),
+			// 종목 2: 전량 매도 → 목록에서 제외
+			transaction(2, InvestmentTransactionType.BUY, 5, 5000),
+			transaction(2, InvestmentTransactionType.SELL, 5, 5500)));
+		given(investmentProductRepository.findAllById(Set.of(1)))
+			.willReturn(List.of(product(1, "시원아이스", 10000)));
+		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID),
+			eq(todayStart().plusDays(1))))
+			.willReturn(List.of(history(1, 1300, todayStart().plusHours(1))));
+
+		InvestmentHoldingsResponse response = investmentProductService.getHoldings(USER_ID, CHILD_ID);
+
+		assertThat(response.holdings()).hasSize(1);
+		InvestmentHoldingSummary holding = response.holdings().get(0);
+		assertThat(holding.investmentProductId()).isEqualTo(1);
+		assertThat(holding.productName()).isEqualTo("시원아이스");
+		assertThat(holding.quantity()).isEqualTo(15);
+		assertThat(holding.averageBuyPrice()).isEqualTo(1100);
+		assertThat(holding.currentPrice()).isEqualTo(1300);
+	}
+
+	@Test
+	@DisplayName("보유 종목에 가격 이력이 없으면 현재가는 시작가가 된다")
+	void getHoldings_noPriceHistory() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentTransactionRepository.findAllByFamilyIdAndChildId(FAMILY_ID, USER_ID)).willReturn(
+			List.of(transaction(1, InvestmentTransactionType.BUY, 2, 20000)));
+		given(investmentProductRepository.findAllById(Set.of(1)))
+			.willReturn(List.of(product(1, "시원아이스", 10000)));
+		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID),
+			eq(todayStart().plusDays(1)))).willReturn(List.of());
+
+		InvestmentHoldingsResponse response = investmentProductService.getHoldings(USER_ID, null);
+
+		InvestmentHoldingSummary holding = response.holdings().get(0);
+		assertThat(holding.quantity()).isEqualTo(2);
+		assertThat(holding.averageBuyPrice()).isEqualTo(10000);
+		assertThat(holding.currentPrice()).isEqualTo(10000);
 	}
 
 	private OffsetDateTime todayStart() {

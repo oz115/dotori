@@ -5,6 +5,7 @@ import java.time.ZoneId;
 
 import org.springframework.stereotype.Component;
 
+import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
 import com.bana.dotori.investment.entity.InvestmentProduct;
@@ -30,5 +31,12 @@ public class InvestmentProductMapper {
 		return new InvestmentProductDetailResponse(product.getId(), product.getName(), product.getDescription(),
 			product.getCategory(), currentPrice, currentPrice - previousPrice, previousPrice,
 			product.getIsActive(), updatedAt.atZoneSameInstant(KST).toOffsetDateTime());
+	}
+
+	/** 보유 종목 한 건 — 수량·평균 매수 단가는 거래 집계값, currentPrice 는 가족별 최신가. */
+	public InvestmentHoldingSummary toHoldingSummary(InvestmentProduct product, int quantity,
+		int averageBuyPrice, int currentPrice) {
+		return new InvestmentHoldingSummary(product.getId(), product.getName(), quantity, averageBuyPrice,
+			currentPrice);
 	}
 }
