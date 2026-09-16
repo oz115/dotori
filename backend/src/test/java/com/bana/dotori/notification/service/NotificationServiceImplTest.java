@@ -1,12 +1,14 @@
 package com.bana.dotori.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
@@ -114,5 +119,41 @@ class NotificationServiceImplTest {
 
 		assertThat(response.unreadCount()).isEqualTo(7);
 		then(notificationRepository).should().count(any(Specification.class));
+	}
+
+	@Test
+	@DisplayName("본인 알림이면 상세를 반환한다")
+	void getNotification_success() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		NotificationItem item = notificationService.getNotification(USER_ID, 1);
+
+		assertThat(item.notificationId()).isEqualTo(1);
+		assertThat(item.type()).isEqualTo(NotificationType.CASHOUT);
+		assertThat(item.isRead()).isFalse();
+	}
+
+	@Test
+	@DisplayName("알림이 없으면 NOTIFICATION_NOT_FOUND 예외가 발생한다")
+	void getNotification_notFound() {
+		given(notificationRepository.findById(999)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> notificationService.getNotification(USER_ID, 999))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("다른 사용자의 알림이면 FORBIDDEN 예외가 발생한다")
+	void getNotification_otherUsersNotification() {
+		Notification notification = notification(1, NotificationType.CASHOUT, false);
+		given(notificationRepository.findById(1)).willReturn(Optional.of(notification));
+
+		assertThatThrownBy(() -> notificationService.getNotification(999, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
 	}
 }

@@ -3,6 +3,7 @@ package com.bana.dotori.notification.controller;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,6 +24,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.bana.dotori.global.config.SecurityConfig;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
@@ -127,6 +130,57 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰이 없으면 401을 반환한다")
 	void getNotifications_unauthenticated() throws Exception {
 		mockMvc.perform(get(NOTIFICATIONS_URL))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("상세 조회 성공 시 200과 알림 정보를 반환한다")
+	void getNotification_success() throws Exception {
+		givenAuthenticated(1);
+		NotificationItem item = new NotificationItem(1, NotificationType.CASHOUT, "환전 요청",
+			"김아이님이 10,000P 환전을 요청했어요", 1, false,
+			OffsetDateTime.of(2026, 8, 28, 12, 0, 0, 0, ZoneOffset.ofHours(9)));
+		given(notificationService.getNotification(1, 1)).willReturn(item);
+
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.notificationId").value(1))
+			.andExpect(jsonPath("$.type").value("CASHOUT"))
+			.andExpect(jsonPath("$.isRead").value(false));
+	}
+
+	@Test
+	@DisplayName("본인 알림이 아니면 403과 FORBIDDEN 에러를 반환한다")
+	void getNotification_forbidden() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.FORBIDDEN)).given(notificationService).getNotification(1, 1);
+
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/1")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("알림이 없으면 404와 NOTIFICATION_NOT_FOUND 에러를 반환한다")
+	void getNotification_notFound() throws Exception {
+		givenAuthenticated(1);
+		willThrow(new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND)).given(notificationService)
+			.getNotification(1, 999);
+
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/999")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 상세 조회를 호출하면 401을 반환한다")
+	void getNotification_unauthenticated() throws Exception {
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/1"))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();

@@ -3,10 +3,12 @@ package com.bana.dotori.notification.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
@@ -27,5 +29,11 @@ public class NotificationController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
 		return ResponseEntity.ok(notificationService.getNotifications(userId, type, isRead, page, size));
+	}
+
+	@GetMapping("/{notificationId}")
+	public ResponseEntity<NotificationItem> getNotification(@AuthenticationPrincipal Integer userId,
+			@PathVariable Integer notificationId) {
+		return ResponseEntity.ok(notificationService.getNotification(userId, notificationId));
 	}
 }

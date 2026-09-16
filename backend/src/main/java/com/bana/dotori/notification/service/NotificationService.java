@@ -1,5 +1,6 @@
 package com.bana.dotori.notification.service;
 
+import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 
@@ -11,4 +12,11 @@ public interface NotificationService {
 	 */
 	NotificationListResponse getNotifications(Integer userId, NotificationType type, Boolean isRead, int page,
 			int size);
+
+	/**
+	 * 알림 하나의 상세를 조회한다 (NOTI-02). 존재하지 않으면 NOTIFICATION_NOT_FOUND,
+	 * 존재하지만 본인 소유가 아니면 FORBIDDEN — 상점 도메인과 달리 존재 여부를 굳이 숨기지 않는다
+	 * (명세가 두 상태를 명시적으로 구분).
+	 */
+	NotificationItem getNotification(Integer userId, Integer notificationId);
 }
