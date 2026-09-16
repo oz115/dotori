@@ -1,5 +1,7 @@
 package com.bana.dotori.investment.entity;
 
+import java.time.OffsetDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -34,6 +36,10 @@ public class InvestmentProduct {
 	@Column(name = "name", length = 100, nullable = false)
 	private String name;
 
+	// ERD 상 NULL 허용 — 설명이 없는 상품이 있을 수 있다
+	@Column(name = "description", length = 255)
+	private String description;
+
 	// ERD 상 NULL 허용 — 분류가 정해지지 않은 상품이 있을 수 있다
 	@Enumerated(EnumType.STRING)
 	@Column(name = "category")
@@ -45,12 +51,18 @@ public class InvestmentProduct {
 	@Column(name = "is_active", nullable = false)
 	private Boolean isActive;
 
+	// 가격 이력이 없는 가족에게 "가격 갱신 일시"로 내려 줄 대체값 (시드 시각)
+	@Column(name = "updated_at", nullable = false)
+	private OffsetDateTime updatedAt;
+
 	@Builder
-	private InvestmentProduct(String name, InvestmentProductCategory category, Integer currentPrice,
-		Boolean isActive) {
+	private InvestmentProduct(String name, String description, InvestmentProductCategory category,
+		Integer currentPrice, Boolean isActive, OffsetDateTime updatedAt) {
 		this.name = name;
+		this.description = description;
 		this.category = category;
 		this.currentPrice = currentPrice;
 		this.isActive = isActive;
+		this.updatedAt = updatedAt;
 	}
 }
