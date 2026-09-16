@@ -3,10 +3,12 @@ package com.bana.dotori.investment.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
 import com.bana.dotori.investment.service.InvestmentProductService;
@@ -24,5 +26,11 @@ public class InvestmentProductController {
 	public ResponseEntity<InvestmentProductListResponse> getProducts(@AuthenticationPrincipal Integer userId,
 		@RequestParam(required = false) InvestmentProductCategory category) {
 		return ResponseEntity.ok(investmentProductService.getProducts(userId, category));
+	}
+
+	@GetMapping("/{productId}")
+	public ResponseEntity<InvestmentProductDetailResponse> getProductDetail(
+		@AuthenticationPrincipal Integer userId, @PathVariable Integer productId) {
+		return ResponseEntity.ok(investmentProductService.getProductDetail(userId, productId));
 	}
 }

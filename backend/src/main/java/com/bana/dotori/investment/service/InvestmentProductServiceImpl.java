@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
@@ -64,9 +66,39 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			.toList());
 	}
 
+	/**
+	 * 상세도 목록과 같은 가격 규칙이다. updatedAt(가격 갱신 일시)은 최신 가격 행의 기록 시각이고,
+	 * 이력이 없으면 아직 시작가 그대로라는 뜻이라 상품 시드 시각(updated_at)을 내려 준다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public InvestmentProductDetailResponse getProductDetail(Integer userId, Integer productId) {
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+
+		InvestmentProduct product = investmentProductRepository.findById(productId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
+		Optional<InvestmentPriceHistory> latest = latestPriceRow(familyId, productId, todayStart.plusDays(1));
+		Optional<InvestmentPriceHistory> previous = latestPriceRow(familyId, productId, todayStart);
+
+		return investmentProductMapper.toDetailResponse(product,
+			latest.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
+			previous.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
+			latest.map(InvestmentPriceHistory::getRecordedAt).orElse(product.getUpdatedAt()));
+	}
+
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {
 		return investmentPriceHistoryRepository.findLatestPerProductBefore(familyId, before).stream()
 			.collect(Collectors.toMap(InvestmentPriceHistory::getInvestmentProductId,
 				InvestmentPriceHistory::getPrice, (first, second) -> first));
+	}
+
+	private Optional<InvestmentPriceHistory> latestPriceRow(Integer familyId, Integer productId,
+		OffsetDateTime before) {
+		return investmentPriceHistoryRepository
+			.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(
+				familyId, productId, before);
 	}
 }

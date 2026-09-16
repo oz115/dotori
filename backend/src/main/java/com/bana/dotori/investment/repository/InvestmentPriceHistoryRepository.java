@@ -2,6 +2,7 @@ package com.bana.dotori.investment.repository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +11,13 @@ import org.springframework.data.repository.query.Param;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 
 public interface InvestmentPriceHistoryRepository extends JpaRepository<InvestmentPriceHistory, Integer> {
+
+	/**
+	 * 한 상품의 최신 가격 행 (상세 조회용). 목록용 findLatestPerProductBefore 와 같은
+	 * 기준시각 규칙 — 내일 자정이면 현재가, 오늘 자정이면 전일가.
+	 */
+	Optional<InvestmentPriceHistory> findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(
+		Integer familyId, Integer investmentProductId, OffsetDateTime before);
 
 	/**
 	 * 가족의 상품별 최신 가격 행 — 기록 시각이 before 미만인 것 중 가장 최근 것 하나씩.
