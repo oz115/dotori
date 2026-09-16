@@ -6,9 +6,11 @@ import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 
 import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
+import com.bana.dotori.investment.dto.InvestmentOrderResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
 import com.bana.dotori.investment.entity.InvestmentProduct;
+import com.bana.dotori.investment.entity.InvestmentTransaction;
 
 @Component
 public class InvestmentProductMapper {
@@ -38,5 +40,12 @@ public class InvestmentProductMapper {
 		int buyPrice, int currentPrice) {
 		return new InvestmentHoldingSummary(product.getId(), product.getName(), quantity, buyPrice,
 			currentPrice);
+	}
+
+	/** 매수/매도 체결 결과 — 남긴 거래 행 + 지갑이 계산해 준 거래 후 잔액. */
+	public InvestmentOrderResponse toOrderResponse(InvestmentTransaction transaction, int pointBalanceAfter) {
+		return new InvestmentOrderResponse(transaction.getId(), transaction.getTransactionType(),
+			transaction.getQuantity(), transaction.getUnitPrice(), transaction.getTotalAmount(),
+			pointBalanceAfter, transaction.getCreatedAt().atZoneSameInstant(KST).toOffsetDateTime());
 	}
 }

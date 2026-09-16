@@ -97,6 +97,9 @@ public enum ErrorCode {
 
 	// 투자 (INVEST) — 종목 없음은 상점과 같은 PRODUCT_NOT_FOUND 를 쓴다 (명세의 에러 코드가 같음)
 	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다"),
+	PRODUCT_INACTIVE(HttpStatus.CONFLICT, "거래가 중지된 종목입니다"),
+	ALREADY_HOLDING(HttpStatus.CONFLICT, "이미 보유 중인 종목입니다"),
+	INSUFFICIENT_QUANTITY(HttpStatus.BAD_REQUEST, "보유하지 않은 종목입니다"),
 
 	// 알림 (NOTI)
 	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다");
