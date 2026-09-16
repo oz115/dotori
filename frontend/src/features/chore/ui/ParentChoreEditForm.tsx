@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { saveChoreErrorMessage } from '@/features/chore/lib/choreError';
 import {
   toUpdateBody,
   validateChoreForm,
@@ -145,9 +146,9 @@ function EditBody({
         error={rewardError}
       />
 
-      {updateChore.isError ? (
+      {updateChore.error ? (
         <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
-          수정에 실패했어요. 잠시 후 다시 시도해주세요.
+          {saveChoreErrorMessage(updateChore.error)}
         </Text>
       ) : null}
 

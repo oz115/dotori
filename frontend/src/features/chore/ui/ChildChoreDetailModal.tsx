@@ -13,6 +13,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  cancelCompletionErrorMessage,
+  requestCompletionErrorMessage,
+} from '@/features/chore/lib/choreError';
+import { isRewardReady } from '@/features/chore/lib/choreLabels';
 import { photoError, photoErrorMessage, toPhotoFile } from '@/features/chore/lib/chorePhoto';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
 import { useCancelCompletion } from '@/features/chore/model/useCancelCompletion';
@@ -108,6 +113,10 @@ export function ChildChoreDetailModal({
 
   const busy = requestCompletion.isPending || cancelCompletion.isPending;
 
+  // 서버는 보상이 산정되지 않은 할 일의 완료 요청을 400(REWARD_NOT_EVALUATED)으로 막는다.
+  // 열어 두면 아이가 글을 쓰고 사진까지 찍은 뒤에야 실패를 알게 되므로 미리 막고 이유를 말한다.
+  const rewardPending = chore != null && !isRewardReady(chore.rewardPoints);
+
   return (
     <Modal visible={choreId != null} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.backdrop, { backgroundColor: theme.color.background.overlay }]}>
@@ -188,9 +197,14 @@ export function ChildChoreDetailModal({
                 />
               )}
 
-              {requestCompletion.isError || cancelCompletion.isError ? (
+              {requestCompletion.error ? (
                 <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
-                  잘 안 됐어요. 잠시 후 다시 해볼까요?
+                  {requestCompletionErrorMessage(requestCompletion.error)}
+                </Text>
+              ) : null}
+              {cancelCompletion.error ? (
+                <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
+                  {cancelCompletionErrorMessage(cancelCompletion.error)}
                 </Text>
               ) : null}
             </View>
@@ -206,13 +220,26 @@ export function ChildChoreDetailModal({
               style={{ marginTop: theme.space.lg }}
             />
           ) : (
-            <Button
-              label="완료 요청 보내기"
-              loading={requestCompletion.isPending}
-              disabled={busy || photo == null}
-              onPress={submit}
-              style={{ marginTop: theme.space.lg }}
-            />
+            <>
+              {rewardPending ? (
+                <Text
+                  style={[
+                    theme.typography.bodySm,
+                    styles.notice,
+                    { color: theme.color.text.muted, marginTop: theme.space.md },
+                  ]}
+                >
+                  받을 도토리를 정하고 있어요. 정해지면 완료 요청을 보낼 수 있어요!
+                </Text>
+              ) : null}
+              <Button
+                label="완료 요청 보내기"
+                loading={requestCompletion.isPending}
+                disabled={busy || photo == null || rewardPending}
+                onPress={submit}
+                style={{ marginTop: theme.space.md }}
+              />
+            </>
           )}
         </View>
       </View>
@@ -360,6 +387,7 @@ const styles = StyleSheet.create({
   textBox: { borderWidth: 1, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
   textInput: { minHeight: 64, textAlignVertical: 'top' },
   counter: { textAlign: 'right' },
+  notice: { textAlign: 'center' },
   photoBox: { borderWidth: 1.5, borderStyle: 'dashed', overflow: 'hidden' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 28 },
   preview: { width: '100%', height: 160 },

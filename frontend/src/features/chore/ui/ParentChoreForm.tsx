@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { saveChoreErrorMessage } from '@/features/chore/lib/choreError';
 import {
   toCreateBody,
   validateChoreForm,
@@ -95,9 +96,9 @@ export function ParentChoreForm({ familyId, childList }: ParentChoreFormProps) {
           description="등록하면 제목·설명·난이도를 보고 AI가 알맞은 도토리를 매겨요. 마음에 안 들면 수정에서 바꿀 수 있어요."
         />
 
-        {createChore.isError ? (
+        {createChore.error ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
-            등록에 실패했어요. 잠시 후 다시 시도해주세요.
+            {saveChoreErrorMessage(createChore.error)}
           </Text>
         ) : null}
 

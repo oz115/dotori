@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { reviewCompletionErrorMessage } from '@/features/chore/lib/choreError';
 import { useApproveCompletion } from '@/features/chore/model/useApproveCompletion';
 import { useRejectCompletion } from '@/features/chore/model/useRejectCompletion';
 import type { ParentCompletionRequest } from '@/features/chore/model/useChildrenPendingRequests';
@@ -119,9 +120,9 @@ export function CompletionRequestModal({
                 {request?.description ?? '남긴 말 없이 사진만 보냈어요.'}
               </Text>
 
-              {approve.isError || reject.isError ? (
+              {approve.error || reject.error ? (
                 <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
-                  처리하지 못했어요. 잠시 후 다시 시도해주세요.
+                  {reviewCompletionErrorMessage(approve.error ?? reject.error)}
                 </Text>
               ) : null}
             </View>
