@@ -19,14 +19,18 @@ import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
+import com.bana.dotori.investment.dto.InvestmentTransactionListResponse;
 import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
+import com.bana.dotori.investment.entity.InvestmentTransaction;
+import com.bana.dotori.investment.entity.InvestmentTransactionType;
 import com.bana.dotori.investment.mapper.InvestmentProductMapper;
 import com.bana.dotori.investment.repository.InvestmentHoldingRepository;
 import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
+import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
 import com.bana.dotori.user.entity.UserRole;
 
 import lombok.RequiredArgsConstructor;
@@ -36,10 +40,13 @@ import lombok.RequiredArgsConstructor;
 public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+	// 거래 이력 조회에서 시작일을 안 줬을 때의 하한 — 서비스 오픈 이전이라 사실상 전체 조회다
+	private static final LocalDate EARLIEST_DATE = LocalDate.of(2000, 1, 1);
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
 	private final InvestmentHoldingRepository investmentHoldingRepository;
+	private final InvestmentTransactionRepository investmentTransactionRepository;
 	private final FamilyMemberRepository familyMemberRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 
@@ -106,15 +113,7 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	public InvestmentHoldingsResponse getHoldings(Integer userId, Integer childId) {
 		Integer familyId = familyMemberRepository.findActiveFamilyId(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-
-		Integer targetUserId = childId != null ? childId : userId;
-		if (childId != null && !childId.equals(userId)) {
-			FamilyMember target = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FAMILY_CHILD));
-			if (target.getUser().getRole() != UserRole.CHILD) {
-				throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD);
-			}
-		}
+		Integer targetUserId = resolveTargetChild(familyId, userId, childId);
 
 		List<InvestmentHolding> holdings = investmentHoldingRepository
 			.findAllByFamilyIdAndChildIdOrderByInvestmentProductIdAsc(familyId, targetUserId);
@@ -165,6 +164,65 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			product.getId(), start.atStartOfDay(KST).toOffsetDateTime(),
 			end.plusDays(1).atStartOfDay(KST).toOffsetDateTime());
 		return investmentProductMapper.toPriceHistoryResponse(product.getId(), rows);
+	}
+
+	/**
+	 * 거래 이력 조회 (INV-T-05). 보유 조회와 같은 접근 규칙 — childId 없으면 본인,
+	 * 있으면 내 가족 자녀(부모용). 기간을 안 주면 전체(시작일)와 오늘(종료일)이 기본이다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public InvestmentTransactionListResponse getTransactions(Integer userId, Integer childId,
+		LocalDate startDate, LocalDate endDate, InvestmentTransactionType type) {
+		Integer familyId = familyMemberRepository.findActiveFamilyId(userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		Integer targetUserId = resolveTargetChild(familyId, userId, childId);
+
+		if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
+		}
+		// created_at 이 TIMESTAMPTZ 라 KST 하루 경계 범위로 거른다. 시작일 기본은 서비스
+		// 이전의 고정 날짜(사실상 전체), 종료일 기본은 오늘.
+		OffsetDateTime start = (startDate != null ? startDate : EARLIEST_DATE)
+			.atStartOfDay(KST).toOffsetDateTime();
+		OffsetDateTime end = (endDate != null ? endDate : LocalDate.now(KST))
+			.plusDays(1).atStartOfDay(KST).toOffsetDateTime();
+
+		List<InvestmentTransaction> transactions = type == null
+			? investmentTransactionRepository.findAllInRange(familyId, targetUserId, start, end)
+			: investmentTransactionRepository.findAllInRangeByType(familyId, targetUserId, type, start, end);
+		if (transactions.isEmpty()) {
+			return new InvestmentTransactionListResponse(List.of());
+		}
+
+		Map<Integer, InvestmentProduct> products = investmentProductRepository
+			.findAllById(transactions.stream()
+				.map(InvestmentTransaction::getInvestmentProductId)
+				.distinct()
+				.toList())
+			.stream()
+			.collect(Collectors.toMap(InvestmentProduct::getId, product -> product));
+
+		return new InvestmentTransactionListResponse(transactions.stream()
+			.map(transaction -> investmentProductMapper.toTransactionSummary(transaction,
+				products.get(transaction.getInvestmentProductId()).getName()))
+			.toList());
+	}
+
+	/**
+	 * childId 없으면 본인, 있으면 내 가족의 자녀인지 확인하고 그 아이를 대상으로 한다.
+	 * 남의 집 아이거나 같은 집 부모면 403 NOT_FAMILY_CHILD (보유·거래 이력이 공유).
+	 */
+	private Integer resolveTargetChild(Integer familyId, Integer userId, Integer childId) {
+		if (childId == null || childId.equals(userId)) {
+			return userId;
+		}
+		FamilyMember target = familyMemberRepository.findWithUserByFamilyIdAndUserId(familyId, childId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FAMILY_CHILD));
+		if (target.getUser().getRole() != UserRole.CHILD) {
+			throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD);
+		}
+		return childId;
 	}
 
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {

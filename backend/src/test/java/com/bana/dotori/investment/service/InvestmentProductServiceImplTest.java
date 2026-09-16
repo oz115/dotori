@@ -30,6 +30,8 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
+import com.bana.dotori.investment.dto.InvestmentTransactionListResponse;
+import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
@@ -37,10 +39,13 @@ import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentProductCategory;
+import com.bana.dotori.investment.entity.InvestmentTransaction;
+import com.bana.dotori.investment.entity.InvestmentTransactionType;
 import com.bana.dotori.investment.mapper.InvestmentProductMapper;
 import com.bana.dotori.investment.repository.InvestmentHoldingRepository;
 import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 import com.bana.dotori.investment.repository.InvestmentProductRepository;
+import com.bana.dotori.investment.repository.InvestmentTransactionRepository;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 
@@ -59,6 +64,9 @@ class InvestmentProductServiceImplTest {
 
 	@Mock
 	private InvestmentHoldingRepository investmentHoldingRepository;
+
+	@Mock
+	private InvestmentTransactionRepository investmentTransactionRepository;
 
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
@@ -409,6 +417,90 @@ class InvestmentProductServiceImplTest {
 		assertThat(response.history().get(0).recordedAt())
 			.isEqualTo(OffsetDateTime.parse("2026-09-14T00:05:00+09:00"));
 		assertThat(response.history().get(1).price()).isEqualTo(1200);
+	}
+
+	private InvestmentTransaction transaction(Integer id, Integer productId, InvestmentTransactionType type,
+		int unitPrice, OffsetDateTime createdAt) {
+		InvestmentTransaction transaction = InvestmentTransaction.builder()
+			.familyId(FAMILY_ID)
+			.childId(USER_ID)
+			.investmentProductId(productId)
+			.transactionType(type)
+			.quantity(1)
+			.unitPrice(unitPrice)
+			.totalAmount(unitPrice)
+			.createdAt(createdAt)
+			.build();
+		ReflectionTestUtils.setField(transaction, "id", id);
+		return transaction;
+	}
+
+	@Test
+	@DisplayName("거래 이력에서 childId가 내 가족의 자녀가 아니면 NOT_FAMILY_CHILD 예외가 발생한다")
+	void getTransactions_childNotInFamily() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(FAMILY_ID, CHILD_ID))
+			.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> investmentProductService.getTransactions(USER_ID, CHILD_ID, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.NOT_FAMILY_CHILD);
+	}
+
+	@Test
+	@DisplayName("거래 이력에서 시작일이 종료일보다 늦으면 INVALID_DATE_RANGE 예외가 발생한다")
+	void getTransactions_invalidRange() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+
+		assertThatThrownBy(() -> investmentProductService.getTransactions(USER_ID, null,
+			LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 1), null))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INVALID_DATE_RANGE);
+	}
+
+	@Test
+	@DisplayName("거래 이력을 최신순으로 종목명과 함께 내려 주고, 없으면 빈 목록이다")
+	void getTransactions_success() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentTransactionRepository.findAllInRange(eq(FAMILY_ID), eq(USER_ID),
+			any(OffsetDateTime.class), any(OffsetDateTime.class)))
+			.willReturn(List.of(
+				transaction(2, 1, InvestmentTransactionType.SELL, 1300,
+					OffsetDateTime.parse("2026-09-15T10:00:00+09:00")),
+				transaction(1, 1, InvestmentTransactionType.BUY, 1000,
+					OffsetDateTime.parse("2026-09-10T10:00:00+09:00"))));
+		given(investmentProductRepository.findAllById(List.of(1)))
+			.willReturn(List.of(product(1, "시원아이스", 10000)));
+
+		InvestmentTransactionListResponse response = investmentProductService.getTransactions(USER_ID, null,
+			null, null, null);
+
+		assertThat(response.transactions()).hasSize(2);
+		InvestmentTransactionSummary latest = response.transactions().get(0);
+		assertThat(latest.investmentTransactionId()).isEqualTo(2);
+		assertThat(latest.productName()).isEqualTo("시원아이스");
+		assertThat(latest.transactionType()).isEqualTo(InvestmentTransactionType.SELL);
+		assertThat(latest.quantity()).isEqualTo(1);
+		assertThat(latest.unitPrice()).isEqualTo(1300);
+		assertThat(latest.totalAmount()).isEqualTo(1300);
+		assertThat(latest.createdAt()).isEqualTo(OffsetDateTime.parse("2026-09-15T10:00:00+09:00"));
+	}
+
+	@Test
+	@DisplayName("type 필터가 있으면 유형별 조회로 위임하고, 결과가 없으면 상품을 조회하지 않는다")
+	void getTransactions_typeFilter() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentTransactionRepository.findAllInRangeByType(eq(FAMILY_ID), eq(USER_ID),
+			eq(InvestmentTransactionType.BUY), any(OffsetDateTime.class), any(OffsetDateTime.class)))
+			.willReturn(List.of());
+
+		InvestmentTransactionListResponse response = investmentProductService.getTransactions(USER_ID, null,
+			null, null, InvestmentTransactionType.BUY);
+
+		assertThat(response.transactions()).isEmpty();
+		then(investmentProductRepository).shouldHaveNoInteractions();
 	}
 
 	private OffsetDateTime todayStart() {

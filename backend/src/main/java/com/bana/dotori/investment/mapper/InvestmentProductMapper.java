@@ -12,6 +12,7 @@ import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
 import com.bana.dotori.investment.dto.InvestmentPricePoint;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
+import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
 import com.bana.dotori.investment.entity.InvestmentTransaction;
@@ -60,5 +61,13 @@ public class InvestmentProductMapper {
 			.map(row -> new InvestmentPricePoint(row.getPrice(),
 				row.getRecordedAt().atZoneSameInstant(KST).toOffsetDateTime()))
 			.toList());
+	}
+
+	/** 거래 이력 한 건 — 거래 행 그대로에 종목명만 붙인다. */
+	public InvestmentTransactionSummary toTransactionSummary(InvestmentTransaction transaction,
+		String productName) {
+		return new InvestmentTransactionSummary(transaction.getId(), productName,
+			transaction.getTransactionType(), transaction.getQuantity(), transaction.getUnitPrice(),
+			transaction.getTotalAmount(), transaction.getCreatedAt().atZoneSameInstant(KST).toOffsetDateTime());
 	}
 }
