@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { restoreSession, setupAuthInterceptor, useAuthStore } from '@/features/auth';
+import { ensurePushRegistered } from '@/features/notification';
 import { AppProviders } from '@/shared/lib/providers';
 import { useAppFonts } from '@/shared/theme';
 
@@ -23,6 +24,14 @@ export default function RootLayout() {
   useEffect(() => {
     restoreSession();
   }, []);
+
+  // 수동 로그인이든 부팅 시 세션 복원이든, authenticated 로 바뀔 때마다 한 번씩
+  // 조용히 등록을 시도한다 (거부했던 사용자에게 매번 다시 묻지 않음, 실패해도 무시).
+  useEffect(() => {
+    if (status === 'authenticated') {
+      ensurePushRegistered(false);
+    }
+  }, [status]);
 
   const ready = (fontsLoaded || fontError) && status !== 'loading';
 

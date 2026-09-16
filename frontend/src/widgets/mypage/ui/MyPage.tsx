@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { signOut, useAuthStore, useProfile, WithdrawButton } from '@/features/auth';
+import { PushNotificationToggle } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
 import { Header, Screen } from '@/shared/ui';
 
@@ -69,6 +70,7 @@ export function MyPage({ menu, character }: MyPageProps) {
               <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
             </Pressable>
           ))}
+          <PushNotificationToggle />
         </View>
 
         <View style={styles.spacer} />
