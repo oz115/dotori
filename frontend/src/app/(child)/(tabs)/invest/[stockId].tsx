@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { StockInfoCard, StockOverviewCard, useStockDetail } from '@/features/investment';
+import { StockInfoCard, StockOverviewCard, TradeButtons, useStockDetail } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
 
@@ -33,11 +33,7 @@ export default function InvestDetailScreen() {
           <StockOverviewCard detail={detail} />
           <StockInfoCard detail={detail} />
 
-          {/* TODO: 매수·매도 커밋에서 주문 플로우를 연결한다 */}
-          <View style={[styles.tradeRow, { gap: theme.space.md }]}>
-            <Button label="🌰 사기" variant="primary" style={styles.flex} onPress={() => {}} />
-            <Button label="🌰 팔기" variant="outline" style={styles.flex} onPress={() => {}} />
-          </View>
+          <TradeButtons detail={detail} />
         </ScrollView>
       ) : (
         <View style={[styles.empty, { gap: theme.space.lg }]}>
@@ -53,9 +49,6 @@ export default function InvestDetailScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tradeRow: {
-    flexDirection: 'row',
-  },
   empty: {
     flex: 1,
     alignItems: 'center',

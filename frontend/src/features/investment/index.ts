@@ -8,6 +8,7 @@ export { StockInfoCard } from './ui/StockInfoCard';
 export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
+export { TradeButtons } from './ui/TradeButtons';
 export {
   mockInvestmentSummary,
   mockInvestmentNews,
