@@ -58,17 +58,26 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 			return;
 		}
 
-		sendPush(deviceTokens, title, body);
+		sendPush(deviceTokens, type, title, body, refId);
 	}
 
-	private void sendPush(List<DeviceToken> deviceTokens, String title, String body) {
-		MulticastMessage message = MulticastMessage.builder()
+	/**
+	 * data 페이로드(type/refId)는 앱이 알림을 탭했을 때 어느 화면으로 이동할지 판단하는 딥링크 정보다.
+	 * FCM data 값은 전부 String 이어야 하고, refId 는 null 일 수 있어 그 경우 키 자체를 넣지 않는다.
+	 */
+	private void sendPush(List<DeviceToken> deviceTokens, NotificationType type, String title, String body,
+			Integer refId) {
+		MulticastMessage.Builder builder = MulticastMessage.builder()
 			.setNotification(com.google.firebase.messaging.Notification.builder()
 				.setTitle(title)
 				.setBody(body)
 				.build())
-			.addAllTokens(deviceTokens.stream().map(DeviceToken::getFcmToken).toList())
-			.build();
+			.putData("type", type.name())
+			.addAllTokens(deviceTokens.stream().map(DeviceToken::getFcmToken).toList());
+		if (refId != null) {
+			builder.putData("refId", String.valueOf(refId));
+		}
+		MulticastMessage message = builder.build();
 
 		BatchResponse response;
 		try {
