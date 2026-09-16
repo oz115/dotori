@@ -7,10 +7,7 @@ import {
   toStockDetail,
   toStockSummary,
 } from './mappers';
-import type {
-  NewsSummaryResponse,
-  ProductDetailResponse,
-} from '@/features/investment/model/types';
+import type { NewsSummaryResponse, ProductDetailResponse } from '@/features/investment/model/types';
 
 const detailResponse: ProductDetailResponse = {
   investmentProductId: 1,

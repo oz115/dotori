@@ -1,8 +1,4 @@
-import {
-  companyEmoji,
-  companyImage,
-  companyLabel,
-} from '@/features/investment/lib/companyAssets';
+import { companyEmoji, companyImage, companyLabel } from '@/features/investment/lib/companyAssets';
 import type {
   Holding,
   HoldingResponse,

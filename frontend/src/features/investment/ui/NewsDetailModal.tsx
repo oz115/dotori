@@ -20,7 +20,9 @@ type Props = {
  */
 export function NewsDetailModal({ news, onClose }: Props) {
   const theme = useTheme();
-  const detail = useInvestmentNewsDetail(news != null && news.content == null ? news.id : undefined);
+  const detail = useInvestmentNewsDetail(
+    news != null && news.content == null ? news.id : undefined,
+  );
 
   if (news == null) {
     return null;

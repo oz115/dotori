@@ -1,7 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { StockInfoCard, StockOverviewCard, TradeButtons, useStockDetail } from '@/features/investment';
+import {
+  StockInfoCard,
+  StockOverviewCard,
+  TradeButtons,
+  useStockDetail,
+} from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
 
@@ -40,7 +45,9 @@ export default function InvestDetailScreen() {
           <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
             {isPending ? '상품을 불러오는 중이에요.' : '상품을 불러오지 못했어요.'}
           </Text>
-          {isError ? <Button label="다시 시도" variant="outline" onPress={() => refetch()} /> : null}
+          {isError ? (
+            <Button label="다시 시도" variant="outline" onPress={() => refetch()} />
+          ) : null}
         </View>
       )}
     </View>

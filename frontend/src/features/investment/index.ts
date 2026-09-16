@@ -9,13 +9,6 @@ export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
 export { TradeButtons } from './ui/TradeButtons';
-export {
-  mockInvestmentSummary,
-  mockInvestmentNews,
-  mockStocks,
-  mockHoldings,
-  findMockStockDetail,
-} from './model/mock';
 export { formatPoints, formatAcorns, formatNumber, signedAcorns } from './lib/format';
 export { summarizeHoldings } from './lib/holdings';
 export { summarizeInvestment } from './lib/mappers';
