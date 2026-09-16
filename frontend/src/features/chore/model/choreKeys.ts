@@ -4,6 +4,9 @@ export const choreKeys = {
   /** 활성 집안일 목록 */
   list: (familyId: number, childId: number) =>
     [...choreKeys.all, 'list', familyId, childId] as const,
+  /** 집안일 상세 */
+  detail: (familyId: number, childId: number, choreId: number) =>
+    [...choreKeys.all, 'detail', familyId, childId, choreId] as const,
   /** 대기 중인 완료 요청 목록 */
   pendingRequests: (familyId: number, childId: number) =>
     [...choreKeys.all, 'pendingRequests', familyId, childId] as const,
