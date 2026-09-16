@@ -101,6 +101,12 @@ public enum ErrorCode {
 	ALREADY_HOLDING(HttpStatus.CONFLICT, "이미 보유 중인 종목입니다"),
 	INSUFFICIENT_QUANTITY(HttpStatus.BAD_REQUEST, "보유하지 않은 종목입니다"),
 
+	// 퀴즈 (QUIZ)
+	QUIZ_NOT_READY(HttpStatus.NOT_FOUND, "오늘의 퀴즈가 아직 준비되지 않았습니다"),
+	QUIZ_NOT_FOUND(HttpStatus.NOT_FOUND, "퀴즈를 찾을 수 없습니다"),
+	ALREADY_SUBMITTED(HttpStatus.CONFLICT, "이미 정답을 맞힌 퀴즈입니다"),
+	QUIZ_ATTEMPT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "제출 가능한 횟수를 모두 사용했습니다"),
+
 	// 알림 (NOTI)
 	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다"),
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다");
