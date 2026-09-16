@@ -32,9 +32,13 @@
 | Family | 부모 한 명이 생성하는 가족 그룹. 생성자만 해체·설정 수정할 수 있으며 `deleted_at`으로 소프트 삭제. 온보딩 설정 3종(`weekly_allowance`·`weekly_reward_limit`·`financial_knowledge_level`)을 "가족 기본값"으로 보관한다 | FamilyMember 1:N |
 | FamilyMember | 부모 한 명과 여러 자녀의 가족 소속 이력. 활성 소속은 `deleted_at IS NULL`로 조회 | Family N:1, User N:1 |
 | FamilyCode | 가족 초대 코드(6자리, TTL 10분). `code`는 전역 UNIQUE — 코드만으로 가족을 특정하므로 중복이 생기면 연결 API가 죽는다. 재발급 시 기존 코드를 하드 삭제해 가족당 유효 코드 1개 유지 | Family N:1 |
+| Notification | 사용자에게 발송된 알림 이력. `ref_id`는 딥링크용 연관 리소스 ID인데 알림 타입마다 가리키는 테이블이 달라 FK를 걸지 않는다 | User N:1 |
+| DeviceToken | FCM 푸시 수신용 디바이스 토큰. `fcm_token`은 전역 UNIQUE — 기기가 로그아웃 후 다른 계정으로 로그인하면 등록 API가 기존 행의 `user_id`를 갈아치우는 upsert로 동작한다 | User N:1 |
+| InvestmentHolding | 아이별 현재 보유 현황. `(child_id, investment_product_id)` UNIQUE — 매수/매도 API가 거래 기록(`investment_transactions`)과 같은 트랜잭션으로 이 행을 upsert하고, 보유 조회(INV-T-03)는 이 테이블만 읽는다. `buy_price`는 샀을 때 그 시점의 종목 가격(종목당 1주 규칙이라 매수는 한 번뿐), 매도 시 행 삭제 | Family N:1, User(child) N:1, InvestmentProduct N:1 |
 
 - 가족 해체 시 가족과 구성원 소속만 소프트 삭제하며, 포인트 등 거래·자산 이력은 삭제하지 않는다.
 - `family_codes`는 소프트 삭제 대상이 아니다(하드 삭제). 다만 해체된 가족의 코드는 정리되지 않고 남는다 — 연결 API가 가족의 `deleted_at`을 확인해 막는다.
+- `device_tokens.fcm_token` UNIQUE 덕분에 등록 API가 별도 조회 없이 upsert(있으면 갱신, 없으면 삽입)로 구현된다.
 
 #### 가족 온보딩 설정 (S15P21A505-134)
 

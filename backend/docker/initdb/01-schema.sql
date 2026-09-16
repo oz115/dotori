@@ -34,6 +34,7 @@ DROP TABLE IF EXISTS
 "point_transactions",
 "point_cashout_requests",
 "investment_transactions",
+"investment_holdings",
 "savings_transactions",
 "chore_completion_requests",
 "investment_price_history",
@@ -245,6 +246,7 @@ CREATE TYPE task_difficulty AS ENUM (
    (현금화처럼 외부 송금을 기다리는 요청은 그 구간이 있어 PROGRESS 를 쓴다.) */
 CREATE TYPE chore_completion_requests_status AS ENUM (
     'PENDING',
+    'PROGRESS',
     'CANCELLED',
     'SUCCEED',
     'REJECTED'
@@ -468,6 +470,21 @@ CREATE TABLE "investment_price_history" (
     "investment_product_id"        INTEGER     NOT NULL,
     "price"                        INTEGER     NOT NULL,
     "recorded_at"                  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+/* 아이별 현재 보유 현황. 매수/매도 API 가 investment_transactions 기록과
+   같은 트랜잭션으로 이 테이블을 갱신하고, 보유 조회(INV-T-03)는 이 테이블만 읽는다.
+   buy_price 는 샀을 때 그 시점의 종목 가격(종목당 1주 규칙) — 매도 시 행을 지운다. */
+CREATE TABLE "investment_holdings" (
+    "investment_holding_id" SERIAL      NOT NULL,
+    "family_id"             INTEGER     NOT NULL,
+    "child_id"              INTEGER     NOT NULL,
+    "investment_product_id" INTEGER     NOT NULL,
+    "quantity"              INTEGER     NOT NULL,
+    "buy_price"     INTEGER     NOT NULL,
+    "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -721,6 +738,11 @@ ADD CONSTRAINT "PK_INVESTMENT_PRICE_HISTORY"
 PRIMARY KEY ("investment_price_history_id");
 
 
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "PK_INVESTMENT_HOLDINGS"
+PRIMARY KEY ("investment_holding_id");
+
+
 ALTER TABLE "refresh_tokens"
 ADD CONSTRAINT "PK_REFRESH_TOKENS"
 PRIMARY KEY ("refresh_token_id");
@@ -938,6 +960,23 @@ FOREIGN KEY ("family_id")
 REFERENCES "families" ("family_id");
 
 
+/* investment_holdings */
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_FAMILY"
+FOREIGN KEY ("family_id")
+REFERENCES "families" ("family_id");
+
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_CHILD"
+FOREIGN KEY ("child_id")
+REFERENCES "users" ("user_id");
+
+ALTER TABLE "investment_holdings"
+ADD CONSTRAINT "FK_INVESTMENT_HOLDINGS_PRODUCT"
+FOREIGN KEY ("investment_product_id")
+REFERENCES "investment_products" ("investment_product_id");
+
+
 /* investment_news_products */
 ALTER TABLE "investment_news_products"
 ADD CONSTRAINT "FK_INVESTMENT_NEWS_PRODUCTS_NEWS"
@@ -1133,6 +1172,19 @@ UNIQUE ("code");
 
 
 /* ---------------------------------------------------------
+device_tokens
+
+같은 FCM 토큰이 여러 user_id 에 동시에 남아있으면 안 됨.
+기기가 재로그인하면 등록 API 가 이 유니크를 이용해
+기존 소유자를 새 user_id 로 갈아치우는 upsert 로 동작한다.
+--------------------------------------------------------- */
+
+ALTER TABLE "device_tokens"
+ADD CONSTRAINT "UQ_DEVICE_TOKENS_FCM_TOKEN"
+UNIQUE ("fcm_token");
+
+
+/* ---------------------------------------------------------
 families
 
 1. 주간 기본 용돈과 주간 획득 한도는 음수가 될 수 없음
@@ -1157,19 +1209,6 @@ CHECK ("weekly_reward_limit" >= 0);
 ALTER TABLE "families"
 ADD CONSTRAINT "CK_FAMILIES_FINANCIAL_KNOWLEDGE_LEVEL"
 CHECK ("financial_knowledge_level" IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED'));
-
-
-/* ---------------------------------------------------------
-device_tokens
-
-같은 FCM 토큰이 여러 user_id 에 동시에 남아있으면 안 됨.
-기기가 재로그인하면 등록 API 가 이 유니크를 이용해
-기존 소유자를 새 user_id 로 갈아치우는 upsert 로 동작한다.
---------------------------------------------------------- */
-
-ALTER TABLE "device_tokens"
-ADD CONSTRAINT "UQ_DEVICE_TOKENS_FCM_TOKEN"
-UNIQUE ("fcm_token");
 
 
 /* ---------------------------------------------------------
@@ -1362,6 +1401,19 @@ recorded_at 순으로 정렬하므로 그 순서 그대로 건다.
 
 CREATE INDEX "IX_INVESTMENT_PRICE_HISTORY_FAMILY_PRODUCT_RECORDED_AT"
 ON "investment_price_history" ("family_id", "investment_product_id", "recorded_at");
+
+
+/* ---------------------------------------------------------
+investment_holdings — 아이·종목당 보유 행은 하나
+
+보유는 (child_id, investment_product_id)당 한 행을 매수/매도가 갱신하는
+구조라는 불변식이다. 애플리케이션 upsert 만으로는 동시 매수(연타)가
+같은 종목 행을 두 개 만들 수 있어 DB 가 막는다. 조회(가족+아이로 좁힘)도
+이 인덱스의 child_id 를 타므로 별도 조회용 인덱스는 두지 않는다.
+--------------------------------------------------------- */
+
+CREATE UNIQUE INDEX "UX_INVESTMENT_HOLDINGS_CHILD_PRODUCT"
+ON "investment_holdings" ("child_id", "investment_product_id");
 
 
 /* ---------------------------------------------------------

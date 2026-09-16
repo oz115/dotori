@@ -95,8 +95,11 @@ public enum ErrorCode {
 	INVALID_FILE(HttpStatus.BAD_REQUEST, "사진 형식이나 용량이 올바르지 않습니다"),
 	FILE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "사진 저장에 실패했습니다"),
 
-	// 투자 (INVEST)
+	// 투자 (INVEST) — 종목 없음은 상점과 같은 PRODUCT_NOT_FOUND 를 쓴다 (명세의 에러 코드가 같음)
 	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다"),
+
+	// 알림 (NOTI)
+	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다"),
 
 	// 예적금 (SAVINGS)
 	SAVINGS_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 상품을 찾을 수 없습니다"),
