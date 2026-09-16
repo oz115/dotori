@@ -32,6 +32,7 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
@@ -86,6 +87,45 @@ class SavingsControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].name").value("보통예금"))
 			.andExpect(jsonPath("$[0].maxAmount").value(40_000));
+	}
+
+	@Test
+	@DisplayName("상품 상세를 조회하면 200과 상품 하나를 돌려준다")
+	void 상품_상세_조회() throws Exception {
+		given(savingsService.getProduct(CHILD_ID, FAMILY_ID, CHILD_ID, 1)).willReturn(productResponse());
+
+		mockMvc.perform(get(BASE_URL + "/products/{productId}", FAMILY_ID, CHILD_ID, 1)
+				.with(loginAs(CHILD_ID, "CHILD")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.savingsProductId").value(1))
+			.andExpect(jsonPath("$.name").value("보통예금"));
+	}
+
+	@Test
+	@DisplayName("예상 손익을 조회하면 200과 만기·해지 금액을 돌려준다")
+	void 예상_손익_조회() throws Exception {
+		given(savingsService.getExpectedReturn(CHILD_ID, FAMILY_ID, CHILD_ID, 1))
+			.willReturn(new SavingsExpectedReturnResponse(1, 10_000, 375, 1_500L, 11_500L, 10_000L,
+				OffsetDateTime.now().plusWeeks(3)));
+
+		mockMvc.perform(get(BASE_URL + "/subscriptions/{id}/expected-return", FAMILY_ID, CHILD_ID, 1)
+				.with(loginAs(CHILD_ID, "CHILD")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.expectedInterest").value(1_500))
+			.andExpect(jsonPath("$.expectedTotal").value(11_500))
+			.andExpect(jsonPath("$.earlyTerminationAmount").value(10_000));
+	}
+
+	@Test
+	@DisplayName("부모도 아이의 예상 손익을 조회할 수 있다")
+	void 부모도_예상_손익을_본다() throws Exception {
+		Integer parentId = 9;
+		given(savingsService.getExpectedReturn(parentId, FAMILY_ID, CHILD_ID, 1))
+			.willReturn(new SavingsExpectedReturnResponse(1, 10_000, 0, 1_500L, 11_500L, 10_000L, null));
+
+		mockMvc.perform(get(BASE_URL + "/subscriptions/{id}/expected-return", FAMILY_ID, CHILD_ID, 1)
+				.with(loginAs(parentId, "PARENT")))
+			.andExpect(status().isOk());
 	}
 
 	@Test

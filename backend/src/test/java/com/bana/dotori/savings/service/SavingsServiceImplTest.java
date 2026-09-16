@@ -32,6 +32,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.savings.dto.request.SavingsContributeRequest;
 import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
+import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.entity.SavingsProduct;
@@ -85,6 +86,9 @@ class SavingsServiceImplTest {
 
 	@Mock
 	private PointWalletService pointWalletService;
+
+	@Spy
+	private SavingsExpectedReturnCalculator expectedReturnCalculator;
 
 	@Spy
 	private SavingsMapper savingsMapper;
@@ -517,6 +521,65 @@ class SavingsServiceImplTest {
 
 			assertThat(response.status()).isEqualTo(SavingsSubscriptionStatus.CANCELLED);
 			verify(pointWalletService, never()).deposit(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("상품 상세 조회")
+	class GetProduct {
+
+		@Test
+		@DisplayName("이 가족 기준 최대 금액을 함께 돌려준다")
+		void 최대금액을_함께_돌려준다() {
+			product(SavingsProductType.ORDINARY);
+
+			SavingsProductResponse response = savingsService.getProduct(CHILD_ID, FAMILY_ID, CHILD_ID, PRODUCT_ID);
+
+			assertThat(response.maxAmount()).isEqualTo(maxAmountOf(SavingsProductType.ORDINARY));
+		}
+
+		@Test
+		@DisplayName("없는 상품이면 거부한다")
+		void 없는_상품이면_거부한다() {
+			given(savingsProductRepository.findById(PRODUCT_ID)).willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> savingsService.getProduct(CHILD_ID, FAMILY_ID, CHILD_ID, PRODUCT_ID))
+				.isInstanceOf(BusinessException.class)
+				.extracting(e -> ((BusinessException)e).getErrorCode())
+				.isEqualTo(ErrorCode.SAVINGS_PRODUCT_NOT_FOUND);
+		}
+	}
+
+	@Nested
+	@DisplayName("예상 손익 조회")
+	class GetExpectedReturn {
+
+		@Test
+		@DisplayName("만기 예상액과 지금 해지 시 금액을 함께 돌려준다")
+		void 만기와_해지_금액을_함께_돌려준다() {
+			SavingsProduct simple = product(SavingsProductType.SIMPLE_INTEREST);
+			SavingsSubscription subscription = existingSubscription(simple, 10_000, 10_000, 0);
+			given(savingsSubscriptionRepository.findByIdAndFamilyIdAndChildId(SUBSCRIPTION_ID, FAMILY_ID, CHILD_ID))
+				.willReturn(Optional.of(subscription));
+
+			SavingsExpectedReturnResponse response = savingsService.getExpectedReturn(CHILD_ID, FAMILY_ID, CHILD_ID,
+				SUBSCRIPTION_ID);
+
+			assertThat(response.expectedInterest()).isEqualTo(1_500);
+			assertThat(response.expectedTotal()).isEqualTo(11_500);
+			assertThat(response.earlyTerminationAmount()).isEqualTo(10_000);
+		}
+
+		@Test
+		@DisplayName("없는 가입 건이면 거부한다")
+		void 없는_가입이면_거부한다() {
+			given(savingsSubscriptionRepository.findByIdAndFamilyIdAndChildId(99, FAMILY_ID, CHILD_ID))
+				.willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> savingsService.getExpectedReturn(CHILD_ID, FAMILY_ID, CHILD_ID, 99))
+				.isInstanceOf(BusinessException.class)
+				.extracting(e -> ((BusinessException)e).getErrorCode())
+				.isEqualTo(ErrorCode.SAVINGS_SUBSCRIPTION_NOT_FOUND);
 		}
 	}
 

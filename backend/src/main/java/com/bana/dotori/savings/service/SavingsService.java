@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.bana.dotori.savings.dto.request.SavingsContributeRequest;
 import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
+import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 
@@ -11,6 +12,9 @@ public interface SavingsService {
 
 	/** 6개 고정 상품 목록. 이 가족의 weeklyRewardLimit 기준으로 계산한 가입 가능 최대 금액을 함께 준다 */
 	List<SavingsProductResponse> listProducts(Integer userId, Integer familyId, Integer childId);
+
+	/** SAV-02 상품 하나의 상세. 목록과 같은 내용이며 이 가족 기준 최대 금액도 함께 준다 */
+	SavingsProductResponse getProduct(Integer userId, Integer familyId, Integer childId, Integer savingsProductId);
 
 	/** 예적금 가입. 원금(또는 회당 약정액)만큼 지갑에서 즉시 차감한다 — 목표적금만 차감이 없다 */
 	SavingsSubscriptionResponse subscribe(Integer userId, Integer familyId, Integer childId,
@@ -31,5 +35,9 @@ public interface SavingsService {
 	List<SavingsSubscriptionResponse> listSubscriptions(Integer userId, Integer familyId, Integer childId);
 
 	SavingsSubscriptionResponse getSubscription(Integer userId, Integer familyId, Integer childId,
+		Integer savingsSubscriptionId);
+
+	/** SAV-05 만기 예상 수령액과 지금 해지 시 수령액을 나란히 계산한다 */
+	SavingsExpectedReturnResponse getExpectedReturn(Integer userId, Integer familyId, Integer childId,
 		Integer savingsSubscriptionId);
 }

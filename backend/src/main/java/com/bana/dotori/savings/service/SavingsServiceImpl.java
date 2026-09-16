@@ -16,6 +16,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.savings.dto.request.SavingsContributeRequest;
 import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
+import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
@@ -62,6 +63,7 @@ public class SavingsServiceImpl implements SavingsService {
 	private final SavingsAccessValidator savingsAccessValidator;
 	private final FamilySettingsReader familySettingsReader;
 	private final PointWalletService pointWalletService;
+	private final SavingsExpectedReturnCalculator expectedReturnCalculator;
 	private final SavingsMapper savingsMapper;
 
 	@Override
@@ -73,6 +75,16 @@ public class SavingsServiceImpl implements SavingsService {
 		return savingsProductRepository.findByActiveIsTrue().stream()
 			.map(product -> savingsMapper.toProductResponse(product, familySettings))
 			.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public SavingsProductResponse getProduct(Integer userId, Integer familyId, Integer childId,
+		Integer savingsProductId) {
+		savingsAccessValidator.validate(userId, familyId, childId);
+		FamilySettings familySettings = familySettingsReader.read(familyId, childId);
+
+		return savingsMapper.toProductResponse(findProduct(savingsProductId), familySettings);
 	}
 
 	/**
@@ -254,6 +266,27 @@ public class SavingsServiceImpl implements SavingsService {
 				"savingsSubscriptionId=" + savingsSubscriptionId));
 
 		return savingsMapper.toSubscriptionResponse(subscription, findProduct(subscription.getSavingsProductId()));
+	}
+
+	/**
+	 * 예상 손익. 조회만 하므로 행을 잠그지 않는다 — 어차피 "지금 기준 예상"이라
+	 * 읽는 순간의 값이면 충분하다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public SavingsExpectedReturnResponse getExpectedReturn(Integer userId, Integer familyId, Integer childId,
+		Integer savingsSubscriptionId) {
+		savingsAccessValidator.validate(userId, familyId, childId);
+
+		SavingsSubscription subscription = savingsSubscriptionRepository
+			.findByIdAndFamilyIdAndChildId(savingsSubscriptionId, familyId, childId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.SAVINGS_SUBSCRIPTION_NOT_FOUND,
+				"savingsSubscriptionId=" + savingsSubscriptionId));
+		SavingsProduct product = findProduct(subscription.getSavingsProductId());
+
+		return savingsMapper.toExpectedReturnResponse(subscription,
+			expectedReturnCalculator.remainingInterest(subscription, product),
+			expectedReturnCalculator.earlyTerminationAmount(subscription));
 	}
 
 	/**

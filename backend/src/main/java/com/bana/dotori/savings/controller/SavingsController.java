@@ -19,6 +19,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.savings.dto.request.SavingsContributeRequest;
 import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
+import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.service.SavingsService;
@@ -44,6 +45,17 @@ public class SavingsController {
 		@PathVariable Integer childId) {
 
 		return savingsService.listProducts(loginUserId, familyId, childId);
+	}
+
+	/** SAV-02 상품 상세. 목록과 같은 내용이지만 화면이 상품 하나만 열 때 쓴다 */
+	@GetMapping("/products/{savingsProductId}")
+	public SavingsProductResponse getProduct(
+		@AuthenticationPrincipal Integer loginUserId,
+		@PathVariable Integer familyId,
+		@PathVariable Integer childId,
+		@PathVariable Integer savingsProductId) {
+
+		return savingsService.getProduct(loginUserId, familyId, childId, savingsProductId);
 	}
 
 	@PostMapping("/subscriptions")
@@ -121,6 +133,17 @@ public class SavingsController {
 		@PathVariable Integer savingsSubscriptionId) {
 
 		return savingsService.getSubscription(loginUserId, familyId, childId, savingsSubscriptionId);
+	}
+
+	/** SAV-05 만기 예상 수령액과 지금 해지 시 수령액. 조회라 부모도 볼 수 있다 */
+	@GetMapping("/subscriptions/{savingsSubscriptionId}/expected-return")
+	public SavingsExpectedReturnResponse getExpectedReturn(
+		@AuthenticationPrincipal Integer loginUserId,
+		@PathVariable Integer familyId,
+		@PathVariable Integer childId,
+		@PathVariable Integer savingsSubscriptionId) {
+
+		return savingsService.getExpectedReturn(loginUserId, familyId, childId, savingsSubscriptionId);
 	}
 
 	/**
