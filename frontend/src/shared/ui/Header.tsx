@@ -37,6 +37,17 @@ export function Header({ title, onBack, action, right }: HeaderProps) {
       ]}
     >
       <View style={styles.row}>
+        {/* 좌우 콘텐츠 너비가 다르면(예: "구매 내역" 알약 버튼) flex:1 제목이 밀려서 화면
+            중앙과 안 맞는다. 그래서 제목은 행 전체 너비에 절대 위치로 겹쳐 항상 화면
+            정중앙에 고정하고, 좌우 버튼은 그 아래에서 자기 자리로만 밀려나게 분리한다. */}
+        <Text
+          pointerEvents="none"
+          numberOfLines={1}
+          style={[theme.typography.body, styles.title, { color: theme.color.text.strong }]}
+        >
+          {title}
+        </Text>
+
         <View style={styles.side}>
           {onBack ? (
             <Pressable
@@ -49,13 +60,6 @@ export function Header({ title, onBack, action, right }: HeaderProps) {
             </Pressable>
           ) : null}
         </View>
-
-        <Text
-          numberOfLines={1}
-          style={[theme.typography.body, styles.title, { color: theme.color.text.strong }]}
-        >
-          {title}
-        </Text>
 
         <View style={[styles.side, styles.sideRight]}>
           {right ??
@@ -80,10 +84,13 @@ const styles = StyleSheet.create({
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   side: {
     // width 고정이 아니라 minWidth — 짧은 콘텐츠(뒤로가기 화살표, "취소")는 예전과 똑같이
     // 56px로 보이고, "구매 내역" 같은 넓은 pill 버튼은 줄바꿈 없이 필요한 만큼 넓어진다.
+    // 제목이 더 이상 이 두 slot 사이에서 크기를 계산하지 않아서(title 참고), 좌우
+    // 너비가 달라도 제목 중앙 정렬에 영향을 안 준다.
     minWidth: SIDE_WIDTH,
     justifyContent: 'center',
   },
@@ -91,7 +98,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   title: {
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     fontSize: 17,
     textAlign: 'center',
   },

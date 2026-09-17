@@ -24,7 +24,6 @@ export function ActivityBoard() {
         paddingHorizontal: theme.layout.screenX,
         paddingTop: theme.space['2xl'],
         paddingBottom: theme.space['4xl'],
-        paddingLeft: theme.space['2xl'],
       }}
     >
       <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>활동 보드</Text>

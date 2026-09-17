@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useMyAccount } from '@/features/account';
+import { useUnreadNotificationCount } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
 import { AppTopBar } from '@/shared/ui';
 
@@ -26,9 +27,10 @@ export function ParentHome() {
   const theme = useTheme();
   const { familyId, childId, childName, isPending: familyPending } = useParentFamily();
   const account = useMyAccount();
+  const unreadCount = useUnreadNotificationCount();
 
-  // '/task', '/save', '/investment' 는 부모·자녀 그룹 모두에 있는 경로라
-  // 그룹까지 적어야 부모 탭으로 간다
+  // '/task', '/save', '/investment', '/notifications' 는 부모·자녀 그룹 모두에 있는
+  // 경로라 그룹까지 적어야 부모 쪽으로 간다
   const openChoreTab = () => router.push('/(parent)/(tabs)/task');
   const openSaveTab = () => router.push('/(parent)/(tabs)/save');
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
@@ -38,7 +40,11 @@ export function ParentHome() {
       edges={['top']}
       style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
     >
-      <AppTopBar onProfilePress={() => router.push('/mypage')} />
+      <AppTopBar
+        onProfilePress={() => router.push('/mypage')}
+        onNotificationsPress={() => router.push('/(parent)/notifications')}
+        unreadCount={unreadCount.data?.unreadCount}
+      />
 
       <ScrollView
         contentContainerStyle={[

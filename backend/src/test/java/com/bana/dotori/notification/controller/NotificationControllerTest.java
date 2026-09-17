@@ -36,6 +36,7 @@ import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
+import com.bana.dotori.notification.dto.NotificationUnreadCountResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
 
@@ -299,6 +300,27 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰 없이 삭제를 호출하면 401을 반환한다")
 	void deleteNotification_unauthenticated() throws Exception {
 		mockMvc.perform(delete(NOTIFICATIONS_URL + "/1"))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("안 읽은 알림 개수 조회 성공 시 200과 unreadCount를 반환한다")
+	void getUnreadCount_success() throws Exception {
+		givenAuthenticated(1);
+		given(notificationService.getUnreadCount(1)).willReturn(new NotificationUnreadCountResponse(3));
+
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/unread-count")
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.unreadCount").value(3));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 안 읽은 알림 개수 조회를 호출하면 401을 반환한다")
+	void getUnreadCount_unauthenticated() throws Exception {
+		mockMvc.perform(get(NOTIFICATIONS_URL + "/unread-count"))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();

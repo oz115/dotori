@@ -36,7 +36,11 @@ export default function ChildTabsLayout() {
   }
 
   return (
-    <Tabs initialRouteName="index" screenOptions={tabScreenOptions(theme, insets.bottom)}>
+    <Tabs
+      initialRouteName="index"
+      backBehavior="initialRoute"
+      screenOptions={tabScreenOptions(theme, insets.bottom)}
+    >
       <Tabs.Screen name="task" options={{ tabBarLabel: '할 일', tabBarIcon: tabIcon('task') }} />
       <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />
