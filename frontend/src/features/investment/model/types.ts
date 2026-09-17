@@ -95,6 +95,18 @@ export type Holding = {
   currentPrice: number;
 };
 
+/** 거래 내역 화면의 한 줄 */
+export type InvestmentTransactionItem = {
+  id: number;
+  productName: string;
+  image: ImageSourcePropType;
+  type: 'BUY' | 'SELL';
+  /** 총 거래 금액, 단위는 도토리 (1주 규칙이라 체결 단가와 같음) */
+  totalAmount: number;
+  /** 표시용 날짜 문자열 (예: 2026. 09. 16) */
+  date: string;
+};
+
 /* =========================================================
    서버 응답 타입 — 노션 API 명세(투자)와 1:1. 화면용 타입으로의
    변환은 lib/mappers 가 담당한다.
@@ -163,6 +175,17 @@ export type NewsSummaryResponse = {
 /** GET /investments/news/{id} */
 export type NewsDetailResponse = NewsSummaryResponse & {
   content: string;
+};
+
+/** GET /investments/transactions 의 한 건 */
+export type TransactionResponse = {
+  investmentTransactionId: number;
+  productName: string;
+  transactionType: InvestmentTransactionType;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  createdAt: string;
 };
 
 /** POST /investments/orders/buy·sell 응답 */

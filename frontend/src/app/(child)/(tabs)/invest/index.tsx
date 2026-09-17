@@ -52,6 +52,7 @@ export default function InvestScreen() {
       <Header
         title="투자 상품 상세 보기"
         onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        action={{ label: '거래 내역', onPress: () => router.push('/invest/transactions') }}
       />
 
       <ScrollView

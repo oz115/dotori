@@ -7,6 +7,7 @@ import type {
   PriceHistoryResponse,
   ProductDetailResponse,
   ProductSummaryResponse,
+  TransactionResponse,
 } from '@/features/investment/model/types';
 
 /**
@@ -52,6 +53,12 @@ export const investmentApi = {
     httpClient
       .get<NewsDetailResponse>(`/api/v1/investments/news/${newsId}`)
       .then((res) => res.data),
+
+  /** 거래 이력 (최신순). 필터 없이 전체 — 기간·유형 필터가 필요해지면 params 를 확장한다 */
+  getTransactions: () =>
+    httpClient
+      .get<{ transactions: TransactionResponse[] }>('/api/v1/investments/transactions')
+      .then((res) => res.data.transactions),
 
   /** 매수 — 종목당 1주 규칙이라 수량 없이 종목만 보낸다 */
   buy: (productId: number) =>

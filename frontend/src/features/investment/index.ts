@@ -9,6 +9,8 @@ export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
 export { TradeButtons } from './ui/TradeButtons';
+export { TransactionCard } from './ui/TransactionCard';
+export { useInvestmentTransactions } from './model/useInvestmentTransactions';
 export { formatPoints, formatAcorns, formatNumber, signedAcorns } from './lib/format';
 export { summarizeHoldings } from './lib/holdings';
 export { summarizeInvestment } from './lib/mappers';

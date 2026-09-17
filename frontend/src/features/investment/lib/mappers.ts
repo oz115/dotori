@@ -4,6 +4,7 @@ import type {
   HoldingResponse,
   InvestmentNews,
   InvestmentSummary,
+  InvestmentTransactionItem,
   NewsSummaryResponse,
   PriceHistoryResponse,
   PricePoint,
@@ -11,6 +12,7 @@ import type {
   ProductSummaryResponse,
   StockDetail,
   StockSummary,
+  TransactionResponse,
 } from '@/features/investment/model/types';
 
 /**
@@ -90,6 +92,17 @@ export function summarizeInvestment(holdings: Holding[]): InvestmentSummary {
   return {
     investedPoints: holdings.reduce((sum, h) => sum + h.buyPrice * h.quantity, 0),
     earnedPoints: holdings.reduce((sum, h) => sum + (h.currentPrice - h.buyPrice) * h.quantity, 0),
+  };
+}
+
+export function toTransactionItem(transaction: TransactionResponse): InvestmentTransactionItem {
+  return {
+    id: transaction.investmentTransactionId,
+    productName: transaction.productName,
+    image: companyImage(transaction.productName),
+    type: transaction.transactionType,
+    totalAmount: transaction.totalAmount,
+    date: formatNewsDate(transaction.createdAt),
   };
 }
 

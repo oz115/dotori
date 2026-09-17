@@ -1,0 +1,62 @@
+import { router } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { TransactionCard, useInvestmentTransactions } from '@/features/investment';
+import { useTheme } from '@/shared/theme';
+import { Button, Header } from '@/shared/ui';
+
+/**
+ * 투자 거래 내역. 매수/매도한 기록을 최신순으로 보여준다 (INV-T-05).
+ */
+export default function InvestTransactionsScreen() {
+  const theme = useTheme();
+  const transactions = useInvestmentTransactions();
+
+  return (
+    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
+      <Header
+        title="투자 거래 내역"
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
+      />
+
+      {transactions.isPending || transactions.isError ? (
+        <View style={[styles.center, { gap: theme.space.lg }]}>
+          <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
+            {transactions.isPending ? '거래 내역을 불러오는 중이에요.' : '불러오지 못했어요.'}
+          </Text>
+          {transactions.isError ? (
+            <Button label="다시 시도" variant="outline" onPress={() => transactions.refetch()} />
+          ) : null}
+        </View>
+      ) : transactions.data.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
+            아직 사고판 기록이 없어요.
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingVertical: theme.layout.screenY,
+            gap: theme.space.md,
+          }}
+        >
+          {transactions.data.map((item) => (
+            <TransactionCard key={item.id} item={item} />
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

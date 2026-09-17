@@ -6,5 +6,6 @@ export const investmentKeys = {
   priceHistory: (productId: number) => [...investmentKeys.all, 'priceHistory', productId] as const,
   holdings: (childId?: number) => [...investmentKeys.all, 'holdings', childId ?? 'me'] as const,
   news: (date?: string) => [...investmentKeys.all, 'news', date ?? 'today'] as const,
+  transactions: () => [...investmentKeys.all, 'transactions'] as const,
   newsDetail: (newsId: number) => [...investmentKeys.all, 'newsDetail', newsId] as const,
 };
