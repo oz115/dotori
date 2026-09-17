@@ -135,7 +135,6 @@ export function ParentChoreList({
                     ? '이 주기의 미션이 없어요.'
                     : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
-            showMascot={!isPending && !isError}
           />
         }
       />
@@ -187,12 +186,12 @@ function IntroBanner() {
         <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
           우리 가족 미션
         </Text>
-        <Text style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}>
-          아이가 해낼 미션을 만들고 도토리로 칭찬해주세요!
+        <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+          {'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
         </Text>
       </View>
       <Image
-        source={require('@/assets/images/chore/owl-smile.png')}
+        source={require('@/assets/images/chore/owl-cheer.png')}
         style={styles.mascotSmall}
         resizeMode="contain"
       />
@@ -279,18 +278,11 @@ function PendingRequestsCard({
   );
 }
 
-function EmptyState({ message, showMascot }: { message: string; showMascot: boolean }) {
+function EmptyState({ message }: { message: string }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.empty, { gap: theme.space.lg }]}>
-      {showMascot ? (
-        <Image
-          source={require('@/assets/images/chore/owl-cheer.png')}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
-      ) : null}
+    <View style={styles.empty}>
       <Text style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}>
         {message}
       </Text>
@@ -315,7 +307,6 @@ const styles = StyleSheet.create({
   requestBody: { flex: 1, gap: 2 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  mascot: { width: 140, height: 140 },
   // 상점의 등록 버튼(StoreCatalog)과 같은 자리·같은 크기다.
   fab: {
     position: 'absolute',

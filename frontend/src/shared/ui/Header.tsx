@@ -31,7 +31,10 @@ export function Header({ title, onBack, action, right }: HeaderProps) {
         styles.container,
         {
           paddingTop: insets.top,
-          paddingHorizontal: theme.space.md,
+          // 아래 콘텐츠(배너·카드 등)와 같은 화면 표준 여백을 써서 헤더만 가장자리에
+          // 더 붙어 보이지 않게 한다. "구매 내역" 같은 우측 버튼이 화면 끝에 너무
+          // 붙어 보인다는 피드백으로 space.md(12) → layout.screenX(27)로 넓힘.
+          paddingHorizontal: theme.layout.screenX,
           backgroundColor: theme.color.background.surface,
         },
       ]}

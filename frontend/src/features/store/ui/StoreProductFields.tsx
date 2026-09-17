@@ -128,11 +128,29 @@ function FieldLabel({ children, required = false }: { children: ReactNode; requi
   );
 }
 
-/** 입력 아래 우측에 붙는 글자수 카운터. 백엔드 제약(NAME_MAX/DESCRIPTION_MAX)과 같은 값을 쓴다. */
+/**
+ * 입력 아래 우측에 붙는 글자수 카운터. 백엔드 제약(NAME_MAX/DESCRIPTION_MAX)과 같은 값을 쓴다.
+ *
+ * theme.typography.caption 은 16px 로 다른 화면의 "작은 안내 텍스트" 용도치곤 커서
+ * (라벨(16px)과 같은 크기), 여기서는 폰트만 caption 걸 따르고 크기만 줄인다.
+ */
 function CharCounter({ current, max }: { current: number; max: number }) {
   const theme = useTheme();
   return (
-    <Text style={[theme.typography.caption, styles.charCounter, { color: theme.color.text.muted }]}>
+    <Text
+      style={[
+        theme.typography.caption,
+        styles.charCounter,
+        {
+          color: theme.color.text.muted,
+          fontSize: 12,
+          lineHeight: 14,
+          // Input(box)의 둥근 테두리 곡선 때문에 화면 여백 기준 우측 정렬만으로는
+          // 박스 오른쪽 끝보다 살짝 바깥으로 밀려 보인다 — 안쪽으로 살짝 당긴다.
+          paddingRight: theme.space.xs,
+        },
+      ]}
+    >
       {current}/{max}
     </Text>
   );

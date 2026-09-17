@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
@@ -113,7 +113,6 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
                     ? '이 주기의 미션이 없어요.'
                     : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
             }
-            showMascot={!isPending && !isError}
           />
         }
       />
@@ -137,18 +136,11 @@ function rewardCaption(total: number, pendingCount: number): string | undefined 
   return pendingCount > 0 ? `${sum} (${pendingCount}개는 계산 중)` : sum;
 }
 
-function EmptyState({ message, showMascot }: { message: string; showMascot: boolean }) {
+function EmptyState({ message }: { message: string }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.empty, { gap: theme.space.lg }]}>
-      {showMascot ? (
-        <Image
-          source={require('@/assets/images/chore/squirrel-flag.png')}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
-      ) : null}
+    <View style={styles.empty}>
       <Text style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}>
         {message}
       </Text>
@@ -163,5 +155,4 @@ const styles = StyleSheet.create({
   historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  mascot: { width: 140, height: 140 },
 });

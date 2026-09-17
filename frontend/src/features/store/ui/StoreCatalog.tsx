@@ -101,12 +101,16 @@ export function StoreCatalog({
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>
+            <Text
+              style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}
+            >
               {isPending
                 ? '상품을 불러오는 중이에요.'
                 : isError
                   ? '상품을 불러오지 못했어요.'
-                  : '표시할 상품이 없어요.'}
+                  : onRegisterPress
+                    ? '아직 등록한 상품이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
+                    : '아직 상품이 없어요.\n부모님이 곧 채워주실 거예요!'}
             </Text>
           </View>
         }
@@ -146,7 +150,10 @@ const styles = StyleSheet.create({
   // maxWidth 없이 flex:1 만 쓰면, 상품이 홀수 개일 때 마지막 줄의 카드 하나가
   // 짝을 못 만나 행 전체 너비로 늘어난다(이미지·글자까지 통째로 커짐). 50%로 캡을 건다.
   cell: { flex: 1, maxWidth: '50%' },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
+  // 할 일 화면(ParentChoreList/ChildChoreList)의 빈 상태와 같은 위치에 오도록
+  // paddingBottom 만 준다 (paddingTop 을 쓰면 두 탭의 빈 문구 높이가 달라 보인다).
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
+  emptyText: { textAlign: 'center' },
   historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   fab: {
     position: 'absolute',
