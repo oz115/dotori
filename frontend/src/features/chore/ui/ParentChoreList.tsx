@@ -14,9 +14,6 @@ import {
 } from '@/features/chore/model/useChildrenPendingRequests';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChildBadge } from '@/features/chore/ui/ChildBadge';
-import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
-import { ChoreActionSheet } from '@/features/chore/ui/ChoreActionSheet';
-import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
@@ -33,7 +30,6 @@ type ParentChoreListProps = {
   /** 화면 이동은 라우트가 맡는다. 안 넘기면 그 자리는 눌러도 조용하다 */
   onRegisterPress?: () => void;
   onChorePress?: (chore: ParentChore) => void;
-  onEditChore?: (chore: ParentChore) => void;
   onRequestPress?: (request: ParentCompletionRequest) => void;
   onSeeAllRequests?: () => void;
   onHistoryPress?: () => void;
@@ -42,17 +38,19 @@ type ParentChoreListProps = {
 const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
 
 /**
- * 부모가 보는 할 일 목록 (할 일 탭). 자녀 여러 명의 할 일이 한 목록에 섞인다.
+ * 부모가 보는 미션 목록 (미션 탭). 자녀 여러 명의 미션이 한 목록에 섞인다.
  *
- * 맨 위에 등록 배너, 그 아래 처리할 완료 요청, 그다음이 목록이다 - 부모가 이 화면에 오는
+ * 맨 위에 설명 배너, 그 아래 처리할 완료 요청, 그다음이 목록이다 - 부모가 이 화면에 오는
  * 이유가 대개 "확인해 줄 것이 있나"라서 목록보다 위에 둔다.
+ *
+ * 수정·삭제는 여기 두지 않는다. 행마다 달려 있던 "..." 메뉴를 없애고 상세로 옮겼다 -
+ * 목록에서 곧바로 지울 수 있으면 어느 미션을 지우는지 확인하지 않은 채 누르기 쉽다.
  */
 export function ParentChoreList({
   familyId,
   childList,
   onRegisterPress,
   onChorePress,
-  onEditChore,
   onRequestPress,
   onSeeAllRequests,
   onHistoryPress,
@@ -60,11 +58,6 @@ export function ParentChoreList({
   const theme = useTheme();
   const { refreshing, onRefresh } = useChoreRefresh();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
-  const [menuTarget, setMenuTarget] = useState<ParentChore | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ParentChore | null>(null);
-
-  // 지울 대상이 정해져야 어느 아이의 경로로 부를지 알 수 있다. 대상이 바뀌면 훅도 따라간다.
-  const deleteChore = useDeleteChore(familyId, deleteTarget?.childId);
 
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
@@ -74,16 +67,32 @@ export function ParentChoreList({
     [items, repeatType],
   );
 
-  return (
-    <Screen
-      header={
-        <Header
-          title="할 일"
-          action={onHistoryPress ? { label: '완료 이력', onPress: onHistoryPress } : undefined}
-        />
-      }
-      padded={false}
+  // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
+  const historyButton = onHistoryPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="완료 이력"
+      onPress={onHistoryPress}
+      hitSlop={8}
+      style={[
+        styles.historyChip,
+        {
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.color.background.surfaceSunken,
+        },
+      ]}
     >
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.caption, { color: theme.color.text.default }]}
+      >
+        완료 이력
+      </Text>
+    </Pressable>
+  ) : undefined;
+
+  return (
+    <Screen header={<Header title="미션" right={historyButton} />} padded={false}>
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
@@ -95,7 +104,7 @@ export function ParentChoreList({
         ]}
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <RegisterBanner onPress={onRegisterPress} />
+            <IntroBanner />
             {requests.items.length > 0 ? (
               <PendingRequestsCard
                 requests={requests.items}
@@ -113,93 +122,80 @@ export function ParentChoreList({
             rewardPoints={item.rewardPoints}
             childName={item.childName}
             onPress={onChorePress ? () => onChorePress(item) : undefined}
-            trailing={
-              <Pressable
-                onPress={() => setMenuTarget(item)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.title} 더보기`}
-              >
-                <Ionicons name="ellipsis-horizontal" size={20} color={theme.color.text.muted} />
-              </Pressable>
-            }
           />
         )}
         ListEmptyComponent={
           <EmptyState
             message={
               isPending
-                ? '할 일을 불러오는 중이에요.'
+                ? '미션을 불러오는 중이에요.'
                 : isError
-                  ? '할 일을 불러오지 못했어요.'
+                  ? '미션을 불러오지 못했어요.'
                   : repeatType != null
-                    ? '이 주기의 할 일이 없어요.'
-                    : '아직 등록한 할 일이 없어요.\n위에서 첫 할 일을 만들어보세요.'
+                    ? '이 주기의 미션이 없어요.'
+                    : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
-            showMascot={!isPending && !isError}
           />
         }
       />
 
-      <ChoreActionSheet
-        title={menuTarget?.title ?? null}
-        onEdit={() => {
-          const target = menuTarget;
-          setMenuTarget(null);
-          if (target) onEditChore?.(target);
-        }}
-        onDelete={() => {
-          setDeleteTarget(menuTarget);
-          setMenuTarget(null);
-        }}
-        onClose={() => setMenuTarget(null)}
-      />
-
-      <DeleteChoreModal
-        title={deleteTarget?.title ?? null}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() =>
-          deleteTarget &&
-          deleteChore.mutate(deleteTarget.choreId, { onSuccess: () => setDeleteTarget(null) })
-        }
-        loading={deleteChore.isPending}
-        isError={deleteChore.isError}
-      />
+      {onRegisterPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="미션 등록"
+          onPress={onRegisterPress}
+          style={({ pressed }) => [
+            styles.fab,
+            theme.shadow.card,
+            {
+              backgroundColor: pressed ? theme.color.brand.solidPressed : theme.color.brand.solid,
+              borderRadius: theme.radius.full,
+            },
+          ]}
+        >
+          <Ionicons name="add" size={28} color={theme.color.text.onBrand} />
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }
 
-function RegisterBanner({ onPress }: { onPress?: () => void }) {
+/**
+ * 화면 맨 위의 설명 배너. 상점(StoreBanner)과 같은 자리·같은 높이다.
+ *
+ * 누르는 배너가 아니다. 예전에는 이것이 등록 버튼이었는데, 목록을 보러 온 부모가 맨 위
+ * 큰 박스를 눌러 등록 화면으로 빠지는 일이 잦았다. 등록은 우측 하단 + 버튼으로 옮겼다.
+ */
+function IntroBanner() {
   const theme = useTheme();
 
   return (
-    <Pressable onPress={onPress} disabled={onPress == null} accessibilityRole="button">
-      <View
-        style={[
-          styles.banner,
-          {
-            backgroundColor: theme.color.brand.subtle,
-            borderRadius: theme.radius.lg,
-            paddingVertical: theme.space.lg,
-            paddingHorizontal: theme.space.xl,
-            gap: theme.space.md,
-          },
-        ]}
-      >
-        <View style={styles.bannerBody}>
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>할 일 등록</Text>
-          <Text style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}>
-            우리 아이의 새로운 할 일을 추가해보세요!
-          </Text>
-        </View>
-        <Image
-          source={require('@/assets/images/chore/owl-smile.png')}
-          style={styles.mascotSmall}
-          resizeMode="contain"
-        />
-        <Ionicons name="chevron-forward" size={22} color={theme.color.brand.subtleText} />
+    <View
+      style={[
+        styles.banner,
+        {
+          backgroundColor: theme.color.brand.subtle,
+          borderRadius: theme.radius.lg,
+          paddingVertical: theme.space.lg,
+          paddingHorizontal: theme.space.xl,
+          gap: theme.space.md,
+        },
+      ]}
+    >
+      <View style={styles.bannerBody}>
+        <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+          우리 가족 미션
+        </Text>
+        <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+          {'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
+        </Text>
       </View>
-    </Pressable>
+      <Image
+        source={require('@/assets/images/chore/owl-cheer.png')}
+        style={styles.mascotSmall}
+        resizeMode="contain"
+      />
+    </View>
   );
 }
 
@@ -282,18 +278,11 @@ function PendingRequestsCard({
   );
 }
 
-function EmptyState({ message, showMascot }: { message: string; showMascot: boolean }) {
+function EmptyState({ message }: { message: string }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.empty, { gap: theme.space.lg }]}>
-      {showMascot ? (
-        <Image
-          source={require('@/assets/images/chore/owl-cheer.png')}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
-      ) : null}
+    <View style={styles.empty}>
       <Text style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}>
         {message}
       </Text>
@@ -302,10 +291,15 @@ function EmptyState({ message, showMascot }: { message: string; showMascot: bool
 }
 
 const styles = StyleSheet.create({
-  content: { paddingVertical: 16, flexGrow: 1 },
+  // 위쪽 여백을 주지 않는다. Screen 이 padded={false} 여도 paddingVertical(16)은 항상
+  // 넣기 때문에, 여기서 또 주면 헤더와 배너 사이가 32px 이 되어 상점(16px)보다 벌어진다.
+  content: { paddingBottom: 16, flexGrow: 1 },
   banner: { flexDirection: 'row', alignItems: 'center' },
   bannerBody: { flex: 1, gap: 4 },
-  mascotSmall: { width: 84, height: 84 },
+  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
+  // 상점 배너(StoreBanner)와 같은 88px. 글 영역이 52px 라 높이는 마스코트가 정한다 - 이 값이
+  // 두 탭의 배너를 똑같이 120px 로 맞춘다.
+  mascotSmall: { width: 88, height: 88 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   count: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },
@@ -313,5 +307,14 @@ const styles = StyleSheet.create({
   requestBody: { flex: 1, gap: 2 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  mascot: { width: 140, height: 140 },
+  // 상점의 등록 버튼(StoreCatalog)과 같은 자리·같은 크기다.
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

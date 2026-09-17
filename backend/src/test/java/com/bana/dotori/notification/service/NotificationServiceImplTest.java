@@ -30,6 +30,7 @@ import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
+import com.bana.dotori.notification.dto.NotificationUnreadCountResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.repository.NotificationRepository;
@@ -262,5 +263,25 @@ class NotificationServiceImplTest {
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
 		then(notificationRepository).should(never()).delete(any(Notification.class));
+	}
+
+	@Test
+	@DisplayName("안 읽은 알림 개수를 리포지토리가 반환한 값 그대로 담아 반환한다")
+	void getUnreadCount_returnsRepositoryCount() {
+		given(notificationRepository.count(any(Specification.class))).willReturn(3L);
+
+		NotificationUnreadCountResponse response = notificationService.getUnreadCount(USER_ID);
+
+		assertThat(response.unreadCount()).isEqualTo(3);
+	}
+
+	@Test
+	@DisplayName("안 읽은 알림이 없으면 unreadCount 0을 반환한다")
+	void getUnreadCount_noUnread_returnsZero() {
+		given(notificationRepository.count(any(Specification.class))).willReturn(0L);
+
+		NotificationUnreadCountResponse response = notificationService.getUnreadCount(USER_ID);
+
+		assertThat(response.unreadCount()).isEqualTo(0);
 	}
 }

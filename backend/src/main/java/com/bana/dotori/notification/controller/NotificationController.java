@@ -14,6 +14,7 @@ import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
+import com.bana.dotori.notification.dto.NotificationUnreadCountResponse;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.NotificationService;
 
@@ -57,5 +58,10 @@ public class NotificationController {
 			@PathVariable Integer notificationId) {
 		notificationService.deleteNotification(userId, notificationId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping("/unread-count")
+	public ResponseEntity<NotificationUnreadCountResponse> getUnreadCount(@AuthenticationPrincipal Integer userId) {
+		return ResponseEntity.ok(notificationService.getUnreadCount(userId));
 	}
 }

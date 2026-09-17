@@ -95,6 +95,34 @@ describe('withStatus', () => {
     expect(items[0].status).toBe('TODO');
   });
 
+  it('이번 주기에 거절당했으면 REJECTED 다', () => {
+    expect(withStatus([chore(1, '2026-09-15')], [], [], [pending(1)])[0].status).toBe('REJECTED');
+  });
+
+  it('거절 뒤 다시 보냈으면 PENDING 이 이긴다', () => {
+    // 거절 기록은 그대로 남아 있다. 순서를 뒤집으면 새로 보낸 요청이 화면에서 사라진다.
+    const items = withStatus([chore(1, '2026-09-15')], [pending(1)], [], [pending(1)]);
+
+    expect(items[0].status).toBe('PENDING');
+  });
+
+  it('지난 주기의 거절은 세지 않는다', () => {
+    const old = { ...pending(1), requestedAt: '2026-09-14T23:59:00+09:00' };
+
+    expect(withStatus([chore(1, '2026-09-15')], [], [], [old])[0].status).toBe('TODO');
+  });
+
+  it('이미 받았으면 거절 기록이 있어도 DONE 이다', () => {
+    const items = withStatus(
+      [chore(1, '2026-09-15')],
+      [],
+      [completion(1, '2026-09-15T18:00:00+09:00')],
+      [pending(1)],
+    );
+
+    expect(items[0].status).toBe('DONE');
+  });
+
   it('다른 할 일의 지급에 영향받지 않는다', () => {
     const items = withStatus(
       [chore(1, '2026-09-15'), chore(2, '2026-09-15')],

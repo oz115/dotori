@@ -13,8 +13,8 @@ type Props = {
 };
 
 /**
- * 보유 화면의 종목 한 줄 카드 — 아이콘·이름·보유중 배지와 지금 가격,
- * 산 가격 대비 얼마나 벌었는지(잃었는지)를 보여준다.
+ * 보유 화면의 종목 한 줄 카드 — 아이콘·이름과 지금 가격, 산 가격 대비 수익.
+ * 이 화면의 종목은 전부 보유중이라 배지는 두지 않는다 (이름 가독성이 우선).
  */
 export function HoldingCard({ holding, onPress }: Props) {
   const theme = useTheme();
@@ -29,10 +29,11 @@ export function HoldingCard({ holding, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
+        theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
           borderRadius: theme.radius.xl,
-          borderColor: theme.color.border.default,
+          borderColor: theme.color.border.card,
           padding: theme.space.lg,
           gap: theme.space.md,
           opacity: pressed ? 0.85 : 1,
@@ -46,27 +47,14 @@ export function HoldingCard({ holding, onPress }: Props) {
         resizeMode="cover"
       />
 
-      <View style={[styles.nameBlock, { gap: theme.space.sm }]}>
-        <Text
-          numberOfLines={1}
-          style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
-        >
-          {holding.name}
-        </Text>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.full },
-          ]}
-        >
-          <Text style={[theme.typography.caption, { color: theme.color.brand.subtleText }]}>
-            보유중
-          </Text>
-        </View>
-      </View>
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
+      >
+        {holding.name}
+      </Text>
 
       <View style={[styles.priceBlock, { gap: theme.space.xs }]}>
-        <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>지금 가격</Text>
         <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
           {formatAcorns(holding.currentPrice)}
         </Text>
@@ -84,26 +72,19 @@ export function HoldingCard({ holding, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // 상점 상품 카드와 같은 문법 — 뚜렷한 1px 테두리 + 옅은 그림자로 카드 경계를 살린다
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
   icon: {
     width: 52,
     height: 52,
   },
-  nameBlock: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  // 이름이 남는 공간을 전부 가져가고, 넘치면 말줄임 — 가격 블록에 밀리지 않게 한다
   name: {
-    flexShrink: 1,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    flex: 1,
   },
   priceBlock: {
     alignItems: 'flex-end',

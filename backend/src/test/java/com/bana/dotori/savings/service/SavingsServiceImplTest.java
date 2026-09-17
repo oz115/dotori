@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +37,8 @@ import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
 import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
+import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.SavingsProduct;
 import com.bana.dotori.savings.entity.SavingsProductType;
 import com.bana.dotori.savings.entity.SavingsSubscription;
@@ -64,6 +68,7 @@ class SavingsServiceImplTest {
 
 	private static final Integer FAMILY_ID = 10;
 	private static final Integer CHILD_ID = 2;
+	private static final Integer PARENT_ID = 9;
 	private static final Integer PRODUCT_ID = 1;
 	private static final Integer SUBSCRIPTION_ID = 77;
 	private static final int WEEKLY_REWARD_LIMIT = 10_000;
@@ -598,6 +603,113 @@ class SavingsServiceImplTest {
 				.extracting(e -> ((BusinessException)e).getErrorCode())
 				.isEqualTo(ErrorCode.SAVINGS_SUBSCRIPTION_NOT_FOUND);
 		}
+	}
+
+	@Nested
+	@DisplayName("부모 홈 요약 조회")
+	class GetSummary {
+
+		@Test
+		@DisplayName("진행 중·수령 대기 건을 나눠 세고 가장 이른 만기를 함께 준다")
+		void 진행중과_수령대기를_나눠_센다() {
+			OffsetDateTime soon = OffsetDateTime.now().plusWeeks(1);
+			OffsetDateTime later = OffsetDateTime.now().plusWeeks(3);
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdAndStatusIn(eq(FAMILY_ID), eq(CHILD_ID),
+				any())).willReturn(List.of(
+					summarySubscription(10_000, 300, SavingsSubscriptionStatus.ACTIVE, later),
+					summarySubscription(20_000, 700, SavingsSubscriptionStatus.ACTIVE, soon),
+					// 이미 만기에 닿아 수령을 기다리는 건. 지난 만기가 "다가올 만기"로 뽑히면 안 된다.
+					summarySubscription(5_000, 500, SavingsSubscriptionStatus.MATURED,
+						OffsetDateTime.now().minusDays(1))));
+
+			SavingsSummaryResponse summary = savingsService.getSummary(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(summary.activeCount()).isEqualTo(2);
+			assertThat(summary.maturedCount()).isEqualTo(1);
+			assertThat(summary.totalCurrentAmount()).isEqualTo(35_000);
+			assertThat(summary.totalAccruedInterest()).isEqualTo(1_500);
+			assertThat(summary.totalAmount()).isEqualTo(36_500);
+			assertThat(summary.nearestMaturityAt()).isEqualTo(soon);
+		}
+
+		@Test
+		@DisplayName("끝난 건이 섞이지 않도록 진행 중·수령 대기 상태만 조회한다")
+		void 끝난_건은_조회하지_않는다() {
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdAndStatusIn(eq(FAMILY_ID), eq(CHILD_ID),
+				any())).willReturn(List.of());
+
+			savingsService.getSummary(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			verify(savingsSubscriptionRepository).findByFamilyIdAndChildIdAndStatusIn(eq(FAMILY_ID), eq(CHILD_ID),
+				argThat(statuses -> statuses.size() == 2
+					&& statuses.contains(SavingsSubscriptionStatus.ACTIVE)
+					&& statuses.contains(SavingsSubscriptionStatus.MATURED)));
+		}
+
+		@Test
+		@DisplayName("가입 건이 하나도 없으면 0으로 채운 요약을 준다")
+		void 가입이_없으면_0으로_채운다() {
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdAndStatusIn(eq(FAMILY_ID), eq(CHILD_ID),
+				any())).willReturn(List.of());
+
+			SavingsSummaryResponse summary = savingsService.getSummary(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(summary.activeCount()).isZero();
+			assertThat(summary.maturedCount()).isZero();
+			assertThat(summary.totalAmount()).isZero();
+			assertThat(summary.nearestMaturityAt()).isNull();
+		}
+	}
+
+	@Nested
+	@DisplayName("거래 이력 조회")
+	class ListTransactions {
+
+		@Test
+		@DisplayName("아이의 가입 건들에서 일어난 거래에 상품 정보를 붙여 돌려준다")
+		void 거래마다_상품정보를_붙인다() {
+			SavingsProduct product = product(SavingsProductType.SIMPLE_INTEREST);
+			SavingsSubscription subscription = summarySubscription(3_000, 0, SavingsSubscriptionStatus.ACTIVE,
+				OffsetDateTime.now().plusWeeks(4));
+			ReflectionTestUtils.setField(subscription, "id", SUBSCRIPTION_ID);
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdOrderByStartedAtDesc(FAMILY_ID, CHILD_ID))
+				.willReturn(List.of(subscription));
+			given(savingsTransactionRepository
+				.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(Set.of(SUBSCRIPTION_ID)))
+				.willReturn(List.of(
+					SavingsTransaction.record(SUBSCRIPTION_ID, SavingsTransactionType.INITIAL_DEPOSIT, 3_000)));
+
+			List<SavingsTransactionResponse> responses = savingsService.listTransactions(PARENT_ID, FAMILY_ID,
+				CHILD_ID);
+
+			assertThat(responses).hasSize(1);
+			assertThat(responses.get(0).productName()).isEqualTo(product.getName());
+			assertThat(responses.get(0).transactionType()).isEqualTo(SavingsTransactionType.INITIAL_DEPOSIT);
+			assertThat(responses.get(0).amount()).isEqualTo(3_000);
+		}
+
+		@Test
+		@DisplayName("가입이 하나도 없으면 거래를 조회하지 않고 빈 목록을 준다")
+		void 가입이_없으면_빈_목록을_준다() {
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdOrderByStartedAtDesc(FAMILY_ID, CHILD_ID))
+				.willReturn(List.of());
+
+			assertThat(savingsService.listTransactions(CHILD_ID, FAMILY_ID, CHILD_ID)).isEmpty();
+
+			verify(savingsTransactionRepository, never())
+				.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(any());
+		}
+	}
+
+	/** 요약 집계용 가입 건. 잠금 조회에 물리지 않으므로 한 테스트에서 여러 건을 만들 수 있다 */
+	private SavingsSubscription summarySubscription(int currentAmount, int accruedInterest,
+		SavingsSubscriptionStatus status, OffsetDateTime maturityAt) {
+		SavingsSubscription subscription = SavingsSubscription.subscribe(FAMILY_ID, CHILD_ID, PRODUCT_ID,
+			currentAmount, currentAmount, false, null, OffsetDateTime.now(), maturityAt,
+			OffsetDateTime.now().plusWeeks(1));
+		ReflectionTestUtils.setField(subscription, "accruedInterest", accruedInterest);
+		ReflectionTestUtils.setField(subscription, "status", status);
+		return subscription;
 	}
 
 	/** 해당 종류의 예적금 거래 이력이 남았는지 본다 */

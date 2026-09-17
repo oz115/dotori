@@ -11,7 +11,7 @@ type TodayChoresProps = {
 };
 
 /**
- * "오늘 할 일" 섹션. 집안일 완료 인증(사진 업로드 등)은 아직 이 화면 몫이 아니라
+ * "오늘의 미션" 섹션. 집안일 완료 인증(사진 업로드 등)은 아직 이 화면 몫이 아니라
  * 목록은 읽기 전용이다 — 상태만 보여준다.
  *
  * 아직 등록된 집안일이 없으면(또는 조회에 실패하면) 예시 데이터로 자리를 채운다 —
@@ -32,7 +32,7 @@ export function TodayChores({ familyId, childId }: TodayChoresProps) {
       <View style={styles.headerRow}>
         <View style={[styles.titleRow, { gap: theme.space.xs }]}>
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            오늘 할 일
+            오늘의 미션
           </Text>
           {usingMock ? <MockBadge /> : null}
         </View>
@@ -51,7 +51,7 @@ export function TodayChores({ familyId, childId }: TodayChoresProps) {
         <>
           {isError ? (
             <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              할 일을 불러오지 못해 예시를 보여주고 있어요.
+              미션을 불러오지 못해 예시를 보여주고 있어요.
             </Text>
           ) : null}
           <View style={{ gap: theme.space.sm }}>

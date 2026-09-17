@@ -13,6 +13,10 @@ public interface SavingsTransactionRepository extends JpaRepository<SavingsTrans
 
 	List<SavingsTransaction> findBySavingsSubscriptionIdOrderByCreatedAtDesc(Integer savingsSubscriptionId);
 
+	/** 아이의 여러 가입 건 거래를 한 번에 (거래 이력 화면, 최신순) */
+	List<SavingsTransaction> findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(
+		Collection<Integer> savingsSubscriptionIds);
+
 	/** 이번 주기에 납입이 있었는지. 납입 리마인더가 미납 건만 고르려고 쓴다 */
 	boolean existsBySavingsSubscriptionIdAndTransactionTypeInAndCreatedAtGreaterThanEqual(
 		Integer savingsSubscriptionId, Collection<SavingsTransactionType> transactionTypes,

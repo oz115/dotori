@@ -3,8 +3,12 @@ package com.bana.dotori.savings.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,8 @@ import com.bana.dotori.savings.dto.request.SavingsSubscribeRequest;
 import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
+import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
 import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProduct;
@@ -56,6 +62,10 @@ import lombok.extern.slf4j.Slf4j;
 public class SavingsServiceImpl implements SavingsService {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+	/** 부모 홈 요약이 "아이의 예적금 잔액"으로 세는 상태 */
+	private static final Set<SavingsSubscriptionStatus> SUMMARY_STATUSES =
+		EnumSet.of(SavingsSubscriptionStatus.ACTIVE, SavingsSubscriptionStatus.MATURED);
 
 	private final SavingsProductRepository savingsProductRepository;
 	private final SavingsSubscriptionRepository savingsSubscriptionRepository;
@@ -266,6 +276,47 @@ public class SavingsServiceImpl implements SavingsService {
 				"savingsSubscriptionId=" + savingsSubscriptionId));
 
 		return savingsMapper.toSubscriptionResponse(subscription, findProduct(subscription.getSavingsProductId()));
+	}
+
+	/**
+	 * 부모 홈 카드용 요약. 조회라 부모도 부를 수 있고, 값을 바꾸지 않으니 행을 잠그지 않는다.
+	 *
+	 * <p>끝난 건(COMPLETED·CANCELLED)은 빼고 센다 — 그 포인트는 이미 지갑으로 돌아가
+	 * 잔액에 잡혀 있어서, 여기서 또 세면 같은 포인트를 두 군데서 보여 주는 셈이 된다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public SavingsSummaryResponse getSummary(Integer userId, Integer familyId, Integer childId) {
+		savingsAccessValidator.validate(userId, familyId, childId);
+
+		return savingsMapper.toSummaryResponse(savingsSubscriptionRepository
+			.findByFamilyIdAndChildIdAndStatusIn(familyId, childId, SUMMARY_STATUSES));
+	}
+
+	/**
+	 * 거래 이력. 아이의 가입 건 목록을 먼저 찾고 그 가입들의 거래를 한 번에 모은다 —
+	 * 거래 테이블에는 가입 id 만 있어서, 가족·아이 경계는 가입 건 조회가 대신 그어 준다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<SavingsTransactionResponse> listTransactions(Integer userId, Integer familyId, Integer childId) {
+		savingsAccessValidator.validate(userId, familyId, childId);
+
+		List<SavingsSubscription> subscriptions = savingsSubscriptionRepository
+			.findByFamilyIdAndChildIdOrderByStartedAtDesc(familyId, childId);
+		if (subscriptions.isEmpty()) {
+			return List.of();
+		}
+
+		Map<Integer, SavingsProduct> productBySubscriptionId = subscriptions.stream()
+			.collect(Collectors.toMap(SavingsSubscription::getId,
+				subscription -> findProduct(subscription.getSavingsProductId())));
+
+		return savingsTransactionRepository
+			.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(productBySubscriptionId.keySet()).stream()
+			.map(transaction -> savingsMapper.toTransactionResponse(transaction,
+				productBySubscriptionId.get(transaction.getSavingsSubscriptionId())))
+			.toList();
 	}
 
 	/**

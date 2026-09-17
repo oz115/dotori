@@ -16,6 +16,7 @@ import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
 import com.bana.dotori.notification.dto.NotificationReadResponse;
+import com.bana.dotori.notification.dto.NotificationUnreadCountResponse;
 import com.bana.dotori.notification.entity.Notification;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.repository.NotificationRepository;
@@ -70,6 +71,13 @@ public class NotificationServiceImpl implements NotificationService {
 	@Transactional
 	public void deleteNotification(Integer userId, Integer notificationId) {
 		notificationRepository.delete(findOwnedOrThrow(userId, notificationId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public NotificationUnreadCountResponse getUnreadCount(Integer userId) {
+		long unreadCount = notificationRepository.count(spec(userId, null, false));
+		return new NotificationUnreadCountResponse(unreadCount);
 	}
 
 	private Notification findOwnedOrThrow(Integer userId, Integer notificationId) {

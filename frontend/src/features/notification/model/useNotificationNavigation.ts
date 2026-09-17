@@ -20,7 +20,10 @@ export function useNotificationNavigation(role: 'PARENT' | 'CHILD' | undefined) 
 
     const route = resolveNotificationRoute(response.notification.request.content.data, role);
     if (route) {
-      router.push(route);
+      // push는 (tabs)가 이미 스택에 있어도 항상 새 인스턴스를 하나 더 쌓는다 — 그러면 탭
+      // 인스턴스가 두 개로 쪼개져서 뒤로가기·탭 전환이 다 꼬인다. navigate는 기존 (tabs)
+      // 인스턴스를 재사용해 포커스만 그 탭으로 옮긴다.
+      router.navigate(route);
     }
   }, [response, role]);
 }

@@ -66,14 +66,14 @@ export function ParentChoreForm({ familyId, childList }: ParentChoreFormProps) {
 
   return (
     <Screen
-      header={<Header title="할 일 등록" onBack={() => router.back()} />}
+      header={<Header title="미션 등록" onBack={() => router.back()} />}
       scroll
       keyboardAvoiding
     >
       <View style={{ gap: theme.space.xl }}>
         <View style={[styles.intro, { gap: theme.space.md }]}>
           <Text style={[theme.typography.body, styles.grow, { color: theme.color.text.default }]}>
-            우리 아이와 함께할{'\n'}새로운 할 일을 만들어보세요!
+            우리 아이와 함께할{'\n'}새로운 미션을 만들어보세요!
           </Text>
           <Image
             source={require('@/assets/images/chore/owl-smile.png')}
