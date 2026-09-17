@@ -37,7 +37,7 @@ export function useRequestCompletion(familyId: number | undefined, childId: numb
     },
     onSuccess: () => {
       if (familyId == null || childId == null) return;
-      queryClient.invalidateQueries({ queryKey: choreKeys.pendingRequests(familyId, childId) });
+      queryClient.invalidateQueries({ queryKey: choreKeys.completionRequests(familyId, childId) });
     },
   });
 }

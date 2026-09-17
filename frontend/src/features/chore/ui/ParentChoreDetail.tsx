@@ -25,6 +25,9 @@ type ParentChoreDetailProps = {
 const STATUS_LABEL: Record<TodayChoreStatus, string> = {
   TODO: '진행 대기',
   PENDING: '확인 필요',
+  // 부모 상세는 거절 목록을 받아 오지 않아 지금은 나오지 않는다. 상태 목록을 빠짐없이
+  // 채워 둬야 나중에 거절을 겹치기 시작할 때 문구를 빠뜨리지 않는다.
+  REJECTED: '거절함',
   DONE: '완료',
 };
 
