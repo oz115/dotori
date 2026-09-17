@@ -46,4 +46,7 @@ export const notificationApi = {
     httpClient
       .get<NotificationUnreadCount>('/api/v1/notifications/unread-count')
       .then((res) => res.data),
+
+  deleteNotification: (notificationId: number) =>
+    httpClient.delete<void>(`/api/v1/notifications/${notificationId}`).then(() => undefined),
 };

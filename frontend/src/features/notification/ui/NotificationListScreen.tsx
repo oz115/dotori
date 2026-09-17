@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useDeleteNotification } from '@/features/notification/model/useDeleteNotification';
 import { useMarkAllAsRead } from '@/features/notification/model/useMarkAllAsRead';
 import { useMarkAsRead } from '@/features/notification/model/useMarkAsRead';
 import { useNotifications } from '@/features/notification/model/useNotifications';
@@ -27,6 +28,7 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
     useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+  const deleteNotification = useDeleteNotification();
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.notifications) ?? [], [data]);
   // unreadCount 는 필터와 무관하게 항상 전체 미읽 개수라, 어느 페이지에서 읽어도 같다.
@@ -44,7 +46,13 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.notificationId)}
-        renderItem={({ item }) => <NotificationRow item={item} onPress={() => handlePress(item)} />}
+        renderItem={({ item }) => (
+          <NotificationRow
+            item={item}
+            onPress={() => handlePress(item)}
+            onDelete={() => deleteNotification.mutateAsync(item.notificationId)}
+          />
+        )}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) {
             fetchNextPage();
