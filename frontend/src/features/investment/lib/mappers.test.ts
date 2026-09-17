@@ -43,7 +43,6 @@ describe('toStockSummary', () => {
     expect(summary.id).toBe(1);
     expect(summary.category).toBe('아이스크림');
     expect(summary.change).toBe(150);
-    expect(summary.trend).toEqual([]);
   });
 
   it('시드에 없는 회사는 카테고리 한글 라벨로 대체한다', () => {

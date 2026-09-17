@@ -1,9 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Polyline, Svg } from 'react-native-svg';
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
-import { sparklinePoints } from '@/features/investment/lib/sparkline';
 import type { StockSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -14,19 +12,15 @@ type Props = {
   onPress?: () => void;
 };
 
-const SPARK_WIDTH = 56;
-const SPARK_HEIGHT = 26;
-
 /**
- * 주식 리스트의 종목 한 줄 카드. 종목 아이콘·이름·업종, 미니 추이 차트,
- * 현재가와 전일 대비 등락 칩을 한 줄에 보여준다.
+ * 주식 리스트의 종목 한 줄 카드 — 아이콘·이름과 현재가·전일 대비 등락.
+ * 업종은 상세 화면에서만 보여준다 (목록에선 이름 가독성이 우선이라는 팀 결정).
  */
 export function StockCard({ stock, onPress }: Props) {
   const theme = useTheme();
 
   const rising = stock.change >= 0;
   const chipColors = rising ? theme.color.status.success : theme.color.status.danger;
-  const points = sparklinePoints(stock.trend, SPARK_WIDTH, SPARK_HEIGHT);
 
   return (
     <Pressable
@@ -52,45 +46,22 @@ export function StockCard({ stock, onPress }: Props) {
         resizeMode="cover"
       />
 
-      <View style={styles.nameBlock}>
-        <Text
-          numberOfLines={1}
-          style={[theme.typography.label, { color: theme.color.text.strong }]}
-        >
-          {stock.name}
-        </Text>
-        <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-          {stock.category}
-        </Text>
-      </View>
-
-      {points ? (
-        <Svg width={SPARK_WIDTH} height={SPARK_HEIGHT}>
-          <Polyline
-            points={points}
-            fill="none"
-            stroke={theme.color.brand.solid}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      ) : null}
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
+      >
+        {stock.name}
+      </Text>
 
       <View style={[styles.priceBlock, { gap: theme.space.xs }]}>
-        <View style={styles.priceRow}>
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>현재가</Text>
-          <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-            {formatAcorns(stock.currentPrice)}
+        <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+          {formatAcorns(stock.currentPrice)}
+        </Text>
+        <View style={styles.change}>
+          <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
+          <Text style={[theme.typography.label, { color: chipColors.text }]}>
+            {signedAcorns(stock.change)}
           </Text>
-        </View>
-        <View style={styles.priceRow}>
-          <View style={styles.change}>
-            <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
-            <Text style={[theme.typography.label, { color: chipColors.text }]}>
-              {signedAcorns(stock.change)}
-            </Text>
-          </View>
         </View>
       </View>
 
@@ -109,17 +80,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
   },
-  nameBlock: {
+  // 이름이 남는 공간을 전부 가져가고, 넘치면 말줄임 — 가격 블록에 밀리지 않게 한다
+  name: {
     flex: 1,
-    gap: 2,
   },
   priceBlock: {
     alignItems: 'flex-end',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   change: {
     flexDirection: 'row',

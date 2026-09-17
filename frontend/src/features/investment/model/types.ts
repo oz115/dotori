@@ -78,8 +78,6 @@ export type StockSummary = {
   currentPrice: number;
   /** 전일 대비 등락, 단위는 도토리 (+오름 / -내림) */
   change: number;
-  /** 미니 차트용 최근 가격 추이 */
-  trend: number[];
 };
 
 /** 보유 종목 한 줄 (보유 화면). 서버 investment_holdings 행의 화면 표현 */
