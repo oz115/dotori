@@ -77,7 +77,13 @@ export function ParentHome() {
           onOpenCashouts={openChoreTab}
         />
 
-        <ChildAssetsSection onOpenSavings={openSaveTab} onOpenInvestment={openInvestmentTab} />
+        <ChildAssetsSection
+          familyId={familyId}
+          childId={childId}
+          familyPending={familyPending}
+          onOpenSavings={openSaveTab}
+          onOpenInvestment={openInvestmentTab}
+        />
 
         <ChildTodayProgress
           familyId={familyId}
