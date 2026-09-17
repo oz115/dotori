@@ -118,7 +118,7 @@ class StoreProductControllerTest {
 		OffsetDateTime createdAt = OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(storeProductService.getProduct(1, 10, 5)).willReturn(new StoreProductDetailResponse(
 			5, "자전거", "주말에만 사용 가능", StoreProductCategory.TOY, new BigDecimal("90.00"),
-			900000, 1, 1, createdAt));
+			900000, "튼튼하고 오래 탈 수 있는 자전거예요", 1, 1, createdAt));
 
 		mockMvc.perform(get(PRODUCTS_URL + "/5")
 				.header(HttpHeaders.AUTHORIZATION, BEARER))
@@ -129,6 +129,7 @@ class StoreProductControllerTest {
 			.andExpect(jsonPath("$.category").value("TOY"))
 			.andExpect(jsonPath("$.value").value(90.00))
 			.andExpect(jsonPath("$.price").value(900000))
+			.andExpect(jsonPath("$.reason").value("튼튼하고 오래 탈 수 있는 자전거예요"))
 			.andExpect(jsonPath("$.quantity").value(1))
 			.andExpect(jsonPath("$.createdBy").value(1))
 			.andExpect(jsonPath("$.createdAt").exists());
@@ -161,7 +162,7 @@ class StoreProductControllerTest {
 		givenAuthenticated(1);
 		OffsetDateTime createdAt = OffsetDateTime.of(2026, 8, 28, 9, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(storeProductService.createProduct(eq(1), eq(10), any())).willReturn(new StoreProductDetailResponse(
-			99, "자전거", "3개월 모아야 살 수 있음", StoreProductCategory.TOY, null, null, 1, 1, createdAt));
+			99, "자전거", "3개월 모아야 살 수 있음", StoreProductCategory.TOY, null, null, null, 1, 1, createdAt));
 
 		mockMvc.perform(post(PRODUCTS_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
@@ -283,7 +284,7 @@ class StoreProductControllerTest {
 		OffsetDateTime updatedAt = OffsetDateTime.of(2026, 8, 28, 13, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(storeProductService.updateProduct(eq(1), eq(10), eq(5), any())).willReturn(new StoreProductDetailResponse(
 			5, "게임 1시간 이용권", "주말에만 사용 가능", StoreProductCategory.GAME, new BigDecimal("0.60"),
-			5000, 3, 1, updatedAt));
+			5000, "부담 없이 즐길 수 있는 게임 시간이에요", 3, 1, updatedAt));
 
 		mockMvc.perform(patch(PRODUCTS_URL + "/5")
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
@@ -308,7 +309,7 @@ class StoreProductControllerTest {
 		givenAuthenticated(1);
 		OffsetDateTime updatedAt = OffsetDateTime.of(2026, 8, 28, 13, 0, 0, 0, ZoneOffset.ofHours(9));
 		given(storeProductService.updateProduct(eq(1), eq(10), eq(5), any())).willReturn(new StoreProductDetailResponse(
-			5, "자전거", "설명", StoreProductCategory.TOY, null, null, 1, 1, updatedAt));
+			5, "자전거", "설명", StoreProductCategory.TOY, null, null, null, 1, 1, updatedAt));
 
 		mockMvc.perform(patch(PRODUCTS_URL + "/5")
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
