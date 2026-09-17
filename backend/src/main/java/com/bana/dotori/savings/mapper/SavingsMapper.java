@@ -10,9 +10,11 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.SavingsProduct;
 import com.bana.dotori.savings.entity.SavingsSubscription;
 import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
+import com.bana.dotori.savings.entity.SavingsTransaction;
 
 @Component
 public class SavingsMapper {
@@ -70,6 +72,19 @@ public class SavingsMapper {
 			subscription.getCurrentAmount() + expectedInterest,
 			earlyTerminationAmount,
 			subscription.getMaturityAt());
+	}
+
+	/** 거래 한 줄에 상품 이름·유형을 붙인다 — 화면이 가입 건을 따로 찾아보지 않아도 되게 */
+	public SavingsTransactionResponse toTransactionResponse(SavingsTransaction transaction, SavingsProduct product) {
+		return new SavingsTransactionResponse(
+			transaction.getId(),
+			transaction.getSavingsSubscriptionId(),
+			product.getId(),
+			product.getName(),
+			product.getProductType(),
+			transaction.getTransactionType(),
+			transaction.getAmount(),
+			transaction.getCreatedAt());
 	}
 
 	/**
