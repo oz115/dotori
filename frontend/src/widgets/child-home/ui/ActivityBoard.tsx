@@ -5,9 +5,8 @@ import { useTheme } from '@/shared/theme';
 import { ContentCard } from '@/shared/ui';
 
 /**
- * "활동 보드" 섹션. 경제 단어장은 실제 화면으로 연결됐다(S15P21A505-208).
- * 경제 퀴즈는 아직 백엔드 도메인이 없어 정적 안내만 보여준다(탭해도 아무 동작 안 함 —
- * 퀴즈 UI(S15P21A505-206)가 생기면 그때 연결한다).
+ * "활동 보드" 섹션. 경제 단어장(S15P21A505-208)·경제 퀴즈(S15P21A505-206) 모두 실제
+ * 화면으로 연결됐다.
  *
  * 홈 화면 마지막 섹션이라 연회색 배경이 화면 좌우 끝까지 깔린다 — 스크롤 콘텐츠의
  * 좌우 여백(screenX)만큼 음수 마진으로 빼고, 같은 값을 안쪽 패딩으로 되돌려 준다.
@@ -34,6 +33,7 @@ export function ActivityBoard() {
           title="오늘의 경제 퀴즈"
           subtitle="맞히면 +50P!"
           highlight
+          onPress={() => router.push('/quiz')}
         />
         <Card
           icon={require('@/assets/images/icons/icon-word.png')}

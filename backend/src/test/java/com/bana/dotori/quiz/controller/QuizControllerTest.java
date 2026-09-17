@@ -72,7 +72,7 @@ class QuizControllerTest {
 	void getTodayQuiz_ok() throws Exception {
 		givenAuthenticated();
 		given(quizService.getTodayQuiz(any(), any(), any())).willReturn(new QuizTodayResponse(
-			QUIZ_ID, LocalDate.of(2026, 9, 16), "'이자'란 무엇일까요?", null, 100, false, null, null));
+			QUIZ_ID, LocalDate.of(2026, 9, 16), "'이자'란 무엇일까요?", null, 100, false, null, null, 0));
 
 		mockMvc.perform(get(TODAY_URL).header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isOk())
