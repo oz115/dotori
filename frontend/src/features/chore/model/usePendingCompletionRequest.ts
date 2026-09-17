@@ -17,7 +17,7 @@ export function usePendingCompletionRequest(
   choreId: number | undefined,
 ) {
   return useQuery({
-    queryKey: choreKeys.pendingRequests(familyId ?? -1, childId ?? -1),
+    queryKey: choreKeys.completionRequests(familyId ?? -1, childId ?? -1, 'PENDING'),
     queryFn: () => choreApi.getCompletionRequests(familyId as number, childId as number, 'PENDING'),
     enabled: familyId != null && childId != null,
     staleTime: 10_000,

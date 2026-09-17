@@ -17,7 +17,7 @@ export function useCancelCompletion(familyId: number | undefined, childId: numbe
       choreApi.cancelCompletion(familyId as number, childId as number, requestId),
     onSuccess: () => {
       if (familyId == null || childId == null) return;
-      queryClient.invalidateQueries({ queryKey: choreKeys.pendingRequests(familyId, childId) });
+      queryClient.invalidateQueries({ queryKey: choreKeys.completionRequests(familyId, childId) });
     },
   });
 }

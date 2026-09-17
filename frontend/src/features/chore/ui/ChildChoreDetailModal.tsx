@@ -189,12 +189,39 @@ export function ChildChoreDetailModal({
                   photoUrl={request?.photoUrl}
                 />
               ) : (
-                <TodoBody
-                  description={description}
-                  onDescriptionChange={setDescription}
-                  photo={photo}
-                  onPickPhoto={pickPhoto}
-                />
+                <>
+                  {status === 'REJECTED' ? (
+                    <View
+                      style={[
+                        styles.rejected,
+                        {
+                          backgroundColor: theme.color.status.danger.subtle,
+                          borderRadius: theme.radius.md,
+                          padding: theme.space.md,
+                          gap: theme.space.xs,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[theme.typography.label, { color: theme.color.status.danger.text }]}
+                      >
+                        다시 해볼까요?
+                      </Text>
+                      <Text
+                        style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}
+                      >
+                        부모님이 아직 확인해 주지 않았어요. 사진을 다시 찍어서 보내볼까요?
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <TodoBody
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    photo={photo}
+                    onPickPhoto={pickPhoto}
+                  />
+                </>
               )}
 
               {requestCompletion.error ? (
@@ -388,6 +415,7 @@ const styles = StyleSheet.create({
   textInput: { minHeight: 64, textAlignVertical: 'top' },
   counter: { textAlign: 'right' },
   notice: { textAlign: 'center' },
+  rejected: { width: '100%' },
   photoBox: { borderWidth: 1.5, borderStyle: 'dashed', overflow: 'hidden' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 28 },
   preview: { width: '100%', height: 160 },

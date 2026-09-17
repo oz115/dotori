@@ -80,7 +80,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
             title={item.title}
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
-            pending={item.status === 'PENDING'}
+            status={item.status}
             onPress={() => setOpenChoreId(item.choreId)}
           />
         )}
