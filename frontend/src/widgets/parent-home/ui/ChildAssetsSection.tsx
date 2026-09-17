@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
-import { mockHoldings, summarizeHoldings } from '@/features/investment';
+import { summarizeHoldings, type Holding } from '@/features/investment';
 import { daysUntilMaturity, useSavingsSummary, type SavingsSummary } from '@/features/savings';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
@@ -167,6 +167,13 @@ function CardNotice({ text }: { text: string }) {
 
   return <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{text}</Text>;
 }
+
+/** 투자 카드 목업 — 자녀 보유 API 연동 시 교체한다. 예적금과 달리 아직 실데이터가 없다. */
+const mockHoldings: Holding[] = [
+  { id: 1, name: '시원아이스', image: 0, quantity: 1, buyPrice: 10100, currentPrice: 10250 },
+  { id: 8, name: '고소한빵', image: 0, quantity: 1, buyPrice: 9900, currentPrice: 9800 },
+  { id: 10, name: '파워배터리', image: 0, quantity: 1, buyPrice: 10200, currentPrice: 10400 },
+];
 
 function InvestmentCard({ onPress }: { onPress: () => void }) {
   const theme = useTheme();

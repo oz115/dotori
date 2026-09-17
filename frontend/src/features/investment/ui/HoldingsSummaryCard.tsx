@@ -2,7 +2,7 @@ import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-n
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import { summarizeHoldings } from '@/features/investment/lib/holdings';
-import type { StockDetail } from '@/features/investment/model/types';
+import type { Holding } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
 // Figma 에셋 — 마스코트 시트의 다람쥐와 아이콘 시트의 도토리·동전·새싹
@@ -12,7 +12,7 @@ const COIN = require('@/assets/images/invest/coin.png');
 const SPROUT = require('@/assets/images/invest/sprout.png'); // "번 돈"은 투자 요약 카드와 같은 아이콘
 
 type Props = {
-  holdings: StockDetail[];
+  holdings: Holding[];
 };
 
 /**
