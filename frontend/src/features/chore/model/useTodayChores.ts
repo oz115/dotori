@@ -2,19 +2,15 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { choreApi } from '@/features/chore/api/choreApi';
-import { earliestStartDate, withStatus, type TodayChore } from '@/features/chore/lib/choreStatus';
+import {
+  earliestStartDate,
+  todayDate,
+  withStatus,
+  type TodayChore,
+} from '@/features/chore/lib/choreStatus';
 import { choreKeys } from '@/features/chore/model/choreKeys';
 
 export type { TodayChore, TodayChoreStatus } from '@/features/chore/lib/choreStatus';
-
-/** 오늘 날짜 (YYYY-MM-DD), 기기 로컬 시간 기준 */
-function todayDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 /**
  * 진행 상태가 얹힌 활성 할 일 목록. 자녀 홈의 "오늘 할 일"과 할 일 탭이 같이 쓴다.
