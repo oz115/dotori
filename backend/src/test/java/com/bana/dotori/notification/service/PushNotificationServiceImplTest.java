@@ -11,9 +11,11 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.notification.entity.DeviceToken;
@@ -46,8 +48,20 @@ class PushNotificationServiceImplTest {
 	@Mock
 	private FirebaseMessaging firebaseMessaging;
 
+	/**
+	 * FCM 자격증명이 없는 환경에서는 빈이 없을 수 있어 서비스가 ObjectProvider 로 받는다.
+	 * 여기서는 항상 있는 환경을 흉내 낸다 - 빈이 없는 경우는 따로 검증한다.
+	 */
+	@Mock
+	private ObjectProvider<FirebaseMessaging> firebaseMessagingProvider;
+
 	@InjectMocks
 	private PushNotificationServiceImpl pushNotificationService;
+
+	@BeforeEach
+	void provideFirebaseMessaging() {
+		given(firebaseMessagingProvider.getIfAvailable()).willReturn(firebaseMessaging);
+	}
 
 	private User userReference() {
 		User user = User.builder().loginId("login").password("pw").name("이름").email("a@a.com").build();
