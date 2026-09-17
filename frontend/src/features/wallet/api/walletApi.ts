@@ -33,11 +33,41 @@ export const walletApi = {
       })
       .then((res) => res.data),
 
-  /** 환전 요청 목록. 자녀 본인과 그 가족의 부모가 볼 수 있다 */
+  /** 환전 요청 목록. 자녀 본인과 그 가족의 부모가 볼 수 있다. status 생략 시 전체 */
   getCashoutRequests: (familyId: number, childId: number, status?: CashoutStatus) =>
     httpClient
       .get<CashoutRequest[]>(`${base(familyId, childId)}/cashout-requests`, {
         params: status ? { status } : undefined,
       })
+      .then((res) => res.data),
+
+  /** 환전 승인 (부모). 부모 계좌에서 자녀 계좌로 실제 송금이 일어난다 */
+  approveCashout: (
+    familyId: number,
+    childId: number,
+    cashoutRequestId: number,
+    idempotencyKey: string,
+  ) =>
+    httpClient
+      .post<CashoutRequest>(
+        `${base(familyId, childId)}/cashout-requests/${cashoutRequestId}/approve`,
+        null,
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      )
+      .then((res) => res.data),
+
+  /** 환전 거절 (부모). 요청 때 차감했던 포인트를 서버가 자녀에게 환급한다 */
+  declineCashout: (
+    familyId: number,
+    childId: number,
+    cashoutRequestId: number,
+    idempotencyKey: string,
+  ) =>
+    httpClient
+      .post<CashoutRequest>(
+        `${base(familyId, childId)}/cashout-requests/${cashoutRequestId}/decline`,
+        null,
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      )
       .then((res) => res.data),
 };

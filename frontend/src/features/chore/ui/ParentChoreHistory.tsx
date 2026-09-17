@@ -8,13 +8,11 @@ import {
   type ParentCompletion,
 } from '@/features/chore/model/useChildrenCompletions';
 import type { ChoreChild } from '@/features/chore/model/useChildrenChores';
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
-import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, Header, Screen } from '@/shared/ui';
+import { ChildBadge, ContentCard, FilterChips, Header, Screen } from '@/shared/ui';
 
 type ParentChoreHistoryProps = {
   familyId: number | undefined;
@@ -80,7 +78,7 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
               mascot={require('@/assets/images/chore/owl-thumb.png')}
             />
             {childList.length > 1 ? (
-              <ChoreFilterChips options={filters} selected={childId} onSelect={setChildId} />
+              <FilterChips options={filters} selected={childId} onSelect={setChildId} />
             ) : null}
           </View>
         }

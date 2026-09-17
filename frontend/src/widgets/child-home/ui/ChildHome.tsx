@@ -50,6 +50,8 @@ export function ChildHome() {
           isPending={balance.isPending}
           onCharge={() => router.push('/wallet/charge')}
           onCashout={() => router.push('/wallet/cashout')}
+          // '/wallet/cashouts' 는 부모 그룹에도 있는 경로라 그룹까지 적어야 아이 화면으로 간다
+          onCashoutHistory={() => router.push('/(child)/wallet/cashouts')}
           account={account.data}
         />
         <UpdateBanner familyId={familyId} childId={childId} />

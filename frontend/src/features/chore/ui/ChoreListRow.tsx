@@ -2,12 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
 import { RepeatBadge } from '@/features/chore/ui/RepeatBadge';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { useTheme } from '@/shared/theme';
-import { ContentCard } from '@/shared/ui';
+import { ChildBadge, ContentCard } from '@/shared/ui';
 
 type ChoreListRowProps = {
   title: string;
