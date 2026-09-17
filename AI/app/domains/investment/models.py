@@ -30,10 +30,10 @@ class InvestmentProduct(Base):
 
     investment_product_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    # "하는 일". 뉴스 생성 프롬프트에 회사 소개로 들어간다.
+    # "하는 일". 아이에게 회사를 소개할 때 쓰며 뉴스 생성 프롬프트에는 넣지 않는다.
     description: Mapped[str | None] = mapped_column(String(255))
     category: Mapped[str | None] = mapped_column(String)
-    # 대표 경제 요인 + 상승/하락 사건 예시. 매일 뉴스 생성 LLM 프롬프트의 few-shot 참고자료.
+    # 대표 경제 요인 + 유리/불리한 변화 + 뉴스 소재. 매일 뉴스 생성 LLM 프롬프트의 참고자료.
     news_context: Mapped[str] = mapped_column()
     current_price: Mapped[int] = mapped_column()
     is_active: Mapped[bool] = mapped_column()
