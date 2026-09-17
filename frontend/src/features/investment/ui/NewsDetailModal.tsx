@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useInvestmentNewsDetail } from '@/features/investment/model/useInvestmentNewsDetail';
 import type { InvestmentNews } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
@@ -14,15 +15,23 @@ type Props = {
  * 뉴스 카드를 탭하면 뜨는 상세 팝업. 본문과 관련 회사, 가격에 주는 영향 방향을
  * 보여줘서 아이가 "어느 회사가 오를지/내릴지"를 판단하게 돕는다.
  * 딤 영역 탭·안드로이드 뒤로가기·확인 버튼 모두로 닫힌다.
- * 백엔드 상세 API(GET /investments/news/{newsId}) 연동 시 목업 대신 그 응답을 넘기면 된다.
+ * 본문(content)은 목록 응답에 없어서 팝업이 열릴 때 상세 API 로 가져온다 —
+ * news.content 가 이미 있으면(테스트 등) 그 값을 그대로 쓴다.
  */
 export function NewsDetailModal({ news, onClose }: Props) {
   const theme = useTheme();
+  const detail = useInvestmentNewsDetail(
+    news != null && news.content == null ? news.id : undefined,
+  );
 
   if (news == null) {
     return null;
   }
 
+  const content = news.content ?? detail.data?.content;
+  const contentText = detail.isError
+    ? '소식을 불러오지 못했어요. 잠시 후 다시 열어 주세요.'
+    : (content ?? '소식을 불러오는 중이에요…');
   const rising = news.impact === 'POSITIVE';
   const impactColors = rising ? theme.color.status.success : theme.color.status.danger;
 
@@ -77,7 +86,7 @@ export function NewsDetailModal({ news, onClose }: Props) {
           </View>
 
           <Text style={[theme.typography.bodySm, { color: theme.color.text.default }]}>
-            {news.content}
+            {contentText}
           </Text>
 
           <View style={styles.metaRow}>

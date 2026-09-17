@@ -1,18 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { findMockStockDetail, StockInfoCard, StockOverviewCard } from '@/features/investment';
+import {
+  StockInfoCard,
+  StockOverviewCard,
+  TradeButtons,
+  useStockDetail,
+} from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
 
 /**
- * 투자 상품 상세 (Figma: 투자 상품 상세 보기). 개요 카드·상품 정보·사기/팔기 버튼의
- * 배치만 담당한다. 백엔드 투자 API 연동 전이라 목업 데이터를 보여 준다.
+ * 투자 상품 상세. 상세 응답 + 가격 이력(차트) + 보유 여부를 useStockDetail 이 묶어 주고,
+ * 이 라우트는 배치와 사기/팔기 버튼만 담당한다.
  */
 export default function InvestDetailScreen() {
   const theme = useTheme();
   const { stockId } = useLocalSearchParams<{ stockId: string }>();
-  const detail = findMockStockDetail(Number(stockId));
+  const { detail, isPending, isError, refetch } = useStockDetail(Number(stockId));
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
@@ -33,17 +38,16 @@ export default function InvestDetailScreen() {
           <StockOverviewCard detail={detail} />
           <StockInfoCard detail={detail} />
 
-          {/* TODO: 매수·매도 태스크에서 주문 플로우가 생기면 연결한다 */}
-          <View style={[styles.tradeRow, { gap: theme.space.md }]}>
-            <Button label="🌰 사기" variant="primary" style={styles.flex} onPress={() => {}} />
-            <Button label="🌰 팔기" variant="outline" style={styles.flex} onPress={() => {}} />
-          </View>
+          <TradeButtons detail={detail} />
         </ScrollView>
       ) : (
-        <View style={styles.empty}>
+        <View style={[styles.empty, { gap: theme.space.lg }]}>
           <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
-            상품을 찾을 수 없어요.
+            {isPending ? '상품을 불러오는 중이에요.' : '상품을 불러오지 못했어요.'}
           </Text>
+          {isError ? (
+            <Button label="다시 시도" variant="outline" onPress={() => refetch()} />
+          ) : null}
         </View>
       )}
     </View>
@@ -52,9 +56,6 @@ export default function InvestDetailScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tradeRow: {
-    flexDirection: 'row',
-  },
   empty: {
     flex: 1,
     alignItems: 'center',

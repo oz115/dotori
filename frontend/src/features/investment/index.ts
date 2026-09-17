@@ -8,15 +8,19 @@ export { StockInfoCard } from './ui/StockInfoCard';
 export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
-export {
-  mockInvestmentSummary,
-  mockInvestmentNews,
-  mockStocks,
-  mockHoldings,
-  findMockStockDetail,
-} from './model/mock';
+export { TradeButtons } from './ui/TradeButtons';
+export { TransactionCard } from './ui/TransactionCard';
+export { useInvestmentTransactions } from './model/useInvestmentTransactions';
 export { formatPoints, formatAcorns, formatNumber, signedAcorns } from './lib/format';
 export { summarizeHoldings } from './lib/holdings';
+export { summarizeInvestment } from './lib/mappers';
+export { useInvestmentProducts } from './model/useInvestmentProducts';
+export { useInvestmentNews } from './model/useInvestmentNews';
+export { useInvestmentNewsDetail } from './model/useInvestmentNewsDetail';
+export { useInvestmentHoldings } from './model/useInvestmentHoldings';
+export { useStockDetail } from './model/useStockDetail';
+export { useBuyStock } from './model/useBuyStock';
+export { useSellStock } from './model/useSellStock';
 export type {
   InvestmentSummary,
   InvestmentNews,
@@ -24,4 +28,6 @@ export type {
   StockDetail,
   PricePoint,
   HoldingsSummary,
+  Holding,
+  OrderResponse,
 } from './model/types';
