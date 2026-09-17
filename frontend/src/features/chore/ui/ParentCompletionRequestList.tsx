@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import {
   useChildrenPendingRequests,
@@ -12,7 +13,7 @@ import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { CompletionRequestModal } from '@/features/chore/ui/CompletionRequestModal';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { ContentCard, Header, Screen } from '@/shared/ui';
 
 type ParentCompletionRequestListProps = {
   familyId: number | undefined;
@@ -26,8 +27,8 @@ type ParentCompletionRequestListProps = {
  *
  * 자녀 필터는 자녀가 둘 이상일 때만 뜬다. 하나뿐이면 고를 것이 없어 자리만 차지한다.
  *
- * 행을 누르든 "확인하기"를 누르든 같은 상세가 열린다 - 사진이 작아서 목록만 보고
- * 승인·거절을 결정하기 어렵다.
+ * 행을 누르면 상세가 열린다 - 목록의 사진이 작아서 여기서 바로 승인·거절을 결정하기
+ * 어렵다. 그래서 행에는 처리 버튼을 두지 않고 상세로 보낸다.
  */
 export function ParentCompletionRequestList({
   familyId,
@@ -124,43 +125,50 @@ function RequestRow({
 }) {
   const theme = useTheme();
 
+  // 카드 전체가 버튼이다. 우측 화살표는 미션 목록 행·메인의 완료 요청 카드와 같은 모양이다.
   return (
-    <ContentCard
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: theme.space.md,
-        gap: theme.space.md,
-      }}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${request.choreTitle} 완료 요청 확인하기`}
+      onPress={onPress}
     >
-      {request.photoUrl ? (
-        <Image
-          source={{ uri: request.photoUrl }}
-          style={[styles.thumb, { borderRadius: theme.radius.sm }]}
-          resizeMode="cover"
-        />
-      ) : null}
+      <ContentCard
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: theme.space.md,
+          gap: theme.space.md,
+        }}
+      >
+        {request.photoUrl ? (
+          <Image
+            source={{ uri: request.photoUrl }}
+            style={[styles.thumb, { borderRadius: theme.radius.sm }]}
+            resizeMode="cover"
+          />
+        ) : null}
 
-      <View style={styles.body}>
-        <View style={[styles.titleRow, { gap: theme.space.xs }]}>
+        <View style={styles.body}>
+          <View style={[styles.titleRow, { gap: theme.space.xs }]}>
+            <Text
+              numberOfLines={1}
+              style={[theme.typography.label, styles.grow, { color: theme.color.text.strong }]}
+            >
+              {request.choreTitle}
+            </Text>
+            <ChildBadge name={request.childName} />
+          </View>
           <Text
             numberOfLines={1}
-            style={[theme.typography.label, styles.grow, { color: theme.color.text.strong }]}
+            style={[theme.typography.caption, { color: theme.color.text.muted }]}
           >
-            {request.choreTitle}
+            {request.description ?? '사진과 함께 완료 요청을 보냈어요.'}
           </Text>
-          <ChildBadge name={request.childName} />
         </View>
-        <Text
-          numberOfLines={1}
-          style={[theme.typography.caption, { color: theme.color.text.muted }]}
-        >
-          {request.description ?? '사진과 함께 완료 요청을 보냈어요.'}
-        </Text>
-      </View>
 
-      <Button label="확인하기" variant="outline" size="sm" onPress={onPress} />
-    </ContentCard>
+        <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
+      </ContentCard>
+    </Pressable>
   );
 }
 

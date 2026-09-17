@@ -18,7 +18,7 @@ import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { ContentCard, Header, Screen } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
 const PREVIEW_COUNT = 2;
@@ -250,16 +250,23 @@ function PendingRequestsCard({
         ) : null}
       </View>
 
+      {/* 행 전체가 버튼이다. 오른쪽 끝의 화살표는 목록 행(ChoreListRow)과 같은 모양이라,
+          "눌러서 들어간다"는 것이 같은 방식으로 읽힌다. 예전에는 "확인하기" 버튼이었는데
+          버튼만 누를 수 있어 표적이 좁았고, 버튼 높이와 두 줄 글이 서로 안 맞아 보였다. */}
       {requests.slice(0, PREVIEW_COUNT).map((request) => (
-        <View
+        <Pressable
           key={request.choreCompletionRequestId}
+          accessibilityRole="button"
+          accessibilityLabel={`${request.choreTitle} 완료 요청 확인하기`}
+          disabled={onRequestPress == null}
+          onPress={() => onRequestPress?.(request)}
           style={[styles.requestRow, { gap: theme.space.md }]}
         >
           <View style={styles.requestBody}>
             <View style={[styles.titleRow, { gap: theme.space.xs }]}>
               <Text
                 numberOfLines={1}
-                style={[theme.typography.label, { color: theme.color.text.strong }]}
+                style={[theme.typography.label, styles.grow, { color: theme.color.text.strong }]}
               >
                 {request.choreTitle}
               </Text>
@@ -272,14 +279,8 @@ function PendingRequestsCard({
               {request.description ?? '사진과 함께 완료 요청을 보냈어요.'}
             </Text>
           </View>
-          <Button
-            label="확인하기"
-            variant="outline"
-            size="sm"
-            disabled={onRequestPress == null}
-            onPress={() => onRequestPress?.(request)}
-          />
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
+        </Pressable>
       ))}
     </ContentCard>
   );
@@ -312,6 +313,8 @@ const styles = StyleSheet.create({
   count: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },
   requestRow: { flexDirection: 'row', alignItems: 'center' },
   requestBody: { flex: 1, gap: 2 },
+  // 제목이 길어도 아이 이름 배지를 밀어내지 않게 한다
+  grow: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
   // 상점의 등록 버튼(StoreCatalog)과 같은 자리·같은 크기다.
