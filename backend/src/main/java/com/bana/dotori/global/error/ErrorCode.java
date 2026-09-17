@@ -95,8 +95,34 @@ public enum ErrorCode {
 	INVALID_FILE(HttpStatus.BAD_REQUEST, "사진 형식이나 용량이 올바르지 않습니다"),
 	FILE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "사진 저장에 실패했습니다"),
 
-	// 투자 (INVEST)
-	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다");
+	// 투자 (INVEST) — 종목 없음은 상점과 같은 PRODUCT_NOT_FOUND 를 쓴다 (명세의 에러 코드가 같음)
+	NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "뉴스를 찾을 수 없습니다"),
+	PRODUCT_INACTIVE(HttpStatus.CONFLICT, "거래가 중지된 종목입니다"),
+	ALREADY_HOLDING(HttpStatus.CONFLICT, "이미 보유 중인 종목입니다"),
+	INSUFFICIENT_QUANTITY(HttpStatus.BAD_REQUEST, "보유하지 않은 종목입니다"),
+
+	// 퀴즈 (QUIZ)
+	QUIZ_NOT_READY(HttpStatus.NOT_FOUND, "오늘의 퀴즈가 아직 준비되지 않았습니다"),
+	QUIZ_NOT_FOUND(HttpStatus.NOT_FOUND, "퀴즈를 찾을 수 없습니다"),
+	ALREADY_SUBMITTED(HttpStatus.CONFLICT, "이미 정답을 맞힌 퀴즈입니다"),
+	QUIZ_ATTEMPT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "제출 가능한 횟수를 모두 사용했습니다"),
+
+	// 단어장 (WORD)
+	WORD_NOT_FOUND(HttpStatus.NOT_FOUND, "단어를 찾을 수 없습니다"),
+
+	// 알림 (NOTI)
+	DEVICE_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 디바이스 토큰을 찾을 수 없습니다"),
+	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
+
+	// 예적금 (SAVINGS)
+	SAVINGS_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 상품을 찾을 수 없습니다"),
+	SAVINGS_PRODUCT_INACTIVE(HttpStatus.BAD_REQUEST, "가입할 수 없는 상품입니다"),
+	SAVINGS_AMOUNT_EXCEEDS_LIMIT(HttpStatus.BAD_REQUEST, "가입 가능한 최대 금액을 초과했습니다"),
+	SAVINGS_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 가입 내역을 찾을 수 없습니다"),
+	SAVINGS_SUBSCRIPTION_NOT_ACTIVE(HttpStatus.CONFLICT, "진행 중인 예적금이 아닙니다"),
+	SAVINGS_CONTRIBUTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "추가 납입할 수 없는 상품입니다"),
+	SAVINGS_INVALID_CONTRIBUTION_AMOUNT(HttpStatus.BAD_REQUEST, "납입 금액이 올바르지 않습니다"),
+	SAVINGS_NOT_MATURED(HttpStatus.CONFLICT, "아직 만기가 되지 않았습니다");
 
 	private final HttpStatus status;
 	private final String message;

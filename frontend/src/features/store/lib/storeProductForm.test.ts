@@ -1,4 +1,4 @@
-import { parseQuantity, validateStoreProductForm } from './storeProductForm';
+import { parseQuantity, validatePrice, validateStoreProductForm } from './storeProductForm';
 
 function input(overrides: Partial<Parameters<typeof validateStoreProductForm>[0]> = {}) {
   return {
@@ -58,5 +58,19 @@ describe('parseQuantity', () => {
     expect(parseQuantity('-1')).toBeNull();
     expect(parseQuantity('1.5')).toBeNull();
     expect(parseQuantity('')).toBeNull();
+  });
+});
+
+describe('validatePrice', () => {
+  it('1 이상의 정수는 유효하다', () => {
+    expect(validatePrice('100')).toBeUndefined();
+  });
+
+  it('0 이하·소수·빈 값·문자는 에러', () => {
+    expect(validatePrice('0')).toBeDefined();
+    expect(validatePrice('-5')).toBeDefined();
+    expect(validatePrice('1.5')).toBeDefined();
+    expect(validatePrice('')).toBeDefined();
+    expect(validatePrice('abc')).toBeDefined();
   });
 });

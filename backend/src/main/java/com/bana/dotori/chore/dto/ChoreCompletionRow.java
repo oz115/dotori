@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 
 /**
- * 부모 대기함 조회의 리포지토리 결과 한 줄 (CHORE-08 내부용).
+ * 완료 요청 목록 조회의 리포지토리 결과 한 줄 (CHORE-08 내부용).
  *
  * <p>응답으로 나가는 {@link ChoreCompletionSummary} 와 딱 하나가 다르다 — 여기에는 저장된
  * <b>키</b>가 들어 있고, 응답에는 그 키로 발급한 presigned <b>URL</b>이 들어간다.

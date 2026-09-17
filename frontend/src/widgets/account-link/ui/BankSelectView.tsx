@@ -1,29 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { BankBadge, BANKS, useLinkAccountStore } from '@/features/account';
+import { BankBadge, BANKS } from '@/features/account';
 import { useTheme } from '@/shared/theme';
 import { Button, Header, Screen } from '@/shared/ui';
 
 type BankSelectViewProps = {
+  /** 현재 선택된 은행 key (lib/banks 의 Bank.key) */
+  selected: string | null;
+  /** 은행을 고를 때 */
+  onSelect: (bankKey: string) => void;
+  /** '선택하기' 확정 — 어느 스토어에 담을지는 호출하는 쪽(퍼널)이 결정한다 */
+  onConfirm: () => void;
   /** 선택을 끝내고(또는 취소하고) 이전 화면으로 */
   onClose: () => void;
 };
 
-/** 은행 선택 (부모·자녀 공용). 고른 은행은 연동 스토어에 담고 이전 화면으로 돌아간다. */
-export function BankSelectView({ onClose }: BankSelectViewProps) {
+/**
+ * 은행 선택 (계좌 연동·이체 공용). 은행 그리드만 그리고, 선택 상태는 호출하는 쪽
+ * 스토어(연동은 `useLinkAccountStore`, 이체는 `useTransferStore`)가 소유한다.
+ */
+export function BankSelectView({ selected, onSelect, onConfirm, onClose }: BankSelectViewProps) {
   const theme = useTheme();
-  const patch = useLinkAccountStore((s) => s.patch);
-  const [selected, setSelected] = useState<string | null>(
-    () => useLinkAccountStore.getState().bankKey,
-  );
-
-  const confirm = () => {
-    if (!selected) return;
-    patch({ bankKey: selected });
-    onClose();
-  };
 
   return (
     <Screen scroll header={<Header title="은행 선택" onBack={onClose} />}>
@@ -33,7 +31,7 @@ export function BankSelectView({ onClose }: BankSelectViewProps) {
           return (
             <Pressable
               key={bank.key}
-              onPress={() => setSelected(bank.key)}
+              onPress={() => onSelect(bank.key)}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               style={[
@@ -61,7 +59,7 @@ export function BankSelectView({ onClose }: BankSelectViewProps) {
 
       <View style={styles.spacer} />
 
-      <Button label="은행 선택하기" variant="primary" onPress={confirm} disabled={!selected} />
+      <Button label="은행 선택하기" variant="primary" onPress={onConfirm} disabled={!selected} />
     </Screen>
   );
 }

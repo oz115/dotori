@@ -25,6 +25,45 @@ export type StoreProductCreateBody = {
   quantity: number;
 };
 
+/**
+ * PATCH .../store/products/{productId} 요청 바디 (SHOP-04). 부분 수정이라 다 선택적이지만,
+ * 이 앱의 수정 화면은 항상 전체 필드를 채워서 보낸다(현재 값 프리필 방식이라 실질적으로 전체 수정).
+ * price 는 AI 산정값이지만 부모가 직접 덮어쓸 수 있다 — 산정 전(null)이면 화면에서 아예 막는다.
+ */
+export type StoreProductUpdateBody = {
+  name: string;
+  description: string | null;
+  category: StoreProductCategory;
+  price?: number;
+  quantity: number;
+};
+
+/**
+ * GET .../store/purchases 목록의 한 건 (SHOP-07).
+ * category 는 지금 상품의 카테고리다 — 상품이 삭제됐으면 null (화면에서 "기타"로 대신 표시).
+ */
+export type PurchaseHistoryItem = {
+  purchaseId: number;
+  storeProductId: number;
+  productName: string;
+  category: StoreProductCategory | null;
+  quantity: number;
+  totalPrice: number;
+  purchasedAt: string;
+};
+
+/** POST .../store/products/{productId}/purchases 응답 (SHOP-06) */
+export type StorePurchaseResult = {
+  purchaseId: number;
+  storeProductId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  pointBalanceAfter: number;
+  purchasedAt: string;
+};
+
 /** GET .../store/products/{productId} 상세 (SHOP-02) */
 export type StoreProductDetail = {
   storeProductId: number;

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +13,7 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.Purchase;
 import com.bana.dotori.store.entity.StoreProduct;
+import com.bana.dotori.store.event.StoreProductPurchasedEvent;
 import com.bana.dotori.store.repository.PurchaseRepository;
 import com.bana.dotori.store.repository.StoreProductRepository;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
@@ -38,6 +40,7 @@ public class StorePurchaseService {
 	private final StoreProductRepository storeProductRepository;
 	private final PurchaseRepository purchaseRepository;
 	private final PointDeductionService pointDeductionService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public StorePurchaseResponse purchase(Integer familyId, Integer childId, Integer storeProductId, int quantity) {
@@ -82,6 +85,9 @@ public class StorePurchaseService {
 
 		log.info("상점 구매 완료. childId={}, storeProductId={}, totalPrice={}, 잔액={}",
 			childId, storeProductId, totalPrice, deduction.balanceAfter());
+
+		eventPublisher.publishEvent(new StoreProductPurchasedEvent(purchase.getId(), storeProductId,
+			product.getCreatedBy(), product.getName(), quantity, totalPrice));
 
 		return new StorePurchaseResponse(purchase.getId(), storeProductId, product.getName(), quantity,
 			unitPrice, totalPrice, deduction.balanceAfter(), OffsetDateTime.now(KST));

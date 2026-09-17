@@ -96,4 +96,16 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		+ "order by fm.joinedAt")
 	List<FamilyMember> findConnectedChildren(@Param("parentUserId") Integer parentUserId,
 		@Param("childRole") UserRole childRole);
+
+	/**
+	 * 그 가족의 자녀 구성원 (상점 알림 발송, S15P21A505-230). familyId 를 이미 알고 있는
+	 * 호출자(상품이 속한 가족)를 위한 조회로, findConnectedChildren 과 달리 부모 계정을 거치지 않는다.
+	 */
+	@Query("select fm from FamilyMember fm join fetch fm.user "
+		+ "where fm.family.id = :familyId "
+		+ "and fm.user.role = :childRole "
+		+ "and fm.user.deletedAt is null "
+		+ "and fm.deletedAt is null")
+	List<FamilyMember> findAllChildrenByFamilyId(@Param("familyId") Integer familyId,
+		@Param("childRole") UserRole childRole);
 }

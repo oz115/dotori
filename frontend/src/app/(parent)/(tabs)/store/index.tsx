@@ -11,6 +11,13 @@ export default function ParentStoreScreen() {
       familyId={familyId ?? undefined}
       character="parent"
       onRegisterPress={() => router.push('/store/new')}
+      onPressProduct={(productId) =>
+        router.push({
+          pathname: '/(parent)/(tabs)/store/[productId]',
+          params: { productId: String(productId) },
+        })
+      }
+      onHistoryPress={() => router.push('/(parent)/purchases')}
     />
   );
 }

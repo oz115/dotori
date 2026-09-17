@@ -32,9 +32,13 @@
 | Family | 부모 한 명이 생성하는 가족 그룹. 생성자만 해체·설정 수정할 수 있으며 `deleted_at`으로 소프트 삭제. 온보딩 설정 3종(`weekly_allowance`·`weekly_reward_limit`·`financial_knowledge_level`)을 "가족 기본값"으로 보관한다 | FamilyMember 1:N |
 | FamilyMember | 부모 한 명과 여러 자녀의 가족 소속 이력. 활성 소속은 `deleted_at IS NULL`로 조회 | Family N:1, User N:1 |
 | FamilyCode | 가족 초대 코드(6자리, TTL 10분). `code`는 전역 UNIQUE — 코드만으로 가족을 특정하므로 중복이 생기면 연결 API가 죽는다. 재발급 시 기존 코드를 하드 삭제해 가족당 유효 코드 1개 유지 | Family N:1 |
+| Notification | 사용자에게 발송된 알림 이력. `ref_id`는 딥링크용 연관 리소스 ID인데 알림 타입마다 가리키는 테이블이 달라 FK를 걸지 않는다 | User N:1 |
+| DeviceToken | FCM 푸시 수신용 디바이스 토큰. `fcm_token`은 전역 UNIQUE — 기기가 로그아웃 후 다른 계정으로 로그인하면 등록 API가 기존 행의 `user_id`를 갈아치우는 upsert로 동작한다 | User N:1 |
+| InvestmentHolding | 아이별 현재 보유 현황. `(child_id, investment_product_id)` UNIQUE — 매수/매도 API가 거래 기록(`investment_transactions`)과 같은 트랜잭션으로 이 행을 upsert하고, 보유 조회(INV-T-03)는 이 테이블만 읽는다. `buy_price`는 샀을 때 그 시점의 종목 가격(종목당 1주 규칙이라 매수는 한 번뿐), 매도 시 행 삭제 | Family N:1, User(child) N:1, InvestmentProduct N:1 |
 
 - 가족 해체 시 가족과 구성원 소속만 소프트 삭제하며, 포인트 등 거래·자산 이력은 삭제하지 않는다.
 - `family_codes`는 소프트 삭제 대상이 아니다(하드 삭제). 다만 해체된 가족의 코드는 정리되지 않고 남는다 — 연결 API가 가족의 `deleted_at`을 확인해 막는다.
+- `device_tokens.fcm_token` UNIQUE 덕분에 등록 API가 별도 조회 없이 upsert(있으면 갱신, 없으면 삽입)로 구현된다.
 
 #### 가족 온보딩 설정 (S15P21A505-134)
 
@@ -119,6 +123,56 @@ API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` �
 정확히 같아야 한다(`users.role`, `point_transactions.transaction_type` 과 같은 이유).
 `application.yaml` 의 `stringtype=unspecified` 덕에 `@Enumerated(EnumType.STRING)` 매핑이
 그대로 통한다.
+
+#### 예적금 (SAV, S15P21A505-227)
+
+6개 고정 상품(보통·단리·복리예금, 소액·목표·장기적금)뿐이고 부모가 만들거나 고치지 않는다.
+그래서 **카탈로그의 원본은 DB 가 아니라 코드(`savings/entity/SavingsProductType`)** 이고,
+`SavingsProductSeeder` 가 앱 기동 시마다 `savings_products` 행을 그 값으로 덮어 동기화한다.
+DB 행이 있어야 하는 이유는 `savings_subscriptions.savings_product_id` FK 하나뿐이다.
+
+가족마다 달라지는 값은 "최대 납입/예치 가능 금액(X)" 하나이고, 가족의 `weekly_reward_limit`(RL)
+에서 매번 계산한다. 가입 시점의 값을 `savings_subscriptions.principal` 에 스냅샷해서
+(거치식=최초원금, 정액 적립식=주당 약정액, 목표적금=목표 금액) 이후 가족 설정이 바뀌어도
+이미 가입된 건은 흔들리지 않는다.
+
+**이자는 상품마다 계산 방식이 다르지만 도달점은 같다.** 목표 총이자는 모두
+`0.4 × rewardRatio × RL`(`SavingsProductType.targetTotalInterest`)이고, `InterestAccrual` 네 방식이
+각자의 경로로 그 값에 도달한다 — 복리예금만 원안 스펙대로 그 4배를 지급하는 예외다.
+
+| 방식 | 상품 | 매주 하는 일 |
+| --- | --- | --- |
+| `WEEKLY_PAYOUT` | 보통예금 | 원금 잔액 × 이자율을 계산해 그 자리에서 지갑으로 지급 |
+| `WEEKLY_STRAIGHT` | 단리예금·소액적금·장기적금 | 원금 잔액 × 이자율 ÷ 전체 주수를 쌓아 둔다 (적립식에서는 이 식이 곧 평잔 × 이자율이 된다) |
+| `WEEKLY_COMPOUND` | 복리예금 | (원금 + 쌓인 이자) × 이자율을 쌓아 둔다 |
+| `ON_GOAL_ACHIEVEMENT` | 목표적금 | 아무것도 하지 않는다. 목표를 채운 순간 목표 금액 × 이자율을 한 번에 얹는다 |
+
+`savings_subscriptions` 는 **원금(`current_amount`)과 이자(`accrued_interest`)를 나눠 들고 있다.**
+섞으면 복리는 맞지만 단리·적립식은 틀린 이자가 나온다. 나눠 두면 복리만 두 값을 더한 것을
+기준으로 삼으면 되고, 만기 지급액은 모든 상품이 똑같이 원금 + 이자다.
+
+상태는 `ACTIVE → MATURED → COMPLETED` 가 정상 경로이고, `ACTIVE → CANCELLED` 가 중도 해지다.
+중도 해지는 납입 원금만 돌려주고 쌓인 이자는 지급하지 않는다(그 사실 자체가 학습 내용이다).
+만기 지급은 자동이 아니라 아이가 수령을 눌러야 일어난다 — `MATURED` 가 그 대기 상태다.
+목표적금만 예외로 달성 즉시 `ACTIVE → COMPLETED` 로 지급까지 끝낸다.
+
+**정산일은 가입일 기준이다**(가입 시각 + n주). 모두를 월요일에 맞추면 일요일에 가입한 아이가
+하루 만에 한 주치 이자를 받는다. 대신 정산 크론(`SavingsSettlementScheduler`)은 매일 00:20 에
+돌면서 `next_settlement_at` 이 지난 건만 처리하고, 밀린 주가 여러 개면 한 번에 따라잡는다.
+건마다 트랜잭션이 갈라져 있어 한 건이 실패해도 나머지는 커밋된다.
+
+정액 적립식은 **한 주에 한 번만** 납입할 수 있다. 회차를 몰아 넣으면 이자 기준이 되는 잔액이
+그만큼 일찍 커져서 약속한 것보다 많은 이자가 나가기 때문이다.
+
+| 대상 | 제약 | 이유 |
+| --- | --- | --- |
+| `savings_subscriptions.idempotency_key` | UNIQUE (`child_id`, `idempotency_key`) | 재시도로 가입이 두 건 생기는 것을 막는다. 지갑의 멱등키는 이중 차감만 막고 가입 행은 막지 못한다 |
+| `savings_subscriptions` 금액 컬럼 | CHECK (원금 > 0, 잔액·이자·회차 >= 0) | 음수 잔액·이자가 만기 지급액을 뒤틀지 않게 |
+| `savings_transactions.amount` | CHECK (> 0) | 방향은 `transaction_type` 이 정한다. 금액에 음수를 허용하면 같은 사실을 두 곳에서 다르게 말하게 된다 |
+
+`savings_transactions` 는 지갑의 `point_transactions` 와 역할이 다르다. 저쪽은 "아이 지갑의
+잔액이 어떻게 변했는가"의 원장이고, 이쪽은 "이 가입 건 안에서 무슨 일이 있었는가"의 이력이다.
+이자 적립처럼 지갑이 전혀 움직이지 않는 사건도 남아야 만기 지급액을 설명할 수 있다.
 
 #### 이미 만들어진 DB 에 적용해야 하는 변경
 

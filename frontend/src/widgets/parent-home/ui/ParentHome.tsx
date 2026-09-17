@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useMyAccount } from '@/features/account';
@@ -26,8 +26,6 @@ export function ParentHome() {
   const theme = useTheme();
   const { familyId, childId, childName, isPending: familyPending } = useParentFamily();
   const account = useMyAccount();
-
-  const notReady = () => Alert.alert('준비 중이에요', '곧 만나볼 수 있어요.');
 
   // '/task', '/save', '/investment' 는 부모·자녀 그룹 모두에 있는 경로라
   // 그룹까지 적어야 부모 탭으로 간다
@@ -61,8 +59,8 @@ export function ParentHome() {
           account={account.data}
           isPending={account.isPending}
           onLinkAccount={() => router.push('/account/link')}
-          onTransfer={notReady}
-          onHistory={notReady}
+          onTransfer={() => router.push('/account/transfer')}
+          onHistory={() => router.push('/account/transactions')}
         />
 
         <ApprovalsCard

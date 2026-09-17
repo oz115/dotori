@@ -10,7 +10,7 @@ type AccountCardProps = {
   isPending: boolean;
   /** 계좌가 없을 때 연동 화면으로 */
   onLinkAccount: () => void;
-  /** 아직 API가 없는 기능 — 준비 중 안내만 띄운다 */
+  /** 이체 화면(계좌번호 입력)으로 */
   onTransfer: () => void;
   onHistory: () => void;
 };

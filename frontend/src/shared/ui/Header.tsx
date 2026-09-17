@@ -82,7 +82,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   side: {
-    width: SIDE_WIDTH,
+    // width 고정이 아니라 minWidth — 짧은 콘텐츠(뒤로가기 화살표, "취소")는 예전과 똑같이
+    // 56px로 보이고, "구매 내역" 같은 넓은 pill 버튼은 줄바꿈 없이 필요한 만큼 넓어진다.
+    minWidth: SIDE_WIDTH,
     justifyContent: 'center',
   },
   sideRight: {

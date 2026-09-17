@@ -49,7 +49,7 @@ public class ChoreCompletionController {
 	private final ChoreCompletionHistoryService choreCompletionHistoryService;
 
 	/**
-	 * 부모 대기함 (CHORE-08).
+	 * 완료 요청 목록 (CHORE-08). 부모는 대기함으로, 아이는 "내가 보낸 요청"으로 본다.
 	 *
 	 * <p>status 를 안 보내면 PENDING 이다. 이 화면은 처리할 것을 보러 오는 곳이다.
 	 * 없는 상태 이름이 오면 스프링의 열거형 변환이 실패해 400 이 나간다.
