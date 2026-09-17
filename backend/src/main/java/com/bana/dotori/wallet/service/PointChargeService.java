@@ -1,11 +1,13 @@
 package com.bana.dotori.wallet.service;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.event.PointChargedEvent;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.util.PointExchangePolicy;
@@ -44,6 +46,7 @@ public class PointChargeService {
 	private final PointWalletService pointWalletService;
 	private final BankTransferClient bankTransferClient;
 	private final FamilyMembershipReader familyMembershipReader;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/**
 	 * @param cashAmount 아이 계좌에서 빠져나갈 실제 금액(원). 10원 단위여야 한다
@@ -86,6 +89,8 @@ public class PointChargeService {
 
 		log.info("포인트 충전 완료. childId={}, cashAmount={}, points={}, balanceAfter={}, externalTransactionId={}",
 				childId, cashAmount, points, result.balanceAfter(), transfer.externalTransactionId());
+
+		eventPublisher.publishEvent(new PointChargedEvent(familyId, childId, cashAmount));
 		return result;
 	}
 

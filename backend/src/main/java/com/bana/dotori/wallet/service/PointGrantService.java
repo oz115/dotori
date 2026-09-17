@@ -1,11 +1,13 @@
 package com.bana.dotori.wallet.service;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.wallet.dto.command.PointChangeCommand;
 import com.bana.dotori.wallet.dto.response.PointChangeResult;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.event.PointGrantedEvent;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
@@ -32,6 +34,7 @@ public class PointGrantService {
 
 	private final PointWalletService pointWalletService;
 	private final FamilyMembershipReader familyMembershipReader;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public PointChangeResult grant(Integer parentId, Integer familyId, Integer childId, int amount,
@@ -57,6 +60,11 @@ public class PointGrantService {
 
 		log.info("포인트 지급 완료. familyId={}, parentId={}, childId={}, amount={}, balanceAfter={}, replayed={}",
 				familyId, parentId, childId, amount, result.balanceAfter(), result.replayed());
+
+		// 멱등 재요청이면 잔액이 다시 늘지 않는다. 알림도 두 번 가면 안 된다.
+		if (!result.replayed()) {
+			eventPublisher.publishEvent(new PointGrantedEvent(childId, amount));
+		}
 		return result;
 	}
 
