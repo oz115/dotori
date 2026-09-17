@@ -2,6 +2,7 @@ package com.bana.dotori.notification.service;
 
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +35,11 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 	private final NotificationRepository notificationRepository;
 	private final DeviceTokenRepository deviceTokenRepository;
 	private final UserRepository userRepository;
-	private final FirebaseMessaging firebaseMessaging;
+	/**
+	 * FCM 자격증명이 없는 환경에서는 이 빈이 없다 (FirebaseConfig 의 조건부 생성).
+	 * 없으면 발송만 건너뛰고 알림함 기록은 그대로 남긴다.
+	 */
+	private final ObjectProvider<FirebaseMessaging> firebaseMessaging;
 
 	// 호출자가 거의 항상 @TransactionalEventListener(AFTER_COMMIT) 안에서 부른다. 그 시점엔
 	// 원래 트랜잭션의 리소스가 아직 스레드에 바인딩돼 있어(cleanup은 afterCommit 이후) 기본
@@ -52,21 +57,27 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 			.refId(refId)
 			.build());
 
+		FirebaseMessaging messaging = firebaseMessaging.getIfAvailable();
+		if (messaging == null) {
+			// 로컬·테스트처럼 FCM 키가 없는 환경. 알림함에는 남았으므로 앱에서 볼 수 있다.
+			return;
+		}
+
 		List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUser_Id(userId);
 		if (deviceTokens.isEmpty()) {
 			// 푸시 미허용이거나 등록된 기기가 없는 정상 케이스 — 알림함 기록만으로 끝낸다.
 			return;
 		}
 
-		sendPush(deviceTokens, type, title, body, refId);
+		sendPush(messaging, deviceTokens, type, title, body, refId);
 	}
 
 	/**
 	 * data 페이로드(type/refId)는 앱이 알림을 탭했을 때 어느 화면으로 이동할지 판단하는 딥링크 정보다.
 	 * FCM data 값은 전부 String 이어야 하고, refId 는 null 일 수 있어 그 경우 키 자체를 넣지 않는다.
 	 */
-	private void sendPush(List<DeviceToken> deviceTokens, NotificationType type, String title, String body,
-			Integer refId) {
+	private void sendPush(FirebaseMessaging messaging, List<DeviceToken> deviceTokens, NotificationType type,
+			String title, String body, Integer refId) {
 		MulticastMessage.Builder builder = MulticastMessage.builder()
 			.setNotification(com.google.firebase.messaging.Notification.builder()
 				.setTitle(title)
@@ -81,7 +92,7 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 
 		BatchResponse response;
 		try {
-			response = firebaseMessaging.sendEachForMulticast(message);
+			response = messaging.sendEachForMulticast(message);
 		} catch (FirebaseMessagingException e) {
 			log.warn("FCM 발송 실패. tokenCount={}", deviceTokens.size(), e);
 			return;

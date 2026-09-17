@@ -21,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.global.error.BusinessException;
@@ -50,6 +51,9 @@ class PointGrantServiceTest {
 
 	@Mock
 	private FamilyMembershipReader familyMembershipReader;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private PointGrantService pointGrantService;

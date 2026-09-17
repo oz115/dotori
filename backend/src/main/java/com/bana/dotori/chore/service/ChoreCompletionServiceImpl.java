@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,8 @@ import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.entity.ChorePhotoKey;
+import com.bana.dotori.chore.event.ChoreCompletionRejectedEvent;
+import com.bana.dotori.chore.event.ChoreCompletionRequestedEvent;
 import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
@@ -46,6 +49,7 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	private final ChoreAccessValidator accessValidator;
 	private final ChoreCompletionMapper completionMapper;
 	private final PhotoStorage photoStorage;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/**
 	 * 아이가 완료를 인증한다 (CHORE-11).
@@ -96,7 +100,12 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 			throw new BusinessException(ErrorCode.ALREADY_REWARDED);
 		}
 
-		return completionMapper.toResponse(saveRequest(choreId, childId, request));
+		ChoreCompletionRequest saved = saveRequest(choreId, childId, request);
+
+		eventPublisher.publishEvent(new ChoreCompletionRequestedEvent(
+				choreId, chore.getParentId(), chore.getTitle(), childId));
+
+		return completionMapper.toResponse(saved);
 	}
 
 	/**
@@ -243,6 +252,12 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 
 		// 상태 검사는 엔티티가 한다. 이미 처리된 요청이면 INVALID_STATUS 로 409 가 나간다.
 		completionRequest.reject(OffsetDateTime.now(KST));
+
+		// 알림 문구에 할 일 제목이 필요하다. 거절된 요청은 목록에서 사라지므로 아이가
+		// 무엇이 거절됐는지 알림만 보고 알 수 있어야 한다.
+		Chore chore = findChore(familyId, childId, completionRequest.getChoreId());
+		eventPublisher.publishEvent(new ChoreCompletionRejectedEvent(
+				chore.getId(), childId, chore.getTitle()));
 
 		return completionMapper.toRejectionResponse(completionRequest);
 	}

@@ -3,6 +3,7 @@ package com.bana.dotori.savings.service;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import com.bana.dotori.savings.entity.SavingsSubscription;
 import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
 import com.bana.dotori.savings.entity.SavingsTransaction;
 import com.bana.dotori.savings.entity.SavingsTransactionType;
+import com.bana.dotori.savings.event.SavingsMaturedEvent;
 import com.bana.dotori.savings.repository.SavingsProductRepository;
 import com.bana.dotori.savings.repository.SavingsSubscriptionRepository;
 import com.bana.dotori.savings.repository.SavingsTransactionRepository;
@@ -47,6 +49,7 @@ public class SavingsSettlementService {
 	private final SavingsProductRepository savingsProductRepository;
 	private final SavingsTransactionRepository savingsTransactionRepository;
 	private final PointWalletService pointWalletService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/** 지금 정산해야 하는 가입 건의 id. 건마다 트랜잭션을 나누기 위해 id 만 먼저 모은다 */
 	@Transactional(readOnly = true)
@@ -115,6 +118,10 @@ public class SavingsSettlementService {
 		if (maturityAt != null && !settledAt.isBefore(maturityAt)) {
 			// 만기 정산까지 마쳤다. 지급은 아이가 수령을 눌러야 일어난다.
 			subscription.markMatured();
+
+			// 만기가 됐다고 돈이 들어오지는 않는다. 수령은 아이가 눌러야 해서 알려 줘야 한다.
+			eventPublisher.publishEvent(new SavingsMaturedEvent(subscription.getId(), subscription.getChildId(),
+				product.getName(), subscription.getCurrentAmount() + subscription.getAccruedInterest()));
 			log.info("예적금 만기 도달. savingsSubscriptionId={}, 원금={}, 이자={}",
 				subscription.getId(), subscription.getCurrentAmount(), subscription.getAccruedInterest());
 		} else {

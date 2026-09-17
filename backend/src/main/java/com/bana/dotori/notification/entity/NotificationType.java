@@ -10,5 +10,7 @@ public enum NotificationType {
 	CASHOUT,
 	CHORE,
 	SAVINGS,
-	INVESTMENT
+	INVESTMENT,
+	/** 하루 시작 알림 — 오늘의 퀴즈·뉴스가 준비됐음을 아침에 한 번 알린다 */
+	DAILY
 }

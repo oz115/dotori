@@ -2,6 +2,7 @@ package com.bana.dotori.wallet.service;
 
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +13,9 @@ import com.bana.dotori.wallet.dto.response.PointCashoutRequestResult;
 import com.bana.dotori.wallet.entity.PointCashoutRequest;
 import com.bana.dotori.wallet.entity.PointCashoutRequestStatus;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
+import com.bana.dotori.wallet.event.PointCashoutApprovedEvent;
+import com.bana.dotori.wallet.event.PointCashoutDeclinedEvent;
+import com.bana.dotori.wallet.event.PointCashoutRequestedEvent;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 import com.bana.dotori.wallet.repository.PointCashoutRequestRepository;
 
@@ -49,6 +53,7 @@ public class PointCashoutRequestService {
 	private final FamilyMembershipReader familyMembershipReader;
 	private final BankTransferClient bankTransferClient;
 	private final PointWalletQueryService pointWalletQueryService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/**
 	 * @param pointAmount 현금으로 바꿀 포인트 수량. 항상 양수
@@ -79,6 +84,9 @@ public class PointCashoutRequestService {
 
 		log.info("환전 요청 접수. familyId={}, childId={}, parentId={}, pointAmount={}",
 				familyId, childId, parentId, pointAmount);
+
+		eventPublisher.publishEvent(new PointCashoutRequestedEvent(
+				request.getCashoutRequestId(), parentId, childId, pointAmount));
 		return PointCashoutRequestResult.from(request);
 	}
 
@@ -114,6 +122,10 @@ public class PointCashoutRequestService {
 			request.succeed();
 			log.info("환전 승인 완료. cashoutRequestId={}, familyId={}, childId={}, parentId={}, pointAmount={}",
 					cashoutRequestId, familyId, childId, request.getParentId(), request.getPointAmount());
+
+			// 송금이 실패하면 아래 catch 로 빠지므로 여기는 성공한 경우만 지난다.
+			eventPublisher.publishEvent(new PointCashoutApprovedEvent(
+					cashoutRequestId, childId, request.getPointAmount()));
 		} catch (BusinessException e) {
 			// 여기서 다시 던지면 방금 하려던 환급·FAILED 전이까지 롤백된다 — 그러면 포인트는
 			// 이미 빠진 채로 요청만 PENDING 에 갇힌다. 그래서 삼키고 환급까지 같은 트랜잭션에서 끝낸다.
@@ -180,6 +192,9 @@ public class PointCashoutRequestService {
 
 		log.info("환전 요청 거절. cashoutRequestId={}, familyId={}, childId={}, parentId={}, pointAmount={}",
 				cashoutRequestId, familyId, childId, loginParentId, request.getPointAmount());
+
+		eventPublisher.publishEvent(new PointCashoutDeclinedEvent(
+				cashoutRequestId, childId, request.getPointAmount()));
 		return PointCashoutRequestResult.from(request);
 	}
 

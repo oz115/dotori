@@ -53,7 +53,7 @@ class StoreProductRegisteredNotificationListenerTest {
 	@Test
 	@DisplayName("등록 이벤트를 받으면 그 가족의 자녀 전원에게 PURCHASE 알림을 보낸다")
 	void onProductCreated_notifiesAllChildrenInFamily() {
-		given(familyMemberRepository.findAllChildrenByFamilyId(FAMILY_ID, UserRole.CHILD))
+		given(familyMemberRepository.findAllByFamilyIdAndRole(FAMILY_ID, UserRole.CHILD))
 			.willReturn(List.of(childMember(2), childMember(3)));
 		StoreProductCreatedEvent event = new StoreProductCreatedEvent(5, FAMILY_ID, "자전거", "설명",
 			StoreProductCategory.TOY);
@@ -69,7 +69,7 @@ class StoreProductRegisteredNotificationListenerTest {
 	@Test
 	@DisplayName("가족에 자녀가 없으면 알림을 보내지 않는다")
 	void onProductCreated_noChildren_doesNothing() {
-		given(familyMemberRepository.findAllChildrenByFamilyId(FAMILY_ID, UserRole.CHILD)).willReturn(List.of());
+		given(familyMemberRepository.findAllByFamilyIdAndRole(FAMILY_ID, UserRole.CHILD)).willReturn(List.of());
 		StoreProductCreatedEvent event = new StoreProductCreatedEvent(5, FAMILY_ID, "자전거", "설명",
 			StoreProductCategory.TOY);
 

@@ -97,7 +97,8 @@ CREATE TYPE notifications_type AS ENUM (
     'CASHOUT',
     'CHORE',
     'SAVINGS',
-    'INVESTMENT'
+    'INVESTMENT',
+    'DAILY'
 );
 
 

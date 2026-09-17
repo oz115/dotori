@@ -98,14 +98,29 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		@Param("childRole") UserRole childRole);
 
 	/**
-	 * 그 가족의 자녀 구성원 (상점 알림 발송, S15P21A505-230). familyId 를 이미 알고 있는
-	 * 호출자(상품이 속한 가족)를 위한 조회로, findConnectedChildren 과 달리 부모 계정을 거치지 않는다.
+	 * 그 가족의 특정 역할 구성원. familyId 를 이미 알고 있는 호출자를 위한 조회로,
+	 * findConnectedChildren 과 달리 부모 계정을 거치지 않는다.
+	 *
+	 * <p>알림 발송이 쓴다 - 상품 등록은 자녀 전원에게, 가족 연결은 부모 전원에게 보낸다.
 	 */
 	@Query("select fm from FamilyMember fm join fetch fm.user "
 		+ "where fm.family.id = :familyId "
-		+ "and fm.user.role = :childRole "
+		+ "and fm.user.role = :role "
 		+ "and fm.user.deletedAt is null "
 		+ "and fm.deletedAt is null")
-	List<FamilyMember> findAllChildrenByFamilyId(@Param("familyId") Integer familyId,
-		@Param("childRole") UserRole childRole);
+	List<FamilyMember> findAllByFamilyIdAndRole(@Param("familyId") Integer familyId,
+		@Param("role") UserRole role);
+
+	/**
+	 * 가족에 속한 특정 역할의 구성원 전체 (가족을 가리지 않는다). 하루 시작 알림이 쓴다.
+	 *
+	 * <p>가족이 없는 사용자는 빠진다 - 퀴즈·뉴스가 모두 가족 경로 아래 있어서 알려 봐야
+	 * 볼 것이 없다. 해체된 가족도 같은 이유로 뺀다.
+	 */
+	@Query("select fm from FamilyMember fm join fetch fm.user "
+		+ "where fm.user.role = :role "
+		+ "and fm.user.deletedAt is null "
+		+ "and fm.deletedAt is null "
+		+ "and fm.family.deletedAt is null")
+	List<FamilyMember> findAllActiveByRole(@Param("role") UserRole role);
 }
