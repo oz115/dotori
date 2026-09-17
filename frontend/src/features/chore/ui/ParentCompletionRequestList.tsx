@@ -8,12 +8,10 @@ import {
   type ParentCompletionRequest,
 } from '@/features/chore/model/useChildrenPendingRequests';
 import type { ChoreChild } from '@/features/chore/model/useChildrenChores';
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
-import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { CompletionRequestModal } from '@/features/chore/ui/CompletionRequestModal';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, Header, Screen } from '@/shared/ui';
+import { ChildBadge, ContentCard, FilterChips, Header, Screen } from '@/shared/ui';
 
 type ParentCompletionRequestListProps = {
   familyId: number | undefined;
@@ -75,7 +73,7 @@ export function ParentCompletionRequestList({
         ListHeaderComponent={
           childList.length > 1 ? (
             <View style={{ marginBottom: theme.space.md }}>
-              <ChoreFilterChips options={filters} selected={childId} onSelect={setChildId} />
+              <FilterChips options={filters} selected={childId} onSelect={setChildId} />
             </View>
           ) : null
         }

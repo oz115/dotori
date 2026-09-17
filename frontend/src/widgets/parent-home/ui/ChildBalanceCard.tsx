@@ -11,7 +11,7 @@ type ChildBalanceCardProps = {
   childName: string | undefined;
   /** 가족·구성원 조회가 아직 끝나지 않았다 — 이때는 예시로 넘어가지 않는다 */
   familyPending: boolean;
-  /** 환전 요청 처리 화면으로 — 지금은 승인 대기 목록(할 일 탭)으로 보낸다 */
+  /** 자녀 환전 요청 목록·처리 화면으로 */
   onCashout: () => void;
 };
 
