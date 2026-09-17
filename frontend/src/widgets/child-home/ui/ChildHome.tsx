@@ -41,7 +41,7 @@ export function ChildHome() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingHorizontal: theme.space['2xl'], gap: theme.space['2xl'] },
+          { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
         ]}
         showsVerticalScrollIndicator={false}
       >
