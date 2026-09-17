@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import com.bana.dotori.family.dto.InvitationCodeResponse;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.family.event.FamilyChildConnectedEvent;
 import com.bana.dotori.family.mapper.FamilyMapper;
 import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
@@ -51,6 +53,7 @@ public class FamilyServiceImpl implements FamilyService {
 	private final FamilyCodeRepository familyCodeRepository;
 	private final UserRepository userRepository;
 	private final FamilyMapper familyMapper;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional
@@ -225,6 +228,9 @@ public class FamilyServiceImpl implements FamilyService {
 			.family(family)
 			.user(user)
 			.build());
+		eventPublisher.publishEvent(new FamilyChildConnectedEvent(
+				family.getId(), user.getId(), user.getName(), family.getName()));
+
 		return familyMapper.toConnectResponse(family, member);
 	}
 

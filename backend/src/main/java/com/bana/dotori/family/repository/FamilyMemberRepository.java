@@ -89,7 +89,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		+ "where fm.family.id in ("
 		+ "select pm.family.id from FamilyMember pm "
 		+ "where pm.user.id = :parentUserId and pm.deletedAt is null) "
-		+ "and fm.user.role = :childRole "
+		+ "and fm.user.role = :role "
 		+ "and fm.user.deletedAt is null "
 		+ "and fm.deletedAt is null "
 		+ "and fm.family.deletedAt is null "
@@ -98,14 +98,16 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		@Param("childRole") UserRole childRole);
 
 	/**
-	 * 그 가족의 자녀 구성원 (상점 알림 발송, S15P21A505-230). familyId 를 이미 알고 있는
-	 * 호출자(상품이 속한 가족)를 위한 조회로, findConnectedChildren 과 달리 부모 계정을 거치지 않는다.
+	 * 그 가족의 특정 역할 구성원. familyId 를 이미 알고 있는 호출자를 위한 조회로,
+	 * findConnectedChildren 과 달리 부모 계정을 거치지 않는다.
+	 *
+	 * <p>알림 발송이 쓴다 - 상품 등록은 자녀 전원에게, 가족 연결은 부모 전원에게 보낸다.
 	 */
 	@Query("select fm from FamilyMember fm join fetch fm.user "
 		+ "where fm.family.id = :familyId "
-		+ "and fm.user.role = :childRole "
+		+ "and fm.user.role = :role "
 		+ "and fm.user.deletedAt is null "
 		+ "and fm.deletedAt is null")
-	List<FamilyMember> findAllChildrenByFamilyId(@Param("familyId") Integer familyId,
-		@Param("childRole") UserRole childRole);
+	List<FamilyMember> findAllByFamilyIdAndRole(@Param("familyId") Integer familyId,
+		@Param("role") UserRole role);
 }

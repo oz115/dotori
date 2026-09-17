@@ -31,7 +31,7 @@ public class StoreProductRegisteredNotificationListener {
 		String title = "새 상품이 등록됐어요";
 		String body = event.name() + "이(가) 상점에 새로 등록됐어요";
 
-		for (FamilyMember child : familyMemberRepository.findAllChildrenByFamilyId(event.familyId(), UserRole.CHILD)) {
+		for (FamilyMember child : familyMemberRepository.findAllByFamilyIdAndRole(event.familyId(), UserRole.CHILD)) {
 			pushNotificationService.notify(child.getUser().getId(), NotificationType.PURCHASE, title, body,
 				event.storeProductId());
 		}
