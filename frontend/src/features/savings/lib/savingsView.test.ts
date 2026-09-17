@@ -1,5 +1,15 @@
-import { buildSavingsCards, daysUntil, savingsGroupOf } from './savingsView';
-import type { SavingsProductResponse, SavingsSubscription } from '@/features/savings/model/types';
+import {
+  buildSavingsCards,
+  daysUntil,
+  estimateReturn,
+  savingsGroupOf,
+  toSavingsTransactionItem,
+} from './savingsView';
+import type {
+  SavingsProductResponse,
+  SavingsSubscription,
+  SavingsTransactionResponse,
+} from '@/features/savings/model/types';
 
 const NOW = new Date('2026-09-17T12:00:00+09:00');
 
@@ -130,5 +140,100 @@ describe('buildSavingsCards', () => {
     const [card] = buildSavingsCards([product({})], [subscription({ status: 'COMPLETED' })], NOW);
 
     expect(card.subscribed).toBe(false);
+  });
+});
+
+describe('estimateReturn — 서버 정산과 같은 식이어야 화면 약속이 지켜진다', () => {
+  it('단리예금은 매주 (원금 × 기간 이자율 ÷ 기간)을 기간만큼 쌓는다', () => {
+    const result = estimateReturn(product({ interestRate: 15, termWeeks: 4 }), 4000);
+
+    // round(4000 × 15% ÷ 4) = 150 씩 4주
+    expect(result).toEqual({ principal: 4000, interest: 600, total: 4600, weekly: false });
+  });
+
+  it('복리예금은 쌓인 이자에도 매주 이자가 붙는다', () => {
+    const result = estimateReturn(
+      product({ productType: 'COMPOUND_INTEREST', interestRate: 10, termWeeks: 4 }),
+      1000,
+    );
+
+    // 100 → 110 → 121 → 133 (매주 반올림)
+    expect(result.interest).toBe(464);
+    expect(result.total).toBe(1464);
+  });
+
+  it('정액 적립식은 납입으로 늘어난 잔액 기준으로 이자를 쌓는다', () => {
+    const result = estimateReturn(
+      product({
+        productType: 'SMALL_INSTALLMENT',
+        contributionStyle: 'FIXED_INSTALLMENT',
+        interestRate: 10,
+        termWeeks: 2,
+        installmentCount: 2,
+      }),
+      500,
+    );
+
+    // 1주차 round(500×10%÷2)=25, 2주차 round(1000×5%)=50
+    expect(result).toEqual({ principal: 1000, interest: 75, total: 1075, weekly: false });
+  });
+
+  it('목표적금은 목표 금액 기준 이자를 한 번에 받는다', () => {
+    const result = estimateReturn(
+      product({
+        productType: 'GOAL_INSTALLMENT',
+        contributionStyle: 'FLEXIBLE_GOAL',
+        interestRate: 15,
+      }),
+      2000,
+    );
+
+    expect(result).toEqual({ principal: 2000, interest: 300, total: 2300, weekly: false });
+  });
+
+  it('보통예금은 만기 대신 매주 받는 이자 한 주치를 준다', () => {
+    const result = estimateReturn(
+      product({
+        productType: 'ORDINARY',
+        contributionStyle: 'FREE',
+        interestRate: 1,
+        termWeeks: null,
+      }),
+      500,
+    );
+
+    expect(result.weekly).toBe(true);
+    expect(result.interest).toBe(5);
+  });
+});
+
+describe('toSavingsTransactionItem', () => {
+  function transaction(overrides: Partial<SavingsTransactionResponse>): SavingsTransactionResponse {
+    return {
+      savingsTransactionId: 1,
+      savingsSubscriptionId: 10,
+      savingsProductId: 1,
+      productName: '단리예금',
+      productType: 'SIMPLE_INTEREST',
+      transactionType: 'INITIAL_DEPOSIT',
+      amount: 3000,
+      createdAt: '2026-09-17T09:00:00+09:00',
+      ...overrides,
+    };
+  }
+
+  it('납입은 지갑에서 나간 돈(-)으로, 수령은 들어온 돈(+)으로 표시한다', () => {
+    expect(toSavingsTransactionItem(transaction({}))).toMatchObject({
+      badge: '넣었어요',
+      sign: '-',
+      date: '2026. 09. 17',
+    });
+    expect(
+      toSavingsTransactionItem(transaction({ transactionType: 'MATURITY_PAYOUT' })),
+    ).toMatchObject({ badge: '만기 수령', sign: '+' });
+    expect(toSavingsTransactionItem(transaction({ transactionType: 'INTEREST' }))).toMatchObject({
+      badge: '이자 받았어요',
+      sign: '+',
+    });
   });
 });

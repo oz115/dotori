@@ -83,6 +83,46 @@ export type SavingsSubscription = {
   receivedAt: string | null;
 };
 
+/** 가입 건 안에서 일어난 거래의 종류. 금액은 항상 양수, 방향은 이 값이 정한다 */
+export type SavingsTransactionType =
+  'INITIAL_DEPOSIT' | 'CONTRIBUTION' | 'INTEREST' | 'EARLY_TERMINATION_PAYOUT' | 'MATURITY_PAYOUT';
+
+/** GET .../savings/transactions 응답 한 건 */
+export type SavingsTransactionResponse = {
+  savingsTransactionId: number;
+  savingsSubscriptionId: number;
+  savingsProductId: number;
+  productName: string;
+  productType: SavingsProductType;
+  transactionType: SavingsTransactionType;
+  amount: number;
+  createdAt: string;
+};
+
+/** 거래 이력 화면의 한 줄 (서버 응답 → 화면 뷰모델) */
+export type SavingsTransactionItem = {
+  id: number;
+  productName: string;
+  image: ImageSourcePropType;
+  /** 아이 눈높이 배지 문구 — 넣었어요 / 이자 받았어요 / 돌려받았어요 ... */
+  badge: string;
+  /** 지갑에서 나갔으면 '-', 들어왔거나 쌓였으면 '+' */
+  sign: '+' | '-';
+  amount: number;
+  date: string;
+};
+
+/** GET .../subscriptions/{id}/expected-return 응답 — 만기 예상과 지금 해지 시 수령액 */
+export type SavingsExpectedReturn = {
+  savingsSubscriptionId: number;
+  currentAmount: number;
+  accruedInterest: number;
+  expectedInterest: number;
+  expectedTotal: number;
+  earlyTerminationAmount: number;
+  maturityAt: string | null;
+};
+
 /** 카드 안의 정보 한 줄 (예치 금액 3,000P 처럼 라벨·값 쌍) */
 export type SavingsCardLine = {
   label: string;

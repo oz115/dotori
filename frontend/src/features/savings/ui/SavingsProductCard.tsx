@@ -11,8 +11,9 @@ type Props = {
 };
 
 /**
- * 저축 메인의 상품 카드 (2열 그리드 한 칸) — 아이콘·상품명과 정보 줄들,
- * 가입 중이면 진행바까지. 만기 도달 건은 배지로 알려 수령을 유도한다.
+ * 저축 메인의 상품 카드 — 주식 리스트처럼 가로로 긴 한 줄 카드를 세로로 쌓는다.
+ * 상단에 아이콘·상품명, 아래에 정보 값들을 가로로 펼치고, 가입 중이면 진행바까지.
+ * 만기 도달 건은 배지로 알려 수령을 유도한다.
  */
 export function SavingsProductCard({ card, onPress }: Props) {
   const theme = useTheme();
@@ -38,40 +39,39 @@ export function SavingsProductCard({ card, onPress }: Props) {
       <View style={[styles.headRow, { gap: theme.space.sm }]}>
         <Image source={card.image} style={styles.icon} resizeMode="contain" />
         <Text
-          numberOfLines={2}
+          numberOfLines={1}
           style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
         >
           {card.name}
         </Text>
+        {card.matured ? (
+          <View
+            style={[
+              styles.maturedBadge,
+              {
+                backgroundColor: theme.color.status.success.subtle,
+                borderRadius: theme.radius.full,
+              },
+            ]}
+          >
+            <Text style={[theme.typography.caption, { color: theme.color.status.success.text }]}>
+              🎉 만기 달성!
+            </Text>
+          </View>
+        ) : null}
         <Ionicons name="chevron-forward" size={16} color={theme.color.text.muted} />
       </View>
 
-      {card.matured ? (
-        <View
-          style={[
-            styles.maturedBadge,
-            { backgroundColor: theme.color.status.success.subtle, borderRadius: theme.radius.full },
-          ]}
-        >
-          <Text style={[theme.typography.caption, { color: theme.color.status.success.text }]}>
-            🎉 만기 달성! 받으러 가요
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={{ gap: theme.space.xs }}>
+      {/* 정보 값들을 가로로 펼친다 — 카드가 화면 너비를 다 쓰므로 세로 줄보다 눈에 잘 들어온다 */}
+      <View style={styles.statsRow}>
         {card.lines.map((line) => (
-          <View key={line.label} style={styles.lineRow}>
+          <View key={line.label} style={styles.stat}>
             <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
               {line.label}
             </Text>
             <Text
               numberOfLines={1}
-              style={[
-                theme.typography.caption,
-                styles.lineValue,
-                { color: theme.color.text.strong },
-              ]}
+              style={[theme.typography.label, { color: theme.color.text.strong }]}
             >
               {line.value}
             </Text>
@@ -101,17 +101,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   maturedBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  lineRow: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
   },
-  lineValue: {
-    flexShrink: 1,
+  stat: {
+    flex: 1,
+    gap: 4,
   },
 });

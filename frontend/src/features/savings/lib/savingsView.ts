@@ -6,6 +6,9 @@ import type {
   SavingsProductResponse,
   SavingsProductType,
   SavingsSubscription,
+  SavingsTransactionItem,
+  SavingsTransactionResponse,
+  SavingsTransactionType,
 } from '@/features/savings/model/types';
 import { formatPoint } from '@/shared/lib/money';
 
@@ -108,6 +111,93 @@ function productLines(product: SavingsProductResponse): SavingsCardLine[] {
   }
   lines.push({ label: '최대', value: formatPoint(product.maxAmount) });
   return lines;
+}
+
+/**
+ * 가입 전 미리보기 — 이 금액으로 가입하면 만기에 얼마를 받는지.
+ * 서버 정산({@code SavingsProductType.weeklyInterest})과 같은 식으로 계산해야
+ * 화면이 약속한 금액과 실제 지급액이 어긋나지 않는다.
+ * 보통예금은 만기가 없어 "매주 받는 이자" 한 주치를 준다 (weekly: true).
+ */
+export function estimateReturn(
+  product: SavingsProductResponse,
+  amount: number,
+): { principal: number; interest: number; total: number; weekly: boolean } {
+  const rate = product.interestRate;
+  switch (product.contributionStyle) {
+    // 보통예금 — 잔액을 한 주 유지하면 받는 이자
+    case 'FREE': {
+      const interest = Math.round((amount * rate) / 100);
+      return { principal: amount, interest, total: amount + interest, weekly: true };
+    }
+    // 단리는 매주 (원금 × 기간 이자율 ÷ 기간), 복리는 매주 (원금+쌓인 이자) × 주간 이자율
+    case 'LUMP_SUM': {
+      const term = product.termWeeks ?? 0;
+      let interest = 0;
+      if (product.productType === 'COMPOUND_INTEREST') {
+        for (let week = 0; week < term; week += 1) {
+          interest += Math.round(((amount + interest) * rate) / 100);
+        }
+      } else if (term > 0) {
+        interest = Math.round((amount * rate) / 100 / term) * term;
+      }
+      return { principal: amount, interest, total: amount + interest, weekly: false };
+    }
+    // 정액 적립식 — 매주 납입으로 원금이 늘어나며 그 주 잔액 기준으로 이자가 쌓인다
+    case 'FIXED_INSTALLMENT': {
+      const term = product.termWeeks ?? 0;
+      const count = product.installmentCount ?? 0;
+      let balance = amount;
+      let remaining = count - 1;
+      let interest = 0;
+      for (let week = 0; week < term; week += 1) {
+        if (term > 0) {
+          interest += Math.round((balance * rate) / 100 / term);
+        }
+        if (remaining > 0) {
+          balance += amount;
+          remaining -= 1;
+        }
+      }
+      const principal = amount * count;
+      return { principal, interest, total: principal + interest, weekly: false };
+    }
+    // 목표적금 — 목표를 채우는 순간 목표 금액 기준 이자를 한 번에 받는다
+    case 'FLEXIBLE_GOAL': {
+      const interest = Math.round((amount * rate) / 100);
+      return { principal: amount, interest, total: amount + interest, weekly: false };
+    }
+  }
+}
+
+/** '2026-09-17T12:00:00+09:00' → '2026. 09. 17' (거래 이력 날짜, 투자 이력과 같은 표기) */
+export function formatSavingsDate(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split('-');
+  return `${year}. ${month}. ${day}`;
+}
+
+/** 거래 종류 → 아이 눈높이 배지 문구와 지갑 기준 방향 */
+const TRANSACTION_BADGES: Record<SavingsTransactionType, { badge: string; sign: '+' | '-' }> = {
+  INITIAL_DEPOSIT: { badge: '넣었어요', sign: '-' },
+  CONTRIBUTION: { badge: '넣었어요', sign: '-' },
+  INTEREST: { badge: '이자 받았어요', sign: '+' },
+  EARLY_TERMINATION_PAYOUT: { badge: '돌려받았어요', sign: '+' },
+  MATURITY_PAYOUT: { badge: '만기 수령', sign: '+' },
+};
+
+export function toSavingsTransactionItem(
+  transaction: SavingsTransactionResponse,
+): SavingsTransactionItem {
+  const { badge, sign } = TRANSACTION_BADGES[transaction.transactionType];
+  return {
+    id: transaction.savingsTransactionId,
+    productName: transaction.productName,
+    image: savingsProductImage(transaction.productType),
+    badge,
+    sign,
+    amount: transaction.amount,
+    date: formatSavingsDate(transaction.createdAt),
+  };
 }
 
 /**

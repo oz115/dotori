@@ -14,10 +14,10 @@ import { Button, Checkbox, Header, Screen } from '@/shared/ui';
 type Props = {
   familyId: number | undefined;
   childId: number | undefined;
-  /**
-   * 카드 탭 시 이동. 상세 화면 태스크가 아직이라 라우트가 안 넘기면 카드는 표시만 한다.
-   */
+  /** 카드 탭 시 상세 화면으로 이동 */
   onPressCard?: (productId: number, subscriptionId?: number) => void;
+  /** 헤더 "거래 내역" 탭 시 이동 */
+  onPressHistory?: () => void;
 };
 
 const GROUPS: { key: SavingsGroup; label: string }[] = [
@@ -27,10 +27,10 @@ const GROUPS: { key: SavingsGroup; label: string }[] = [
 
 /**
  * 저축 탭 메인 (Figma: 예적금 메인). 예금/적금 세그먼트 → 안내 배너 →
- * 상품 카드 2열 그리드. 가입된 상품은 진행 정보가, 미가입 상품은 스펙이 실리고,
- * "보유한 것만 보기"를 켜면 가입된 카드만 남는다.
+ * 상품 카드를 주식 리스트처럼 세로로 쌓는다. 가입된 상품은 진행 정보가,
+ * 미가입 상품은 스펙이 실리고, "보유한 것만 보기"를 켜면 가입된 카드만 남는다.
  */
-export function SavingsHome({ familyId, childId, onPressCard }: Props) {
+export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: Props) {
   const theme = useTheme();
   const [group, setGroup] = useState<SavingsGroup>('DEPOSIT');
   const [onlyMine, setOnlyMine] = useState(false);
@@ -56,7 +56,15 @@ export function SavingsHome({ familyId, childId, onPressCard }: Props) {
   const isError = products.isError || subscriptions.isError;
 
   return (
-    <Screen header={<Header title="저축" />} padded={false}>
+    <Screen
+      header={
+        <Header
+          title="저축"
+          action={onPressHistory ? { label: '거래 내역', onPress: onPressHistory } : undefined}
+        />
+      }
+      padded={false}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -65,13 +73,14 @@ export function SavingsHome({ familyId, childId, onPressCard }: Props) {
           gap: theme.space.lg,
         }}
       >
-        {/* 예금 | 적금 세그먼트 */}
+        {/* 예금 | 적금 세그먼트 — 상점 카드처럼 뚜렷한 테두리 + 그림자로 경계를 살린다 */}
         <View
           style={[
             styles.segment,
+            theme.shadow.card,
             {
               backgroundColor: theme.color.background.surface,
-              borderColor: theme.color.border.card,
+              borderColor: theme.color.border.default,
               borderRadius: theme.radius.full,
             },
           ]}
@@ -138,16 +147,15 @@ export function SavingsHome({ familyId, childId, onPressCard }: Props) {
             아직 가입한 {groupLabel}이 없어요. 마음에 드는 상품을 골라 시작해 보세요!
           </Text>
         ) : (
-          <View style={[styles.grid, { gap: theme.space.md }]}>
+          <View style={{ gap: theme.space.md }}>
             {cards.map((card) => (
-              <View key={card.productId} style={styles.gridItem}>
-                <SavingsProductCard
-                  card={card}
-                  onPress={
-                    onPressCard ? () => onPressCard(card.productId, card.subscriptionId) : undefined
-                  }
-                />
-              </View>
+              <SavingsProductCard
+                key={card.productId}
+                card={card}
+                onPress={
+                  onPressCard ? () => onPressCard(card.productId, card.subscriptionId) : undefined
+                }
+              />
             ))}
           </View>
         )}
@@ -169,14 +177,5 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     alignItems: 'flex-end',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  // 2열 그리드 — gap 을 고려해 절반보다 살짝 작게
-  gridItem: {
-    flexBasis: '47%',
-    flexGrow: 1,
   },
 });
