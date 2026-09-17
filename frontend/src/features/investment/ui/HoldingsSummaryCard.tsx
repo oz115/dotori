@@ -27,7 +27,8 @@ export function HoldingsSummaryCard({ holdings }: Props) {
     summary.totalEarned >= 0 ? theme.color.status.success.text : theme.color.status.danger.text;
 
   const tiles: { key: string; icon: ImageSourcePropType; value: string; color?: string }[] = [
-    { key: '가지고 있는 상품', icon: ACORN, value: `${summary.count}개` },
+    // 타일이 3분할이라 좁다 — 긴 라벨("가지고 있는 상품")은 줄바꿈으로 어색해져 짧게 쓴다
+    { key: '내 주식', icon: ACORN, value: `${summary.count}개` },
     { key: '지금 가치', icon: COIN, value: formatAcorns(summary.totalValue) },
     { key: '번 돈', icon: SPROUT, value: signedAcorns(summary.totalEarned), color: earnedColor },
   ];
@@ -72,7 +73,10 @@ export function HoldingsSummaryCard({ holdings }: Props) {
             ]}
           >
             <Image source={tile.icon} style={styles.tileIcon} resizeMode="contain" />
-            <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+            <Text
+              numberOfLines={1}
+              style={[theme.typography.bodySm, { color: theme.color.text.sub }]}
+            >
               {tile.key}
             </Text>
             <Text

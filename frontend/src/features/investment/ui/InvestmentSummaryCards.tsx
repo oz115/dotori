@@ -71,7 +71,11 @@ export function InvestmentSummaryCards({ summary }: Props) {
           >
             <Image source={tile.icon} style={styles.tileIcon} resizeMode="contain" />
             <View style={[styles.tileTexts, { gap: theme.space.xs }]}>
-              <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+              {/* 아이 화면이라 라벨도 또렷하게 — caption+muted 는 멀리서 안 읽힌다 */}
+              <Text
+                numberOfLines={1}
+                style={[theme.typography.bodySm, { color: theme.color.text.sub }]}
+              >
                 {tile.label}
               </Text>
               <Text
