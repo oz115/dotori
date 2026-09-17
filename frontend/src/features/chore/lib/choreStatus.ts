@@ -41,8 +41,24 @@ export function earliestStartDate(chores: ChoreSummary[]): string | undefined {
   );
 }
 
-/** 이번 주기에 이미 보상을 받았는지. 지난 주기의 지급은 세지 않는다 */
-function isPaidThisPeriod(chore: ChoreSummary, completions: ChoreCompletionHistoryItem[]): boolean {
+/** 오늘 날짜 (YYYY-MM-DD), 기기 로컬 시간 기준. 완료 내역 조회의 끝 날짜로 쓴다 */
+export function todayDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * 이번 주기에 이미 보상을 받았는지. 지난 주기의 지급은 세지 않는다.
+ *
+ * 부모 목록도 이 판정을 쓴다 - 아이 화면과 기준이 갈리면 한쪽에서만 미션이 사라진다.
+ */
+export function isPaidThisPeriod(
+  chore: ChoreSummary,
+  completions: ChoreCompletionHistoryItem[],
+): boolean {
   const from = periodStartedAt(chore.startDate);
   return completions.some(
     (completion) =>

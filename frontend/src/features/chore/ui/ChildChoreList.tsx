@@ -31,19 +31,26 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   const { refreshing, onRefresh } = useChoreRefresh();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [openChoreId, setOpenChoreId] = useState<number | null>(null);
-  const { items, isPending, isError } = useTodayChores(familyId, childId);
+  const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
   // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
+  // items 는 완료한 것까지 들고 있다 - 모달이 열린 사이에 부모가 승인해도 상태를 읽을 수
+  // 있어야 하므로, 걸러내는 일은 목록에만 적용한다.
   const openChore = items.find((chore) => chore.choreId === openChoreId);
 
+  // 지급까지 끝난 미션은 목록에서 뺀다. 아이가 다시 할 것이 없는데 남겨 두면 "해야 할
+  // 미션"에 섞여 무엇이 남았는지 흐려지고, 눌러 봐야 아무것도 못 한다. 기록은 완료
+  // 이력에 있다. 반복 미션은 다음 주기가 시작되면 TODO 로 돌아와 다시 나타난다.
+  const active = useMemo(() => items.filter((chore) => chore.status !== 'DONE'), [items]);
+
   const visible = useMemo(
-    () => (repeatType == null ? items : items.filter((chore) => chore.repeatType === repeatType)),
-    [items, repeatType],
+    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
+    [active, repeatType],
   );
 
   const { total, pendingCount } = useMemo(
-    () => sumRewards(items.map((chore) => chore.rewardPoints)),
-    [items],
+    () => sumRewards(active.map((chore) => chore.rewardPoints)),
+    [active],
   );
 
   // 상점 탭의 "구매 내역"(StoreCatalog)과 같은 pill 이다. 두 탭이 헤더 같은 자리에 같은
@@ -86,7 +93,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <ChoreHeroBanner
-              title={`해야 할 미션이\n${items.length}개 남았어요!`}
+              title={`해야 할 미션이\n${remainingCount}개 남았어요!`}
               caption={rewardCaption(total, pendingCount)}
               mascot={require('@/assets/images/chore/squirrel-cheer.png')}
             />
@@ -111,7 +118,11 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
                   ? '미션을 불러오지 못했어요.'
                   : repeatType != null
                     ? '이 주기의 미션이 없어요.'
-                    : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
+                    : // 등록된 미션이 있는데 목록이 비었으면 전부 끝낸 것이다.
+                      // "아직 미션이 없어요" 를 내보내면 방금 해낸 일을 부정하는 말이 된다.
+                      items.length > 0
+                      ? '미션을 모두 해냈어요!\n완료 이력에서 볼 수 있어요.'
+                      : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
             }
           />
         }

@@ -62,9 +62,13 @@ export function ParentChoreList({
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
 
+  // 지급까지 끝난 미션은 목록에서 뺀다. 아이 화면과 같은 기준이다 - 한쪽에만 남으면
+  // 부모와 아이가 서로 다른 목록을 보게 된다. 지난 건은 완료 이력에서 본다.
+  const active = useMemo(() => items.filter((chore) => !chore.done), [items]);
+
   const visible = useMemo(
-    () => (repeatType == null ? items : items.filter((chore) => chore.repeatType === repeatType)),
-    [items, repeatType],
+    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
+    [active, repeatType],
   );
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
@@ -133,7 +137,10 @@ export function ParentChoreList({
                   ? '미션을 불러오지 못했어요.'
                   : repeatType != null
                     ? '이 주기의 미션이 없어요.'
-                    : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
+                    : // 등록된 것이 있는데 비었으면 아이가 전부 끝낸 것이다.
+                      items.length > 0
+                      ? '아이가 미션을 모두 끝냈어요.\n새 미션을 만들어주세요!'
+                      : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
           />
         }
