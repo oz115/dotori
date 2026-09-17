@@ -115,7 +115,9 @@ export function StoreProductCard({ product, onPress }: StoreProductCardProps) {
             style={[
               styles.quantityText,
               theme.typography.caption,
-              { color: theme.color.text.muted },
+              // caption(16px)은 가격 옆에 붙는 보조 정보치곤 커서, 여기서는 폰트만
+              // caption 걸 따르고 크기만 줄인다 (StoreProductFields의 CharCounter와 동일).
+              { color: theme.color.text.muted, fontSize: 12, lineHeight: 14 },
             ]}
           >
             재고 {product.quantity}개

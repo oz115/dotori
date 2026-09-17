@@ -16,7 +16,7 @@ export function useDeleteChore(familyId: number | undefined, childId: number | u
     onSuccess: (_result, choreId) => {
       if (familyId == null || childId == null) return;
       queryClient.invalidateQueries({ queryKey: choreKeys.list(familyId, childId) });
-      queryClient.invalidateQueries({ queryKey: choreKeys.pendingRequests(familyId, childId) });
+      queryClient.invalidateQueries({ queryKey: choreKeys.completionRequests(familyId, childId) });
       queryClient.removeQueries({ queryKey: choreKeys.detail(familyId, childId, choreId) });
     },
   });

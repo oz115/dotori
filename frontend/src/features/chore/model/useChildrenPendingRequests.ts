@@ -19,7 +19,7 @@ export type ParentCompletionRequest = ChoreCompletionSummary & { childId: number
 export function useChildrenPendingRequests(familyId: number | undefined, children: ChoreChild[]) {
   return useQueries({
     queries: children.map((child) => ({
-      queryKey: choreKeys.pendingRequests(familyId ?? -1, child.childId),
+      queryKey: choreKeys.completionRequests(familyId ?? -1, child.childId, 'PENDING'),
       queryFn: () =>
         choreApi.getCompletionRequests(familyId as number, child.childId, 'PENDING' as const),
       enabled: familyId != null,

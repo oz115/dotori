@@ -16,7 +16,7 @@ import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Button, ChildBadge, ContentCard, FilterChips, Header, Screen } from '@/shared/ui';
+import { ChildBadge, ContentCard, FilterChips, Header, Screen } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
 const PREVIEW_COUNT = 2;
@@ -60,9 +60,13 @@ export function ParentChoreList({
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
 
+  // 지급까지 끝난 미션은 목록에서 뺀다. 아이 화면과 같은 기준이다 - 한쪽에만 남으면
+  // 부모와 아이가 서로 다른 목록을 보게 된다. 지난 건은 완료 이력에서 본다.
+  const active = useMemo(() => items.filter((chore) => !chore.done), [items]);
+
   const visible = useMemo(
-    () => (repeatType == null ? items : items.filter((chore) => chore.repeatType === repeatType)),
-    [items, repeatType],
+    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
+    [active, repeatType],
   );
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
@@ -131,9 +135,11 @@ export function ParentChoreList({
                   ? '미션을 불러오지 못했어요.'
                   : repeatType != null
                     ? '이 주기의 미션이 없어요.'
-                    : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
+                    : // 등록된 것이 있는데 비었으면 아이가 전부 끝낸 것이다.
+                      items.length > 0
+                      ? '아이가 미션을 모두 끝냈어요.\n새 미션을 만들어주세요!'
+                      : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
-            showMascot={!isPending && !isError}
           />
         }
       />
@@ -185,12 +191,12 @@ function IntroBanner() {
         <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
           우리 가족 미션
         </Text>
-        <Text style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}>
-          아이가 해낼 미션을 만들고 도토리로 칭찬해주세요!
+        <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+          {'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
         </Text>
       </View>
       <Image
-        source={require('@/assets/images/chore/owl-smile.png')}
+        source={require('@/assets/images/chore/owl-cheer.png')}
         style={styles.mascotSmall}
         resizeMode="contain"
       />
@@ -242,16 +248,23 @@ function PendingRequestsCard({
         ) : null}
       </View>
 
+      {/* 행 전체가 버튼이다. 오른쪽 끝의 화살표는 목록 행(ChoreListRow)과 같은 모양이라,
+          "눌러서 들어간다"는 것이 같은 방식으로 읽힌다. 예전에는 "확인하기" 버튼이었는데
+          버튼만 누를 수 있어 표적이 좁았고, 버튼 높이와 두 줄 글이 서로 안 맞아 보였다. */}
       {requests.slice(0, PREVIEW_COUNT).map((request) => (
-        <View
+        <Pressable
           key={request.choreCompletionRequestId}
+          accessibilityRole="button"
+          accessibilityLabel={`${request.choreTitle} 완료 요청 확인하기`}
+          disabled={onRequestPress == null}
+          onPress={() => onRequestPress?.(request)}
           style={[styles.requestRow, { gap: theme.space.md }]}
         >
           <View style={styles.requestBody}>
             <View style={[styles.titleRow, { gap: theme.space.xs }]}>
               <Text
                 numberOfLines={1}
-                style={[theme.typography.label, { color: theme.color.text.strong }]}
+                style={[theme.typography.label, styles.grow, { color: theme.color.text.strong }]}
               >
                 {request.choreTitle}
               </Text>
@@ -264,31 +277,18 @@ function PendingRequestsCard({
               {request.description ?? '사진과 함께 완료 요청을 보냈어요.'}
             </Text>
           </View>
-          <Button
-            label="확인하기"
-            variant="outline"
-            size="sm"
-            disabled={onRequestPress == null}
-            onPress={() => onRequestPress?.(request)}
-          />
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
+        </Pressable>
       ))}
     </ContentCard>
   );
 }
 
-function EmptyState({ message, showMascot }: { message: string; showMascot: boolean }) {
+function EmptyState({ message }: { message: string }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.empty, { gap: theme.space.lg }]}>
-      {showMascot ? (
-        <Image
-          source={require('@/assets/images/chore/owl-cheer.png')}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
-      ) : null}
+    <View style={styles.empty}>
       <Text style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}>
         {message}
       </Text>
@@ -311,9 +311,10 @@ const styles = StyleSheet.create({
   count: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },
   requestRow: { flexDirection: 'row', alignItems: 'center' },
   requestBody: { flex: 1, gap: 2 },
+  // 제목이 길어도 아이 이름 배지를 밀어내지 않게 한다
+  grow: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  mascot: { width: 140, height: 140 },
   // 상점의 등록 버튼(StoreCatalog)과 같은 자리·같은 크기다.
   fab: {
     position: 'absolute',

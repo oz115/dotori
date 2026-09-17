@@ -20,7 +20,7 @@ export function useApproveCompletion(familyId: number | undefined, childId: numb
       choreApi.approveCompletion(familyId as number, childId as number, requestId),
     onSuccess: () => {
       if (familyId == null || childId == null) return;
-      queryClient.invalidateQueries({ queryKey: choreKeys.pendingRequests(familyId, childId) });
+      queryClient.invalidateQueries({ queryKey: choreKeys.completionRequests(familyId, childId) });
       queryClient.invalidateQueries({ queryKey: [...choreKeys.all, 'completions'] });
     },
   });

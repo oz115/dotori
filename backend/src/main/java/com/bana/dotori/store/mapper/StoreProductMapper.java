@@ -25,7 +25,7 @@ public class StoreProductMapper {
 
 	public StoreProductDetailResponse toDetailResponse(StoreProduct product) {
 		return new StoreProductDetailResponse(product.getId(), product.getName(), product.getDescription(),
-			product.getCategory(), product.getValue(), product.getPrice(), product.getQuantity(),
-			product.getCreatedBy(), product.getCreatedAt());
+			product.getCategory(), product.getValue(), product.getPrice(), product.getReason(),
+			product.getQuantity(), product.getCreatedBy(), product.getCreatedAt());
 	}
 }

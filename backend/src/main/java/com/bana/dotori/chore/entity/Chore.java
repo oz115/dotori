@@ -105,6 +105,10 @@ public class Chore {
 	@Column(name = "reward_points")
 	private Integer rewardPoints;
 
+	/** AI 가 value·reward_points 와 함께 산정하는 근거 문구. 산정 전에는 null. */
+	@Column(name = "reason")
+	private String reason;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "repeat_type", nullable = false)
 	private ChoreRepeatType repeatType;

@@ -25,6 +25,8 @@ type ScreenProps = {
   padded?: boolean;
   /** 스크롤 콘텐츠에 flexGrow:1 (하단 고정 배치용 flex 스페이서가 동작하게). 기본 true */
   fill?: boolean;
+  /** 화면 배경색 override. 기본은 theme.color.background.canvas — 특정 화면만 다른 배경을 쓸 때만 넘긴다 */
+  backgroundColor?: string;
   style?: ViewStyle;
 };
 
@@ -40,6 +42,7 @@ export function Screen({
   edges,
   padded = true,
   fill = true,
+  backgroundColor,
   style,
 }: ScreenProps) {
   const theme = useTheme();
@@ -66,7 +69,7 @@ export function Screen({
     body = (
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {body}
       </KeyboardAvoidingView>
@@ -76,7 +79,7 @@ export function Screen({
   return (
     <SafeAreaView
       edges={safeEdges}
-      style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
+      style={[styles.flex, { backgroundColor: backgroundColor ?? theme.color.background.canvas }]}
     >
       {header}
       {body}

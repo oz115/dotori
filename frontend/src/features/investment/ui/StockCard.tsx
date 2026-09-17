@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
@@ -65,8 +64,6 @@ export function StockCard({ stock, onPress }: Props) {
           </Text>
         </View>
       </View>
-
-      <Ionicons name="chevron-forward" size={18} color={theme.color.text.muted} />
     </Pressable>
   );
 }
