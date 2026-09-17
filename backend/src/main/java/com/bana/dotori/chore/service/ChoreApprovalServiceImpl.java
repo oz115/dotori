@@ -3,12 +3,14 @@ package com.bana.dotori.chore.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.chore.dto.ChoreApprovalResponse;
 import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
+import com.bana.dotori.chore.event.ChoreCompletionApprovedEvent;
 import com.bana.dotori.chore.mapper.ChoreCompletionMapper;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
@@ -44,6 +46,7 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 	private final ChoreAccessValidator accessValidator;
 	private final PointWalletService pointWalletService;
 	private final ChoreCompletionMapper completionMapper;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/**
 	 * 부모가 완료를 승인하고 보상을 지급한다 (CHORE-09 + CHORE-07).
@@ -97,6 +100,9 @@ public class ChoreApprovalServiceImpl implements ChoreApprovalService {
 
 		log.info("집안일 보상 지급 완료. familyId={}, childId={}, choreId={}, requestId={}, amount={}, balanceAfter={}",
 				familyId, childId, chore.getId(), requestId, rewardPoints, result.balanceAfter());
+
+		eventPublisher.publishEvent(new ChoreCompletionApprovedEvent(
+				chore.getId(), childId, chore.getTitle(), rewardPoints));
 
 		return completionMapper.toApprovalResponse(completionRequest, rewardPoints);
 	}
