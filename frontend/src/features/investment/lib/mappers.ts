@@ -47,8 +47,6 @@ export function toStockSummary(product: ProductSummaryResponse): StockSummary {
     image: companyImage(product.name),
     currentPrice: product.currentPrice,
     change: product.changeAmount,
-    // 목록 응답에는 가격 추이가 없다 — 비워 두면 StockCard 가 미니 차트를 숨긴다
-    trend: [],
   };
 }
 
