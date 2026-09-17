@@ -29,10 +29,11 @@ export function StockCard({ stock, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
+        theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
           borderRadius: theme.radius.xl,
-          borderColor: theme.color.border.default,
+          borderColor: theme.color.border.card,
           padding: theme.space.lg,
           gap: theme.space.md,
           opacity: pressed ? 0.85 : 1,
@@ -71,10 +72,11 @@ export function StockCard({ stock, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // 상점 상품 카드와 같은 문법 — 뚜렷한 1px 테두리 + 옅은 그림자로 카드 경계를 살린다
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
   icon: {
     width: 44,
