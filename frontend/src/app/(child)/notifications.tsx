@@ -11,7 +11,9 @@ export default function ChildNotificationsScreen() {
           'CHILD',
         );
         if (route) {
-          router.push(route);
+          // push는 (tabs)가 이미 스택에 있어도 새 인스턴스를 하나 더 쌓아서 탭 인스턴스가
+          // 두 개로 쪼개진다 — navigate로 기존 (tabs) 인스턴스를 재사용한다.
+          router.navigate(route);
         }
       }}
     />

@@ -21,9 +21,18 @@ export function resolveNotificationRoute(
   switch (type) {
     case 'PURCHASE':
       if (role === 'PARENT') {
-        return { pathname: '/(parent)/(tabs)/store/[productId]', params: { productId: refId } };
+        return {
+          pathname: '/(parent)/(tabs)/store/[productId]',
+          // viaDeepLink: 이 화면이 store 탭 밖(알림)에서 곧장 열렸다는 표시. 상세 화면이
+          // 이걸 보고 목록을 먼저 깔아준다 — 안 그러면 그 탭 내부 스택에 상세 하나만
+          // 남아서 뒤로가기·탭 전환이 깨진다.
+          params: { productId: refId, viaDeepLink: '1' },
+        };
       }
-      return { pathname: '/(child)/(tabs)/store/[productId]', params: { productId: refId } };
+      return {
+        pathname: '/(child)/(tabs)/store/[productId]',
+        params: { productId: refId, viaDeepLink: '1' },
+      };
     default:
       return null;
   }

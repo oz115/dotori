@@ -60,7 +60,9 @@ export function ChildHome() {
           onPressGoal={(productId) =>
             router.push({
               pathname: '/(child)/(tabs)/store/[productId]',
-              params: { productId: String(productId) },
+              // viaDeepLink: 홈(다른 탭)에서 store 탭 상세로 곧장 넘어왔다는 표시.
+              // 상세 화면이 이걸 보고 목록을 먼저 깔아준다.
+              params: { productId: String(productId), viaDeepLink: '1' },
             })
           }
         />

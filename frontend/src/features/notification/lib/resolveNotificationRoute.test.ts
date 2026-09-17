@@ -4,14 +4,14 @@ describe('resolveNotificationRoute', () => {
   it('routes a PARENT to the parent product detail screen', () => {
     expect(resolveNotificationRoute({ type: 'PURCHASE', refId: '5' }, 'PARENT')).toEqual({
       pathname: '/(parent)/(tabs)/store/[productId]',
-      params: { productId: '5' },
+      params: { productId: '5', viaDeepLink: '1' },
     });
   });
 
   it('routes a CHILD to the child product detail screen', () => {
     expect(resolveNotificationRoute({ type: 'PURCHASE', refId: '5' }, 'CHILD')).toEqual({
       pathname: '/(child)/(tabs)/store/[productId]',
-      params: { productId: '5' },
+      params: { productId: '5', viaDeepLink: '1' },
     });
   });
 
