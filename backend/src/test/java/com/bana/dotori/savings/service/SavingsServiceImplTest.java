@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,7 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.SavingsProduct;
 import com.bana.dotori.savings.entity.SavingsProductType;
 import com.bana.dotori.savings.entity.SavingsSubscription;
@@ -656,6 +658,46 @@ class SavingsServiceImplTest {
 			assertThat(summary.maturedCount()).isZero();
 			assertThat(summary.totalAmount()).isZero();
 			assertThat(summary.nearestMaturityAt()).isNull();
+		}
+	}
+
+	@Nested
+	@DisplayName("거래 이력 조회")
+	class ListTransactions {
+
+		@Test
+		@DisplayName("아이의 가입 건들에서 일어난 거래에 상품 정보를 붙여 돌려준다")
+		void 거래마다_상품정보를_붙인다() {
+			SavingsProduct product = product(SavingsProductType.SIMPLE_INTEREST);
+			SavingsSubscription subscription = summarySubscription(3_000, 0, SavingsSubscriptionStatus.ACTIVE,
+				OffsetDateTime.now().plusWeeks(4));
+			ReflectionTestUtils.setField(subscription, "id", SUBSCRIPTION_ID);
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdOrderByStartedAtDesc(FAMILY_ID, CHILD_ID))
+				.willReturn(List.of(subscription));
+			given(savingsTransactionRepository
+				.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(Set.of(SUBSCRIPTION_ID)))
+				.willReturn(List.of(
+					SavingsTransaction.record(SUBSCRIPTION_ID, SavingsTransactionType.INITIAL_DEPOSIT, 3_000)));
+
+			List<SavingsTransactionResponse> responses = savingsService.listTransactions(PARENT_ID, FAMILY_ID,
+				CHILD_ID);
+
+			assertThat(responses).hasSize(1);
+			assertThat(responses.get(0).productName()).isEqualTo(product.getName());
+			assertThat(responses.get(0).transactionType()).isEqualTo(SavingsTransactionType.INITIAL_DEPOSIT);
+			assertThat(responses.get(0).amount()).isEqualTo(3_000);
+		}
+
+		@Test
+		@DisplayName("가입이 하나도 없으면 거래를 조회하지 않고 빈 목록을 준다")
+		void 가입이_없으면_빈_목록을_준다() {
+			given(savingsSubscriptionRepository.findByFamilyIdAndChildIdOrderByStartedAtDesc(FAMILY_ID, CHILD_ID))
+				.willReturn(List.of());
+
+			assertThat(savingsService.listTransactions(CHILD_ID, FAMILY_ID, CHILD_ID)).isEmpty();
+
+			verify(savingsTransactionRepository, never())
+				.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(any());
 		}
 	}
 

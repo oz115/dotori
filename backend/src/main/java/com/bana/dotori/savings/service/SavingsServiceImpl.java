@@ -5,8 +5,10 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
 import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProduct;
@@ -288,6 +291,32 @@ public class SavingsServiceImpl implements SavingsService {
 
 		return savingsMapper.toSummaryResponse(savingsSubscriptionRepository
 			.findByFamilyIdAndChildIdAndStatusIn(familyId, childId, SUMMARY_STATUSES));
+	}
+
+	/**
+	 * 거래 이력. 아이의 가입 건 목록을 먼저 찾고 그 가입들의 거래를 한 번에 모은다 —
+	 * 거래 테이블에는 가입 id 만 있어서, 가족·아이 경계는 가입 건 조회가 대신 그어 준다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<SavingsTransactionResponse> listTransactions(Integer userId, Integer familyId, Integer childId) {
+		savingsAccessValidator.validate(userId, familyId, childId);
+
+		List<SavingsSubscription> subscriptions = savingsSubscriptionRepository
+			.findByFamilyIdAndChildIdOrderByStartedAtDesc(familyId, childId);
+		if (subscriptions.isEmpty()) {
+			return List.of();
+		}
+
+		Map<Integer, SavingsProduct> productBySubscriptionId = subscriptions.stream()
+			.collect(Collectors.toMap(SavingsSubscription::getId,
+				subscription -> findProduct(subscription.getSavingsProductId())));
+
+		return savingsTransactionRepository
+			.findBySavingsSubscriptionIdInOrderByCreatedAtDescIdDesc(productBySubscriptionId.keySet()).stream()
+			.map(transaction -> savingsMapper.toTransactionResponse(transaction,
+				productBySubscriptionId.get(transaction.getSavingsSubscriptionId())))
+			.toList();
 	}
 
 	/**
