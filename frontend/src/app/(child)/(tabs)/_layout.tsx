@@ -41,7 +41,7 @@ export default function ChildTabsLayout() {
       backBehavior="initialRoute"
       screenOptions={tabScreenOptions(theme, insets.bottom)}
     >
-      <Tabs.Screen name="task" options={{ tabBarLabel: '할 일', tabBarIcon: tabIcon('task') }} />
+      <Tabs.Screen name="task" options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }} />
       <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />
       <Tabs.Screen name="save" options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }} />

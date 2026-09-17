@@ -61,7 +61,7 @@ export function ParentChoreEditForm({ familyId, childId, choreId }: ParentChoreE
     <Screen
       header={
         <Header
-          title="할 일 수정"
+          title="미션 수정"
           onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
         />
       }
@@ -71,7 +71,7 @@ export function ParentChoreEditForm({ familyId, childId, choreId }: ParentChoreE
       {isPending ? (
         <Centered message="불러오는 중이에요." />
       ) : isError || !chore ? (
-        <Centered message="할 일을 찾을 수 없어요." />
+        <Centered message="미션을 찾을 수 없어요." />
       ) : (
         // 초기값이 서버에서 오므로, 도착하고 나서야 폼을 만든다 (key 로 한 번만 세운다).
         <EditBody

@@ -103,7 +103,7 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
                   ? '이력을 불러오지 못했어요.'
                   : childId != null
                     ? '이 아이의 완료 내역이 없어요.'
-                    : '아직 완료한 할 일이 없어요.'}
+                    : '아직 완료한 미션이 없어요.'}
             </Text>
           </View>
         }

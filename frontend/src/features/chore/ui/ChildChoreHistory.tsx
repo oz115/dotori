@@ -79,7 +79,7 @@ export function ChildChoreHistory({ familyId, childId }: ChildChoreHistoryProps)
                 ? '이력을 불러오는 중이에요.'
                 : isError
                   ? '이력을 불러오지 못했어요.'
-                  : '아직 완료한 할 일이 없어요.\n첫 할 일에 도전해볼까요?'}
+                  : '아직 완료한 미션이 없어요.\n첫 미션에 도전해볼까요?'}
             </Text>
           </View>
         }
