@@ -45,11 +45,11 @@ export function validateChoreForm(input: ChoreFormInput, today: string): ChoreFo
   const title = input.title.trim();
 
   if (input.childId == null) {
-    errors.childId = '할 일을 맡을 아이를 선택해주세요.';
+    errors.childId = '미션을 맡을 아이를 선택해주세요.';
   }
 
   if (title.length === 0) {
-    errors.title = '할 일 제목을 입력해주세요.';
+    errors.title = '미션 제목을 입력해주세요.';
   } else if (title.length > TITLE_MAX) {
     errors.title = `제목은 ${TITLE_MAX}자 이내로 입력해주세요.`;
   }

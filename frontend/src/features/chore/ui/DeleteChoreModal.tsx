@@ -61,8 +61,8 @@ export function DeleteChoreModal({
               &lsquo;{title}&rsquo; 을(를) 삭제할까요?
             </Text>
             <Text style={[theme.typography.bodySm, styles.center, { color: theme.color.text.sub }]}>
-              아이의 할 일 목록에서 사라져요. 이미 받은 도토리와 완료 이력은 그대로 남고, 올라와
-              있는 완료 요청은 계속 확인할 수 있어요.
+              아이의 미션 목록에서 사라져요. 이미 받은 도토리와 완료 이력은 그대로 남고, 올라와 있는
+              완료 요청은 계속 확인할 수 있어요.
             </Text>
           </View>
 

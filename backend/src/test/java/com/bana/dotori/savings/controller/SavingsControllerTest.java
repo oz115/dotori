@@ -36,10 +36,12 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
 import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProductType;
 import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
+import com.bana.dotori.savings.entity.SavingsTransactionType;
 import com.bana.dotori.savings.service.SavingsService;
 
 /**
@@ -263,6 +265,30 @@ class SavingsControllerTest {
 				.with(loginAs(CHILD_ID, "CHILD")))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.productName").value("보통예금"));
+	}
+
+	@Test
+	@DisplayName("거래 이력을 조회하면 200과 최신순 목록을 돌려준다")
+	void 거래이력_조회() throws Exception {
+		given(savingsService.listTransactions(CHILD_ID, FAMILY_ID, CHILD_ID)).willReturn(List.of(
+			new SavingsTransactionResponse(5, 1, 1, "단리예금", SavingsProductType.SIMPLE_INTEREST,
+				SavingsTransactionType.INITIAL_DEPOSIT, 3_000, OffsetDateTime.now())));
+
+		mockMvc.perform(get(BASE_URL + "/transactions", FAMILY_ID, CHILD_ID).with(loginAs(CHILD_ID, "CHILD")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].productName").value("단리예금"))
+			.andExpect(jsonPath("$[0].transactionType").value("INITIAL_DEPOSIT"))
+			.andExpect(jsonPath("$[0].amount").value(3_000));
+	}
+
+	@Test
+	@DisplayName("부모도 아이의 거래 이력을 조회할 수 있다")
+	void 부모도_거래이력을_본다() throws Exception {
+		Integer parentId = 9;
+		given(savingsService.listTransactions(parentId, FAMILY_ID, CHILD_ID)).willReturn(List.of());
+
+		mockMvc.perform(get(BASE_URL + "/transactions", FAMILY_ID, CHILD_ID).with(loginAs(parentId, "PARENT")))
+			.andExpect(status().isOk());
 	}
 
 	@Test

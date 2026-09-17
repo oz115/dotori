@@ -15,7 +15,7 @@ type ChildTodayProgressProps = {
 };
 
 /**
- * "할 일 진척도" 섹션. 자녀 홈의 "오늘 할 일"과 같은 데이터(`useTodayChores`)를 쓰지만,
+ * "미션 진척도" 섹션. 자녀 홈의 "오늘의 미션"과 같은 데이터(`useTodayChores`)를 쓰지만,
  * 부모 홈 전용으로 따로 둔다 — widgets는 서로를 import하지 않는 게 이 프로젝트 규칙이라
  * child-home 컴포넌트를 그대로 가져다 쓸 수 없다.
  *
@@ -41,7 +41,7 @@ export function ChildTodayProgress({
       <View style={styles.headerRow}>
         <View style={[styles.titleRow, { gap: theme.space.xs }]}>
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            할 일 진척도
+            미션 진척도
           </Text>
           {usingMock ? <MockBadge /> : null}
         </View>
@@ -58,7 +58,7 @@ export function ChildTodayProgress({
         <>
           {isError ? (
             <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              할 일을 불러오지 못해 예시를 보여주고 있어요.
+              미션을 불러오지 못해 예시를 보여주고 있어요.
             </Text>
           ) : null}
           <View style={{ gap: theme.space.sm }}>

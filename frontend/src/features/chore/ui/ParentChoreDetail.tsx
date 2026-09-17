@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { difficultyLabel, isRewardReady, repeatLabel } from '@/features/chore/lib/choreLabels';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
@@ -10,7 +10,7 @@ import { useChoreStatus } from '@/features/chore/model/useChoreStatus';
 import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
 import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { Button, ContentCard, Header } from '@/shared/ui';
 
 type ParentChoreDetailProps = {
   familyId: number | undefined;
@@ -25,6 +25,9 @@ type ParentChoreDetailProps = {
 const STATUS_LABEL: Record<TodayChoreStatus, string> = {
   TODO: '진행 대기',
   PENDING: '확인 필요',
+  // 부모 상세는 거절 목록을 받아 오지 않아 지금은 나오지 않는다. 상태 목록을 빠짐없이
+  // 채워 둬야 나중에 거절을 겹치기 시작할 때 문구를 빠뜨리지 않는다.
+  REJECTED: '거절함',
   DONE: '완료',
 };
 
@@ -63,40 +66,28 @@ export function ParentChoreDetail({
   };
 
   return (
-    <Screen
-      header={
-        <Header
-          title="할 일 상세"
-          onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
-          right={
-            chore && !chore.deletedAt ? (
-              <View style={[styles.actions, { gap: theme.space.sm }]}>
-                {onEdit ? (
-                  <Button label="수정" variant="outline" size="sm" onPress={onEdit} />
-                ) : null}
-                <Button
-                  label="삭제"
-                  variant="outline"
-                  tone="danger"
-                  size="sm"
-                  onPress={() => setConfirming(true)}
-                />
-              </View>
-            ) : undefined
-          }
-        />
-      }
-      scroll
-    >
+    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
+      <Header
+        title="미션 상세"
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
+      />
+
       {isPending ? (
         <Centered message="불러오는 중이에요." />
       ) : isError || !chore ? (
-        <Centered message="할 일을 찾을 수 없어요." />
+        <Centered message="미션을 찾을 수 없어요." />
       ) : (
-        <View style={{ gap: theme.space.lg }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingVertical: theme.layout.screenY,
+            gap: theme.space.lg,
+          }}
+        >
           {chore.deletedAt ? (
             <Text style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}>
-              이미 지운 할 일이에요. 새 완료 요청은 들어오지 않아요.
+              이미 지운 미션이에요. 새 완료 요청은 들어오지 않아요.
             </Text>
           ) : null}
 
@@ -139,8 +130,35 @@ export function ParentChoreDetail({
               </Text>
             </View>
           ) : null}
-        </View>
+        </ScrollView>
       )}
+
+      {/* 상점 상세(StoreProductDetail)와 같은 하단 고정 바. 삭제가 좁고 수정이 넓은 것도
+          같다 - 되돌릴 수 없는 쪽을 누르기 어렵게 둔다. */}
+      {chore && !chore.deletedAt ? (
+        <View
+          style={[
+            styles.actionBar,
+            {
+              padding: theme.space.lg,
+              gap: theme.space.md,
+              borderTopColor: theme.color.border.default,
+              backgroundColor: theme.color.background.surface,
+            },
+          ]}
+        >
+          <Button
+            label="삭제"
+            variant="outline"
+            tone="danger"
+            style={styles.deleteButton}
+            onPress={() => setConfirming(true)}
+          />
+          {onEdit ? (
+            <Button label="수정" variant="outline" style={styles.editButton} onPress={onEdit} />
+          ) : null}
+        </View>
+      ) : null}
 
       <DeleteChoreModal
         title={confirming ? (chore?.title ?? null) : null}
@@ -149,7 +167,7 @@ export function ParentChoreDetail({
         loading={deleteChore.isPending}
         isError={deleteChore.isError}
       />
-    </Screen>
+    </View>
   );
 }
 
@@ -293,7 +311,14 @@ function Centered({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: 'row', alignItems: 'center' },
+  flex: { flex: 1 },
+  actionBar: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  deleteButton: { flex: 1 },
+  editButton: { flex: 2 },
   hero: { flexDirection: 'row', alignItems: 'center' },
   heroIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   iconImage: { width: 28, height: 28 },

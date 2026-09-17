@@ -23,6 +23,7 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.service.SavingsService;
 
 import lombok.RequiredArgsConstructor;
@@ -134,6 +135,16 @@ public class SavingsController {
 		@PathVariable Integer savingsSubscriptionId) {
 
 		return savingsService.getSubscription(loginUserId, familyId, childId, savingsSubscriptionId);
+	}
+
+	/** 아이의 예적금 거래 이력 전체 (최신순). 조회라 부모도 볼 수 있다 */
+	@GetMapping("/transactions")
+	public List<SavingsTransactionResponse> getTransactions(
+		@AuthenticationPrincipal Integer loginUserId,
+		@PathVariable Integer familyId,
+		@PathVariable Integer childId) {
+
+		return savingsService.listTransactions(loginUserId, familyId, childId);
 	}
 
 	/** 부모 홈 "자녀 예적금" 카드 요약. 조회라 부모도 볼 수 있다 */

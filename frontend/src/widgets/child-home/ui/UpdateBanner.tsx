@@ -37,7 +37,7 @@ export function UpdateBanner({ familyId, childId }: UpdateBannerProps) {
         resizeMode="contain"
       />
       <Text style={[theme.typography.label, { color: theme.color.brand.subtleText }]}>
-        오늘 해야 할 일이 있어요!
+        오늘 해야 할 미션이 있어요!
       </Text>
     </View>
   );

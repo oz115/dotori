@@ -96,7 +96,7 @@ export function ChoreFormFields({
       ) : null}
 
       <Input
-        label="할 일 제목"
+        label="미션 제목"
         variant="box"
         value={value.title}
         onChangeText={(title) => patch({ title })}
@@ -105,7 +105,7 @@ export function ChoreFormFields({
         error={errors.title}
       />
 
-      <Field label="할 일 설명 (선택)" error={errors.description}>
+      <Field label="미션 설명 (선택)" error={errors.description}>
         <View
           style={[
             styles.textBox,

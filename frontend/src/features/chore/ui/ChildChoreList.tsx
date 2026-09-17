@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
@@ -31,31 +31,56 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   const { refreshing, onRefresh } = useChoreRefresh();
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [openChoreId, setOpenChoreId] = useState<number | null>(null);
-  const { items, isPending, isError } = useTodayChores(familyId, childId);
+  const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
   // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
+  // items 는 완료한 것까지 들고 있다 - 모달이 열린 사이에 부모가 승인해도 상태를 읽을 수
+  // 있어야 하므로, 걸러내는 일은 목록에만 적용한다.
   const openChore = items.find((chore) => chore.choreId === openChoreId);
 
+  // 지급까지 끝난 미션은 목록에서 뺀다. 아이가 다시 할 것이 없는데 남겨 두면 "해야 할
+  // 미션"에 섞여 무엇이 남았는지 흐려지고, 눌러 봐야 아무것도 못 한다. 기록은 완료
+  // 이력에 있다. 반복 미션은 다음 주기가 시작되면 TODO 로 돌아와 다시 나타난다.
+  const active = useMemo(() => items.filter((chore) => chore.status !== 'DONE'), [items]);
+
   const visible = useMemo(
-    () => (repeatType == null ? items : items.filter((chore) => chore.repeatType === repeatType)),
-    [items, repeatType],
+    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
+    [active, repeatType],
   );
 
   const { total, pendingCount } = useMemo(
-    () => sumRewards(items.map((chore) => chore.rewardPoints)),
-    [items],
+    () => sumRewards(active.map((chore) => chore.rewardPoints)),
+    [active],
+  );
+
+  // 상점 탭의 "구매 내역"(StoreCatalog)과 같은 pill 이다. 두 탭이 헤더 같은 자리에 같은
+  // 성격의 버튼을 두는데 한쪽만 맨 텍스트라 탭을 옮길 때마다 어긋나 보였다. 값(pill 배경·
+  // 여백·caption)은 StoreCatalog 쪽을 그대로 따른다 - 세 번째 화면이 생기면 shared 로 올린다.
+  const historyButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="완료 이력"
+      onPress={() => router.push('/task/history')}
+      hitSlop={8}
+      style={[
+        styles.historyChip,
+        {
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.color.background.surfaceSunken,
+        },
+      ]}
+    >
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.caption, { color: theme.color.text.default }]}
+      >
+        완료 이력
+      </Text>
+    </Pressable>
   );
 
   return (
-    <Screen
-      header={
-        <Header
-          title="할 일"
-          action={{ label: '완료 이력', onPress: () => router.push('/task/history') }}
-        />
-      }
-      padded={false}
-    >
+    <Screen header={<Header title="미션" right={historyButton} />} padded={false}>
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
@@ -68,7 +93,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <ChoreHeroBanner
-              title={`해야 할 일이\n${items.length}개 남았어요!`}
+              title={`해야 할 미션이\n${remainingCount}개 남았어요!`}
               caption={rewardCaption(total, pendingCount)}
               mascot={require('@/assets/images/chore/squirrel-cheer.png')}
             />
@@ -80,7 +105,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
             title={item.title}
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
-            pending={item.status === 'PENDING'}
+            status={item.status}
             onPress={() => setOpenChoreId(item.choreId)}
           />
         )}
@@ -88,14 +113,17 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
           <EmptyState
             message={
               isPending
-                ? '할 일을 불러오는 중이에요.'
+                ? '미션을 불러오는 중이에요.'
                 : isError
-                  ? '할 일을 불러오지 못했어요.'
+                  ? '미션을 불러오지 못했어요.'
                   : repeatType != null
-                    ? '이 주기의 할 일이 없어요.'
-                    : '아직 할 일이 없어요.\n부모님이 등록해 주실 거예요!'
+                    ? '이 주기의 미션이 없어요.'
+                    : // 등록된 미션이 있는데 목록이 비었으면 전부 끝낸 것이다.
+                      // "아직 미션이 없어요" 를 내보내면 방금 해낸 일을 부정하는 말이 된다.
+                      items.length > 0
+                      ? '미션을 모두 해냈어요!\n완료 이력에서 볼 수 있어요.'
+                      : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
             }
-            showMascot={!isPending && !isError}
           />
         }
       />
@@ -119,18 +147,11 @@ function rewardCaption(total: number, pendingCount: number): string | undefined 
   return pendingCount > 0 ? `${sum} (${pendingCount}개는 계산 중)` : sum;
 }
 
-function EmptyState({ message, showMascot }: { message: string; showMascot: boolean }) {
+function EmptyState({ message }: { message: string }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.empty, { gap: theme.space.lg }]}>
-      {showMascot ? (
-        <Image
-          source={require('@/assets/images/chore/squirrel-flag.png')}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
-      ) : null}
+    <View style={styles.empty}>
       <Text style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}>
         {message}
       </Text>
@@ -139,8 +160,10 @@ function EmptyState({ message, showMascot }: { message: string; showMascot: bool
 }
 
 const styles = StyleSheet.create({
-  content: { paddingVertical: 16, flexGrow: 1 },
+  // 위쪽 여백을 주지 않는다. Screen 이 padded={false} 여도 paddingVertical(16)은 항상
+  // 넣기 때문에, 여기서 또 주면 헤더와 배너 사이가 32px 이 되어 상점(16px)보다 벌어진다.
+  content: { paddingBottom: 16, flexGrow: 1 },
+  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  mascot: { width: 140, height: 140 },
 });

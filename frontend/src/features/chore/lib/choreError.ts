@@ -25,10 +25,10 @@ export function requestCompletionErrorMessage(error: unknown): string {
     case 'FILE_UPLOAD_FAILED':
       return '사진 저장에 실패했어요. 잠시 후 다시 시도해주세요.';
     case 'CHORE_NOT_FOUND':
-      return '이 할 일을 찾을 수 없어요. 목록을 새로고침해주세요.';
+      return '이 미션을 찾을 수 없어요. 목록을 새로고침해주세요.';
     case 'INVALID_REQUEST':
       // 지워진 할 일이거나 수행 기간이 아닌 경우. 서버가 둘을 같은 코드로 준다.
-      return '지금은 완료 요청을 보낼 수 없는 할 일이에요.';
+      return '지금은 완료 요청을 보낼 수 없는 미션이에요.';
     default:
       return '완료 요청을 보내지 못했어요. 잠시 후 다시 시도해주세요.';
   }
@@ -60,7 +60,7 @@ export function reviewCompletionErrorMessage(error: unknown): string {
     case 'CHORE_COMPLETION_REQUEST_NOT_FOUND':
       return '요청을 찾을 수 없어요. 목록을 새로고침해주세요.';
     case 'ALREADY_REWARDED':
-      return '이번 주기에 이미 보상을 준 할 일이에요.';
+      return '이번 주기에 이미 보상을 준 미션이에요.';
     default:
       return '처리하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
@@ -73,7 +73,7 @@ export function saveChoreErrorMessage(error: unknown): string {
   }
   switch (apiErrorCode(error)) {
     case 'CHORE_NOT_FOUND':
-      return '이 할 일을 찾을 수 없어요. 이미 지워졌을 수 있어요.';
+      return '이 미션을 찾을 수 없어요. 이미 지워졌을 수 있어요.';
     case 'INVALID_REQUEST':
       return '입력한 내용을 다시 확인해주세요.';
     default:

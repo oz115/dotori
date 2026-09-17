@@ -8,6 +8,7 @@ import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
+import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 
 public interface SavingsService {
 
@@ -43,6 +44,9 @@ public interface SavingsService {
 	 * 목록을 통째로 받아 클라이언트가 집계하지 않도록 한 번의 호출로 끝낸다.
 	 */
 	SavingsSummaryResponse getSummary(Integer userId, Integer familyId, Integer childId);
+
+	/** 아이의 모든 가입 건에서 일어난 거래(납입·이자·수령·해지)를 최신순으로 준다 — 거래 이력 화면용 */
+	List<SavingsTransactionResponse> listTransactions(Integer userId, Integer familyId, Integer childId);
 
 	/** SAV-05 만기 예상 수령액과 지금 해지 시 수령액을 나란히 계산한다 */
 	SavingsExpectedReturnResponse getExpectedReturn(Integer userId, Integer familyId, Integer childId,

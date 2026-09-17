@@ -104,7 +104,7 @@ function orderErrorMessage(error: unknown): string {
   }
   switch (apiErrorCode(error)) {
     case 'INSUFFICIENT_POINT':
-      return '도토리가 부족해요. 할 일을 하고 도토리를 모아 보세요!';
+      return '도토리가 부족해요. 미션을 해내고 도토리를 모아 보세요!';
     case 'ALREADY_HOLDING':
       return '이미 가지고 있는 주식이에요. 한 회사는 1주만 살 수 있어요.';
     case 'PRODUCT_INACTIVE':
