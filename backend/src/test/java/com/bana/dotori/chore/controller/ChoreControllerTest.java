@@ -92,7 +92,7 @@ class ChoreControllerTest {
 
 	private ChoreDetailResponse detail() {
 		return new ChoreDetailResponse(CHORE_ID, FAMILY_ID, USER_ID, CHILD_ID, "설거지", "저녁 먹고 나서",
-			ChoreDifficulty.NORMAL, new BigDecimal("0.50"), 500, ChoreRepeatType.DAY,
+			ChoreDifficulty.NORMAL, new BigDecimal("0.50"), 500, "매일 하는 간단한 집안일이에요", ChoreRepeatType.DAY,
 			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30),
 			OffsetDateTime.of(2026, 9, 8, 9, 0, 0, 0, ZoneOffset.ofHours(9)), null);
 	}

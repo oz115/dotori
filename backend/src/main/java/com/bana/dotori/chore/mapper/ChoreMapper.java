@@ -27,7 +27,7 @@ public class ChoreMapper {
 	public ChoreDetailResponse toDetailResponse(Chore chore) {
 		return new ChoreDetailResponse(chore.getId(), chore.getFamilyId(), chore.getParentId(), chore.getChildId(),
 			chore.getTitle(), chore.getDescription(), chore.getDifficulty(), chore.getValue(),
-			chore.getRewardPoints(), chore.getRepeatType(), chore.getStartDate(), chore.getEndDate(),
-			chore.getCreatedAt(), chore.getDeletedAt());
+			chore.getRewardPoints(), chore.getReason(), chore.getRepeatType(), chore.getStartDate(),
+			chore.getEndDate(), chore.getCreatedAt(), chore.getDeletedAt());
 	}
 }
