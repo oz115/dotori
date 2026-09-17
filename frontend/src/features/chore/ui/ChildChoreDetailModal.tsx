@@ -42,7 +42,7 @@ type ChildChoreDetailModalProps = {
 };
 
 /**
- * 아이의 할 일 상세. 상태에 따라 세 모습이다.
+ * 아이의 미션 상세. 상태에 따라 세 모습이다.
  *
  * - TODO: 한 일을 적고 사진을 찍어 완료 요청을 보낸다
  * - PENDING: 보낸 내용을 다시 보고 취소할 수 있다 (사진을 잘못 올렸을 때 되돌리는 유일한 길)
@@ -132,7 +132,7 @@ export function ChildChoreDetailModal({
         >
           <View style={styles.titleRow}>
             <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-              할 일 상세
+              미션 상세
             </Text>
             <Pressable
               onPress={onClose}
