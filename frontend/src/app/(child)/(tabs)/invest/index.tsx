@@ -50,7 +50,7 @@ export default function InvestScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
       <Header
-        title="투자 상품 상세 보기"
+        title="투자"
         onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         action={{ label: '거래 내역', onPress: () => router.push('/invest/transactions') }}
       />
