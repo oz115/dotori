@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.global.error.ErrorCode;
@@ -50,6 +51,9 @@ class PointChargeServiceTest {
 
 	@Mock
 	private FamilyMembershipReader familyMembershipReader;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private PointChargeService pointChargeService;

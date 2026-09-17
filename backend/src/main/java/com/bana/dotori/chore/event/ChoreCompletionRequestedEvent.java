@@ -8,11 +8,12 @@ package com.bana.dotori.chore.event;
  * 알림이 나가는 사고를 막는다.
  *
  * @param parentId 알림을 받을 부모. 완료 요청에는 부모가 없어서 할 일에서 가져온다
+ * @param childId  문구에 쓸 이름은 리스너가 읽는다. 서비스가 이름 때문에 실패하면 안 된다
  */
 public record ChoreCompletionRequestedEvent(
 	Integer choreId,
 	Integer parentId,
 	String choreTitle,
-	String childName
+	Integer childId
 ) {
 }

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -83,6 +84,9 @@ class ChoreCompletionServiceImplTest {
 
 	@Spy
 	private ChoreCompletionMapper completionMapper;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private ChoreCompletionServiceImpl choreCompletionService;
@@ -391,6 +395,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("REJECTED 로 바뀌고 처리 시각을 응답한다")
 		void 정상_거절() {
+			givenChore(todayChore());
 			ChoreCompletionRequest pending = pendingRequest(CHILD_ID);
 			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(pending));
 
@@ -407,6 +412,7 @@ class ChoreCompletionServiceImplTest {
 		@Test
 		@DisplayName("거절한 뒤에도 같은 주기에 다시 요청할 수 있다")
 		void 거절_뒤_재요청_가능() {
+			givenChore(todayChore());
 			ChoreCompletionRequest rejected = pendingRequest(CHILD_ID);
 			given(completionRequestRepository.findByIdForUpdate(REQUEST_ID)).willReturn(Optional.of(rejected));
 			reject();

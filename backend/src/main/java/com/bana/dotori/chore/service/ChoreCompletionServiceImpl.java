@@ -28,7 +28,6 @@ import com.bana.dotori.chore.repository.ChoreRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.global.storage.PhotoStorage;
-import com.bana.dotori.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -50,7 +49,6 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 	private final ChoreAccessValidator accessValidator;
 	private final ChoreCompletionMapper completionMapper;
 	private final PhotoStorage photoStorage;
-	private final UserRepository userRepository;
 	private final ApplicationEventPublisher eventPublisher;
 
 	/**
@@ -104,13 +102,8 @@ public class ChoreCompletionServiceImpl implements ChoreCompletionService {
 
 		ChoreCompletionRequest saved = saveRequest(choreId, childId, request);
 
-		// 부모에게 알린다. 이름은 알림 문구에 쓰려고 여기서 읽는다 - 자녀가 둘 이상이면
-		// "완료 요청이 왔어요" 만으로는 누구 것인지 알 수 없다.
-		String childName = userRepository.findById(childId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND))
-				.getName();
 		eventPublisher.publishEvent(new ChoreCompletionRequestedEvent(
-				choreId, chore.getParentId(), chore.getTitle(), childName));
+				choreId, chore.getParentId(), chore.getTitle(), childId));
 
 		return completionMapper.toResponse(saved);
 	}

@@ -6,6 +6,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.PushNotificationService;
+import com.bana.dotori.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,13 +23,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChoreCompletionNotificationListener {
 
+	private final UserRepository userRepository;
 	private final PushNotificationService pushNotificationService;
 
 	/** 아이가 완료를 인증하면 할 일을 등록한 부모에게 알린다 */
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onRequested(ChoreCompletionRequestedEvent event) {
 		pushNotificationService.notify(event.parentId(), NotificationType.CHORE,
-			"완료 요청이 왔어요", event.childName() + " · " + event.choreTitle(), event.choreId());
+			"완료 요청이 왔어요", childName(event.childId()) + " · " + event.choreTitle(), event.choreId());
 	}
 
 	/** 승인은 지급이 끝난 뒤다. 실제로 들어간 금액을 그대로 알린다 */
@@ -49,5 +51,15 @@ public class ChoreCompletionNotificationListener {
 		pushNotificationService.notify(event.childId(), NotificationType.CHORE,
 			"다시 해볼까요?", event.choreTitle() + " 완료 요청이 아직 통과하지 못했어요",
 			event.choreId());
+	}
+
+	/**
+	 * 알림 문구에 쓸 아이 이름. 못 찾으면 "아이" 로 둔다.
+	 *
+	 * 이름은 거래의 일부가 아니라 문구의 일부다 - 여기서 예외를 던지면 이미 끝난 요청이
+	 * 알림 때문에 실패한 것처럼 보인다.
+	 */
+	private String childName(Integer childId) {
+		return userRepository.findById(childId).map(user -> user.getName()).orElse("아이");
 	}
 }

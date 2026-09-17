@@ -89,7 +89,7 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		+ "where fm.family.id in ("
 		+ "select pm.family.id from FamilyMember pm "
 		+ "where pm.user.id = :parentUserId and pm.deletedAt is null) "
-		+ "and fm.user.role = :role "
+		+ "and fm.user.role = :childRole "
 		+ "and fm.user.deletedAt is null "
 		+ "and fm.deletedAt is null "
 		+ "and fm.family.deletedAt is null "

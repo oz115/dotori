@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.bana.dotori.savings.entity.ContributionStyle;
 import com.bana.dotori.savings.entity.SavingsSubscription;
 import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
 
@@ -47,4 +48,21 @@ public interface SavingsSubscriptionRepository extends JpaRepository<SavingsSubs
 	/** 정산 시각이 지난 진행 중 가입 건. 주간 정산 스케줄러가 쓴다 */
 	List<SavingsSubscription> findByStatusAndNextSettlementAtLessThanEqual(SavingsSubscriptionStatus status,
 		OffsetDateTime threshold);
+
+	/**
+	 * 정산일이 곧 돌아오는 정액 적립식 가입 건. 납입 리마인더가 쓴다.
+	 *
+	 * <p>상품은 연관관계가 아니라 id 로만 이어져 있어 세타 조인으로 묶는다.
+	 *
+	 * <p>적립식만 본다 - 보통예금(수시입출금)과 거치식(가입 시 1회)은 이번 주에 넣어야 할
+	 * 금액이라는 것이 없고, 목표적금은 넣는 시점을 아이가 정한다.
+	 */
+	@Query("select s from SavingsSubscription s, SavingsProduct p "
+		+ "where p.id = s.savingsProductId "
+		+ "and s.status = :status "
+		+ "and p.contributionStyle = :style "
+		+ "and s.nextSettlementAt is not null "
+		+ "and s.nextSettlementAt <= :deadline")
+	List<SavingsSubscription> findInstallmentsSettlingBy(@Param("status") SavingsSubscriptionStatus status,
+		@Param("style") ContributionStyle style, @Param("deadline") OffsetDateTime deadline);
 }

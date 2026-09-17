@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.bana.dotori.global.error.BusinessException;
@@ -57,6 +58,9 @@ class PointCashoutRequestServiceTest {
 
 	@Mock
 	private PointWalletQueryService pointWalletQueryService;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private PointCashoutRequestService pointCashoutRequestService;
