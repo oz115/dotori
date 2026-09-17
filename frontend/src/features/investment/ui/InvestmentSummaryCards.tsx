@@ -6,9 +6,9 @@ import { useTheme } from '@/shared/theme';
 
 // 여우 마스코트(설명하기 포즈) — 투자 화면의 안내 캐릭터 (보유 화면의 다람쥐와 짝)
 const FOX = require('@/assets/images/invest/fox.png'); // 400 x 424
-// 앱 공용 아이콘 시트에서 자른 지갑(넣어둔 돈)·새싹(자라서 번 돈)
+// 지갑(넣어둔 돈)과, 번 돈에는 앱의 화폐인 도토리
 const WALLET = require('@/assets/images/invest/wallet.png');
-const SPROUT = require('@/assets/images/invest/sprout.png');
+const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
 
 type Props = {
   summary: InvestmentSummary;
@@ -27,7 +27,7 @@ export function InvestmentSummaryCards({ summary }: Props) {
 
   const tiles: { label: string; icon: ImageSourcePropType; value: number; color?: string }[] = [
     { label: '넣은 돈', icon: WALLET, value: summary.investedPoints },
-    { label: '번 돈', icon: SPROUT, value: summary.earnedPoints, color: earnedColor },
+    { label: '번 돈', icon: ACORN, value: summary.earnedPoints, color: earnedColor },
   ];
 
   return (

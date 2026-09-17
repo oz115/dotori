@@ -7,9 +7,9 @@ import { useTheme } from '@/shared/theme';
 
 // Figma 에셋 — 마스코트 시트의 다람쥐와 아이콘 시트의 도토리·동전·새싹
 const SQUIRREL = require('@/assets/images/invest/squirrel.png');
-const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
+const CANDLES = require('@/assets/images/invest/candles.png'); // 내 주식 = 주식 차트 아이콘
 const COIN = require('@/assets/images/invest/coin.png');
-const SPROUT = require('@/assets/images/invest/sprout.png'); // "번 돈"은 투자 요약 카드와 같은 아이콘
+const ACORN = require('@/assets/images/acorn.png'); // "번 돈"은 앱의 화폐인 도토리 (투자 요약 카드와 동일)
 
 type Props = {
   holdings: Holding[];
@@ -28,9 +28,9 @@ export function HoldingsSummaryCard({ holdings }: Props) {
 
   const tiles: { key: string; icon: ImageSourcePropType; value: string; color?: string }[] = [
     // 타일이 3분할이라 좁다 — 긴 라벨("가지고 있는 상품")은 줄바꿈으로 어색해져 짧게 쓴다
-    { key: '내 주식', icon: ACORN, value: `${summary.count}개` },
+    { key: '내 주식', icon: CANDLES, value: `${summary.count}개` },
     { key: '지금 가치', icon: COIN, value: formatAcorns(summary.totalValue) },
-    { key: '번 돈', icon: SPROUT, value: signedAcorns(summary.totalEarned), color: earnedColor },
+    { key: '번 돈', icon: ACORN, value: signedAcorns(summary.totalEarned), color: earnedColor },
   ];
 
   return (
