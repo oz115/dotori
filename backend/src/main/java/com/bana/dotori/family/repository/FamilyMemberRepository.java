@@ -110,4 +110,17 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, Inte
 		+ "and fm.deletedAt is null")
 	List<FamilyMember> findAllByFamilyIdAndRole(@Param("familyId") Integer familyId,
 		@Param("role") UserRole role);
+
+	/**
+	 * 가족에 속한 특정 역할의 구성원 전체 (가족을 가리지 않는다). 하루 시작 알림이 쓴다.
+	 *
+	 * <p>가족이 없는 사용자는 빠진다 - 퀴즈·뉴스가 모두 가족 경로 아래 있어서 알려 봐야
+	 * 볼 것이 없다. 해체된 가족도 같은 이유로 뺀다.
+	 */
+	@Query("select fm from FamilyMember fm join fetch fm.user "
+		+ "where fm.user.role = :role "
+		+ "and fm.user.deletedAt is null "
+		+ "and fm.deletedAt is null "
+		+ "and fm.family.deletedAt is null")
+	List<FamilyMember> findAllActiveByRole(@Param("role") UserRole role);
 }
