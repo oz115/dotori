@@ -29,7 +29,6 @@ export { ParentChoreDetail } from './ui/ParentChoreDetail';
 export { ParentChoreForm } from './ui/ParentChoreForm';
 export { ChoreFormFields } from './ui/ChoreFormFields';
 export { ParentChoreList } from './ui/ParentChoreList';
-export { ChoreActionSheet } from './ui/ChoreActionSheet';
 export { ChildChoreHistory } from './ui/ChildChoreHistory';
 export { ChildChoreDetailModal } from './ui/ChildChoreDetailModal';
 export { ChildChoreList } from './ui/ChildChoreList';
