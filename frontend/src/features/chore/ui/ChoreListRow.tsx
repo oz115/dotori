@@ -51,12 +51,6 @@ export function ChoreListRow({
         }}
       >
         <View style={styles.body}>
-          <Text
-            numberOfLines={1}
-            style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
-          >
-            {title}
-          </Text>
           <View style={[styles.meta, { gap: theme.space.xs }]}>
             {childName ? <ChildBadge name={childName} /> : null}
             <RepeatBadge repeatType={repeatType} />
@@ -66,6 +60,12 @@ export function ChoreListRow({
               </Text>
             ) : null}
           </View>
+          <Text
+            numberOfLines={1}
+            style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+          >
+            {title}
+          </Text>
         </View>
 
         <RewardChip rewardPoints={rewardPoints} compact={childName != null} />

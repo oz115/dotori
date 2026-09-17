@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
@@ -46,16 +46,34 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
     [items],
   );
 
-  return (
-    <Screen
-      header={
-        <Header
-          title="할 일"
-          action={{ label: '완료 이력', onPress: () => router.push('/task/history') }}
-        />
-      }
-      padded={false}
+  // 상점 탭의 "구매 내역"(StoreCatalog)과 같은 pill 이다. 두 탭이 헤더 같은 자리에 같은
+  // 성격의 버튼을 두는데 한쪽만 맨 텍스트라 탭을 옮길 때마다 어긋나 보였다. 값(pill 배경·
+  // 여백·caption)은 StoreCatalog 쪽을 그대로 따른다 - 세 번째 화면이 생기면 shared 로 올린다.
+  const historyButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="완료 이력"
+      onPress={() => router.push('/task/history')}
+      hitSlop={8}
+      style={[
+        styles.historyChip,
+        {
+          borderRadius: theme.radius.full,
+          backgroundColor: theme.color.background.surfaceSunken,
+        },
+      ]}
     >
+      <Text
+        numberOfLines={1}
+        style={[theme.typography.caption, { color: theme.color.text.default }]}
+      >
+        완료 이력
+      </Text>
+    </Pressable>
+  );
+
+  return (
+    <Screen header={<Header title="미션" right={historyButton} />} padded={false}>
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
@@ -68,7 +86,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <ChoreHeroBanner
-              title={`해야 할 일이\n${items.length}개 남았어요!`}
+              title={`해야 할 미션이\n${items.length}개 남았어요!`}
               caption={rewardCaption(total, pendingCount)}
               mascot={require('@/assets/images/chore/squirrel-cheer.png')}
             />
@@ -88,12 +106,12 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
           <EmptyState
             message={
               isPending
-                ? '할 일을 불러오는 중이에요.'
+                ? '미션을 불러오는 중이에요.'
                 : isError
-                  ? '할 일을 불러오지 못했어요.'
+                  ? '미션을 불러오지 못했어요.'
                   : repeatType != null
-                    ? '이 주기의 할 일이 없어요.'
-                    : '아직 할 일이 없어요.\n부모님이 등록해 주실 거예요!'
+                    ? '이 주기의 미션이 없어요.'
+                    : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
             }
             showMascot={!isPending && !isError}
           />
@@ -139,7 +157,10 @@ function EmptyState({ message, showMascot }: { message: string; showMascot: bool
 }
 
 const styles = StyleSheet.create({
-  content: { paddingVertical: 16, flexGrow: 1 },
+  // 위쪽 여백을 주지 않는다. Screen 이 padded={false} 여도 paddingVertical(16)은 항상
+  // 넣기 때문에, 여기서 또 주면 헤더와 배너 사이가 32px 이 되어 상점(16px)보다 벌어진다.
+  content: { paddingBottom: 16, flexGrow: 1 },
+  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
   mascot: { width: 140, height: 140 },

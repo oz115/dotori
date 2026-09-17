@@ -20,8 +20,9 @@ type ChoreFilterChipsProps<T extends string> = {
  * '전체'는 옵션 배열에 넣지 않고 여기서 붙인다 — 부르는 쪽이 매번 sentinel 값을
  * 만들지 않아도 되고, 선택 없음을 null 하나로 표현할 수 있다.
  *
- * 상점에도 비슷한 칩(CategoryFilterBar)이 있지만 색이 다르다(연회색 배경 + 검은 글씨).
- * 시안이 갈라져 있어 합치지 않았다 — 디자인이 정리되면 그때 shared 로 올린다.
+ * 색과 크기는 상점(CategoryFilterBar)에 맞춘다. 원래 미선택 칩이 진회색 채움 + 흰 글씨라
+ * 선택된 칩보다 오히려 눈에 띄었고, 여백도 2px 씩 더 커서(18/9) 탭을 옮기면 같은 역할의
+ * 칩이 다른 것처럼 보였다. 두 칩이 같아졌으니 다음에 손댈 때 shared 로 합친다.
  */
 export function ChoreFilterChips<T extends string>({
   options,
@@ -50,14 +51,16 @@ export function ChoreFilterChips<T extends string>({
               styles.chip,
               {
                 borderRadius: theme.radius.full,
-                backgroundColor: active ? theme.color.brand.solid : theme.color.chip.idle,
+                backgroundColor: active
+                  ? theme.color.brand.solid
+                  : theme.color.background.surfaceSunken,
               },
             ]}
           >
             <Text
               style={[
                 theme.typography.label,
-                { color: active ? theme.color.text.onBrand : theme.color.chip.idleText },
+                { color: active ? theme.color.text.onBrand : theme.color.text.default },
               ]}
             >
               {item.label}
@@ -70,5 +73,5 @@ export function ChoreFilterChips<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  chip: { paddingHorizontal: 18, paddingVertical: 9 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8 },
 });

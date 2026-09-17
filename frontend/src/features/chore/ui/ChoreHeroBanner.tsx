@@ -18,6 +18,10 @@ type ChoreHeroBannerProps = {
  * 문구와 마스코트만 바꾼다.
  *
  * 마스코트는 배경이 투명한 PNG 라야 한다 (초록 위에 흰 네모가 보이면 안 된다).
+ *
+ * 높이는 마스코트가 정한다 — 글 두 줄 + 캡션이 80px 라 88px 마스코트에 못 미친다.
+ * 그래서 상점 배너(StoreBanner)와 같은 88px 를 쓰면 두 탭의 배너 높이가 120px 로
+ * 같아진다. 마스코트만 키우면 할 일 탭만 혼자 불쑥 커 보인다.
  */
 export function ChoreHeroBanner({ title, caption, mascot, action }: ChoreHeroBannerProps) {
   const theme = useTheme();
@@ -52,5 +56,5 @@ export function ChoreHeroBanner({ title, caption, mascot, action }: ChoreHeroBan
 const styles = StyleSheet.create({
   banner: { flexDirection: 'row', alignItems: 'center' },
   body: { flex: 1, gap: 4 },
-  mascot: { width: 110, height: 110 },
+  mascot: { width: 88, height: 88 },
 });
