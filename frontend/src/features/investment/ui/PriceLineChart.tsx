@@ -9,7 +9,7 @@ import { useTheme } from '@/shared/theme';
 
 const CHART_HEIGHT = 180;
 const EDGE_INSET = 6;
-const Y_LABEL_WIDTH = 44;
+const Y_LABEL_WIDTH = 48;
 
 type Props = {
   history: PricePoint[];
@@ -42,7 +42,8 @@ export function PriceLineChart({ history }: Props) {
           {[...ticks].reverse().map((tick) => (
             <Text
               key={tick}
-              style={[theme.typography.caption, styles.yLabel, { color: theme.color.text.muted }]}
+              numberOfLines={1}
+              style={[styles.axisLabel, { color: theme.color.text.muted }]}
             >
               {formatNumber(tick)}
             </Text>
@@ -105,7 +106,7 @@ export function PriceLineChart({ history }: Props) {
                   },
                 ]}
               >
-                <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
+                <Text style={[styles.axisLabel, { color: theme.color.text.onBrand }]}>
                   {formatNumber(prices[prices.length - 1])}
                 </Text>
               </View>
@@ -116,10 +117,7 @@ export function PriceLineChart({ history }: Props) {
 
       <View style={styles.xLabels}>
         {history.map((point) => (
-          <Text
-            key={point.label}
-            style={[theme.typography.caption, { color: theme.color.text.muted }]}
-          >
+          <Text key={point.label} style={[styles.axisLabel, { color: theme.color.text.muted }]}>
             {point.label}
           </Text>
         ))}
@@ -139,8 +137,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
-  yLabel: {
-    lineHeight: 14,
+  // 축·배지 전용 작은 글씨. caption(16px)은 44px 축 폭에 안 들어가 줄바꿈·클리핑됐다 —
+  // 차트 눈금은 본문보다 작아야 그래프가 주인공이 된다.
+  axisLabel: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   plot: {
     flex: 1,

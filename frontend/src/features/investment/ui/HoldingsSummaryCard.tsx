@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
-import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
+import { formatPoints, signedPoints } from '@/features/investment/lib/format';
 import { summarizeHoldings } from '@/features/investment/lib/holdings';
 import type { Holding } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
@@ -27,10 +27,11 @@ export function HoldingsSummaryCard({ holdings }: Props) {
     summary.totalEarned >= 0 ? theme.color.status.success.text : theme.color.status.danger.text;
 
   const tiles: { key: string; icon: ImageSourcePropType; value: string; color?: string }[] = [
-    // 타일이 3분할이라 좁다 — 긴 라벨("가지고 있는 상품")은 줄바꿈으로 어색해져 짧게 쓴다
+    // 타일이 3분할이라 좁다 — 라벨은 짧게, 값은 "10,000P"처럼 단위를 P로 붙인다
+    // ("도토리" 단위는 좁은 타일에서 글자가 축소·클리핑돼 안 읽힌다. 메인 요약 타일과 같은 표기)
     { key: '내 주식', icon: CANDLES, value: `${summary.count}개` },
-    { key: '지금 가치', icon: COIN, value: formatAcorns(summary.totalValue) },
-    { key: '번 돈', icon: ACORN, value: signedAcorns(summary.totalEarned), color: earnedColor },
+    { key: '지금 가치', icon: COIN, value: formatPoints(summary.totalValue) },
+    { key: '번 돈', icon: ACORN, value: signedPoints(summary.totalEarned), color: earnedColor },
   ];
 
   return (
