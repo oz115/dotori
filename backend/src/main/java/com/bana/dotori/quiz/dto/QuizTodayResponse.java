@@ -10,6 +10,9 @@ import java.util.List;
  * <p>{@code correctAnswer}·{@code explanation}은 명세에 없는 필드다. 제출을 3회 다 썼거나
  * 정답을 맞혀 더 이상 제출할 수 없는 상태(alreadySubmitted=true)일 때만 채워서, 화면을
  * 나갔다가 다시 들어와도 정답을 볼 수 있게 한다 (팀 결정).
+ *
+ * <p>{@code attemptCount}도 명세에 없는 필드다. 화면을 나갔다가 다시 들어와도 "도전 기회
+ * n/3" 표시가 정확하도록, 지금까지 제출한 시도 수를 그대로 내려준다 (팀 결정).
  */
 public record QuizTodayResponse(
 	Integer quizId,
@@ -19,6 +22,7 @@ public record QuizTodayResponse(
 	int rewardPoints,
 	boolean alreadySubmitted,
 	String correctAnswer,
-	String explanation
+	String explanation,
+	int attemptCount
 ) {
 }

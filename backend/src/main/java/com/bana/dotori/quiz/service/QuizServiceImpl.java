@@ -78,7 +78,8 @@ public class QuizServiceImpl implements QuizService {
 		return new QuizTodayResponse(
 			quiz.getId(), quiz.getQuizDate(), quiz.getQuestion(), null, rewardPoints, locked,
 			locked ? quiz.getCorrectAnswer() : null,
-			locked ? quiz.getExplanation() : null);
+			locked ? quiz.getExplanation() : null,
+			attempts.size());
 	}
 
 	@Override
