@@ -35,6 +35,7 @@ import com.bana.dotori.global.security.JwtTokenProvider;
 import com.bana.dotori.savings.dto.response.SavingsExpectedReturnResponse;
 import com.bana.dotori.savings.dto.response.SavingsProductResponse;
 import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
+import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
 import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProductType;
@@ -74,8 +75,9 @@ class SavingsControllerTest {
 	}
 
 	private SavingsSubscriptionResponse subscriptionResponse(SavingsSubscriptionStatus status) {
-		return new SavingsSubscriptionResponse(1, 1, "보통예금", SavingsProductType.ORDINARY, 10_000, 10_000, 0,
-			10_000, 0, status, OffsetDateTime.now(), null, OffsetDateTime.now().plusWeeks(1), null);
+		return new SavingsSubscriptionResponse(1, 1, "보통예금", SavingsProductType.ORDINARY,
+			ContributionStyle.FREE, null, 10_000, 10_000, 0, 10_000, 0, status, OffsetDateTime.now(), null,
+			OffsetDateTime.now().plusWeeks(1), null);
 	}
 
 	@Test
@@ -261,6 +263,32 @@ class SavingsControllerTest {
 				.with(loginAs(CHILD_ID, "CHILD")))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.productName").value("보통예금"));
+	}
+
+	@Test
+	@DisplayName("부모가 요약을 조회하면 200과 집계값을 돌려준다")
+	void 부모_요약_조회() throws Exception {
+		Integer parentId = 9;
+		given(savingsService.getSummary(parentId, FAMILY_ID, CHILD_ID))
+			.willReturn(new SavingsSummaryResponse(2, 1, 30_000, 1_500, 31_500, OffsetDateTime.now().plusWeeks(2)));
+
+		mockMvc.perform(get(BASE_URL + "/summary", FAMILY_ID, CHILD_ID).with(loginAs(parentId, "PARENT")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.activeCount").value(2))
+			.andExpect(jsonPath("$.maturedCount").value(1))
+			.andExpect(jsonPath("$.totalAmount").value(31_500));
+	}
+
+	@Test
+	@DisplayName("아이 본인도 요약을 조회할 수 있다")
+	void 본인_요약_조회() throws Exception {
+		given(savingsService.getSummary(CHILD_ID, FAMILY_ID, CHILD_ID))
+			.willReturn(new SavingsSummaryResponse(0, 0, 0, 0, 0, null));
+
+		mockMvc.perform(get(BASE_URL + "/summary", FAMILY_ID, CHILD_ID).with(loginAs(CHILD_ID, "CHILD")))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.activeCount").value(0))
+			.andExpect(jsonPath("$.nearestMaturityAt").doesNotExist());
 	}
 
 	private static RequestPostProcessor loginAs(Integer userId, String role) {

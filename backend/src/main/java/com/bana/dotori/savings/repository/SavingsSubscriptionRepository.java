@@ -1,6 +1,7 @@
 package com.bana.dotori.savings.repository;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,13 @@ import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
 public interface SavingsSubscriptionRepository extends JpaRepository<SavingsSubscription, Integer> {
 
 	List<SavingsSubscription> findByFamilyIdAndChildIdOrderByStartedAtDesc(Integer familyId, Integer childId);
+
+	/**
+	 * 부모 홈 요약이 집계할 가입 건. 끝난 건(COMPLETED·CANCELLED)은 지갑으로 빠져나가
+	 * 예적금 잔액이 아니므로, 상태를 넘겨 진행 중·수령 대기 건만 가져온다.
+	 */
+	List<SavingsSubscription> findByFamilyIdAndChildIdAndStatusIn(Integer familyId, Integer childId,
+		Collection<SavingsSubscriptionStatus> statuses);
 
 	Optional<SavingsSubscription> findByIdAndFamilyIdAndChildId(Integer id, Integer familyId, Integer childId);
 
