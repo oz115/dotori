@@ -174,8 +174,6 @@ const styles = StyleSheet.create({
   content: { paddingVertical: 16, flexGrow: 1 },
   thumb: { width: 52, height: 52 },
   body: { flex: 1, gap: 2 },
-  titleRow: { flexDirection: 'row', alignItems: 'center' },
-  grow: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
   mascot: { width: 140, height: 140 },

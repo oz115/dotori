@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   requestRow: { flexDirection: 'row', alignItems: 'center' },
   requestBody: { flex: 1, gap: 2 },
   // 제목이 길어도 아이 이름 배지를 밀어내지 않게 한다
-  grow: { flex: 1 },
+
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
   // 상점의 등록 버튼(StoreCatalog)과 같은 자리·같은 크기다.
