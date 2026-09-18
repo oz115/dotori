@@ -1,5 +1,8 @@
 package com.bana.dotori.wallet.entity;
 
+import java.util.Arrays;
+import java.util.List;
+
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -61,6 +64,47 @@ public enum PointTransactionReason {
 	/** 취소·반려 등으로 되돌려주는 경우 */
 	REFUND(true, false);
 
+	/**
+	 * 포인트가 늘어나는 사유 전부. RPT-02(수입 통계)가 집계 범위로 쓴다.
+	 *
+	 * <p>목록을 손으로 적지 않고 방향 플래그에서 뽑는다. 사유가 새로 생겼을 때
+	 * 여기에 적는 것을 깜빡하면 그 수입이 통계에서 조용히 빠지는데, 합계가 틀린 것은
+	 * 화면만 봐서는 눈치채기 어렵다. 플래그는 사유를 추가할 때 반드시 정해야 하는 값이라
+	 * 빠뜨릴 수가 없다.
+	 */
+	private static final List<PointTransactionReason> DEPOSIT_REASONS = Arrays.stream(values())
+			.filter(PointTransactionReason::isDepositAllowed)
+			.toList();
+
+	/** 포인트가 줄어드는 사유 전부. RPT-03(소비 통계)이 집계 범위로 쓴다. */
+	private static final List<PointTransactionReason> WITHDRAWAL_REASONS = Arrays.stream(values())
+			.filter(PointTransactionReason::isWithdrawalAllowed)
+			.toList();
+
 	private final boolean depositAllowed;
 	private final boolean withdrawalAllowed;
+
+	/**
+	 * 수입으로 집계할 사유 목록.
+	 *
+	 * <p>{@code CHARGE, GRANT, ALLOWANCE, CHORE_REWARD, QUIZ_REWARD, SAVINGS_WITHDRAWAL,
+	 * INVESTMENT_SELL, REFUND} 8 개다.
+	 */
+	public static List<PointTransactionReason> depositReasons() {
+		return DEPOSIT_REASONS;
+	}
+
+	/**
+	 * 소비로 집계할 사유 목록.
+	 *
+	 * <p>{@code PURCHASE, CASHOUT, SAVINGS_DEPOSIT, INVESTMENT_BUY} 4 개다.
+	 */
+	public static List<PointTransactionReason> withdrawalReasons() {
+		return WITHDRAWAL_REASONS;
+	}
+
+	/** 이 사유가 주어진 방향에 속하는지. */
+	public boolean isAllowedIn(PointTransactionType type) {
+		return type == PointTransactionType.DEPOSIT ? depositAllowed : withdrawalAllowed;
+	}
 }

@@ -62,7 +62,8 @@ export function ParentChoreList({
   onHistoryPress,
 }: ParentChoreListProps) {
   const theme = useTheme();
-  const { refreshing, onRefresh } = useChoreRefresh();
+  const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
+  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
 
   const { items, isPending, isError } = useChildrenChores(familyId, childList);

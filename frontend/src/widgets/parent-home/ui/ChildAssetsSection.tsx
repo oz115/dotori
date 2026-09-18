@@ -1,10 +1,17 @@
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
-import { summarizeHoldings, type Holding } from '@/features/investment';
+import {
+  previewHoldings,
+  signedPoints,
+  summarizeHoldings,
+  useInvestmentHoldings,
+  type Holding,
+  type HoldingPreviewItem,
+} from '@/features/investment';
 import { daysUntilMaturity, useSavingsSummary, type SavingsSummary } from '@/features/savings';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, MockBadge } from '@/shared/ui';
+import { ContentCard } from '@/shared/ui';
 
 type ChildAssetsSectionProps = {
   familyId: number | undefined;
@@ -16,11 +23,10 @@ type ChildAssetsSectionProps = {
 };
 
 /**
- * "자녀 자산" 섹션. 예적금은 실제 요약 API를 읽고, 투자는 아직 백엔드 도메인이 없어
- * mock 데이터라 그쪽 카드에만 예시 배지를 남긴다.
+ * "자녀 자산" 섹션. 예적금·투자 모두 자녀 기준 요약 API를 읽어 집계만 보여 준다.
  *
- * 카드를 누르면 해당 탭(저축·투자)으로 보낸다 — 탭 화면 자체는 아직 준비 중 안내뿐이지만
- * 자리는 실제 라우트라 도메인이 생기면 이 화면은 그대로 두고 탭 내용만 채우면 된다.
+ * 카드를 누르면 해당 탭(저축·투자)으로 보낸다 — 투자 탭은 아직 준비 중 안내뿐이지만
+ * 자리는 실제 라우트라 화면이 채워져도 이쪽은 그대로 둔다.
  */
 export function ChildAssetsSection({
   familyId,
@@ -42,7 +48,11 @@ export function ChildAssetsSection({
           familyPending={familyPending}
           onPress={onOpenSavings}
         />
-        <InvestmentCard onPress={onOpenInvestment} />
+        <InvestmentCard
+          childId={childId}
+          familyPending={familyPending}
+          onPress={onOpenInvestment}
+        />
       </View>
     </View>
   );
@@ -168,16 +178,23 @@ function CardNotice({ text }: { text: string }) {
   return <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{text}</Text>;
 }
 
-/** 투자 카드 목업 — 자녀 보유 API 연동 시 교체한다. 예적금과 달리 아직 실데이터가 없다. */
-const mockHoldings: Holding[] = [
-  { id: 1, name: '시원아이스', image: 0, quantity: 1, buyPrice: 10100, currentPrice: 10250 },
-  { id: 8, name: '고소한빵', image: 0, quantity: 1, buyPrice: 9900, currentPrice: 9800 },
-  { id: 10, name: '파워배터리', image: 0, quantity: 1, buyPrice: 10200, currentPrice: 10400 },
-];
+type InvestmentCardProps = {
+  childId: number | undefined;
+  familyPending: boolean;
+  onPress: () => void;
+};
 
-function InvestmentCard({ onPress }: { onPress: () => void }) {
+/**
+ * 투자 요약 카드. 자녀가 들고 있는 종목과 총 수익만 보여 준다 — 종목별 손익·차트는 투자 탭 몫이다.
+ * 종목당 1주 규칙이라 수량은 항상 1이므로 줄마다 수량은 적지 않는다.
+ */
+function InvestmentCard({ childId, familyPending, onPress }: InvestmentCardProps) {
   const theme = useTheme();
-  const summary = summarizeHoldings(mockHoldings);
+  const holdings = useInvestmentHoldings(childId, { enabled: childId != null });
+  const isPending = familyPending || childId == null || holdings.isPending;
+
+  const totalEarned = holdings.data != null ? summarizeHoldings(holdings.data).totalEarned : 0;
+  const hasHoldings = holdings.data != null && holdings.data.length > 0;
 
   return (
     <Pressable style={styles.card} onPress={onPress} accessibilityRole="button">
@@ -188,36 +205,122 @@ function InvestmentCard({ onPress }: { onPress: () => void }) {
             <Text style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}>
               투자
             </Text>
-            <MockBadge />
           </View>
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-            {summary.count}개 보유 중
-          </Text>
-          <View style={{ gap: theme.space.xs }}>
-            {mockHoldings.map((holding) => (
-              <Text
-                key={holding.id}
-                style={[theme.typography.caption, { color: theme.color.text.sub }]}
-                numberOfLines={1}
-              >
-                {holding.name}
-              </Text>
-            ))}
-          </View>
+
+          <InvestmentCardBody
+            isPending={isPending}
+            isError={holdings.isError}
+            holdings={holdings.data}
+          />
         </View>
 
-        <Text
-          style={[
-            theme.typography.label,
-            { color: theme.color.status.success.text, alignSelf: 'flex-end' },
-          ]}
-        >
-          +{formatPoint(summary.totalEarned)}
-        </Text>
+        {/* 수익은 종목이 있을 때만 — 0원 손익을 크게 띄워 봐야 읽을 게 없다 */}
+        {hasHoldings ? (
+          <Text
+            style={[
+              theme.typography.label,
+              {
+                color:
+                  totalEarned >= 0
+                    ? theme.color.status.success.text
+                    : theme.color.status.danger.text,
+                alignSelf: 'flex-end',
+              },
+            ]}
+          >
+            {signedPoints(totalEarned)}
+          </Text>
+        ) : null}
       </ContentCard>
     </Pressable>
   );
 }
+
+type InvestmentCardBodyProps = {
+  isPending: boolean;
+  isError: boolean;
+  holdings: Holding[] | undefined;
+};
+
+function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBodyProps) {
+  const theme = useTheme();
+
+  if (isPending) {
+    return <CardNotice text="불러오는 중이에요" />;
+  }
+  if (isError || holdings == null) {
+    return <CardNotice text="잠시 후 다시 확인해 주세요" />;
+  }
+  if (holdings.length === 0) {
+    return <CardNotice text="아직 투자한 종목이 없어요" />;
+  }
+
+  const preview = previewHoldings(holdings);
+
+  return (
+    <View style={{ gap: theme.space.md }}>
+      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+        {holdings.length}개 보유 중
+      </Text>
+
+      {/* 아이콘이 28px 이라 줄 사이는 xs 로 좁혀 둔다 — 종목들이 한 덩어리로 읽힌다 */}
+      <View style={{ gap: theme.space.xs }}>
+        {preview.items.map((item) => (
+          <HoldingPreviewRow key={item.id} item={item} />
+        ))}
+        {preview.restCount > 0 ? (
+          <Text
+            style={[
+              theme.typography.caption,
+              // 아이콘 폭 + 간격만큼 들여써서 위 종목 이름들과 왼쪽을 맞춘다
+              { color: theme.color.text.muted, marginLeft: HOLDING_ICON_SIZE + theme.space.sm },
+            ]}
+          >
+            외 {preview.restCount}개
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * 투자 카드의 종목 한 줄 — 회사 아이콘과 이름.
+ *
+ * 키를 이름이 아니라 종목 id 로 잡는다. 이름은 서버 값이라 같은 이름이 둘 올 가능성을
+ * 배제할 수 없고, 그때 React 가 한 줄을 건너뛴다.
+ */
+function HoldingPreviewRow({ item }: { item: HoldingPreviewItem }) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.holdingRow, { gap: theme.space.sm }]}>
+      {/* 아이콘 원본이 흰 배경이라 배경색 없이 둥근 모서리로만 자른다 (HoldingCard 와 같은 처리) */}
+      <Image source={item.image} style={styles.holdingIcon} resizeMode="cover" />
+      <Text
+        style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
+        numberOfLines={1}
+      >
+        {item.name}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * 종목 줄의 아이콘 크기. caption 글자 높이(16)보다 크게 잡아 회사가 먼저 눈에 들어오게 한다 —
+ * 줄 높이가 아이콘에 끌려 늘어나는 것을 받아들인 값이다.
+ *
+ * 카드는 minHeight 240 에 space-between 이라 이 정도는 흡수한다. 더 키우려면 이 상수만
+ * 만지면 된다.
+ */
+const HOLDING_ICON_SIZE = 28;
+
+/**
+ * 종목 아이콘의 모서리. radius 토큰(8, 12 …)은 이 크기에 주면 너무 둥글다.
+ * HoldingCard 의 비율(52px 에 12)을 그대로 옮긴 값이라 토큰을 쓰지 않고 직접 적는다.
+ */
+const HOLDING_ICON_RADIUS = 6;
 
 function SectionIcon({ source }: { source: ImageSourcePropType }) {
   return <Image source={source} style={styles.iconImage} resizeMode="contain" />;
@@ -233,4 +336,10 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', alignItems: 'center' },
   badge: { paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' },
   iconImage: { width: 40, height: 40 },
+  holdingRow: { flexDirection: 'row', alignItems: 'center' },
+  holdingIcon: {
+    width: HOLDING_ICON_SIZE,
+    height: HOLDING_ICON_SIZE,
+    borderRadius: HOLDING_ICON_RADIUS,
+  },
 });

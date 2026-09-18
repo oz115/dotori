@@ -24,7 +24,8 @@ type ChildChoreHistoryProps = {
  */
 export function ChildChoreHistory({ familyId, childId }: ChildChoreHistoryProps) {
   const theme = useTheme();
-  const { refreshing, onRefresh } = useChoreRefresh();
+  const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
+  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const { data, isPending, isError } = useCompletions(familyId, childId);
 
   const completions = useMemo(() => data ?? [], [data]);

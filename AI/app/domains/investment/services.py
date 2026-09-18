@@ -36,17 +36,92 @@ INVESTMENT_SHARE = Decimal("0.4")
 # 가격 하한 = 회사 시작가(seed `current_price`)의 몇 %.
 PRICE_FLOOR_RATIO = Decimal("0.1")
 
-_IMPACT_LABEL = {"POSITIVE": "상승", "NEGATIVE": "하락"}
+_IMPACT_CONTEXT_KEYS = {
+    "POSITIVE": ("회사에 유리한 변화", "상승 예시"),
+    "NEGATIVE": ("회사에 불리한 변화", "하락 예시"),
+}
+_NEWS_FORBIDDEN_TERMS_BY_COMPANY = {
+    "시원아이스": ("아이스크림", "빙과"),
+    "푸른들농업": ("농업", "농부", "농작물", "밀", "채소"),
+    "두근여행": ("여행", "관광", "예약", "숙박"),
+    "신나는월드": ("놀이공원", "놀이기구", "방문객"),
+    "하늘항공": ("항공", "비행기", "운항", "승객", "항공유"),
+    "번개택배": ("택배", "배송", "물류", "상자"),
+    "튼튼건설": ("건설", "시공", "분양"),
+    "고소한빵": ("빵", "제빵", "밀가루"),
+    "씽씽자동차": ("자동차 회사", "차량 생산"),
+    "파워배터리": ("배터리", "전기차"),
+}
 
 # 프롬프트 문구는 코드와 분리해서 `prompts/` 밑에 둔다 — 톤·규칙을 다듬을 때 코드를
 # 안 건드리고 이 파일만 고치면 된다.
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _SYSTEM_PROMPT = (_PROMPTS_DIR / "news_system_prompt.md").read_text(encoding="utf-8").strip()
+_NEWS_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "investment_news",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "content": {"type": "string"},
+            },
+            "required": ["title", "content"],
+            "additionalProperties": False,
+        },
+    },
+}
 
 
 class _NewsDraft(BaseModel):
     title: str
     content: str
+
+
+def _context_value(news_context: str, keys: tuple[str, ...]) -> str | None:
+    """`news_context`의 `키: 값` 줄에서 첫 번째 일치 값을 꺼낸다."""
+    for line in news_context.splitlines():
+        key, separator, value = line.partition(":")
+        if separator and key.strip() in keys and value.strip():
+            return value.strip()
+    return None
+
+
+def _build_news_user_prompt(news_context: str, impact: str, forbidden_terms: tuple[str, ...] = ()) -> str:
+    """회사 식별 정보 없이 선택된 경제 사건 조건만 담은 사용자 프롬프트를 만든다.
+
+    이미 적재된 DB의 이전 형식도 읽을 수 있도록 `상승 예시`/`하락 예시`를 보조 키로
+    허용한다. 새 형식은 완성된 예시 문장이 아니라 외부 경제 요인의 변화만 저장한다.
+    """
+    economic_factor = _context_value(news_context, ("대표 경제 요인",))
+    condition = _context_value(news_context, _IMPACT_CONTEXT_KEYS[impact])
+    topics = _context_value(news_context, ("뉴스 소재",))
+    if economic_factor is None or condition is None:
+        raise ValueError("뉴스 참고자료에 대표 경제 요인 또는 사건 조건이 없다")
+
+    prompt_lines = [
+        f"대표 경제 요인: {economic_factor}",
+        f"선택된 사건 조건: {condition}",
+    ]
+    if topics is not None:
+        prompt_lines.append(f"사용 가능한 뉴스 소재: {topics}")
+    if forbidden_terms:
+        prompt_lines.extend(
+            [
+                f"출력 금지어: {', '.join(forbidden_terms)}",
+                "출력 금지어와 그 활용형을 제목과 본문에 사용하지 마세요.",
+            ]
+        )
+    prompt_lines.extend(
+        [
+            "",
+            "위 조건에 맞는 외부 경제 사건 하나만 작성해 주세요.",
+            "회사에 미치는 영향이나 정답은 설명하지 마세요.",
+        ]
+    )
+    return "\n".join(prompt_lines)
 
 
 def week_start_kst(now: datetime) -> datetime:
@@ -129,27 +204,24 @@ def yesterdays_news(session: Session, now: datetime) -> list[InvestmentNews]:
 def _generate_news_text(product: InvestmentProduct, impact: str) -> tuple[str, str]:
     """회사 하나의 오늘자 뉴스 문구를 LLM으로 생성한다. (title, content) 반환.
 
-    `product.news_context` 를 few-shot 으로 준다 — 예시 문장을 그대로 쓰지 않고 매일
-    다른 문구가 나오게 하기 위해서다.
+    회사명과 회사 설명은 모델에 보내지 않는다. `product.news_context` 에 있는 대표 경제
+    요인과 사건 조건만으로 외부 경제 사건을 쓰게 한다. 회사별 출력 금지어만 추가해 관련
+    회사와 영향을 아이가 직접 추론할 수 있게 한다.
 
     `max_tokens`/`max_completion_tokens` 는 일부러 안 넘긴다. 모델(gpt-4o-mini 계열 /
     gpt-5.x 계열)마다 파라미터 이름이 달라서(`app.core.config` 참고) 잘못 넘기면 그
     자체로 요청이 실패한다. 뉴스 문구가 짧아 기본값으로도 충분하다.
     """
     client = get_client()
-    user_prompt = (
-        f"회사: {product.name}\n"
-        f"하는 일: {product.description or '설명 없음'}\n"
-        f"참고자료:\n{product.news_context}\n"
-        f"오늘 방향: {_IMPACT_LABEL[impact]}"
-    )
+    forbidden_terms = _NEWS_FORBIDDEN_TERMS_BY_COMPANY.get(product.name, ())
+    user_prompt = _build_news_user_prompt(product.news_context, impact, forbidden_terms)
     response = client.chat.completions.create(
         model=get_settings().openai_model,
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        response_format={"type": "json_object"},
+        response_format=_NEWS_RESPONSE_FORMAT,
     )
     content = response.choices[0].message.content
     if content is None:
