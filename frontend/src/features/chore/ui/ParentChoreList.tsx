@@ -125,6 +125,7 @@ export function ParentChoreList({
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
             childName={item.childName}
+            endDate={item.endDate}
             onPress={onChorePress ? () => onChorePress(item) : undefined}
           />
         )}
