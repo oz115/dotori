@@ -39,6 +39,31 @@ export function formatDayLabel(iso: string): string {
   return `${Number(month)}/${day}`;
 }
 
+/**
+ * TEMP: 등락 그래프 미리보기용 목업. AI 서버가 아직 안 붙어 있어(로컬 개발 환경)
+ * `investment_price_history`가 비어 있는 동안, 실제 데이터가 쌓였을 때 어떻게 보일지
+ * 확인하려고 최근 `days`일치 가짜 랜덤워크를 만든다. 오늘 값은 항상 실제 currentPrice와
+ * 같게 맞춘다 — 화면 다른 곳(현재가 숫자 등)이랑 어긋나 보이면 안 되니까.
+ *
+ * 실제 가격 이력이 쌓이면(history.length > 0) toStockDetail이 이 함수를 아예 안 부르니,
+ * AI 서버 연동이 끝나면 이 함수와 호출부만 지우면 된다.
+ */
+function mockPriceHistory(currentPrice: number, days = 14): PricePoint[] {
+  const points: PricePoint[] = [];
+  let price = currentPrice;
+  const today = new Date();
+
+  for (let i = 0; i < days; i += 1) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    points.push({ label: `${date.getMonth() + 1}/${date.getDate()}`, price: Math.round(price) });
+    const drift = (Math.random() - 0.5) * currentPrice * 0.06; // 하루당 ±3% 안팎으로 걷는다
+    price = Math.max(1, price - drift);
+  }
+
+  return points.reverse();
+}
+
 export function toStockSummary(product: ProductSummaryResponse): StockSummary {
   return {
     id: product.investmentProductId,
@@ -69,8 +94,9 @@ export function toStockDetail(
     holding,
     currentPrice: detail.currentPrice,
     changeFromYesterday: detail.changeAmount,
-    // 아직 가격이 움직인 적 없는 가족은 이력이 비어 있다 — 현재가 한 점으로 차트를 그린다
-    history: points.length > 0 ? points : [{ label: '오늘', price: detail.currentPrice }],
+    // 아직 가격이 움직인 적 없는 가족은 이력이 비어 있다 — TEMP: 지금은 목업으로 채운다
+    // (mockPriceHistory 주석 참고, AI 서버 연동되면 지울 것)
+    history: points.length > 0 ? points : mockPriceHistory(detail.currentPrice),
   };
 }
 

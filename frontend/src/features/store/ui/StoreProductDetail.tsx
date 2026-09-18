@@ -17,7 +17,7 @@ import { useStoreProduct } from '@/features/store/model/useStoreProduct';
 import { DeleteProductModal } from '@/features/store/ui/DeleteProductModal';
 import { PurchaseConfirmModal } from '@/features/store/ui/PurchaseConfirmModal';
 import { useTheme } from '@/shared/theme';
-import { Button, Header } from '@/shared/ui';
+import { Button, Header, Screen } from '@/shared/ui';
 
 type StoreProductDetailProps = {
   familyId: number | undefined;
@@ -55,12 +55,16 @@ export function StoreProductDetailScreen({
   const { data: product, isPending, isError } = useStoreProduct(familyId, productId);
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title={product?.name ?? '상품 상세'}
-        onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
-      />
-
+    <Screen
+      header={
+        <Header
+          title={product?.name ?? '상품 상세'}
+          onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
+        />
+      }
+      padded={false}
+      edges={[]}
+    >
       {isPending ? (
         <Centered>
           <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>
@@ -84,7 +88,7 @@ export function StoreProductDetailScreen({
           onNavigateToList={onNavigateToList}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 

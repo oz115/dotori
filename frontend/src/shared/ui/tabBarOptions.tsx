@@ -1,4 +1,4 @@
-import type { ColorValue } from 'react-native';
+import { StyleSheet, type ColorValue } from 'react-native';
 
 import { fontFamily, type Theme } from '@/shared/theme';
 import { navIcons, type NavIconName } from '@/shared/ui/icons';
@@ -21,7 +21,13 @@ export function tabScreenOptions(theme: Theme, bottomInset: number) {
       backgroundColor: theme.color.background.surface,
       borderTopLeftRadius: theme.radius['2xl'],
       borderTopRightRadius: theme.radius['2xl'],
-      borderTopWidth: 0,
+      // 둥근 모서리 뒤에는 네비게이터의 빈 영역 대신 현재 화면이 이어진다.
+      marginTop: -theme.radius['2xl'],
+      borderWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: 0,
+      borderColor: theme.color.border.default,
+      elevation: 0,
+      shadowOpacity: 0,
       paddingTop: 12,
       height: 58 + bottomInset,
     },

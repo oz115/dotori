@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMyAccount } from '@/features/account';
 import { useFamilyStatus } from '@/features/family';
 import { useTheme } from '@/shared/theme';
-import { tabIcon, tabScreenOptions } from '@/shared/ui';
+import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
 
 /**
  * 탭은 화면 순서(할 일·상점·홈·저축·투자)대로 선언하는데, 그러면 첫 번째인 '할 일'이
@@ -40,6 +40,7 @@ export default function ChildTabsLayout() {
       initialRouteName="index"
       backBehavior="initialRoute"
       screenOptions={tabScreenOptions(theme, insets.bottom)}
+      screenLayout={({ children }) => <TabScene>{children}</TabScene>}
     >
       <Tabs.Screen name="task" options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }} />
       <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />

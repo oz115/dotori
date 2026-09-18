@@ -78,10 +78,17 @@ describe('toStockDetail', () => {
     ]);
   });
 
-  it('이력이 비어 있으면 현재가 한 점으로 차트를 그린다', () => {
+  // TEMP: 이력이 비어 있을 때 mockPriceHistory로 목업 랜덤워크를 채운다 (AI 서버 연동 전
+  // 그래프 미리보기용). 값 자체는 랜덤이라 형태(길이·오늘 값)만 검증한다.
+  it('이력이 비어 있으면 목업 랜덤워크로 차트를 채우고 마지막 점은 현재가와 같다', () => {
     const detail = toStockDetail(detailResponse, [], false);
 
-    expect(detail.history).toEqual([{ label: '오늘', price: 10250 }]);
+    expect(detail.history).toHaveLength(14);
+    expect(detail.history[detail.history.length - 1].price).toBe(10250);
+    detail.history.forEach((point) => {
+      expect(typeof point.label).toBe('string');
+      expect(Number.isFinite(point.price)).toBe(true);
+    });
   });
 });
 

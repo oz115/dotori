@@ -55,7 +55,8 @@ export function StoreProductForm({ familyId }: StoreProductFormProps) {
   };
 
   return (
-    <Screen header={<Header title="상품 등록" onBack={() => router.back()} />} scroll>
+    // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+    <Screen header={<Header title="상품 등록" onBack={() => router.back()} />} scroll edges={[]}>
       <View style={{ gap: theme.space.xl }}>
         <StoreProductFormBanner />
 

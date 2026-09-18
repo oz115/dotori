@@ -112,5 +112,6 @@ export function ParentHome() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: 4, paddingBottom: 40 },
+  // 마지막 활동 보드의 배경이 둥근 탭바 뒤까지 이어진다.
+  content: { paddingTop: 4, paddingBottom: 0 },
 });

@@ -74,18 +74,22 @@ export function PriceLineChart({ history }: Props) {
                     />
                   );
                 })}
-                <Polygon
-                  points={`${toPolylinePoints(points)} ${last.x},${CHART_HEIGHT - EDGE_INSET} ${points[0].x},${CHART_HEIGHT - EDGE_INSET}`}
-                  fill="url(#priceAreaFill)"
-                />
-                <Polyline
-                  points={toPolylinePoints(points)}
-                  fill="none"
-                  stroke={theme.color.brand.solid}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                {points.length >= 2 ? (
+                  <>
+                    <Polygon
+                      points={`${toPolylinePoints(points)} ${last.x},${CHART_HEIGHT - EDGE_INSET} ${points[0].x},${CHART_HEIGHT - EDGE_INSET}`}
+                      fill="url(#priceAreaFill)"
+                    />
+                    <Polyline
+                      points={toPolylinePoints(points)}
+                      fill="none"
+                      stroke={theme.color.brand.solid}
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </>
+                ) : null}
                 <Circle
                   cx={last.x}
                   cy={last.y}

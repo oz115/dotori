@@ -18,4 +18,5 @@ export { Screen } from './Screen';
 export { SelectableCard } from './SelectableCard';
 export { ProgressIndicator, Steps } from './Stepper';
 export { tabScreenOptions, tabIcon } from './tabBarOptions';
+export { TabScene, useTabOverlap } from './TabScene';
 export { navIcons, type NavIconName, IdIcon, PasswordIcon, CheckCircleIcon } from './icons';
