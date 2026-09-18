@@ -12,7 +12,13 @@ export {
   useReceiveSavings,
   useTerminateSavings,
 } from './model/useSavingsMutations';
-export { daysUntilMaturity } from './lib/summary';
+export {
+  daysUntilMaturity,
+  ongoingSavingsAccounts,
+  previewSavingsAccounts,
+  savingsMaturityMarker,
+} from './lib/summary';
+export { savingsProductImage } from './lib/savingsAssets';
 export {
   buildSavingsCards,
   estimateReturn,
@@ -25,6 +31,11 @@ export { SavingsIntroBanner } from './ui/SavingsIntroBanner';
 export { SavingsProductCard } from './ui/SavingsProductCard';
 export { SavingsProductDetail } from './ui/SavingsProductDetail';
 export { SavingsTransactionCard } from './ui/SavingsTransactionCard';
+export type {
+  SavingsAccountPreviewItem,
+  SavingsAccountsPreview,
+  SavingsMaturityMarker,
+} from './lib/summary';
 export type {
   SavingsProductType,
   ContributionStyle,
