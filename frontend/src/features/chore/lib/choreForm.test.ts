@@ -99,19 +99,59 @@ describe('toCreateBody', () => {
 
 describe('toUpdateBody', () => {
   it('안 바꾼 필드는 담지 않는다', () => {
-    expect(toUpdateBody(form(), form())).toEqual({});
+    expect(toUpdateBody(form(), form(), TODAY)).toEqual({});
   });
 
   it('바꾼 필드만 담는다', () => {
-    expect(toUpdateBody(form({ title: '방 청소' }), form())).toEqual({ title: '방 청소' });
+    expect(toUpdateBody(form({ title: '방 청소' }), form(), TODAY)).toEqual({ title: '방 청소' });
   });
 
   it('보상은 따로 넘길 때만 담는다', () => {
-    expect(toUpdateBody(form(), form(), 300)).toEqual({ rewardPoints: 300 });
+    expect(toUpdateBody(form(), form(), TODAY, 300)).toEqual({ rewardPoints: 300 });
   });
 
   it('담당 아이는 절대 담지 않는다', () => {
     // 서버가 받지 않는다. 담당을 옮기면 쌓인 완료 이력이 누구 것인지 모호해진다.
-    expect(toUpdateBody(form({ childId: 99 }), form())).not.toHaveProperty('childId');
+    expect(toUpdateBody(form({ childId: 99 }), form(), TODAY)).not.toHaveProperty('childId');
+  });
+
+  describe('반복 → 일회성', () => {
+    const repeating = form({ repeatType: 'DAY' });
+
+    it('날짜를 건드리지 않아도 시작일·종료일을 함께 보낸다', () => {
+      // 서버는 일회성으로 바뀔 때 기간을 추론하지 않고, 둘 중 하나라도 비면 400 이다.
+      // "바뀐 필드만" 규칙을 그대로 따르면 수정이 항상 실패했다.
+      expect(toUpdateBody(form({ repeatType: 'ONCE' }), repeating, TODAY)).toEqual({
+        repeatType: 'ONCE',
+        startDate: TODAY,
+        endDate: '2026-09-20',
+      });
+    });
+
+    it('날짜까지 바꿨으면 바꾼 날짜로 보낸다', () => {
+      expect(
+        toUpdateBody(form({ repeatType: 'ONCE', endDate: '2026-09-30' }), repeating, TODAY),
+      ).toEqual({
+        repeatType: 'ONCE',
+        startDate: TODAY,
+        endDate: '2026-09-30',
+      });
+    });
+  });
+
+  describe('일회성 → 반복', () => {
+    it('기간을 보내지 않는다 - 서버가 오늘 기준으로 직접 계산한다', () => {
+      expect(toUpdateBody(form({ repeatType: 'WEEK' }), form(), TODAY)).toEqual({
+        repeatType: 'WEEK',
+      });
+    });
+  });
+
+  describe('일회성 유지', () => {
+    it('종료일을 바꿨을 때만 담고, 시작일은 건드리지 않는다', () => {
+      expect(toUpdateBody(form({ endDate: '2026-09-25' }), form(), TODAY)).toEqual({
+        endDate: '2026-09-25',
+      });
+    });
   });
 });
