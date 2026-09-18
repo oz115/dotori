@@ -44,8 +44,14 @@ export function scalePoints(
   height: number,
   inset = 0,
 ): ChartPoint[] {
-  if (values.length < 2) {
+  if (values.length === 0) {
     return [];
+  }
+  if (values.length === 1) {
+    // 점이 하나뿐이면 선을 그릴 기준(step)이 없다 — 마지막 값이 늘 오른쪽 끝에 오는
+    // 다중 포인트 배치와 맞춰, 오른쪽 끝에 점 하나만 찍는다 (호출 쪽이 점 하나일 땐
+    // 선·영역 없이 점만 그린다).
+    return [{ x: round1(width), y: scaleY(values[0], domainMin, domainMax, height, inset) }];
   }
   const stepX = width / (values.length - 1);
   return values.map((value, index) => ({
