@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   buildSavingsCards,
   estimateReturn,
   savingsGroupOf,
 } from '@/features/savings/lib/savingsView';
-import { savingsProductImage } from '@/features/savings/lib/savingsAssets';
 import { useSavingsExpectedReturn } from '@/features/savings/model/useSavingsExpectedReturn';
 import { useSavingsProduct } from '@/features/savings/model/useSavingsProduct';
 import {
@@ -25,6 +24,7 @@ import type {
 import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
+import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
 import { Button, Header, Input, ProgressBar, Screen } from '@/shared/ui';
 
 type Props = {
@@ -102,48 +102,7 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
           gap: theme.space.lg,
         }}
       >
-        {/* 상단 배너 — 연녹색 카드에 아이콘·분류 배지·상품명·설명 (Figma) */}
-        <View
-          style={[
-            styles.hero,
-            {
-              backgroundColor: theme.color.brand.subtle,
-              borderRadius: theme.radius.xl,
-              padding: theme.space['2xl'],
-              gap: theme.space.md,
-            },
-          ]}
-        >
-          <Image
-            source={savingsProductImage(product.data.productType)}
-            style={styles.heroIcon}
-            resizeMode="contain"
-          />
-          <View
-            style={[
-              styles.heroBadge,
-              { backgroundColor: theme.color.brand.solid, borderRadius: theme.radius.full },
-            ]}
-          >
-            <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-              {groupLabel}
-            </Text>
-          </View>
-          <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>
-            {product.data.name}
-          </Text>
-          {product.data.description ? (
-            <Text
-              style={[
-                theme.typography.bodySm,
-                styles.heroDescription,
-                { color: theme.color.text.sub },
-              ]}
-            >
-              {product.data.description}
-            </Text>
-          ) : null}
-        </View>
+        <SavingsProductHero product={product.data} />
 
         {subscription != null ? (
           <SubscribedSection
@@ -563,20 +522,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hero: {
-    alignItems: 'center',
-  },
-  heroIcon: {
-    width: 96,
-    height: 96,
-  },
-  heroBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  heroDescription: {
-    textAlign: 'center',
   },
   infoCard: {
     borderWidth: 1,
