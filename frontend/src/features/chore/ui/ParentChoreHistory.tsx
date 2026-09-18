@@ -30,7 +30,8 @@ type ParentChoreHistoryProps = {
  */
 export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryProps) {
   const theme = useTheme();
-  const { refreshing, onRefresh } = useChoreRefresh();
+  const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
+  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [childId, setChildId] = useState<string | null>(null);
   const { items, isPending, isError } = useChildrenCompletions(familyId, childList);
 

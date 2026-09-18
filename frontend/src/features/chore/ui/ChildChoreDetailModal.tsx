@@ -184,6 +184,30 @@ export function ChildChoreDetailModal({
                 </Text>
               ) : null}
 
+              {chore?.reason ? (
+                <View style={{ gap: theme.space.xs }}>
+                  <View style={[styles.metaRow, { gap: theme.space.xs }]}>
+                    <Ionicons name="sparkles" size={14} color={theme.color.brand.solid} />
+                    <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
+                      AI 산정 이유
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      theme.typography.bodySm,
+                      {
+                        backgroundColor: theme.color.background.surfaceSunken,
+                        borderRadius: theme.radius.md,
+                        padding: theme.space.md,
+                        color: theme.color.text.default,
+                      },
+                    ]}
+                  >
+                    {chore.reason}
+                  </Text>
+                </View>
+              ) : null}
+
               {status === 'DONE' ? (
                 <Text style={[theme.typography.body, { color: theme.color.brand.subtleText }]}>
                   이미 다 하고 도토리도 받았어요!
