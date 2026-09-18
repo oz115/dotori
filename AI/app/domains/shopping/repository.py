@@ -78,8 +78,8 @@ def load_context(session: Session, store_product_id: int) -> ProductContext | No
     )
 
 
-def save_valuation(session: Session, store_product_id: int, value, price: int) -> bool:
-    """`value` 와 `price` 를 쓴다. 실제로 쓰였으면 True. 커밋은 호출자가 한다.
+def save_valuation(session: Session, store_product_id: int, value, price: int, reason: str) -> bool:
+    """`value`·`price`·`reason` 을 쓴다. 실제로 쓰였으면 True. 커밋은 호출자가 한다.
 
     `AND value IS NULL` 가드가 중복 배달을 무해하게 만든다. 조회와 쓰기 사이에 LLM 호출이
     끼어 두 단계가 원자적이지 않은데, 이 가드가 그 틈을 막는다.
@@ -88,7 +88,7 @@ def save_valuation(session: Session, store_product_id: int, value, price: int) -
     **`rowcount == 0` 은 에러가 아니다.** 중복 배달이거나 산정 중 삭제된 것이므로 정상
     종료로 본다. 에러로 올리면 멀쩡한 메시지가 재시도를 돈다.
 
-    `updated_at` 은 건드리지 않는다. 합의된 쓰기 범위가 `value`·`price` 두 개다
+    `updated_at` 은 건드리지 않는다. 합의된 쓰기 범위가 `value`·`price`·`reason` 셋이다
     (`docs/db-boundary.md`). 트리거가 없어 이 행의 `updated_at` 이 갱신되지 않는 점은 상점
     도메인 담당자와 정리할 항목으로 남아 있다.
     """
@@ -99,7 +99,7 @@ def save_valuation(session: Session, store_product_id: int, value, price: int) -
             StoreProduct.value.is_(None),
             StoreProduct.deleted_at.is_(None),
         )
-        .values(value=value, price=price)
+        .values(value=value, price=price, reason=reason)
     )
     if result.rowcount == 0:
         logger.info("event=skipped cause=lost_race store_product_id=%s", store_product_id)
