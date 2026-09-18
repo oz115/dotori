@@ -26,6 +26,20 @@ export function difficultyLabel(difficulty: ChoreDifficulty): string {
   return DIFFICULTY_LABEL[difficulty];
 }
 
+/**
+ * 마감일 문구. `'2026-09-20'` → `'9월 20일까지'`.
+ *
+ * 반복 미션에는 쓰지 않는다 - 주기가 돌아오면 endDate 가 다음 기간으로 밀려서, 지금
+ * 보이는 날짜가 "언제까지"를 뜻하지 않는다. 한번짜리만 그 날짜가 진짜 마감이다.
+ *
+ * 서버 endDate 는 날짜(LocalDate)라 시각이 없다. 없는 시각을 지어내면 아이가 그 시각까지
+ * 라고 믿으므로 날짜만 쓴다 (ParentChoreDetail 의 formatDate 와 같은 이유).
+ */
+export function deadlineLabel(endDate: string): string {
+  const [, month, day] = endDate.split('-');
+  return `${Number(month)}월 ${Number(day)}일까지`;
+}
+
 /** 필터·선택지 순서. '전체'는 칩 컴포넌트가 앞에 붙인다 */
 export const REPEAT_TYPES: ChoreRepeatType[] = ['ONCE', 'DAY', 'WEEK', 'MONTH'];
 export const DIFFICULTIES: ChoreDifficulty[] = ['EASY', 'NORMAL', 'HARD'];
