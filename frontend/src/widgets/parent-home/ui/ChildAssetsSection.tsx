@@ -1,11 +1,12 @@
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import {
-  previewHoldingNames,
+  previewHoldings,
   signedPoints,
   summarizeHoldings,
   useInvestmentHoldings,
   type Holding,
+  type HoldingPreviewItem,
 } from '@/features/investment';
 import { daysUntilMaturity, useSavingsSummary, type SavingsSummary } from '@/features/savings';
 import { formatPoint } from '@/shared/lib/money';
@@ -254,7 +255,7 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
     return <CardNotice text="아직 투자한 종목이 없어요" />;
   }
 
-  const preview = previewHoldingNames(holdings);
+  const preview = previewHoldings(holdings);
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -262,18 +263,19 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
         {holdings.length}개 보유 중
       </Text>
 
+      {/* 아이콘이 28px 이라 줄 사이는 xs 로 좁혀 둔다 — 종목들이 한 덩어리로 읽힌다 */}
       <View style={{ gap: theme.space.xs }}>
-        {preview.names.map((name) => (
-          <Text
-            key={name}
-            style={[theme.typography.caption, { color: theme.color.text.sub }]}
-            numberOfLines={1}
-          >
-            {name}
-          </Text>
+        {preview.items.map((item) => (
+          <HoldingPreviewRow key={item.id} item={item} />
         ))}
         {preview.restCount > 0 ? (
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+          <Text
+            style={[
+              theme.typography.caption,
+              // 아이콘 폭 + 간격만큼 들여써서 위 종목 이름들과 왼쪽을 맞춘다
+              { color: theme.color.text.muted, marginLeft: HOLDING_ICON_SIZE + theme.space.sm },
+            ]}
+          >
             외 {preview.restCount}개
           </Text>
         ) : null}
@@ -281,6 +283,44 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
     </View>
   );
 }
+
+/**
+ * 투자 카드의 종목 한 줄 — 회사 아이콘과 이름.
+ *
+ * 키를 이름이 아니라 종목 id 로 잡는다. 이름은 서버 값이라 같은 이름이 둘 올 가능성을
+ * 배제할 수 없고, 그때 React 가 한 줄을 건너뛴다.
+ */
+function HoldingPreviewRow({ item }: { item: HoldingPreviewItem }) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.holdingRow, { gap: theme.space.sm }]}>
+      {/* 아이콘 원본이 흰 배경이라 배경색 없이 둥근 모서리로만 자른다 (HoldingCard 와 같은 처리) */}
+      <Image source={item.image} style={styles.holdingIcon} resizeMode="cover" />
+      <Text
+        style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
+        numberOfLines={1}
+      >
+        {item.name}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * 종목 줄의 아이콘 크기. caption 글자 높이(16)보다 크게 잡아 회사가 먼저 눈에 들어오게 한다 —
+ * 줄 높이가 아이콘에 끌려 늘어나는 것을 받아들인 값이다.
+ *
+ * 카드는 minHeight 240 에 space-between 이라 이 정도는 흡수한다. 더 키우려면 이 상수만
+ * 만지면 된다.
+ */
+const HOLDING_ICON_SIZE = 28;
+
+/**
+ * 종목 아이콘의 모서리. radius 토큰(8, 12 …)은 이 크기에 주면 너무 둥글다.
+ * HoldingCard 의 비율(52px 에 12)을 그대로 옮긴 값이라 토큰을 쓰지 않고 직접 적는다.
+ */
+const HOLDING_ICON_RADIUS = 6;
 
 function SectionIcon({ source }: { source: ImageSourcePropType }) {
   return <Image source={source} style={styles.iconImage} resizeMode="contain" />;
@@ -296,4 +336,10 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', alignItems: 'center' },
   badge: { paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' },
   iconImage: { width: 40, height: 40 },
+  holdingRow: { flexDirection: 'row', alignItems: 'center' },
+  holdingIcon: {
+    width: HOLDING_ICON_SIZE,
+    height: HOLDING_ICON_SIZE,
+    borderRadius: HOLDING_ICON_RADIUS,
+  },
 });
