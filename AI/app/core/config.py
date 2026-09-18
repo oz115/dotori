@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     # GMS 가 여러 모델을 중계한다. 모델을 바꾸면 토큰 파라미터 이름이 달라질 수 있다 —
     # gpt-4o-mini / gpt-4.1-mini 는 `max_tokens`, gpt-5.x 는 `max_completion_tokens` 다.
     openai_model: str = "gpt-4o-mini"
+    # 이야기 구성과 여러 출력 규칙을 함께 지켜야 하는 금융 퀴즈 전용 모델이다.
+    quiz_openai_model: str = "gpt-5.4-mini"
 
     @property
     def database_url(self) -> str:
