@@ -13,7 +13,12 @@ import { useFamilyId, useFamilyMembers } from '@/features/family';
  * 수정·삭제 화면은 아직 없어서 콜백을 넘기지 않는다 - 그동안 헤더에 버튼이 뜨지 않는다.
  */
 export default function ParentChoreDetailScreen() {
-  const { choreId, childId } = useLocalSearchParams<{ choreId: string; childId: string }>();
+  const { choreId, childId, from } = useLocalSearchParams<{
+    choreId: string;
+    childId: string;
+    /** 'home' 이면 홈에서 곧장 들어온 것이다 */
+    from?: string;
+  }>();
   const { data: familyId } = useFamilyId();
   const { data: members } = useFamilyMembers(familyId ?? undefined);
 
@@ -28,6 +33,9 @@ export default function ParentChoreDetailScreen() {
       childId={Number(childId) || undefined}
       choreId={Number(choreId) || undefined}
       childName={childName}
+      // 홈에서 들어왔으면 되돌릴 자리가 미션 목록이 아니라 홈이다. 그냥 back 하면 이 탭에
+      // 목록이 깔려 있지 않아 어디로 갈지 알 수 없다 - 홈으로 명시해서 되돌린다.
+      onBack={from === 'home' ? () => router.replace('/(parent)/(tabs)') : undefined}
       onEdit={() =>
         router.push({
           pathname: '/task/[choreId]/edit',

@@ -28,7 +28,8 @@ const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
  */
 export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   const theme = useTheme();
-  const { refreshing, onRefresh } = useChoreRefresh();
+  const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
+  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
@@ -97,6 +98,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
             status={item.status}
+            endDate={item.endDate}
             onPress={() => setOpenChoreId(item.choreId)}
           />
         )}

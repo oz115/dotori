@@ -20,6 +20,13 @@ type ParentChoreDetailProps = {
   childName: string | undefined;
   /** 수정 화면으로 보내는 일은 라우트가 한다 (feature 가 경로를 알지 않도록) */
   onEdit?: () => void;
+  /**
+   * 뒤로가기 목적지. 안 넘기면 스택을 한 칸 되돌린다.
+   *
+   * 홈에서 곧장 들어온 경우처럼 되돌릴 자리가 목록이 아닐 때 라우트가 지정한다 - 어디서
+   * 왔는지는 라우트만 알고, 이 화면은 경로를 몰라야 한다.
+   */
+  onBack?: () => void;
 };
 
 const STATUS_LABEL: Record<TodayChoreStatus, string> = {
@@ -46,6 +53,7 @@ export function ParentChoreDetail({
   choreId,
   childName,
   onEdit,
+  onBack,
 }: ParentChoreDetailProps) {
   const theme = useTheme();
   const { data: chore, isPending, isError } = useChore(familyId, childId, choreId);
@@ -69,7 +77,7 @@ export function ParentChoreDetail({
     <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
       <Header
         title="미션 상세"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
+        onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/task')))}
       />
 
       {isPending ? (
@@ -127,6 +135,30 @@ export function ParentChoreDetail({
                 ]}
               >
                 {chore.description}
+              </Text>
+            </View>
+          ) : null}
+
+          {chore.reason ? (
+            <View style={{ gap: theme.space.sm }}>
+              <View style={[styles.titleRow, { gap: theme.space.sm }]}>
+                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
+                <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+                  AI 산정 이유
+                </Text>
+              </View>
+              <Text
+                style={[
+                  theme.typography.bodySm,
+                  {
+                    backgroundColor: theme.color.background.surfaceSunken,
+                    borderRadius: theme.radius.md,
+                    padding: theme.space.lg,
+                    color: theme.color.text.default,
+                  },
+                ]}
+              >
+                {chore.reason}
               </Text>
             </View>
           ) : null}

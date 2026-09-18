@@ -1,11 +1,12 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { buildSavingsCards } from '@/features/savings/lib/savingsView';
 import { useSavingsProducts } from '@/features/savings/model/useSavingsProducts';
 import { useSavingsSubscriptions } from '@/features/savings/model/useSavingsSubscriptions';
 import type { SavingsGroup } from '@/features/savings/model/types';
+import { SavingsGroupSegment, savingsGroupLabel } from '@/features/savings/ui/SavingsGroupSegment';
 import { SavingsIntroBanner } from '@/features/savings/ui/SavingsIntroBanner';
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { useTheme } from '@/shared/theme';
@@ -19,11 +20,6 @@ type Props = {
   /** 헤더 "거래 내역" 탭 시 이동 */
   onPressHistory?: () => void;
 };
-
-const GROUPS: { key: SavingsGroup; label: string }[] = [
-  { key: 'DEPOSIT', label: '예금' },
-  { key: 'INSTALLMENT', label: '적금' },
-];
 
 /**
  * 저축 탭 메인 (Figma: 예적금 메인). 예금/적금 세그먼트 → 안내 배너 →
@@ -51,7 +47,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
     return all.filter((card) => card.group === group && (!onlyMine || card.subscribed));
   }, [products.data, subscriptions.data, group, onlyMine]);
 
-  const groupLabel = group === 'DEPOSIT' ? '예금' : '적금';
+  const groupLabel = savingsGroupLabel(group);
   const isPending = products.isPending || subscriptions.isPending;
   const isError = products.isError || subscriptions.isError;
 
@@ -78,46 +74,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
           gap: theme.space.lg,
         }}
       >
-        {/* 예금 | 적금 세그먼트 — 상점 카드처럼 뚜렷한 테두리 + 그림자로 경계를 살린다 */}
-        <View
-          style={[
-            styles.segment,
-            theme.shadow.card,
-            {
-              backgroundColor: theme.color.background.surface,
-              borderColor: theme.color.border.default,
-              borderRadius: theme.radius.full,
-            },
-          ]}
-        >
-          {GROUPS.map(({ key, label }) => {
-            const active = key === group;
-            return (
-              <Pressable
-                key={key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setGroup(key)}
-                style={[
-                  styles.segmentItem,
-                  active && {
-                    backgroundColor: theme.color.brand.solid,
-                    borderRadius: theme.radius.full,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    theme.typography.label,
-                    { color: active ? theme.color.text.onBrand : theme.color.text.sub },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SavingsGroupSegment value={group} onChange={setGroup} />
 
         <View style={styles.filterRow}>
           <Checkbox
@@ -170,16 +127,6 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
 }
 
 const styles = StyleSheet.create({
-  segment: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    padding: 4,
-  },
-  segmentItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
   filterRow: {
     alignItems: 'flex-end',
   },

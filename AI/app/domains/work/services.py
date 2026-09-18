@@ -19,8 +19,8 @@ difficulty 밴드가 이 도메인의 핵심이다. 부모가 고른 난이도(E
 
 `evaluate_chore()` 는 DB 없이 AI 호출·계산만 한다. `reward_chore()` 가 조회부터 저장까지다.
 
-**폴백이 없다.** LLM 실패나 파싱 실패면 None 을 돌려주고 로그를 남긴다. 근거(reason)는 담을
-컬럼이 없어 저장하지 않는다 (`docs/db-boundary.md`). 로그와 API 응답에만 실린다.
+**폴백이 없다.** LLM 실패나 파싱 실패면 None 을 돌려주고 로그를 남긴다. 근거(reason)는
+`chores.reason` 에 저장한다 (`docs/db-boundary.md`, 컬럼 추가로 해결됨).
 """
 
 import json
@@ -150,7 +150,7 @@ def reward_chore(session: Session, chore_id: int) -> Reward | None:
     if reward is None:
         return None
 
-    if not save_reward(session, chore_id, reward.value, reward.reward_points):
+    if not save_reward(session, chore_id, reward.value, reward.reward_points, reward.reason):
         return None
     session.commit()
 

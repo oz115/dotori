@@ -45,7 +45,12 @@ def ten_companies(db_session):
             name=f"회사{i}",
             description="설명",
             category="STOCK",
-            news_context="대표 경제 요인: 테스트\n상승 예시: 좋아졌어요.\n하락 예시: 나빠졌어요.",
+            news_context=(
+                "대표 경제 요인: 원자재 가격\n"
+                "회사에 유리한 변화: 원자재 가격 하락\n"
+                "회사에 불리한 변화: 원자재 가격 상승\n"
+                "뉴스 소재: 생산량, 수입량, 재고량"
+            ),
             current_price=10000,
             is_active=True,
         )

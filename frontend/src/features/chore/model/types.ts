@@ -60,6 +60,8 @@ export type ChoreDetail = {
   value: number | null;
   /** AI 산정 전이면 null (= 보상 산정 중) */
   rewardPoints: number | null;
+  /** AI 가 value·rewardPoints 와 함께 산정하는 근거 문구. 산정 전이면 null */
+  reason: string | null;
   repeatType: ChoreRepeatType;
   startDate: string;
   endDate: string;

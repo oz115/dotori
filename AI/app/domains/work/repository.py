@@ -76,8 +76,8 @@ def load_context(session: Session, chore_id: int) -> ChoreContext | None:
     )
 
 
-def save_reward(session: Session, chore_id: int, value, reward_points: int) -> bool:
-    """`value` 와 `reward_points` 를 쓴다. 실제로 쓰였으면 True. 커밋은 호출자가 한다.
+def save_reward(session: Session, chore_id: int, value, reward_points: int, reason: str) -> bool:
+    """`value`·`reward_points`·`reason` 을 쓴다. 실제로 쓰였으면 True. 커밋은 호출자가 한다.
 
     `AND value IS NULL` 가드가 중복 배달을 무해하게 만든다. 조회와 쓰기 사이에 LLM 호출이
     끼어 두 단계가 원자적이지 않은데, 이 가드가 그 틈을 막는다.
@@ -86,8 +86,8 @@ def save_reward(session: Session, chore_id: int, value, reward_points: int) -> b
     **`rowcount == 0` 은 에러가 아니다.** 중복 배달이거나 산정 중 삭제된 것이므로 정상
     종료로 본다.
 
-    `updated_at` 은 건드리지 않는다. 합의된 쓰기 범위가 `value`·`reward_points` 두 개다
-    (`docs/db-boundary.md`). 상점과 같은 미해결 항목 — 트리거가 없어 갱신되지 않는다.
+    `updated_at` 은 건드리지 않는다. 합의된 쓰기 범위가 `value`·`reward_points`·`reason`
+    셋이다 (`docs/db-boundary.md`). 상점과 같은 미해결 항목 — 트리거가 없어 갱신되지 않는다.
     """
     result = session.execute(
         update(Chore)
@@ -96,7 +96,7 @@ def save_reward(session: Session, chore_id: int, value, reward_points: int) -> b
             Chore.value.is_(None),
             Chore.deleted_at.is_(None),
         )
-        .values(value=value, reward_points=reward_points)
+        .values(value=value, reward_points=reward_points, reason=reason)
     )
     if result.rowcount == 0:
         logger.info("event=skipped cause=lost_race chore_id=%s", chore_id)

@@ -73,6 +73,8 @@ export type StoreProductDetail = {
   /** AI 가 산정하는 가치 가중치. 화면엔 안 쓰고 price 만 보여준다 */
   value: number | null;
   price: number | null;
+  /** AI 가 value·price 와 함께 산정하는 근거 문구. 산정 전이면 null */
+  reason: string | null;
   quantity: number;
   createdBy: number;
   createdAt: string;

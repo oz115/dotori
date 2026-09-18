@@ -11,8 +11,8 @@ export { TipBanner } from './ui/TipBanner';
 export { TradeButtons } from './ui/TradeButtons';
 export { TransactionCard } from './ui/TransactionCard';
 export { useInvestmentTransactions } from './model/useInvestmentTransactions';
-export { formatPoints, formatAcorns, formatNumber, signedAcorns } from './lib/format';
-export { summarizeHoldings } from './lib/holdings';
+export { formatPoints, formatAcorns, formatNumber, signedAcorns, signedPoints } from './lib/format';
+export { summarizeHoldings, previewHoldings } from './lib/holdings';
 export { summarizeInvestment } from './lib/mappers';
 export { useInvestmentProducts } from './model/useInvestmentProducts';
 export { useInvestmentNews } from './model/useInvestmentNews';
@@ -21,6 +21,7 @@ export { useInvestmentHoldings } from './model/useInvestmentHoldings';
 export { useStockDetail } from './model/useStockDetail';
 export { useBuyStock } from './model/useBuyStock';
 export { useSellStock } from './model/useSellStock';
+export type { HoldingsPreview, HoldingPreviewItem } from './lib/holdings';
 export type {
   InvestmentSummary,
   InvestmentNews,
