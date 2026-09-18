@@ -122,7 +122,7 @@ function EditBody({
     if (Object.keys(nextErrors).length > 0 || nextRewardError) return;
 
     const changedReward = parsedReward !== chore.rewardPoints ? parsedReward : undefined;
-    const body = toUpdateBody(form, initial, changedReward);
+    const body = toUpdateBody(form, initial, today, changedReward);
 
     if (Object.keys(body).length === 0) {
       router.back();

@@ -97,10 +97,16 @@ export function toCreateBody(input: ChoreFormInput, today: string): ChoreCreateB
  *
  * 담당 아이는 넣지 않는다 - 서버가 받지 않는다. 옮기면 이미 쌓인 완료 이력이 누구 것인지
  * 모호해지기 때문이다.
+ *
+ * 예외가 하나 있다. **반복에서 일회성으로 바꿀 때는 기간을 반드시 함께 보낸다.** 서버는
+ * 반복으로 바뀔 때만 기간을 스스로 계산하고(오늘 기준), 일회성으로 바뀔 때는 시작일·종료일이
+ * 둘 다 없으면 INVALID_REQUEST 로 막는다. 바뀐 필드만 담는 규칙을 그대로 따르면 날짜를
+ * 건드리지 않은 경우 아무것도 안 실려 수정이 항상 실패한다.
  */
 export function toUpdateBody(
   input: ChoreFormInput,
   initial: ChoreFormInput,
+  today: string,
   rewardPoints?: number,
 ): ChoreUpdateBody {
   const body: ChoreUpdateBody = {};
@@ -112,9 +118,19 @@ export function toUpdateBody(
   if (description !== initialDescription) body.description = description;
   if (input.difficulty !== initial.difficulty) body.difficulty = input.difficulty;
   if (input.repeatType !== initial.repeatType) body.repeatType = input.repeatType;
-  if (!isRepeating(input.repeatType) && input.endDate !== initial.endDate && input.endDate) {
-    body.endDate = input.endDate;
+
+  if (!isRepeating(input.repeatType) && input.endDate) {
+    const becameOnce = input.repeatType !== initial.repeatType;
+    if (becameOnce) {
+      // 시작일은 등록 때와 같게 오늘로 둔다 ("오늘부터 그날까지"). 반복이던 시절의 시작일을
+      // 그대로 쓰면 크론이 밀어 둔 지난 주기의 날짜가 마감처럼 남는다.
+      body.startDate = today;
+      body.endDate = input.endDate;
+    } else if (input.endDate !== initial.endDate) {
+      body.endDate = input.endDate;
+    }
   }
+
   if (rewardPoints != null) body.rewardPoints = rewardPoints;
 
   return body;
