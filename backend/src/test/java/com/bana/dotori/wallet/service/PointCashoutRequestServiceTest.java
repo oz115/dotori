@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.Optional;
 
@@ -78,6 +79,21 @@ class PointCashoutRequestServiceTest {
 		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.PENDING);
 		assertThat(result.parentId()).isEqualTo(PARENT_ID);
 		assertThat(result.pointAmount()).isEqualTo(1_000);
+	}
+
+	@Test
+	@DisplayName("부모 계좌 잔고를 넘는 금액이라도 요청 자체는 접수된다")
+	void 부모_잔고를_넘어도_요청은_접수된다() {
+		given(familyMembershipReader.isChildOfFamily(FAMILY_ID, CHILD_ID)).willReturn(true);
+		given(familyMembershipReader.findParentUserId(FAMILY_ID)).willReturn(PARENT_ID);
+
+		PointCashoutRequestResult result = pointCashoutRequestService.request(
+				FAMILY_ID, CHILD_ID, 100_000_000, KEY);
+
+		// 요청 시점에는 계좌를 아예 보지 않는다. 부모 잔고가 얼마든 PENDING 으로 접수되고,
+		// 잔고가 모자란 것은 부모가 승인을 누를 때 드러난다(그때 환급 + FAILED).
+		assertThat(result.status()).isEqualTo(PointCashoutRequestStatus.PENDING);
+		verifyNoInteractions(bankTransferClient);
 	}
 
 	@Test

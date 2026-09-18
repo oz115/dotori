@@ -32,6 +32,7 @@ export function ParentHome() {
   // '/task', '/save', '/investment', '/notifications' 는 부모·자녀 그룹 모두에 있는
   // 경로라 그룹까지 적어야 부모 쪽으로 간다
   const openChoreTab = () => router.push('/(parent)/(tabs)/task');
+  const openCashouts = () => router.push('/(parent)/wallet/cashouts');
   const openSaveTab = () => router.push('/(parent)/(tabs)/save');
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
 
@@ -58,7 +59,7 @@ export function ParentHome() {
           childId={childId}
           childName={childName}
           familyPending={familyPending}
-          onCashout={openChoreTab}
+          onCashout={openCashouts}
         />
 
         <AccountCard
@@ -74,7 +75,7 @@ export function ParentHome() {
           childId={childId}
           familyPending={familyPending}
           onOpenChores={openChoreTab}
-          onOpenCashouts={openChoreTab}
+          onOpenCashouts={openCashouts}
         />
 
         <ChildAssetsSection

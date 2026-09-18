@@ -40,12 +40,13 @@ describe('NewsDetailModal', () => {
     expect(screen.queryByText('확인')).toBeNull();
   });
 
-  it('뉴스 본문·관련 회사·영향 방향을 보여준다', async () => {
+  it('뉴스 본문과 관련 회사를 보여주되, 오를지/내릴지 방향은 알려주지 않는다', async () => {
     await renderWithQuery(<NewsDetailModal news={news} onClose={jest.fn()} />);
 
     expect(screen.getByText(content)).toBeTruthy();
     expect(screen.getByText('태수 마트')).toBeTruthy();
-    expect(screen.getByText('📉 내리는 뉴스')).toBeTruthy();
+    // 방향 배지는 뺐다 — 답을 미리 주면 아이가 스스로 판단할 게 없어진다
+    expect(screen.queryByText('📉 내리는 뉴스')).toBeNull();
   });
 
   it('본문이 없으면 상세 API 로 채운다', async () => {
@@ -64,14 +65,6 @@ describe('NewsDetailModal', () => {
 
     expect(await screen.findByText(content)).toBeTruthy();
     expect(jest.mocked(investmentApi.getNewsDetail)).toHaveBeenCalledWith(3);
-  });
-
-  it('오르는 뉴스는 상승 배지를 보여준다', async () => {
-    await renderWithQuery(
-      <NewsDetailModal news={{ ...news, impact: 'POSITIVE' }} onClose={jest.fn()} />,
-    );
-
-    expect(screen.getByText('📈 오르는 뉴스')).toBeTruthy();
   });
 
   it('확인 버튼을 누르면 onClose 가 호출된다', async () => {

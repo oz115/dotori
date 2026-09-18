@@ -32,9 +32,6 @@ export function NewsDetailModal({ news, onClose }: Props) {
   const contentText = detail.isError
     ? '소식을 불러오지 못했어요. 잠시 후 다시 열어 주세요.'
     : (content ?? '소식을 불러오는 중이에요…');
-  const rising = news.impact === 'POSITIVE';
-  const impactColors = rising ? theme.color.status.success : theme.color.status.danger;
-
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
@@ -54,6 +51,7 @@ export function NewsDetailModal({ news, onClose }: Props) {
             },
           ]}
         >
+          {/* 오르는/내리는 뉴스 배지는 뺐다 — 방향을 미리 알려주면 아이가 판단할 게 없어진다 */}
           <View style={styles.badgeRow}>
             <View
               style={[
@@ -63,16 +61,6 @@ export function NewsDetailModal({ news, onClose }: Props) {
             >
               <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
                 {news.tag}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: impactColors.subtle, borderRadius: theme.radius.full },
-              ]}
-            >
-              <Text style={[theme.typography.caption, { color: impactColors.text }]}>
-                {rising ? '📈 오르는 뉴스' : '📉 내리는 뉴스'}
               </Text>
             </View>
           </View>

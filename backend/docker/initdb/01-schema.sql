@@ -557,7 +557,8 @@ CREATE TABLE "investment_news" (
 /* category: 상품 이미지는 카테고리별로 S3에 준비되므로 카테고리만 저장한다.
    value: AI 서버가 비동기로 산정하는 상품 가치 가중치(아이 하루 소득 D의 배수).
           등록 직후에는 아직 산정 전이므로 NULL, price = value * D.
-   price: value 산정이 끝나야 계산할 수 있으므로 NULL 허용(NULL = 가격 산정 중). */
+   price: value 산정이 끝나야 계산할 수 있으므로 NULL 허용(NULL = 가격 산정 중).
+   reason: AI가 value·price와 함께 산정하는 근거 문구. 산정 전에는 NULL. */
 CREATE TABLE "store_products" (
     "store_product_id"      SERIAL      NOT NULL,
     "family_id"             INTEGER     NOT NULL,
@@ -567,6 +568,7 @@ CREATE TABLE "store_products" (
     "category"              store_products_category NOT NULL,
     "value"                 NUMERIC(10, 2) NULL,
     "price"                 INTEGER     NULL,
+    "reason"                TEXT        NULL,
     "quantity"              INTEGER     DEFAULT 0 NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -654,6 +656,7 @@ CREATE TABLE "point_wallets" (
           등록 직후에는 아직 산정 전이므로 NULL, reward_points = value * B.
    reward_points: value 산정이 끝나야 계산할 수 있으므로 NULL 허용(NULL = 보상 산정 중).
                   승인 시점의 이 값을 지급한다. 요청 시점 값을 따로 스냅샷하지 않는다.
+   reason: AI가 value·reward_points와 함께 산정하는 근거 문구. 산정 전에는 NULL.
    deleted_at: 집안일 소프트 삭제. 완료 이력이 chore_id 를 참조하므로 행을 지우면
                이미 지급한 보상의 근거가 사라진다.
                목록에서는 빠지지만 상세 조회와 대기 중인 완료 요청 처리는 계속 된다.
@@ -671,6 +674,7 @@ CREATE TABLE "chores" (
     "difficulty"            task_difficulty NOT NULL,
     "value"                 NUMERIC(10, 2) NULL,
     "reward_points"         INTEGER     NULL,
+    "reason"                TEXT        NULL,
     "repeat_type"           chores_repeat_type NOT NULL,
     "start_date"            DATE        DEFAULT CURRENT_DATE NOT NULL,
     "end_date"              DATE        NULL,

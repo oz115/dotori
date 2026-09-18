@@ -22,6 +22,17 @@ export function formatAcorns(amount: number): string {
   return `${thousands(amount)} 도토리`;
 }
 
+/** 부호 있는 포인트 표기 — `+500P`/`-200P`. 좁은 타일에서 "도토리" 단위가 안 들어갈 때 쓴다 */
+export function signedPoints(change: number): string {
+  if (change > 0) {
+    return `+${thousands(change)}P`;
+  }
+  if (change < 0) {
+    return `-${thousands(change)}P`;
+  }
+  return '0P';
+}
+
 export function signedAcorns(change: number): string {
   if (change > 0) {
     return `+${thousands(change)} 도토리`;

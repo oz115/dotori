@@ -5,9 +5,8 @@ import { reviewCompletionErrorMessage } from '@/features/chore/lib/choreError';
 import { useApproveCompletion } from '@/features/chore/model/useApproveCompletion';
 import { useRejectCompletion } from '@/features/chore/model/useRejectCompletion';
 import type { ParentCompletionRequest } from '@/features/chore/model/useChildrenPendingRequests';
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
 import { useTheme } from '@/shared/theme';
-import { Button } from '@/shared/ui';
+import { Button, ChildBadge } from '@/shared/ui';
 
 type CompletionRequestModalProps = {
   familyId: number | undefined;

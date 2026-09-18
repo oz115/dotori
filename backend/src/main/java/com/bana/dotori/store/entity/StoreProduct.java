@@ -59,6 +59,10 @@ public class StoreProduct {
 	@Column(name = "price")
 	private Integer price;
 
+	/** AI 가 value·price 와 함께 산정하는 근거 문구. 산정 전에는 null. */
+	@Column(name = "reason")
+	private String reason;
+
 	@Column(name = "quantity", nullable = false)
 	private int quantity;
 
@@ -75,7 +79,7 @@ public class StoreProduct {
 
 	@Builder
 	private StoreProduct(Integer familyId, Integer createdBy, String name, String description,
-			StoreProductCategory category, BigDecimal value, Integer price, int quantity) {
+			StoreProductCategory category, BigDecimal value, Integer price, String reason, int quantity) {
 		this.familyId = familyId;
 		this.createdBy = createdBy;
 		this.name = name;
@@ -83,6 +87,7 @@ public class StoreProduct {
 		this.category = category;
 		this.value = value;
 		this.price = price;
+		this.reason = reason;
 		this.quantity = quantity;
 	}
 

@@ -6,13 +6,12 @@ import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/chor
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChildChoreDetailModal } from '@/features/chore/ui/ChildChoreDetailModal';
-import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { TodayProgressCard } from '@/features/chore/ui/TodayProgressCard';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type ChildChoreListProps = {
   familyId: number | undefined;
@@ -89,7 +88,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
               mascot={require('@/assets/images/chore/squirrel-win.png')}
             />
             <TodayProgressCard completed={completedCount} total={items.length} />
-            <ChoreFilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
           </View>
         }
         renderItem={({ item }) => (

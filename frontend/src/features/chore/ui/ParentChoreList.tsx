@@ -13,13 +13,11 @@ import {
   type ParentCompletionRequest,
 } from '@/features/chore/model/useChildrenPendingRequests';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
-import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { ChildBadge, ContentCard, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
 const PREVIEW_COUNT = 2;
@@ -106,7 +104,7 @@ export function ParentChoreList({
                 onSeeAll={onSeeAllRequests}
               />
             ) : null}
-            <ChoreFilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
           </View>
         }
         renderItem={({ item }) => (
