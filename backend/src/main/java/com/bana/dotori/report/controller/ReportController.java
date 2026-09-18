@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.report.dto.response.AssetReportResponse;
 import com.bana.dotori.report.dto.response.PointIncomeReportResponse;
 import com.bana.dotori.report.dto.response.PointSpendingReportResponse;
+import com.bana.dotori.report.service.AssetReportService;
 import com.bana.dotori.report.service.PointReportService;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 
@@ -32,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class ReportController {
 
 	private final PointReportService pointReportService;
+	private final AssetReportService assetReportService;
 
 	/**
 	 * RPT-02 포인트 수입 통계 조회.
@@ -77,5 +80,23 @@ public class ReportController {
 
 		return pointReportService.getSpendingReport(
 				familyId, childId, loginUserId, startDate, endDate);
+	}
+
+	/**
+	 * RPT-04 자산 현황 조회.
+	 *
+	 * <p>기간 파라미터가 없다. 수입·소비 통계와 달리 "지금 얼마 가지고 있나"를 보는
+	 * 스냅샷이라 기간이라는 개념이 없다.
+	 *
+	 * <p>포인트·예적금·투자를 한 번에 모아 내보낸다. 화면이 세 API 를 따로 부르면 그 사이에
+	 * 거래가 끼어들어 총액과 항목별 값이 어긋날 수 있다.
+	 */
+	@GetMapping("/assets")
+	public AssetReportResponse getAssetReport(
+			@AuthenticationPrincipal Integer loginUserId,
+			@PathVariable Integer familyId,
+			@PathVariable Integer childId) {
+
+		return assetReportService.getAssetReport(familyId, childId, loginUserId);
 	}
 }
