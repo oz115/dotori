@@ -74,7 +74,9 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
           gap: theme.space.lg,
         }}
       >
-        <SavingsGroupSegment value={group} onChange={setGroup} />
+        {/* 안내 배너가 맨 위다. 아이는 예금·적금이 무엇인지부터 알아야 고를 수 있어서,
+            "예금이란?" 을 읽고 나서 세그먼트를 만나는 순서로 둔다. */}
+        <SavingsIntroBanner group={group} />
 
         <View style={styles.filterRow}>
           <Checkbox
@@ -84,7 +86,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
           />
         </View>
 
-        <SavingsIntroBanner group={group} />
+        <SavingsGroupSegment value={group} onChange={setGroup} />
 
         {isPending ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>

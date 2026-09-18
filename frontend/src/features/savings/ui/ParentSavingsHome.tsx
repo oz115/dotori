@@ -84,9 +84,10 @@ export function ParentSavingsHome({
           gap: theme.space.lg,
         }}
       >
-        <SavingsGroupSegment value={group} onChange={setGroup} />
-
+        {/* 순서는 아이 화면(SavingsHome)과 같다 - 안내 배너를 읽고 나서 세그먼트를 만난다 */}
         <SavingsIntroBanner group={group} />
+
+        <SavingsGroupSegment value={group} onChange={setGroup} />
 
         {childId == null ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
