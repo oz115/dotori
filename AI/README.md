@@ -106,6 +106,7 @@ Spring 과 같은 DB·브로커라도 여기에 적는다. (모노레포로 함�
 | `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. **AI 서버만 GMS 를 호출한다**(Spring 은 안 씀). LLM 호출에 필요 |
 | `GMS_BASE` | | `https://gms.ssafy.io/gmsapi` | GMS 게이트웨이 주소 |
 | `OPENAI_MODEL` | | `gpt-4o-mini` | GMS 가 중계하는 모델 이름 |
+| `QUIZ_OPENAI_MODEL` | | `gpt-5.4-mini` | 금융 퀴즈 생성 전용 모델 이름 |
 | `LOG_LEVEL` | | `INFO` | `app.*` 로거 레벨 |
 | `STORE_PRICING_CONSUMER_ENABLED` | | `true` | `false` 면 큐를 구독하지 않는다 |
 

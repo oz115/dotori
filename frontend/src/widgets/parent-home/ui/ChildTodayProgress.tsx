@@ -45,11 +45,12 @@ export function ChildTodayProgress({
 }: ChildTodayProgressProps) {
   const theme = useTheme();
   const { items, isPending, isError } = useTodayChores(familyId, childId);
+  const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
 
   // 홈으로 돌아올 때마다 미션 캐시를 턴다. 보상은 등록 직후가 아니라 AI 가 산정한 뒤에
   // 채워지는데, 탭 화면은 전환해도 언마운트되지 않고 staleTime 이 60초라 다시 와도
   // "산정 중"이 그대로 남아 있었다. 미션 탭은 이미 같은 훅을 쓴다.
-  useChoreRefresh();
+  useChoreRefresh(familyId, childIds);
 
   // 아이가 없으면 useTodayChores 가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다

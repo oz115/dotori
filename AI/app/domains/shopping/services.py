@@ -19,8 +19,8 @@ AI 는 `value`(아이 하루 소득의 배수)만 답하고 `price = value * 하
 실패가 조용히 묻혀 프롬프트를 언제 고칠지 알 수 없다. 대신 `value`/`price` 가 NULL 로 남아
 구매가 `PRICE_NOT_EVALUATED` 로 막힌다.
 
-근거 문구(`reason`)는 담을 컬럼이 없어 저장하지 않는다 (`docs/db-boundary.md` 협의 3번).
-로그와 API 응답에만 실린다. 실험 기록은 노션 「소비 측면 > 실험 기록」 에 있다.
+근거 문구(`reason`)는 `store_products.reason` 에 저장한다 (`docs/db-boundary.md` 협의 3번,
+컬럼 추가로 해결됨). 실험 기록은 노션 「소비 측면 > 실험 기록」 에 있다.
 """
 
 import json
@@ -154,7 +154,7 @@ def price_product(session: Session, store_product_id: int) -> Valuation | None:
     if valuation is None:
         return None
 
-    if not save_valuation(session, store_product_id, valuation.value, valuation.price):
+    if not save_valuation(session, store_product_id, valuation.value, valuation.price, valuation.reason):
         return None
     session.commit()
 

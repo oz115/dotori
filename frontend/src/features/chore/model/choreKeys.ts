@@ -19,7 +19,12 @@ export const choreKeys = {
     status == null
       ? ([...choreKeys.all, 'completionRequests', familyId, childId] as const)
       : ([...choreKeys.all, 'completionRequests', familyId, childId, status] as const),
-  /** 기간별 완료 내역 */
-  completions: (familyId: number, childId: number, startDate: string, endDate: string) =>
-    [...choreKeys.all, 'completions', familyId, childId, startDate, endDate] as const,
+  /**
+   * 기간별 완료 내역. 날짜를 빼면(무효화용) 이 자녀의 완료 내역 전체를 가리키는 접두사가 된다
+   * (completionRequests 와 같은 이유).
+   */
+  completions: (familyId: number, childId: number, startDate?: string, endDate?: string) =>
+    startDate == null || endDate == null
+      ? ([...choreKeys.all, 'completions', familyId, childId] as const)
+      : ([...choreKeys.all, 'completions', familyId, childId, startDate, endDate] as const),
 };

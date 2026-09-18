@@ -122,7 +122,10 @@ public enum ErrorCode {
 	SAVINGS_SUBSCRIPTION_NOT_ACTIVE(HttpStatus.CONFLICT, "진행 중인 예적금이 아닙니다"),
 	SAVINGS_CONTRIBUTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "추가 납입할 수 없는 상품입니다"),
 	SAVINGS_INVALID_CONTRIBUTION_AMOUNT(HttpStatus.BAD_REQUEST, "납입 금액이 올바르지 않습니다"),
-	SAVINGS_NOT_MATURED(HttpStatus.CONFLICT, "아직 만기가 되지 않았습니다");
+	SAVINGS_NOT_MATURED(HttpStatus.CONFLICT, "아직 만기가 되지 않았습니다"),
+
+	// 리포트 (RPT)
+	REPORT_PERIOD_TOO_LONG(HttpStatus.BAD_REQUEST, "한 번에 조회할 수 있는 기간을 초과했습니다");
 
 	private final HttpStatus status;
 	private final String message;

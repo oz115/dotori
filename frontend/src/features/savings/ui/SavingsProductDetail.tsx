@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { savingsProductName } from '@/features/savings/lib/savingsAssets';
 import {
   buildSavingsCards,
   estimateReturn,
   savingsGroupOf,
 } from '@/features/savings/lib/savingsView';
-import { savingsProductImage } from '@/features/savings/lib/savingsAssets';
 import { useSavingsExpectedReturn } from '@/features/savings/model/useSavingsExpectedReturn';
 import { useSavingsProduct } from '@/features/savings/model/useSavingsProduct';
 import {
@@ -25,6 +25,7 @@ import type {
 import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
+import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
 import { Button, Header, Input, ProgressBar, Screen } from '@/shared/ui';
 
 type Props = {
@@ -103,48 +104,7 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
           gap: theme.space.lg,
         }}
       >
-        {/* 상단 배너 — 연녹색 카드에 아이콘·분류 배지·상품명·설명 (Figma) */}
-        <View
-          style={[
-            styles.hero,
-            {
-              backgroundColor: theme.color.brand.subtle,
-              borderRadius: theme.radius.xl,
-              padding: theme.space['2xl'],
-              gap: theme.space.md,
-            },
-          ]}
-        >
-          <Image
-            source={savingsProductImage(product.data.productType)}
-            style={styles.heroIcon}
-            resizeMode="contain"
-          />
-          <View
-            style={[
-              styles.heroBadge,
-              { backgroundColor: theme.color.brand.solid, borderRadius: theme.radius.full },
-            ]}
-          >
-            <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-              {groupLabel}
-            </Text>
-          </View>
-          <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>
-            {product.data.name}
-          </Text>
-          {product.data.description ? (
-            <Text
-              style={[
-                theme.typography.bodySm,
-                styles.heroDescription,
-                { color: theme.color.text.sub },
-              ]}
-            >
-              {product.data.description}
-            </Text>
-          ) : null}
-        </View>
+        <SavingsProductHero product={product.data} />
 
         {subscription != null ? (
           <SubscribedSection
@@ -237,9 +197,18 @@ function SignupSection({
   const valid = amount > 0 && !tooBig;
   const preview = valid ? estimateReturn(product, amount) : null;
 
-  const specs: { label: string; value: string }[] = [];
+  // 최대로 넣었을 때 받는 도토리. 이자율(%)을 쓰지 않는 이유는 카드와 같다 - 초등학생에게
+  // "15%" 는 도토리를 몇 개 받는지 알려 주지 못하고, 상품끼리 비교도 되지 않는다.
+  // 기준 금액을 sub 로 붙여, 이 숫자가 "최대로 넣었을 때" 의 값임을 같은 줄에서 밝힌다.
+  const atMax = estimateReturn(product, product.maxAmount);
+
+  const specs: { label: string; value: string; sub?: string }[] = [];
   if (product.contributionStyle === 'FREE') {
-    specs.push({ label: '이자', value: `매주 ${product.interestRate}%` });
+    specs.push({
+      label: '매주 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `${formatPoint(product.maxAmount)} 저금했을 때`,
+    });
     specs.push({ label: '기간', value: '자유롭게' });
   } else {
     if (product.termWeeks != null) {
@@ -254,7 +223,11 @@ function SignupSection({
     if (product.installmentCount != null) {
       specs.push({ label: '납입 횟수', value: `매주 1번, 총 ${product.installmentCount}회` });
     }
-    specs.push({ label: '이자율', value: `${product.interestRate}%` });
+    specs.push({
+      label: '다 모으면 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `최대로 넣었을 때`,
+    });
   }
   specs.push({
     label: AMOUNT_LABELS[product.contributionStyle],
@@ -268,7 +241,7 @@ function SignupSection({
         : `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
     const warning =
       product.contributionStyle === 'FREE' ? '' : '\n중도에 해지하면 이자는 받을 수 없어요.';
-    Alert.alert(`${product.name} 가입`, summary + warning, [
+    Alert.alert(`${savingsProductName(product.productType)} 가입`, summary + warning, [
       { text: '아니요', style: 'cancel' },
       {
         text: '가입할래요',
@@ -293,7 +266,7 @@ function SignupSection({
       <InfoCard title="상품 정보">
         <View style={{ gap: theme.space.lg }}>
           {specs.map((row) => (
-            <InfoRow key={row.label} label={row.label} value={row.value} />
+            <InfoRow key={row.label} label={row.label} value={row.value} sub={row.sub} />
           ))}
         </View>
       </InfoCard>
@@ -565,20 +538,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hero: {
-    alignItems: 'center',
-  },
-  heroIcon: {
-    width: 96,
-    height: 96,
-  },
-  heroBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  heroDescription: {
-    textAlign: 'center',
   },
   infoCard: {
     borderWidth: 1,

@@ -34,7 +34,8 @@ export function ParentCompletionRequestList({
   onApproved,
 }: ParentCompletionRequestListProps) {
   const theme = useTheme();
-  const { refreshing, onRefresh } = useChoreRefresh();
+  const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
+  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [childId, setChildId] = useState<string | null>(null);
   const [openRequest, setOpenRequest] = useState<ParentCompletionRequest | null>(null);
 
