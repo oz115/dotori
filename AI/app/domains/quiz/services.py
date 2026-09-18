@@ -33,6 +33,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.models import Family
 from app.domains.quiz.models import FamilyMember, Quiz, User, Word
+from app.domains.quiz.prompt import build_quiz_messages
 from app.llm.client import get_client
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,46 @@ class GeneratedQuizItem:
     explanation: str | None
 
 
+def _quiz_response_format(words: list[Word]) -> dict:
+    """선택된 단어 수와 응답 필드를 고정하는 Structured Outputs 스키마다."""
+    word_ids = [word.word_id for word in words]
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "financial_quiz_batch",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "minItems": len(words),
+                        "maxItems": len(words),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "word_id": {"type": "integer", "enum": word_ids},
+                                "question": {"type": "string"},
+                                "correct_answer": {"type": "string"},
+                                "explanation": {"type": "string"},
+                            },
+                            "required": [
+                                "word_id",
+                                "question",
+                                "correct_answer",
+                                "explanation",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    }
+                },
+                "required": ["items"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
 def pick_words_for_tier(session: Session, tier: str, count: int = ITEMS_PER_TIER) -> list[Word]:
     """해당 티어의 `difficulty_level` 범위에서 무작위로 `count`개를 뽑는다."""
     levels = TIER_TO_DIFFICULTY[tier]
@@ -77,7 +118,16 @@ def pick_words_for_tier(session: Session, tier: str, count: int = ITEMS_PER_TIER
     return list(session.scalars(stmt))
 
 
-def _build_quiz_item(raw: dict, tier_by_word_id: dict[int, str]) -> GeneratedQuizItem:
+def _normalized_answer_text(value: str) -> str:
+    """정답 노출 비교를 위해 대소문자와 모든 공백을 제거한다."""
+    return "".join(value.split()).casefold()
+
+
+def _build_quiz_item(
+    raw: dict,
+    tier_by_word_id: dict[int, str],
+    word_by_id: dict[int, Word],
+) -> GeneratedQuizItem:
     """LLM 응답의 원소 하나를 검증해서 `GeneratedQuizItem` 으로 만든다.
 
     실패하면 `KeyError`/`ValueError` 를 올린다 — 호출부가 이 항목 하나만 건너뛴다.
@@ -87,6 +137,22 @@ def _build_quiz_item(raw: dict, tier_by_word_id: dict[int, str]) -> GeneratedQui
     question = raw["question"]
     correct_answer = raw["correct_answer"]
     explanation = raw.get("explanation")
+
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError(f"question 이 비었습니다 (word_id={word_id})")
+    if not question.rstrip().endswith("?"):
+        raise ValueError(f"question 이 물음표로 끝나지 않습니다 (word_id={word_id})")
+    if not isinstance(correct_answer, str) or not correct_answer.strip():
+        raise ValueError(f"correct_answer 가 비었습니다 (word_id={word_id})")
+    if explanation is not None and not isinstance(explanation, str):
+        raise ValueError(f"explanation 이 문자열이 아닙니다 (word_id={word_id})")
+
+    expected_answer = word_by_id[word_id].word.strip()
+    normalized_expected = _normalized_answer_text(expected_answer)
+    if correct_answer.strip() != expected_answer:
+        raise ValueError(f"correct_answer 가 입력 단어와 다릅니다 (word_id={word_id})")
+    if normalized_expected in _normalized_answer_text(question):
+        raise ValueError(f"question 에 정답 단어가 노출됐습니다 (word_id={word_id})")
 
     if len(correct_answer) > MAX_ANSWER_LENGTH:
         raise ValueError(f"correct_answer 가 {MAX_ANSWER_LENGTH}자를 넘습니다 (word_id={word_id})")
@@ -111,34 +177,21 @@ def generate_quiz_batch(words: list[Word], tier_by_word_id: dict[int, str]) -> l
     파싱)가 실패하면 이 함수 전체가 예외를 올린다 — 그건 9개 전부를 잃는 대신 상위에서
     막지 않고 그대로 드러낸다.
     """
+    if not words:
+        return []
+
     settings = get_settings()
     client = get_client()
-    word_lines = "\n".join(
-        f"- word_id={word.word_id}, 단어={word.word}, 뜻={word.description}, 난이도={word.difficulty_level}"
-        for word in words
-    )
+    word_by_id = {word.word_id: word for word in words}
     response = client.chat.completions.create(
-        model=settings.openai_model,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "너는 초등학생에게 경제 개념을 가르치는 퀴즈 출제자다. "
-                    "아래 목록의 경제 용어마다 하나씩, 그 용어를 소재로 한 짧은 가상 이야기와 "
-                    "이야기가 가리키는 용어를 맞히는 문제를 만든다. "
-                    "JSON 객체 하나로만 답한다: "
-                    '{"items": [{"word_id": 입력에 준 word_id 그대로, '
-                    '"question": "이야기와 질문을 합친 문장", '
-                    '"correct_answer": "정답 단어", '
-                    '"explanation": "정답 해설"}, ...]}. '
-                    "items 배열은 입력 단어 개수와 정확히 같은 수만큼 만든다. "
-                    f"correct_answer 는 {MAX_ANSWER_LENGTH}자, "
-                    f"explanation 은 {MAX_EXPLANATION_LENGTH}자를 넘지 않는다."
-                ),
-            },
-            {"role": "user", "content": word_lines},
-        ],
+        model=settings.quiz_openai_model,
+        response_format=_quiz_response_format(words),
+        messages=build_quiz_messages(
+            words,
+            tier_by_word_id,
+            MAX_ANSWER_LENGTH,
+            MAX_EXPLANATION_LENGTH,
+        ),
     )
     content = response.choices[0].message.content
     if content is None:
@@ -149,7 +202,7 @@ def generate_quiz_batch(words: list[Word], tier_by_word_id: dict[int, str]) -> l
     results: list[GeneratedQuizItem] = []
     for raw in items_raw:
         try:
-            results.append(_build_quiz_item(raw, tier_by_word_id))
+            results.append(_build_quiz_item(raw, tier_by_word_id, word_by_id))
         except (KeyError, ValueError):
             logger.exception("퀴즈 항목 하나를 건너뜁니다 (raw=%s)", raw)
     return results
