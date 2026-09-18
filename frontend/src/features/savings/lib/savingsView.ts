@@ -10,6 +10,7 @@ import type {
   SavingsTransactionResponse,
   SavingsTransactionType,
 } from '@/features/savings/model/types';
+import { parseServerDate } from '@/shared/lib/datetime';
 import { formatPoint } from '@/shared/lib/money';
 
 /**
@@ -37,16 +38,30 @@ export const SAVINGS_GROUP_FILTERS: { key: SavingsGroup; label: string }[] = [
   { key: 'INSTALLMENT', label: savingsGroupLabel('INSTALLMENT') },
 ];
 
-/** 만기까지 남은 날짜 (오늘 포함 올림). 이미 지났으면 0 */
+/**
+ * 만기까지 남은 날짜 (오늘 포함 올림). 이미 지났으면 0.
+ *
+ * 파싱할 수 없는 값도 0 이다 — 화면에 NaN 이 찍히는 것보다는 낫다.
+ * 서버가 마이크로초까지 보내므로 공용 파서를 거친다 (Hermes 는 그걸 Invalid Date 로 본다).
+ */
 export function daysUntil(iso: string, now: Date): number {
-  const diff = new Date(iso).getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+  const target = parseServerDate(iso);
+  if (target == null) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
 }
 
-/** 기간형 상품의 경과 진행률 (0~1) */
+/** 기간형 상품의 경과 진행률 (0~1). 시각을 못 읽으면 0 — 진행 바가 NaN 으로 사라지지 않게 한다 */
 function periodProgress(startedAt: string, maturityAt: string, now: Date): number {
-  const start = new Date(startedAt).getTime();
-  const end = new Date(maturityAt).getTime();
+  const startDate = parseServerDate(startedAt);
+  const endDate = parseServerDate(maturityAt);
+  if (startDate == null || endDate == null) {
+    return 0;
+  }
+
+  const start = startDate.getTime();
+  const end = endDate.getTime();
   if (end <= start) {
     return 1;
   }
