@@ -28,6 +28,8 @@ type ChildAssetsSectionProps = {
   familyPending: boolean;
   onOpenSavings: () => void;
   onOpenInvestment: () => void;
+  /** 제목 옆 "리포트" — 수입·소비 통계와 자산 현황 화면으로 보낸다 */
+  onOpenReport: () => void;
 };
 
 /**
@@ -42,12 +44,20 @@ export function ChildAssetsSection({
   familyPending,
   onOpenSavings,
   onOpenInvestment,
+  onOpenReport,
 }: ChildAssetsSectionProps) {
   const theme = useTheme();
 
   return (
     <View style={{ gap: theme.space.md }}>
-      <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>자녀 자산</Text>
+      <View style={styles.headerRow}>
+        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+          자녀 자산
+        </Text>
+        <Pressable onPress={onOpenReport} hitSlop={8} accessibilityRole="button">
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>리포트 ›</Text>
+        </Pressable>
+      </View>
 
       <View style={[styles.row, { gap: theme.space.md }]}>
         <SavingsCard
@@ -378,6 +388,7 @@ function SectionIcon({ source }: { source: ImageSourcePropType }) {
 }
 
 const styles = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   row: { flexDirection: 'row' },
   card: { flex: 1 },
   // flex:1 이 카드(Pressable)가 늘어난 만큼 안쪽 ContentCard도 따라 늘어나게 한다 —
