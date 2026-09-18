@@ -1,6 +1,9 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { savingsProductImage } from '@/features/savings/lib/savingsAssets';
+import {
+  savingsProductDescription,
+  savingsProductImage,
+} from '@/features/savings/lib/savingsAssets';
 import { savingsGroupOf } from '@/features/savings/lib/savingsView';
 import type { SavingsProductResponse } from '@/features/savings/model/types';
 import { savingsGroupLabel } from '@/features/savings/ui/SavingsGroupSegment';
@@ -48,13 +51,13 @@ export function SavingsProductHero({ product }: Props) {
         </Text>
       </View>
       <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>{product.name}</Text>
-      {product.description ? (
-        <Text
-          style={[theme.typography.bodySm, styles.heroDescription, { color: theme.color.text.sub }]}
-        >
-          {product.description}
-        </Text>
-      ) : null}
+      {/* 서버 description 대신 화면이 가진 문구를 쓴다 - 그 값은 기획용 학습 목표 메모라
+          아이가 읽을 문장이 아니다 (savingsAssets 의 PRODUCT_DESCRIPTIONS 주석 참고). */}
+      <Text
+        style={[theme.typography.bodySm, styles.heroDescription, { color: theme.color.text.sub }]}
+      >
+        {savingsProductDescription(product.productType)}
+      </Text>
     </View>
   );
 }
