@@ -4,6 +4,8 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/shared/theme';
 
 type ChoreHeroBannerProps = {
+  /** 제목 위 작은 라벨 한 줄 (선택). 넘기면 title이 더 크게(h3) 강조돼 나간다 */
+  eyebrow?: string;
   /** 굵게 나가는 본문. 줄바꿈은 부르는 쪽이 \n 으로 넣는다 */
   title: string;
   /** 제목 아래 한 줄 (보상 합계·설명 등) */
@@ -15,7 +17,8 @@ type ChoreHeroBannerProps = {
 
 /**
  * 할 일 화면 상단의 초록 배너. 아이 목록·부모 목록·완료 내역이 같은 틀을 쓰고
- * 문구와 마스코트만 바꾼다.
+ * 문구와 마스코트만 바꾼다. 상점 배너(StoreBanner)와 톤(배경·모서리·여백·타이포)을
+ * 그대로 맞춘다 — 탭을 옮길 때 배너 느낌이 달라 보이지 않게.
  *
  * 마스코트는 배경이 투명한 PNG 라야 한다 (초록 위에 흰 네모가 보이면 안 된다).
  *
@@ -23,7 +26,7 @@ type ChoreHeroBannerProps = {
  * 그래서 상점 배너(StoreBanner)와 같은 88px 를 쓰면 두 탭의 배너 높이가 120px 로
  * 같아진다. 마스코트만 키우면 할 일 탭만 혼자 불쑥 커 보인다.
  */
-export function ChoreHeroBanner({ title, caption, mascot, action }: ChoreHeroBannerProps) {
+export function ChoreHeroBanner({ eyebrow, title, caption, mascot, action }: ChoreHeroBannerProps) {
   const theme = useTheme();
 
   return (
@@ -32,19 +35,26 @@ export function ChoreHeroBanner({ title, caption, mascot, action }: ChoreHeroBan
         styles.banner,
         {
           backgroundColor: theme.color.brand.subtle,
-          borderRadius: theme.radius.lg,
-          paddingVertical: theme.space.lg,
-          paddingHorizontal: theme.space.xl,
+          borderRadius: theme.radius.xl,
+          padding: theme.space.lg,
           gap: theme.space.md,
         },
       ]}
     >
       <View style={styles.body}>
-        <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>{title}</Text>
+        {eyebrow ? (
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{eyebrow}</Text>
+        ) : null}
+        <Text
+          style={[
+            eyebrow ? theme.typography.h3 : theme.typography.titleMd,
+            { color: theme.color.text.strong },
+          ]}
+        >
+          {title}
+        </Text>
         {caption ? (
-          <Text style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}>
-            {caption}
-          </Text>
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{caption}</Text>
         ) : null}
       </View>
       <Image source={mascot} style={styles.mascot} resizeMode="contain" />

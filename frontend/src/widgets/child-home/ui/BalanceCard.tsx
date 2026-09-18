@@ -25,6 +25,8 @@ type BalanceCardProps = {
   isPending: boolean;
   onCharge: () => void;
   onCashout: () => void;
+  /** 내가 보낸 환전 요청 내역으로 */
+  onCashoutHistory: () => void;
   /** "내 자산 현황"의 연동 계좌 줄에 쓸 실제 계좌 정보 */
   account: AccountInfo | undefined;
 };
@@ -41,6 +43,7 @@ export function BalanceCard({
   isPending,
   onCharge,
   onCashout,
+  onCashoutHistory,
   account,
 }: BalanceCardProps) {
   const theme = useTheme();
@@ -80,6 +83,7 @@ export function BalanceCard({
                 isPending={isPending}
                 onCharge={onCharge}
                 onCashout={onCashout}
+                onCashoutHistory={onCashoutHistory}
               />
             </View>
             <View style={{ width: pageWidth }}>
@@ -97,7 +101,13 @@ export function BalanceCard({
 type WalletPageProps = Omit<BalanceCardProps, 'account'>;
 
 /** 첫 장 — 보유 도토리와 충전·환전 버튼. */
-function WalletPage({ balance, isPending, onCharge, onCashout }: WalletPageProps) {
+function WalletPage({
+  balance,
+  isPending,
+  onCharge,
+  onCashout,
+  onCashoutHistory,
+}: WalletPageProps) {
   const theme = useTheme();
 
   return (
@@ -127,13 +137,18 @@ function WalletPage({ balance, isPending, onCharge, onCashout }: WalletPageProps
           </Text>
         </View>
 
-        {/* 두 버튼이 카드 폭을 반씩 나눠 갖는다 */}
-        <View style={[styles.actionRow, { gap: theme.space.sm }]}>
-          <View style={styles.action}>
-            <WalletPill label="도토리 충전" onPress={onCharge} />
-          </View>
-          <View style={styles.action}>
-            <WalletPill label="환전하기" onPress={onCashout} tinted />
+        <View style={{ gap: theme.space.sm }}>
+          {/* 내역은 "하러 가는" 두 버튼과 성격이 달라 위에 따로 둔다 */}
+          <WalletPill label="환전 내역" onPress={onCashoutHistory} variant="cream" />
+
+          {/* 두 버튼이 카드 폭을 반씩 나눠 갖는다 */}
+          <View style={[styles.actionRow, { gap: theme.space.sm }]}>
+            <View style={styles.action}>
+              <WalletPill label="도토리 충전" onPress={onCharge} />
+            </View>
+            <View style={styles.action}>
+              <WalletPill label="환전하기" onPress={onCashout} variant="tinted" />
+            </View>
           </View>
         </View>
       </View>
@@ -204,8 +219,12 @@ function PageDots({ count, active }: { count: number; active: number }) {
 type WalletPillProps = {
   label: string;
   onPress: () => void;
-  /** 연한 연두 배경 (환전하기). 기본은 흰 배경 (도토리 충전) */
-  tinted?: boolean;
+  /**
+   * light: 흰 배경 (도토리 충전) · tinted: 연한 연두 배경 (환전하기) ·
+   * cream: 크림 배경 + 도토리 브라운 글씨 (환전 내역). 배경만 보면 light 와 거의 같은 색이라
+   * 글씨색으로 가른다
+   */
+  variant?: 'light' | 'tinted' | 'cream';
 };
 
 /**
@@ -213,8 +232,16 @@ type WalletPillProps = {
  * 배경색이 버튼마다 다르게 고정돼야 하는데, Button 의 outline 배경은 눌림 상태를 따라가서
  * 눌림 타이밍에 따라 색이 흔들린다.
  */
-function WalletPill({ label, onPress, tinted }: WalletPillProps) {
+function WalletPill({ label, onPress, variant = 'light' }: WalletPillProps) {
   const theme = useTheme();
+
+  // 테두리는 셋 다 브랜드 그린으로 같다 — 한 카드 안에 나란히 놓이는 버튼이라 테두리까지
+  // 갈라지면 서로 다른 종류의 버튼처럼 보인다. 구분은 배경과 글씨색이 맡는다.
+  const { background, label: labelColor } = {
+    light: { background: theme.color.background.surface, label: theme.color.brand.solid },
+    tinted: { background: theme.color.brand.subtle, label: theme.color.brand.solid },
+    cream: { background: theme.color.accent.cream, label: theme.color.accent.acorn },
+  }[variant];
 
   return (
     <Pressable
@@ -222,14 +249,14 @@ function WalletPill({ label, onPress, tinted }: WalletPillProps) {
       style={[
         styles.pill,
         {
-          backgroundColor: tinted ? theme.color.brand.subtle : theme.color.background.surface,
+          backgroundColor: background,
           borderColor: theme.color.brand.solid,
           borderRadius: theme.radius.lg,
           paddingHorizontal: theme.space.md,
         },
       ]}
     >
-      <Text style={[theme.typography.label, { color: theme.color.brand.solid }]}>{label}</Text>
+      <Text style={[theme.typography.label, { color: labelColor }]}>{label}</Text>
     </Pressable>
   );
 }

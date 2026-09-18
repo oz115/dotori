@@ -18,11 +18,10 @@ import {
 } from '@/features/chore/lib/choreLabels';
 import type { ChoreChild } from '@/features/chore/model/useChildrenChores';
 import type { ChoreDifficulty, ChoreRepeatType } from '@/features/chore/model/types';
-import { ChildBadge } from '@/features/chore/ui/ChildBadge';
 import '@/shared/lib/calendarLocale';
 import { buildCalendarTheme } from '@/shared/lib/calendarTheme';
 import { useTheme } from '@/shared/theme';
-import { Input } from '@/shared/ui';
+import { ChildBadge, Input } from '@/shared/ui';
 
 const DIFFICULTY_IMAGE: Record<ChoreDifficulty, number> = {
   EASY: require('@/assets/images/chore/difficulty-easy.png'),

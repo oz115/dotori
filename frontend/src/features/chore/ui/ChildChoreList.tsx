@@ -1,17 +1,17 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChildChoreDetailModal } from '@/features/chore/ui/ChildChoreDetailModal';
-import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
+import { TodayProgressCard } from '@/features/chore/ui/TodayProgressCard';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type ChildChoreListProps = {
   familyId: number | undefined;
@@ -53,34 +53,23 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
     [active],
   );
 
-  // 상점 탭의 "구매 내역"(StoreCatalog)과 같은 pill 이다. 두 탭이 헤더 같은 자리에 같은
-  // 성격의 버튼을 두는데 한쪽만 맨 텍스트라 탭을 옮길 때마다 어긋나 보였다. 값(pill 배경·
-  // 여백·caption)은 StoreCatalog 쪽을 그대로 따른다 - 세 번째 화면이 생기면 shared 로 올린다.
+  // 진행률은 오늘 예정된 전체(items) 기준이다 - DONE도 포함해야 "몇 개 중 몇 개"가 맞다.
+  // active(=DONE 뺀 목록)로 세면 다 끝냈을 때 분모까지 0이 되어 진행률을 보여줄 수 없다.
+  const completedCount = useMemo(
+    () => items.filter((chore) => chore.status === 'DONE').length,
+    [items],
+  );
+
   const historyButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="완료 이력"
-      onPress={() => router.push('/task/history')}
-      hitSlop={8}
-      style={[
-        styles.historyChip,
-        {
-          borderRadius: theme.radius.full,
-          backgroundColor: theme.color.background.surfaceSunken,
-        },
-      ]}
-    >
-      <Text
-        numberOfLines={1}
-        style={[theme.typography.caption, { color: theme.color.text.default }]}
-      >
-        완료 이력
-      </Text>
-    </Pressable>
+    <HeaderChipButton label="완료 이력" onPress={() => router.push('/task/history')} />
   );
 
   return (
-    <Screen header={<Header title="미션" right={historyButton} />} padded={false}>
+    <Screen
+      header={<Header title="미션" right={historyButton} />}
+      padded={false}
+      style={{ paddingVertical: theme.space.sm }}
+    >
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
@@ -93,11 +82,13 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <ChoreHeroBanner
-              title={`해야 할 미션이\n${remainingCount}개 남았어요!`}
-              caption={rewardCaption(total, pendingCount)}
-              mascot={require('@/assets/images/chore/squirrel-cheer.png')}
+              eyebrow="오늘 해야 할 미션이"
+              title={`${remainingCount}개 남았어요!`}
+              caption={rewardCaption(total, pendingCount) ?? '하나씩 완료하고 도토리를 모아봐요!'}
+              mascot={require('@/assets/images/chore/squirrel-win.png')}
             />
-            <ChoreFilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            <TodayProgressCard completed={completedCount} total={items.length} />
+            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
           </View>
         }
         renderItem={({ item }) => (
@@ -161,10 +152,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  // 위쪽 여백을 주지 않는다. Screen 이 padded={false} 여도 paddingVertical(16)은 항상
-  // 넣기 때문에, 여기서 또 주면 헤더와 배너 사이가 32px 이 되어 상점(16px)보다 벌어진다.
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingVertical: theme.space.sm }}로 헤더-배너
+  // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
-  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
 });

@@ -49,7 +49,7 @@ export default function LoginScreen() {
         <Input
           variant="box"
           elevated
-          leftIcon={<IdIcon size={20} color={theme.color.text.muted} />}
+          leftIcon={<IdIcon size={17} color={theme.color.text.muted} />}
           placeholder="아이디를 입력하세요"
           autoCapitalize="none"
           autoCorrect={false}
@@ -60,7 +60,7 @@ export default function LoginScreen() {
         <Input
           variant="box"
           elevated
-          leftIcon={<PasswordIcon size={20} color={theme.color.text.muted} />}
+          leftIcon={<PasswordIcon size={18} color={theme.color.text.muted} />}
           placeholder="비밀번호를 입력하세요"
           secureTextEntry
           value={password}

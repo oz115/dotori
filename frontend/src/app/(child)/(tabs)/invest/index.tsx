@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { ScrollView, Text, View, type StyleProp, type TextStyle } from 'react-native';
 
 import {
   InvestmentSummaryCards,
@@ -15,7 +15,7 @@ import {
   type InvestmentNews,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Header } from '@/shared/ui';
+import { Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 // Figma 아이콘 시트에서 추출한 섹션 아이콘
 const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
@@ -48,18 +48,26 @@ export default function InvestScreen() {
   ];
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="투자"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-        action={{ label: '거래 내역', onPress: () => router.push('/invest/transactions') }}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="투자"
+          right={
+            <HeaderChipButton
+              label="거래 내역"
+              onPress={() => router.push('/invest/transactions')}
+            />
+          }
+        />
+      }
+      padded={false}
+      style={{ paddingVertical: theme.space.sm }}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
-          paddingVertical: theme.layout.screenY,
+          paddingBottom: theme.layout.screenY,
           gap: theme.space['2xl'],
         }}
       >
@@ -111,10 +119,6 @@ export default function InvestScreen() {
       </ScrollView>
 
       <NewsDetailModal news={selectedNews} onClose={() => setSelectedNews(null)} />
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-});

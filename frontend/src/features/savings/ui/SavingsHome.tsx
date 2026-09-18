@@ -9,7 +9,7 @@ import type { SavingsGroup } from '@/features/savings/model/types';
 import { SavingsIntroBanner } from '@/features/savings/ui/SavingsIntroBanner';
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { useTheme } from '@/shared/theme';
-import { Button, Checkbox, Header, Screen } from '@/shared/ui';
+import { Button, Checkbox, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -60,16 +60,21 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
       header={
         <Header
           title="저축"
-          action={onPressHistory ? { label: '거래 내역', onPress: onPressHistory } : undefined}
+          right={
+            onPressHistory ? (
+              <HeaderChipButton label="거래 내역" onPress={onPressHistory} />
+            ) : undefined
+          }
         />
       }
       padded={false}
+      style={{ paddingVertical: theme.space.sm }}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
-          paddingVertical: theme.layout.screenY,
+          paddingBottom: theme.layout.screenY,
           gap: theme.space.lg,
         }}
       >

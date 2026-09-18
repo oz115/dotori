@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { TransactionCard, useInvestmentTransactions } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header } from '@/shared/ui';
+import { Button, Header, Screen } from '@/shared/ui';
 
 /**
  * 투자 거래 내역. 매수/매도한 기록을 최신순으로 보여준다 (INV-T-05).
@@ -13,12 +13,15 @@ export default function InvestTransactionsScreen() {
   const transactions = useInvestmentTransactions();
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="투자 거래 내역"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="투자 거래 내역"
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
+        />
+      }
+      padded={false}
+    >
       {transactions.isPending || transactions.isError ? (
         <View style={[styles.center, { gap: theme.space.lg }]}>
           <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
@@ -48,12 +51,11 @@ export default function InvestTransactionsScreen() {
           ))}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',

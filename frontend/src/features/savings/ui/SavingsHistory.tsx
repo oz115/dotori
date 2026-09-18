@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSavingsTransactions } from '@/features/savings/model/useSavingsTransactions';
 import { SavingsTransactionCard } from '@/features/savings/ui/SavingsTransactionCard';
 import { useTheme } from '@/shared/theme';
-import { Button, Header } from '@/shared/ui';
+import { Button, Header, Screen } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -20,12 +20,15 @@ export function SavingsHistory({ familyId, childId }: Props) {
   const transactions = useSavingsTransactions(familyId, childId);
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="저축 거래 내역"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/save'))}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="저축 거래 내역"
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/save'))}
+        />
+      }
+      padded={false}
+    >
       {transactions.isPending || transactions.isError ? (
         <View style={[styles.center, { gap: theme.space.lg }]}>
           <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
@@ -55,12 +58,11 @@ export function SavingsHistory({ familyId, childId }: Props) {
           ))}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',

@@ -10,7 +10,7 @@ import { CategoryFilterBar, type CategoryFilterKey } from '@/features/store/ui/C
 import { StoreBanner } from '@/features/store/ui/StoreBanner';
 import { StoreProductCard } from '@/features/store/ui/StoreProductCard';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type StoreCatalogProps = {
   familyId: number | undefined;
@@ -54,31 +54,17 @@ export function StoreCatalog({
     }, [refetch]),
   );
 
-  const historyButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="구매 내역"
-      onPress={onHistoryPress}
-      hitSlop={8}
-      style={[
-        styles.historyChip,
-        {
-          borderRadius: theme.radius.full,
-          backgroundColor: theme.color.background.surfaceSunken,
-        },
-      ]}
-    >
-      <Text
-        numberOfLines={1}
-        style={[theme.typography.caption, { color: theme.color.text.default }]}
-      >
-        구매 내역
-      </Text>
-    </Pressable>
-  );
-
   return (
-    <Screen header={<Header title="상점" right={historyButton} />} padded={false}>
+    <Screen
+      header={
+        <Header
+          title="상점"
+          right={<HeaderChipButton label="구매 내역" onPress={onHistoryPress} />}
+        />
+      }
+      padded={false}
+      style={{ paddingVertical: theme.space.sm }}
+    >
       <FlatList
         data={products}
         keyExtractor={(item) => String(item.storeProductId)}
@@ -154,7 +140,6 @@ const styles = StyleSheet.create({
   // paddingBottom 만 준다 (paddingTop 을 쓰면 두 탭의 빈 문구 높이가 달라 보인다).
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },
   emptyText: { textAlign: 'center' },
-  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
   fab: {
     position: 'absolute',
     right: 20,
