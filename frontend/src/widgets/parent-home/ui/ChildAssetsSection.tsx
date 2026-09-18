@@ -8,8 +8,16 @@ import {
   type Holding,
   type HoldingPreviewItem,
 } from '@/features/investment';
-import { daysUntilMaturity, useSavingsSummary, type SavingsSummary } from '@/features/savings';
-import { formatPoint } from '@/shared/lib/money';
+import {
+  ongoingSavingsAccounts,
+  previewSavingsAccounts,
+  savingsMaturityMarker,
+  savingsProductImage,
+  useSavingsSubscriptions,
+  useSavingsSummary,
+  type SavingsAccountPreviewItem,
+  type SavingsSubscription,
+} from '@/features/savings';
 import { useTheme } from '@/shared/theme';
 import { ContentCard } from '@/shared/ui';
 
@@ -66,13 +74,23 @@ type SavingsCardProps = {
 };
 
 /**
- * 예적금 요약 카드. 가입 건 하나하나가 아니라 집계만 보여 준다 — 부모 홈은 "지금 어떤가"를
- * 훑는 자리고, 계좌별 진행은 저축 탭이 맡는다.
+ * 예적금 요약 카드. 납입 중인 계좌를 만기까지 남은 날과 함께 늘어놓고, 아래에 총 납입액을 둔다.
+ *
+ * <p>원래는 집계만 보여 주고 계좌별 진행은 저축 탭에 맡겼다. 이름만 나열해 두면 부모가
+ * "언제 뭐가 끝나나"를 알 수 없어서, 그 판단을 뒤집고 계좌별 만기까지 올렸다.
+ * 금액·진행률까지는 올리지 않는다 — 카드가 화면 절반 폭이라 한 줄에 더 들어가지 않는다.
  */
 function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardProps) {
   const theme = useTheme();
   const summary = useSavingsSummary(familyId, childId);
-  const isPending = familyPending || summary.isPending;
+  const subscriptions = useSavingsSubscriptions(familyId, childId);
+
+  // 두 쿼리를 합쳐서 판단한다. 한쪽만 보면 목록은 왔는데 금액이 비거나 그 반대인 중간 상태가
+  // 화면에 그려진다. 예적금 탭이 같은 쿼리를 쓰므로 캐시는 공유된다.
+  const isPending = familyPending || summary.isPending || subscriptions.isPending;
+  const isError = summary.isError || subscriptions.isError;
+  const accounts = subscriptions.data != null ? ongoingSavingsAccounts(subscriptions.data) : [];
+  const hasAccounts = !isPending && !isError && accounts.length > 0;
 
   return (
     <Pressable style={styles.card} onPress={onPress} accessibilityRole="button">
@@ -85,18 +103,25 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
             </Text>
           </View>
 
-          <SavingsCardBody isPending={isPending} isError={summary.isError} summary={summary.data} />
+          <SavingsCardBody isPending={isPending} isError={isError} accounts={accounts} />
         </View>
 
-        {summary.data != null && summary.data.totalAccruedInterest > 0 ? (
-          <Text
-            style={[
-              theme.typography.label,
-              { color: theme.color.status.success.text, alignSelf: 'flex-end' },
-            ]}
-          >
-            +{formatPoint(summary.data.totalAccruedInterest)}
-          </Text>
+        {/* 총 납입액은 계좌가 있을 때만 — 0원을 크게 띄워 봐야 읽을 게 없다 (투자 카드와 같은 규칙) */}
+        {hasAccounts && summary.data != null ? (
+          <View style={styles.cardFootBlock}>
+            {/* 색과 표기를 투자 카드의 합계와 맞춘다 — 두 카드가 나란히 서 있어서 한쪽만
+                부호나 색이 다르면 같은 자리의 숫자가 다른 종류의 값처럼 보인다.
+                포매터도 signedPoints 하나로 모아 두 카드가 같은 모양을 내게 한다 */}
+            <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
+              {signedPoints(summary.data.totalCurrentAmount)}
+            </Text>
+            {/* 이자는 쌓였을 때만. 보통예금 이자는 매주 지갑으로 바로 나가 여기 안 잡힌다 */}
+            {summary.data.totalAccruedInterest > 0 ? (
+              <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
+                {signedPoints(summary.data.totalAccruedInterest)}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
       </ContentCard>
     </Pressable>
@@ -106,68 +131,94 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
 type SavingsCardBodyProps = {
   isPending: boolean;
   isError: boolean;
-  summary: SavingsSummary | undefined;
+  /** 이미 ACTIVE·MATURED 로 걸러 둔 가입 건 */
+  accounts: SavingsSubscription[];
 };
 
-function SavingsCardBody({ isPending, isError, summary }: SavingsCardBodyProps) {
+function SavingsCardBody({ isPending, isError, accounts }: SavingsCardBodyProps) {
   const theme = useTheme();
 
   if (isPending) {
     return <CardNotice text="불러오는 중이에요" />;
   }
-  if (isError || summary == null) {
+  if (isError) {
     return <CardNotice text="잠시 후 다시 확인해 주세요" />;
   }
-
-  const joinedCount = summary.activeCount + summary.maturedCount;
-  if (joinedCount === 0) {
+  if (accounts.length === 0) {
     return <CardNotice text="아직 가입한 상품이 없어요" />;
   }
 
-  const remainingDays = daysUntilMaturity(summary.nearestMaturityAt);
+  const preview = previewSavingsAccounts(accounts);
 
   return (
     <View style={{ gap: theme.space.md }}>
       <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-        {joinedCount}계좌 납입 중
+        {accounts.length}계좌 납입 중
       </Text>
 
+      {/* 아이콘이 28px 이라 줄 사이는 xs 로 좁혀 둔다 — 계좌들이 한 덩어리로 읽힌다 */}
       <View style={{ gap: theme.space.xs }}>
-        <SummaryRow label="모은 금액" value={formatPoint(summary.totalAmount)} />
-        {remainingDays != null ? (
-          <SummaryRow label="가장 빠른 만기" value={`D-${remainingDays}`} />
+        {preview.items.map((item) => (
+          <SavingsAccountPreviewRow key={item.savingsSubscriptionId} item={item} />
+        ))}
+        {preview.restCount > 0 ? (
+          <Text
+            style={[
+              theme.typography.caption,
+              // 아이콘 폭 + 간격만큼 들여써서 위 계좌 이름들과 왼쪽을 맞춘다
+              { color: theme.color.text.muted, marginLeft: ASSET_ICON_SIZE + theme.space.sm },
+            ]}
+          >
+            외 {preview.restCount}개
+          </Text>
         ) : null}
       </View>
-
-      {/* 만기가 와도 아이가 직접 수령을 눌러야 지갑에 들어온다. 부모가 챙겨 줄 수 있게 띄운다 */}
-      {summary.maturedCount > 0 ? (
-        <View
-          style={[
-            styles.badge,
-            {
-              backgroundColor: theme.color.status.warning.subtle,
-              borderRadius: theme.radius.full,
-            },
-          ]}
-        >
-          <Text style={[theme.typography.caption, { color: theme.color.status.warning.text }]}>
-            수령 대기 {summary.maturedCount}건
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+/**
+ * 예적금 카드의 계좌 한 줄 — 상품 아이콘과 이름.
+ *
+ * 키를 이름이 아니라 가입 id 로 잡는다. 같은 상품을 두 번 가입할 수 있어서 이름이 겹치면
+ * React 가 한 줄을 건너뛴다.
+ */
+function SavingsAccountPreviewRow({ item }: { item: SavingsAccountPreviewItem }) {
   const theme = useTheme();
+  const marker = savingsMaturityMarker(item);
 
   return (
-    <View style={styles.summaryRow}>
-      <Text style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}>
-        {label}
+    <View style={[styles.assetRow, { gap: theme.space.sm }]}>
+      <Image
+        source={savingsProductImage(item.productType)}
+        style={styles.assetIcon}
+        resizeMode="contain"
+      />
+      {/* 이름이 남는 자리를 전부 가져가고 넘치면 말줄임 — 만기 표시에 밀리지 않게 한다.
+          상품명이 전부 네 글자라 좁은 기기에서만 한 글자쯤 잘린다 */}
+      <Text
+        style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
+        numberOfLines={1}
+      >
+        {item.productName}
       </Text>
-      <Text style={[theme.typography.caption, { color: theme.color.text.strong }]}>{value}</Text>
+      {marker != null ? (
+        <Text
+          style={[
+            // caption(16) 으로는 이름과 나란히 둘 자리가 없다. bodySm(14) 이 토큰 중 다음 크기다
+            theme.typography.bodySm,
+            {
+              // muted(neutral400) 는 흰 배경에서 2.06:1 로 읽히지 않는다. sub(neutral500) 는
+              // 5.51:1 로 AA 를 넘기면서 이름과 같은 색이라, 14px 라는 크기 차이만으로
+              // 이름이 주(主)로 남는다 — default(neutral700) 로 올리면 만기가 이름을 압도한다
+              color:
+                marker.kind === 'MATURED' ? theme.color.status.warning.text : theme.color.text.sub,
+            },
+          ]}
+        >
+          {marker.kind === 'MATURED' ? '만기' : `D-${marker.days}`}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -273,7 +324,7 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
             style={[
               theme.typography.caption,
               // 아이콘 폭 + 간격만큼 들여써서 위 종목 이름들과 왼쪽을 맞춘다
-              { color: theme.color.text.muted, marginLeft: HOLDING_ICON_SIZE + theme.space.sm },
+              { color: theme.color.text.muted, marginLeft: ASSET_ICON_SIZE + theme.space.sm },
             ]}
           >
             외 {preview.restCount}개
@@ -294,9 +345,9 @@ function HoldingPreviewRow({ item }: { item: HoldingPreviewItem }) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.holdingRow, { gap: theme.space.sm }]}>
+    <View style={[styles.assetRow, { gap: theme.space.sm }]}>
       {/* 아이콘 원본이 흰 배경이라 배경색 없이 둥근 모서리로만 자른다 (HoldingCard 와 같은 처리) */}
-      <Image source={item.image} style={styles.holdingIcon} resizeMode="cover" />
+      <Image source={item.image} style={styles.assetIcon} resizeMode="cover" />
       <Text
         style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
         numberOfLines={1}
@@ -308,19 +359,19 @@ function HoldingPreviewRow({ item }: { item: HoldingPreviewItem }) {
 }
 
 /**
- * 종목 줄의 아이콘 크기. caption 글자 높이(16)보다 크게 잡아 회사가 먼저 눈에 들어오게 한다 —
+ * 자산 줄(종목·계좌)의 아이콘 크기. caption 글자 높이(16)보다 크게 잡아 회사가 먼저 눈에 들어오게 한다 —
  * 줄 높이가 아이콘에 끌려 늘어나는 것을 받아들인 값이다.
  *
  * 카드는 minHeight 240 에 space-between 이라 이 정도는 흡수한다. 더 키우려면 이 상수만
  * 만지면 된다.
  */
-const HOLDING_ICON_SIZE = 28;
+const ASSET_ICON_SIZE = 28;
 
 /**
- * 종목 아이콘의 모서리. radius 토큰(8, 12 …)은 이 크기에 주면 너무 둥글다.
+ * 자산 아이콘의 모서리. radius 토큰(8, 12 …)은 이 크기에 주면 너무 둥글다.
  * HoldingCard 의 비율(52px 에 12)을 그대로 옮긴 값이라 토큰을 쓰지 않고 직접 적는다.
  */
-const HOLDING_ICON_RADIUS = 6;
+const ASSET_ICON_RADIUS = 6;
 
 function SectionIcon({ source }: { source: ImageSourcePropType }) {
   return <Image source={source} style={styles.iconImage} resizeMode="contain" />;
@@ -333,13 +384,12 @@ const styles = StyleSheet.create({
   // 그러지 않으면 두 카드 중 내용이 짧은 쪽만 흰 박스가 짧아 보인다.
   cardBody: { flex: 1, minHeight: 240, justifyContent: 'space-between' },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center' },
-  summaryRow: { flexDirection: 'row', alignItems: 'center' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' },
   iconImage: { width: 40, height: 40 },
-  holdingRow: { flexDirection: 'row', alignItems: 'center' },
-  holdingIcon: {
-    width: HOLDING_ICON_SIZE,
-    height: HOLDING_ICON_SIZE,
-    borderRadius: HOLDING_ICON_RADIUS,
+  cardFootBlock: { alignItems: 'flex-end' },
+  assetRow: { flexDirection: 'row', alignItems: 'center' },
+  assetIcon: {
+    width: ASSET_ICON_SIZE,
+    height: ASSET_ICON_SIZE,
+    borderRadius: ASSET_ICON_RADIUS,
   },
 });
