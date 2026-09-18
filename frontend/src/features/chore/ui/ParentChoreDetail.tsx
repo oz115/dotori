@@ -10,7 +10,7 @@ import { useChoreStatus } from '@/features/chore/model/useChoreStatus';
 import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
 import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header } from '@/shared/ui';
+import { Button, ContentCard, Header, Screen } from '@/shared/ui';
 
 type ParentChoreDetailProps = {
   familyId: number | undefined;
@@ -74,12 +74,16 @@ export function ParentChoreDetail({
   };
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="미션 상세"
-        onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/task')))}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="미션 상세"
+          onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/task')))}
+        />
+      }
+      padded={false}
+      edges={[]}
+    >
       {isPending ? (
         <Centered message="불러오는 중이에요." />
       ) : isError || !chore ? (
@@ -175,7 +179,7 @@ export function ParentChoreDetail({
         loading={deleteChore.isPending}
         isError={deleteChore.isError}
       />
-    </View>
+    </Screen>
   );
 }
 
@@ -319,7 +323,6 @@ function Centered({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   actionBar: {
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,

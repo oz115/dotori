@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import { useTheme } from '@/shared/theme';
-import { ContentCard, MockBadge } from '@/shared/ui';
+import { ContentCard, MockBadge, useTabOverlap } from '@/shared/ui';
 
 /**
  * 부모용 "활동 보드". 자녀 홈의 것과 자리는 같지만 보여주는 내용이 다르다 — 아이는
@@ -12,6 +12,7 @@ import { ContentCard, MockBadge } from '@/shared/ui';
  */
 export function ChildActivityBoard() {
   const theme = useTheme();
+  const tabOverlap = useTabOverlap();
 
   return (
     <View
@@ -21,7 +22,7 @@ export function ChildActivityBoard() {
         marginHorizontal: -theme.layout.screenX,
         paddingHorizontal: theme.layout.screenX,
         paddingTop: theme.space['2xl'],
-        paddingBottom: theme.space['4xl'],
+        paddingBottom: theme.space['4xl'] + tabOverlap,
       }}
     >
       <View style={[styles.titleRow, { gap: theme.space.xs }]}>

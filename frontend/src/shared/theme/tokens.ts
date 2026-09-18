@@ -9,7 +9,7 @@ import { fontFamily } from '@/shared/theme/fonts';
 /** 화면 공통 레이아웃 값. */
 export const layout = {
   screenX: 20, // 화면 좌우 여백 (Screen 컴포넌트)
-  screenY: 16, // 스크롤 콘텐츠 상하 여백 (Screen 컴포넌트)
+  screenY: 0, // 스크롤 콘텐츠 상하 여백 (Screen 컴포넌트)
   inputHeight: 52, // 박스형 입력·셀렉트 등 폼 컨트롤 높이
 } as const;
 

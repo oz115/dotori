@@ -99,6 +99,7 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
           paddingVertical: theme.layout.screenY,
+          paddingBottom: theme.space.lg,
           gap: theme.space.lg,
         }}
       >
@@ -171,7 +172,8 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <Screen header={<Header title={title} onBack={onBack} />} padded={false}>
+    // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+    <Screen header={<Header title={title} onBack={onBack} />} padded={false} edges={[]}>
       {children}
     </Screen>
   );

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import { useTheme } from '@/shared/theme';
-import { ContentCard } from '@/shared/ui';
+import { ContentCard, useTabOverlap } from '@/shared/ui';
 
 /**
  * "활동 보드" 섹션. 경제 단어장(S15P21A505-208)·경제 퀴즈(S15P21A505-206) 모두 실제
@@ -13,6 +13,7 @@ import { ContentCard } from '@/shared/ui';
  */
 export function ActivityBoard() {
   const theme = useTheme();
+  const tabOverlap = useTabOverlap();
 
   return (
     <View
@@ -22,7 +23,7 @@ export function ActivityBoard() {
         marginHorizontal: -theme.layout.screenX,
         paddingHorizontal: theme.layout.screenX,
         paddingTop: theme.space['2xl'],
-        paddingBottom: theme.space['4xl'],
+        paddingBottom: theme.space['4xl'] + tabOverlap,
       }}
     >
       <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>활동 보드</Text>
