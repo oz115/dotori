@@ -90,6 +90,17 @@ export function ParentHome() {
           childId={childId}
           familyPending={familyPending}
           onMorePress={openChoreTab}
+          onChorePress={(chore) =>
+            router.push({
+              pathname: '/task/[choreId]',
+              // from=home: 상세의 뒤로가기가 목록이 아니라 홈으로 오게 한다.
+              params: {
+                choreId: String(chore.choreId),
+                childId: String(chore.childId),
+                from: 'home',
+              },
+            })
+          }
         />
 
         <ChildActivityBoard />

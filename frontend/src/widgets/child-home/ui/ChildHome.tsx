@@ -53,7 +53,11 @@ export function ChildHome() {
           account={account.data}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
-        <TodayChores familyId={familyId} childId={childId} />
+        <TodayChores
+          familyId={familyId}
+          childId={childId}
+          onMorePress={() => router.push('/task')}
+        />
         <SavingGoals
           familyId={familyId}
           balance={balance.data?.balance}
