@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { buildSavingsCards } from '@/features/savings/lib/savingsView';
+import { SAVINGS_GROUP_FILTERS, buildSavingsCards } from '@/features/savings/lib/savingsView';
 import { useSavingsProducts } from '@/features/savings/model/useSavingsProducts';
 import type { SavingsGroup } from '@/features/savings/model/types';
-import { SavingsGroupSegment, savingsGroupLabel } from '@/features/savings/ui/SavingsGroupSegment';
 import { SavingsIntroBanner } from '@/features/savings/ui/SavingsIntroBanner';
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Button, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -28,11 +27,11 @@ type Props = {
  * 부모의 저축 탭 메인.
  *
  * 아이 화면(SavingsHome)과 같은 구성이지만 **가입 정보를 얹지 않는다.** 부모는 예적금에
- * 가입하지 않으므로 여기 카드는 언제나 상품 스펙(이자율·기간·최대 금액)을 보여 준다.
- * 누가 무엇을 들고 있는지는 헤더의 "자녀 예적금 보유 현황"에서 본다 - 자녀가 여럿이면
- * 이 목록 한 장에 다 담을 수 없어서다.
+ * 가입하지 않으므로 여기 카드는 언제나 상품 스펙(최대 금액·기간·받는 도토리)을 보여 준다.
+ * 누가 무엇을 들고 있는지는 헤더의 "보유 현황"에서 본다 - 자녀가 여럿이면 이 목록 한 장에
+ * 다 담을 수 없어서다.
  *
- * "보유한 것만 보기" 체크박스도 두지 않는다. 부모에게는 보유가 없어 늘 빈 목록이 된다.
+ * "보유한 것만" 체크박스도 두지 않는다. 부모에게는 보유가 없어 늘 빈 목록이 된다.
  */
 export function ParentSavingsHome({
   familyId,
@@ -41,18 +40,18 @@ export function ParentSavingsHome({
   onPressChildrenStatus,
 }: Props) {
   const theme = useTheme();
-  const [group, setGroup] = useState<SavingsGroup>('DEPOSIT');
+  const [group, setGroup] = useState<SavingsGroup | null>(null);
 
   const products = useSavingsProducts(familyId, childId);
 
   // 가입 목록을 비워 넘기면 모든 카드가 스펙 모드로 조립된다 (buildSavingsCards).
   const cards = useMemo(
     () =>
-      buildSavingsCards(products.data ?? [], [], new Date()).filter((card) => card.group === group),
+      buildSavingsCards(products.data ?? [], [], new Date()).filter(
+        (card) => group == null || card.group === group,
+      ),
     [products.data, group],
   );
-
-  const groupLabel = savingsGroupLabel(group);
 
   return (
     <Screen
@@ -84,10 +83,12 @@ export function ParentSavingsHome({
           gap: theme.space.lg,
         }}
       >
-        {/* 순서는 아이 화면(SavingsHome)과 같다 - 안내 배너를 읽고 나서 세그먼트를 만난다 */}
-        <SavingsIntroBanner group={group} />
+        {/* 순서는 아이 화면(SavingsHome)과 같다 - 안내 배너를 읽고 나서 분류 칩을 만난다 */}
+        <SavingsIntroBanner />
 
-        <SavingsGroupSegment value={group} onChange={setGroup} />
+        <View style={styles.filterRow}>
+          <FilterChips options={SAVINGS_GROUP_FILTERS} selected={group} onSelect={setGroup} />
+        </View>
 
         {childId == null ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
@@ -95,7 +96,7 @@ export function ParentSavingsHome({
           </Text>
         ) : products.isPending ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-            {groupLabel} 상품을 불러오는 중이에요.
+            상품을 불러오는 중이에요.
           </Text>
         ) : products.isError ? (
           <View style={{ gap: theme.space.md, alignItems: 'flex-start' }}>
@@ -119,3 +120,11 @@ export function ParentSavingsHome({
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  // 체크박스가 없어도 아이 화면과 같은 한 줄 자리를 쓴다 (칩 높이가 줄에 맞게 고정된다)
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+});

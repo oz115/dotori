@@ -1,9 +1,9 @@
 import type { ImageSourcePropType } from 'react-native';
 
-import type { SavingsGroup, SavingsProductType } from '@/features/savings/model/types';
+import type { SavingsProductType } from '@/features/savings/model/types';
 
 /**
- * 예적금 화면 자산·문구 — 상품 유형별 아이콘과 세그먼트(예금/적금)별 안내 배너 문구.
+ * 예적금 화면 자산·문구 — 상품 유형별 아이콘, 화면에 보여 줄 상품 이름·설명, 안내 배너 문구.
  * 아이콘은 앱 공용 아이콘 시트에서 잘라낸 것들이다.
  */
 
@@ -33,22 +33,51 @@ type BannerCopy = {
   highlight: string;
 };
 
-export const SAVINGS_BANNER_COPY: Record<SavingsGroup, BannerCopy> = {
-  DEPOSIT: {
-    title: '예금이란?',
-    body:
-      '가진 돈을 한 번에 맡기고 목돈을 불리는 저축 방법이에요.\n' +
-      '약속한 날까지 기다리면\n맡긴 돈과 이자를 함께 받아요!',
-    highlight: '목돈을 불리는',
-  },
-  INSTALLMENT: {
-    title: '적금이란?',
-    body:
-      '매일, 매주 또는 매달 정한 돈을 차곡차곡 모으는 저축 방법이에요.\n' +
-      '약속한 날까지 꾸준히 모으면\n내가 모은 돈과 이자를 함께 받아요!',
-    highlight: '차곡차곡',
-  },
+/**
+ * 저축 안내 배너 — 예금·적금을 한 장으로 덮는다.
+ *
+ * 예전에는 세그먼트에서 고른 쪽만 설명했는데, 상단 선택이 "전체 · 예금 · 적금" 칩으로
+ * 바뀌면서 전체를 고른 상태가 기본이 됐다. 그때 한쪽만 설명하면 반쪽짜리 안내가 된다.
+ * 둘의 차이(한 번에 맡기느냐, 조금씩 모으느냐)를 한 문장에 넣어 비교로 읽히게 한다.
+ */
+export const SAVINGS_BANNER_COPY: BannerCopy = {
+  title: '저축을 시작해볼까요?',
+  body:
+    '한 번에 맡겨서 목돈을 불리는 예금과,\n' +
+    '매주 조금씩 차곡차곡 모으는 적금이 있어요.\n' +
+    '약속한 날까지 기다리면 도토리를 더 받아요!',
+  highlight: '차곡차곡',
 };
+
+/**
+ * 화면에 보여 줄 상품 이름.
+ *
+ * 서버 이름(보통예금·단리예금·복리예금…)은 어른 금융 용어다. 초등학생이 목록에서 여섯
+ * 개를 훑을 때 "단리" 와 "복리" 는 한 글자 차이라 구분조차 되지 않는다.
+ *
+ * <p>그래서 이 앱의 세계(다람쥐가 도토리를 모으는)에서 이름을 가져왔다. 볼주머니는 넣고
+ * 빼기가 자유롭고, 항아리는 담아 두고 기다리며, 나무는 심으면 불어나고, 겨울 창고는 가장
+ * 길게 모은다 — 이름만 봐도 무엇이 다른지 짐작된다.
+ *
+ * <p>원래 용어를 버리지는 않는다. 설명 첫 줄에 "…예금이에요" 로 넣어 두었다. 금융 용어를
+ * 가르치는 앱이라 단어 자체를 안 보여 주면 배울 기회가 사라진다 - 이름으로 끌고 와서
+ * 설명에서 알려 주는 순서다.
+ *
+ * <p>서버는 그대로 둔다. 만기 푸시 알림과 지갑 거래내역이 서버 이름을 쓰므로, 화면과
+ * 어긋나는 구간이 남는다 (별도 이슈로 서버 시더까지 맞춰야 한다).
+ */
+const PRODUCT_NAMES: Record<SavingsProductType, string> = {
+  ORDINARY: '볼주머니 저금',
+  SIMPLE_INTEREST: '도토리 항아리',
+  COMPOUND_INTEREST: '도토리 나무',
+  SMALL_INSTALLMENT: '몸풀기 저금',
+  GOAL_INSTALLMENT: '소원 바구니',
+  LONG_TERM_INSTALLMENT: '겨울 대비 창고',
+};
+
+export function savingsProductName(productType: SavingsProductType): string {
+  return PRODUCT_NAMES[productType];
+}
 
 /**
  * 상품 상세 배너에 들어가는 한 줄 설명.
@@ -64,20 +93,30 @@ export const SAVINGS_BANNER_COPY: Record<SavingsGroup, BannerCopy> = {
  * 설정에 따라 달라지는 값도 있어 문구에 박으면 어긋난다.
  */
 const PRODUCT_DESCRIPTIONS: Record<SavingsProductType, string> = {
-  ORDINARY: '돼지저금통처럼 언제든 넣고 빼는 예금이에요.\n이자는 적지만 매주 꼬박꼬박 들어와요.',
+  ORDINARY:
+    '다람쥐 볼주머니처럼 언제든 넣고 빼는 보통예금이에요.\n' +
+    '넣어 둔 만큼 매주 이자를 받고, 필요하면 바로 꺼낼 수 있어요.\n' +
+    '자유로운 대신 받는 도토리는 가장 적어요.',
   SIMPLE_INTEREST:
-    '도토리를 한 번에 맡기고 기다리는 예금이에요.\n' +
-    '처음 맡긴 만큼만 이자가 붙어서 얼마를 받을지 미리 알 수 있어요.',
+    '도토리를 한 번에 담고 기다리는 단리예금이에요.\n' +
+    '처음 담은 양에만 이자가 붙어서 매주 같은 만큼 늘어나요.\n' +
+    '그래서 나중에 얼마를 받을지 지금 미리 알 수 있어요.',
   COMPOUND_INTEREST:
-    '이자에 또 이자가 붙는 예금이에요.\n' +
-    '눈덩이처럼 불어나니, 같은 돈을 맡긴 단리예금과 얼마나 다른지 비교해 보세요.',
+    '한 알을 심으면 나무가 자라 도토리가 더 열리는 복리예금이에요.\n' +
+    '받은 이자에 또 이자가 붙어서 주마다 늘어나는 양이 커져요.\n' +
+    '같은 돈을 담은 도토리 항아리와 얼마나 다른지 비교해 보세요.',
   SMALL_INSTALLMENT:
-    '매주 같은 금액을 두 번만 넣으면 끝나는 짧은 적금이에요.\n' +
-    '작게 시작해서 끝까지 해내는 맛을 먼저 느껴봐요.',
+    '매주 같은 금액을 두 번만 넣으면 끝나는 소액적금이에요.\n' +
+    '2주면 끝나서 저축이 처음이어도 끝까지 해낼 수 있어요.\n' +
+    '작게 시작해 모으는 재미를 먼저 느껴봐요.',
   GOAL_INSTALLMENT:
-    '먼저 목표를 정하고 자유롭게 채우는 적금이에요.\n목표를 채우는 순간 이자까지 바로 받아요.',
+    '갖고 싶은 것을 정하고 그만큼 채우는 목표적금이에요.\n' +
+    '매주 얼마를 넣을지는 자유롭고, 정해진 기간 안에 채우면 돼요.\n' +
+    '다 채우는 순간 모은 돈과 이자를 바로 받아요.',
   LONG_TERM_INSTALLMENT:
-    '매주 같은 금액을 여섯 번 넣는 가장 긴 적금이에요.\n오래 기다리는 만큼 이자가 가장 커요.',
+    '매주 같은 금액을 여섯 번 넣는 가장 긴 장기적금이에요.\n' +
+    '오래 약속을 지켜야 하지만 받는 도토리가 가장 많아요.\n' +
+    '다람쥐가 겨울을 대비하듯 길게 모으는 저축이에요.',
 };
 
 export function savingsProductDescription(productType: SavingsProductType): string {

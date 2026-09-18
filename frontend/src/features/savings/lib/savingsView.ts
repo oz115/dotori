@@ -1,4 +1,4 @@
-import { savingsProductImage } from '@/features/savings/lib/savingsAssets';
+import { savingsProductImage, savingsProductName } from '@/features/savings/lib/savingsAssets';
 import type {
   SavingsCard,
   SavingsCardLine,
@@ -23,6 +23,19 @@ const DEPOSIT_TYPES: SavingsProductType[] = ['ORDINARY', 'SIMPLE_INTEREST', 'COM
 export function savingsGroupOf(productType: SavingsProductType): SavingsGroup {
   return DEPOSIT_TYPES.includes(productType) ? 'DEPOSIT' : 'INSTALLMENT';
 }
+
+export function savingsGroupLabel(group: SavingsGroup): string {
+  return group === 'DEPOSIT' ? '예금' : '적금';
+}
+
+/**
+ * 저축 메인 상단 분류 칩 (상점·미션과 같은 FilterChips). '전체' 는 칩 쪽이 붙이므로
+ * 여기 넣지 않는다. 아이 화면과 부모 화면이 같은 순서·같은 문구를 써야 해서 여기 둔다.
+ */
+export const SAVINGS_GROUP_FILTERS: { key: SavingsGroup; label: string }[] = [
+  { key: 'DEPOSIT', label: savingsGroupLabel('DEPOSIT') },
+  { key: 'INSTALLMENT', label: savingsGroupLabel('INSTALLMENT') },
+];
 
 /** 만기까지 남은 날짜 (오늘 포함 올림). 이미 지났으면 0 */
 export function daysUntil(iso: string, now: Date): number {
@@ -225,7 +238,8 @@ export function toSavingsTransactionItem(
   const { badge, sign } = TRANSACTION_BADGES[transaction.transactionType];
   return {
     id: transaction.savingsTransactionId,
-    productName: transaction.productName,
+    // 서버 productName 대신 화면 이름 (목록·상세와 같은 이름이어야 한다)
+    productName: savingsProductName(transaction.productType),
     image: savingsProductImage(transaction.productType),
     badge,
     sign,
@@ -254,7 +268,8 @@ export function buildSavingsCards(
     const subscription = activeByProductId.get(product.savingsProductId);
     const base = {
       productId: product.savingsProductId,
-      name: product.name,
+      // 화면 이름은 앱이 갖는다 (savingsAssets 의 PRODUCT_NAMES 주석 참고)
+      name: savingsProductName(product.productType),
       image: savingsProductImage(product.productType),
       group: savingsGroupOf(product.productType),
     };

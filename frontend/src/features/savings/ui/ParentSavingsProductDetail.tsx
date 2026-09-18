@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { savingsGroupOf } from '@/features/savings/lib/savingsView';
+import { savingsGroupLabel, savingsGroupOf } from '@/features/savings/lib/savingsView';
 import { useSavingsProduct } from '@/features/savings/model/useSavingsProduct';
 import {
   heldSubscriptions,
@@ -9,7 +9,6 @@ import {
   type SavingsChild,
 } from '@/features/savings/model/useChildrenSavingsSubscriptions';
 import type { SavingsProductResponse } from '@/features/savings/model/types';
-import { savingsGroupLabel } from '@/features/savings/ui/SavingsGroupSegment';
 import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';

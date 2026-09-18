@@ -63,6 +63,31 @@ describe('savingsGroupOf', () => {
   });
 });
 
+describe('상품 이름', () => {
+  it('카드는 서버 이름(단리예금) 대신 화면 이름을 싣는다', () => {
+    // 초등학생 화면이라 이름은 앱이 갖는다 (savingsAssets 의 PRODUCT_NAMES 주석 참고).
+    // 서버 name 을 그대로 쓰면 목록에서 '단리예금'·'복리예금' 이 한 글자 차이로 붙는다.
+    const [card] = buildSavingsCards([product({ name: '단리예금' })], [], NOW);
+
+    expect(card.name).toBe('도토리 항아리');
+  });
+
+  it('거래 내역도 목록과 같은 이름을 쓴다', () => {
+    expect(
+      toSavingsTransactionItem({
+        savingsTransactionId: 1,
+        savingsSubscriptionId: 10,
+        savingsProductId: 1,
+        productName: '단리예금',
+        productType: 'SIMPLE_INTEREST',
+        transactionType: 'INITIAL_DEPOSIT',
+        amount: 3000,
+        createdAt: '2026-09-17T09:00:00+09:00',
+      }).productName,
+    ).toBe('도토리 항아리');
+  });
+});
+
 describe('daysUntil', () => {
   it('만기까지 남은 날을 올림으로 세고, 지났으면 0이다', () => {
     expect(daysUntil('2026-09-18T00:00:00+09:00', NOW)).toBe(1);

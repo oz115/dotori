@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { savingsProductName } from '@/features/savings/lib/savingsAssets';
 import {
   buildSavingsCards,
   estimateReturn,
@@ -238,7 +239,7 @@ function SignupSection({
         : `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
     const warning =
       product.contributionStyle === 'FREE' ? '' : '\n중도에 해지하면 이자는 받을 수 없어요.';
-    Alert.alert(`${product.name} 가입`, summary + warning, [
+    Alert.alert(`${savingsProductName(product.productType)} 가입`, summary + warning, [
       { text: '아니요', style: 'cancel' },
       {
         text: '가입할래요',

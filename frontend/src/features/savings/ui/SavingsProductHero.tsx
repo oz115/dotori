@@ -3,10 +3,10 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import {
   savingsProductDescription,
   savingsProductImage,
+  savingsProductName,
 } from '@/features/savings/lib/savingsAssets';
-import { savingsGroupOf } from '@/features/savings/lib/savingsView';
+import { savingsGroupLabel, savingsGroupOf } from '@/features/savings/lib/savingsView';
 import type { SavingsProductResponse } from '@/features/savings/model/types';
-import { savingsGroupLabel } from '@/features/savings/ui/SavingsGroupSegment';
 import { useTheme } from '@/shared/theme';
 
 type Props = {
@@ -50,7 +50,11 @@ export function SavingsProductHero({ product }: Props) {
           {groupLabel}
         </Text>
       </View>
-      <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>{product.name}</Text>
+      {/* 서버 name(단리예금·복리예금…)이 아니라 화면이 가진 이름을 쓴다
+          (savingsAssets 의 PRODUCT_NAMES 주석 참고). */}
+      <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>
+        {savingsProductName(product.productType)}
+      </Text>
       {/* 서버 description 대신 화면이 가진 문구를 쓴다 - 그 값은 기획용 학습 목표 메모라
           아이가 읽을 문장이 아니다 (savingsAssets 의 PRODUCT_DESCRIPTIONS 주석 참고). */}
       <Text
