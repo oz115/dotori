@@ -17,14 +17,15 @@ import {
   cancelCompletionErrorMessage,
   requestCompletionErrorMessage,
 } from '@/features/chore/lib/choreError';
-import { isRewardReady } from '@/features/chore/lib/choreLabels';
+import { deadlineLabel, isRewardReady } from '@/features/chore/lib/choreLabels';
 import { photoError, photoErrorMessage, toPhotoFile } from '@/features/chore/lib/chorePhoto';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
+import type { ChorePhotoFile } from '@/features/chore/model/types';
 import { useCancelCompletion } from '@/features/chore/model/useCancelCompletion';
 import { useChore } from '@/features/chore/model/useChore';
 import { usePendingCompletionRequest } from '@/features/chore/model/usePendingCompletionRequest';
 import { useRequestCompletion } from '@/features/chore/model/useRequestCompletion';
-import type { ChorePhotoFile } from '@/features/chore/model/types';
+import { RepeatBadge } from '@/features/chore/ui/RepeatBadge';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
 import { useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
@@ -150,16 +151,20 @@ export function ChildChoreDetailModal({
                 {chore?.title ?? '불러오는 중…'}
               </Text>
 
-              {chore ? (
+              {/* 기한은 한번짜리에만 보여 준다. 반복 미션은 주기가 돌면 endDate 가 다음
+                  기간으로 밀려서 지금 날짜가 마감을 뜻하지 않는다 (목록과 같은 규칙).
+                  대신 반복 주기는 아래 배지로 언제나 보인다. */}
+              {chore?.repeatType === 'ONCE' ? (
                 <View style={[styles.metaRow, { gap: theme.space.sm }]}>
                   <Ionicons name="calendar-outline" size={16} color={theme.color.text.muted} />
                   <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-                    {chore.endDate}까지
+                    {deadlineLabel(chore.endDate)}
                   </Text>
                 </View>
               ) : null}
 
-              <View style={styles.chipRow}>
+              <View style={[styles.chipRow, { gap: theme.space.sm }]}>
+                {chore ? <RepeatBadge repeatType={chore.repeatType} /> : null}
                 <RewardChip rewardPoints={chore?.rewardPoints ?? null} />
               </View>
 
@@ -190,6 +195,9 @@ export function ChildChoreDetailModal({
                 />
               ) : (
                 <>
+                  {/* 거절은 부모가 "아직 안 본" 것이 아니라 보고 나서 돌려보낸 것이다.
+                      이유는 서버가 저장하지 않아 보여 줄 수 없으므로, 무엇을 하면 되는지
+                      (사진 다시 찍기)만 알려 준다. 입력란은 아래에 그대로 열려 있다. */}
                   {status === 'REJECTED' ? (
                     <View
                       style={[
@@ -210,7 +218,8 @@ export function ChildChoreDetailModal({
                       <Text
                         style={[theme.typography.bodySm, { color: theme.color.status.danger.text }]}
                       >
-                        부모님이 아직 확인해 주지 않았어요. 사진을 다시 찍어서 보내볼까요?
+                        부모님이 확인하고 다시 해보자고 하셨어요.{'\n'}사진을 새로 찍어서
+                        보내주세요.
                       </Text>
                     </View>
                   ) : null}
