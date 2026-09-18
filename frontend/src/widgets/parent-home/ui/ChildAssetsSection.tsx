@@ -13,6 +13,7 @@ import {
   previewSavingsAccounts,
   savingsMaturityMarker,
   savingsProductImage,
+  savingsProductName,
   useSavingsSubscriptions,
   useSavingsSummary,
   type SavingsAccountPreviewItem,
@@ -195,12 +196,13 @@ function SavingsAccountPreviewRow({ item }: { item: SavingsAccountPreviewItem })
         resizeMode="contain"
       />
       {/* 이름이 남는 자리를 전부 가져가고 넘치면 말줄임 — 만기 표시에 밀리지 않게 한다.
-          상품명이 전부 네 글자라 좁은 기기에서만 한 글자쯤 잘린다 */}
+          서버 productName(단리예금) 이 아니라 화면 이름(도토리 항아리)을 쓴다. 저축 탭과
+          같은 이름이어야 한다 — 여섯·일곱 글자라 좁은 기기에서는 말줄임이 걸린다 */}
       <Text
         style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
         numberOfLines={1}
       >
-        {item.productName}
+        {savingsProductName(item.productType)}
       </Text>
       {marker != null ? (
         <Text

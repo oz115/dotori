@@ -63,6 +63,31 @@ describe('savingsGroupOf', () => {
   });
 });
 
+describe('상품 이름', () => {
+  it('카드는 서버 이름(단리예금) 대신 화면 이름을 싣는다', () => {
+    // 초등학생 화면이라 이름은 앱이 갖는다 (savingsAssets 의 PRODUCT_NAMES 주석 참고).
+    // 서버 name 을 그대로 쓰면 목록에서 '단리예금'·'복리예금' 이 한 글자 차이로 붙는다.
+    const [card] = buildSavingsCards([product({ name: '단리예금' })], [], NOW);
+
+    expect(card.name).toBe('도토리 항아리');
+  });
+
+  it('거래 내역도 목록과 같은 이름을 쓴다', () => {
+    expect(
+      toSavingsTransactionItem({
+        savingsTransactionId: 1,
+        savingsSubscriptionId: 10,
+        savingsProductId: 1,
+        productName: '단리예금',
+        productType: 'SIMPLE_INTEREST',
+        transactionType: 'INITIAL_DEPOSIT',
+        amount: 3000,
+        createdAt: '2026-09-17T09:00:00+09:00',
+      }).productName,
+    ).toBe('도토리 항아리');
+  });
+});
+
 describe('daysUntil', () => {
   it('만기까지 남은 날을 올림으로 세고, 지났으면 0이다', () => {
     expect(daysUntil('2026-09-18T00:00:00+09:00', NOW)).toBe(1);
@@ -71,16 +96,68 @@ describe('daysUntil', () => {
 });
 
 describe('buildSavingsCards', () => {
-  it('미가입 상품은 스펙(이자율·기간·최대 금액)을 싣고 진행바가 없다', () => {
+  it('미가입 상품은 이자율(%) 대신 최대로 넣었을 때 받는 도토리를 싣는다', () => {
+    // 초등학생에게 "5%" 는 도토리를 몇 개 받는지 알려 주지 못한다. 최대 금액(5,000P)을
+    // 4주 맡기면 실제로 얼마를 받는지 계산해 보여 준다.
     const [card] = buildSavingsCards([product({})], [], NOW);
 
     expect(card.subscribed).toBe(false);
     expect(card.progress).toBeUndefined();
+    // 252 는 주 단위 반올림의 결과다 - 5,000×5%÷4주 = 62.5 → 63, ×4주. 서버 정산이
+    // 주마다 반올림하므로 62.5×4=250 이 아니라 252 가 실제로 지급되는 값이다.
     expect(card.lines).toEqual([
-      { label: '이자율', value: '5%' },
+      { label: '최대 저금', value: '5,000P' },
       { label: '기간', value: '4주' },
-      { label: '최대', value: '5,000P' },
+      { label: '받는 도토리', value: '+ 252P' },
     ]);
+  });
+
+  it('받는 도토리는 서버 정산과 같은 식(estimateReturn)으로 계산한다', () => {
+    // 화면이 약속한 금액과 실제 지급액이 어긋나면 안 된다 - 한쪽만 고쳐지지 않게 묶어 둔다.
+    const item = product({ interestRate: 15, termWeeks: 4, maxAmount: 1067 });
+    const [card] = buildSavingsCards([item], [], NOW);
+
+    expect(card.lines[2].value).toBe(`+ ${estimateReturn(item, 1067).interest.toLocaleString()}P`);
+  });
+
+  it('보통예금은 만기가 없어 기간 줄이 빠지고 한 주치를 보여 준다', () => {
+    const [card] = buildSavingsCards(
+      [product({ contributionStyle: 'FREE', termWeeks: null, interestRate: 1, maxAmount: 4000 })],
+      [],
+      NOW,
+    );
+
+    expect(card.lines).toEqual([
+      { label: '최대 저금', value: '4,000P' },
+      { label: '매주 도토리', value: '+ 40P' },
+    ]);
+  });
+
+  it('정액 적립식의 최대 금액은 회당 납입액이라 라벨이 다르다', () => {
+    const [card] = buildSavingsCards(
+      [
+        product({
+          contributionStyle: 'FIXED_INSTALLMENT',
+          installmentCount: 2,
+          termWeeks: 2,
+          maxAmount: 1000,
+        }),
+      ],
+      [],
+      NOW,
+    );
+
+    expect(card.lines[0].label).toBe('매주 최대');
+  });
+
+  it('목표적금의 최대 금액은 목표라 라벨이 다르다', () => {
+    const [card] = buildSavingsCards(
+      [product({ contributionStyle: 'FLEXIBLE_GOAL', termWeeks: 4, maxAmount: 2000 })],
+      [],
+      NOW,
+    );
+
+    expect(card.lines[0].label).toBe('최대 목표');
   });
 
   it('거치식 가입은 예치 금액·쌓인 이자·만기까지와 기간 진행률을 싣는다', () => {
