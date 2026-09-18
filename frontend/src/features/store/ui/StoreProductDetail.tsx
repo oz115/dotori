@@ -290,7 +290,7 @@ function StoreProductDetailBody({
           </View>
         ) : null}
 
-        {product.reason ? (
+        {role === 'PARENT' && product.reason ? (
           <View
             style={[
               styles.card,
