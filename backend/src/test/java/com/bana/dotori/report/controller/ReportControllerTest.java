@@ -39,6 +39,7 @@ import com.bana.dotori.report.dto.response.PointIncomeTypeAmount;
 import com.bana.dotori.report.dto.response.PointSpendingReportResponse;
 import com.bana.dotori.report.dto.response.PointSpendingTypeAmount;
 import com.bana.dotori.report.dto.response.ReportDailyAmount;
+import com.bana.dotori.report.service.AssetReportService;
 import com.bana.dotori.report.service.PointReportService;
 import com.bana.dotori.wallet.entity.PointTransactionReason;
 
@@ -66,6 +67,10 @@ class ReportControllerTest {
 
 	@MockitoBean
 	private PointReportService pointReportService;
+
+	/** 같은 컨트롤러가 자산 조회(RPT-04)도 들고 있어 슬라이스에 필요하다. 검증은 AssetReportControllerTest 가 한다. */
+	@MockitoBean
+	private AssetReportService assetReportService;
 
 	@MockitoBean
 	private JwtTokenProvider jwtTokenProvider;
