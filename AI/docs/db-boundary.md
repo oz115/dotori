@@ -14,8 +14,8 @@
 
 | 테이블 | AI 서버의 권한 | 무엇을 하는가 |
 | --- | --- | --- |
-| `store_products` | 읽기 + `value`, `price` 쓰기 | 물품 가치를 평가해 채운다 |
-| `chores` | 읽기 + `reward_points` 쓰기 | 할 일 보상 포인트 책정 |
+| `store_products` | 읽기 + `value`, `price`, `reason` 쓰기 | 물품 가치를 평가해 채운다 |
+| `chores` | 읽기 + `value`, `reward_points`, `reason` 쓰기 | 할 일 보상 포인트 책정 |
 | `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
 | `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료 |
 | `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정. `current_price` 는 가족별 이력이 없을 때 쓰는 시작가로 좁힐 예정 (협의 2번). `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
@@ -103,19 +103,17 @@
 담당: 투자 도메인 / 상태: **요청 전** (`family_id`·`impact` 두 컬럼을 한 번에 요청 —
 2026-09-10 재작성)
 
-### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다
+### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다 (해결됨)
 
-부모에게 "왜 이 가격인지"를 보여줘야 하는데 `store_products` 에는 `description` 뿐이고,
-부모가 수정하기 전의 AI 제안값도 남지 않는다.
+부모에게 "왜 이 가격/보상인지"를 보여줘야 하는데 `store_products`/`chores` 에는 이걸 담을
+컬럼이 없었다. `store_products.reason`, `chores.reason`(둘 다 TEXT, NULL 허용)이 추가됐다.
 
-두 가지 방법이 있다.
+LLM 응답에서 파싱하던 `reason` 은 원래도 있었고(`evaluate_product`/`evaluate_chore`) 로그에만
+남기고 버렸는데, 이제 `save_valuation`/`save_reward` 가 `value`·`price`(또는
+`reward_points`)와 같은 UPDATE 문으로 함께 쓴다. `ai_suggested_price` 같은 산정 당시
+원래 제안값 스냅샷은 이번 범위에 없다 — 필요해지면 별도 협의.
 
-- **저장하지 않는다 (v1 권장).** 근거를 API 응답에만 담아 Spring 이 부모 화면에 전달한다.
-  스키마 변경이 필요 없어 지금 바로 진행할 수 있다.
-- **컬럼을 추가한다.** 근거를 나중에 다시 보여줘야 한다면 `store_products` 에
-  `ai_reason`(TEXT), `ai_suggested_price`(INTEGER) 추가를 상점 도메인 담당자와 협의한다.
-
-담당: 상점 도메인 / 상태: **v1 은 저장 없이 진행**
+담당: 상점·할 일 도메인 / 상태: **DB 반영 + AI 서버 저장 로직 완료**
 
 ### 4. 회사 10개 시드 + 뉴스 프롬프트용 속성 (요청안 정리 완료, 2026-09-10)
 
