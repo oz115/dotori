@@ -109,6 +109,10 @@ export function savingsBannerSegments(copy: BannerCopy = SAVINGS_BANNER_COPY): B
  * 빼기가 자유롭고, 항아리는 담아 두고 기다리며, 나무는 심으면 불어나고, 겨울 창고는 가장
  * 길게 모은다 — 이름만 봐도 무엇이 다른지 짐작된다.
  *
+ * <p>"몸풀기 적금" 만 범주어를 그대로 쓴다. 나머지는 사물(항아리·나무·바구니·창고)이 무엇을
+ * 하는지 말해 주는데 "몸풀기" 는 사물이 아니라 태도라 뒤에 붙일 말이 필요했고, "저금" 은
+ * 예금인지 적금인지 알려 주지 못한다.
+ *
  * <p>원래 용어를 버리지는 않는다. 설명 첫 줄에 "…예금이에요" 로 넣어 두었다. 금융 용어를
  * 가르치는 앱이라 단어 자체를 안 보여 주면 배울 기회가 사라진다 - 이름으로 끌고 와서
  * 설명에서 알려 주는 순서다.
@@ -120,7 +124,7 @@ const PRODUCT_NAMES: Record<SavingsProductType, string> = {
   ORDINARY: '볼주머니 저금',
   SIMPLE_INTEREST: '도토리 항아리',
   COMPOUND_INTEREST: '도토리 나무',
-  SMALL_INSTALLMENT: '몸풀기 저금',
+  SMALL_INSTALLMENT: '몸풀기 적금',
   GOAL_INSTALLMENT: '소원 바구니',
   LONG_TERM_INSTALLMENT: '겨울 대비 창고',
 };

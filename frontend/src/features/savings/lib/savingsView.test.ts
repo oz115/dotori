@@ -6,7 +6,9 @@ import {
   toSavingsTransactionItem,
 } from './savingsView';
 import type {
+  ContributionStyle,
   SavingsProductResponse,
+  SavingsProductType,
   SavingsSubscription,
   SavingsTransactionResponse,
 } from '@/features/savings/model/types';
@@ -211,6 +213,48 @@ describe('buildSavingsCards', () => {
     expect(card.matured).toBe(true);
     expect(card.progress).toBe(0.9);
     expect(card.lines[2]).toEqual({ label: '만기', value: '달성!' });
+  });
+
+  it('서버 순서가 아니라 화면 순서로 늘어놓는다', () => {
+    // 목표적금(만기까지)이 정액 적립식(납입 N회) 둘 사이에 끼면 적금 카드 석 장이 매번
+    // 다른 줄로 읽혀 비교가 끊긴다. 같은 모양끼리 붙여 둔다.
+    const STYLES: Record<SavingsProductType, ContributionStyle> = {
+      ORDINARY: 'FREE',
+      SIMPLE_INTEREST: 'LUMP_SUM',
+      COMPOUND_INTEREST: 'LUMP_SUM',
+      SMALL_INSTALLMENT: 'FIXED_INSTALLMENT',
+      GOAL_INSTALLMENT: 'FLEXIBLE_GOAL',
+      LONG_TERM_INSTALLMENT: 'FIXED_INSTALLMENT',
+    };
+    const serverOrder: SavingsProductType[] = [
+      'ORDINARY',
+      'SIMPLE_INTEREST',
+      'COMPOUND_INTEREST',
+      'SMALL_INSTALLMENT',
+      'GOAL_INSTALLMENT',
+      'LONG_TERM_INSTALLMENT',
+    ];
+    const products = serverOrder.map((productType, index) =>
+      product({
+        savingsProductId: index + 1,
+        productType,
+        contributionStyle: STYLES[productType],
+        installmentCount: STYLES[productType] === 'FIXED_INSTALLMENT' ? 2 : null,
+      }),
+    );
+
+    const cards = buildSavingsCards(products, [], NOW);
+
+    expect(cards.map((card) => card.name)).toEqual([
+      '볼주머니 저금',
+      '도토리 항아리',
+      '도토리 나무',
+      '소원 바구니',
+      '몸풀기 적금',
+      '겨울 대비 창고',
+    ]);
+    // 받은 배열은 그대로다 — TanStack Query 캐시에 들어 있는 객체를 뒤집으면 안 된다
+    expect(products.map((item) => item.productType)).toEqual(serverOrder);
   });
 
   it('해지·수령 완료된 가입은 보유로 치지 않는다', () => {

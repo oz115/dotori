@@ -264,6 +264,30 @@ export function toSavingsTransactionItem(
 }
 
 /**
+ * 카드를 늘어놓는 순서. 서버 응답 순서(enum 순)를 그대로 쓰지 않는다.
+ *
+ * 같은 모양의 카드끼리 붙인다. 매주 정한 금액을 약속한 회차만큼 넣는 몸풀기 적금과
+ * 겨울 대비 창고는 "납입 1회 / 6회" 줄을 갖고, 목표적금(소원 바구니)만 "만기까지" 를
+ * 갖는다 — 그게 사이에 끼면 세 카드가 매번 다른 줄로 읽혀 비교가 끊긴다.
+ *
+ * <p>예금은 보통 → 단리 → 복리, 이해해야 하는 순서 그대로 둔다.
+ */
+const CARD_ORDER: SavingsProductType[] = [
+  'ORDINARY',
+  'SIMPLE_INTEREST',
+  'COMPOUND_INTEREST',
+  'GOAL_INSTALLMENT',
+  'SMALL_INSTALLMENT',
+  'LONG_TERM_INSTALLMENT',
+];
+
+/** CARD_ORDER 에 없는 유형(서버에 새 상품이 생긴 경우)은 뒤로 보낸다 — 빠뜨리지 않기 위해 */
+function cardRank(productType: SavingsProductType): number {
+  const index = CARD_ORDER.indexOf(productType);
+  return index < 0 ? CARD_ORDER.length : index;
+}
+
+/**
  * 카드 목록 조립. 상품당 카드 하나 — 진행 중(ACTIVE·MATURED) 가입이 있으면
  * 그 가입의 진행 정보를 싣고, 없으면 상품 스펙을 싣는다.
  * (해지·수령 완료된 가입은 "보유"로 치지 않는다)
@@ -279,7 +303,10 @@ export function buildSavingsCards(
       .map((s) => [s.savingsProductId, s] as const),
   );
 
-  return products.map((product) => {
+  // 받은 배열은 건드리지 않는다 (TanStack Query 캐시에 그대로 들어 있는 객체다)
+  const ordered = [...products].sort((a, b) => cardRank(a.productType) - cardRank(b.productType));
+
+  return ordered.map((product) => {
     const subscription = activeByProductId.get(product.savingsProductId);
     const base = {
       productId: product.savingsProductId,
