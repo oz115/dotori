@@ -28,7 +28,9 @@ export function ChildBadge({ name }: { name: string }) {
         },
       ]}
     >
-      <Text style={[theme.typography.caption, { color: tone.text }]}>{name}</Text>
+      <Text numberOfLines={1} style={[theme.typography.caption, { color: tone.text }]}>
+        {name}
+      </Text>
     </View>
   );
 }
@@ -42,5 +44,7 @@ function hash(value: string): number {
 }
 
 const styles = StyleSheet.create({
-  badge: { paddingVertical: 2 },
+  // 로그인 아이디를 이름으로 쓰는 계정이 있어 "insonggim1010" 처럼 길어질 수 있다.
+  // 줄이지 않으면 배지가 제목을 밀어내므로, 폭에 상한을 두고 넘치면 말줄임한다.
+  badge: { paddingVertical: 2, maxWidth: 110, flexShrink: 1 },
 });

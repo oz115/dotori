@@ -1,40 +1,63 @@
-import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { mockTodayChores, useTodayChores, type TodayChore } from '@/features/chore';
+import {
+  ChoreListRow,
+  mockTodayChores,
+  todayDate,
+  useChoreRefresh,
+  useTodayChores,
+  type TodayChore,
+} from '@/features/chore';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, MockBadge } from '@/shared/ui';
+import { MockBadge } from '@/shared/ui';
 
 type ChildTodayProgressProps = {
   familyId: number | undefined;
   childId: number | undefined;
   /** 가족·구성원 조회가 아직 끝나지 않았다 — 이때는 예시로 넘어가지 않는다 */
   familyPending: boolean;
-  /** "더보기"·각 항목 탭 — 할 일 탭으로 보낸다 */
+  /** "전체보기" — 미션 탭으로 보낸다 */
   onMorePress: () => void;
+  /** 항목 탭 — 그 미션의 상세로 보낸다 */
+  onChorePress: (chore: TodayChore) => void;
 };
 
+/** 미리보기라 앞의 몇 개만 보여 준다. 나머지는 미션 탭에 있다 */
+const PREVIEW_COUNT = 3;
+
 /**
- * "미션 진척도" 섹션. 자녀 홈의 "오늘의 미션"과 같은 데이터(`useTodayChores`)를 쓰지만,
+ * "미션 진척도" 섹션. 자녀 홈의 "오늘 등록된 미션"과 같은 데이터(`useTodayChores`)를 쓰지만,
  * 부모 홈 전용으로 따로 둔다 — widgets는 서로를 import하지 않는 게 이 프로젝트 규칙이라
  * child-home 컴포넌트를 그대로 가져다 쓸 수 없다.
  *
- * 등록된 집안일이 없거나 아직 아이를 연결하지 않았으면 예시로 자리를 채운다.
+ * 행은 두 홈과 미션 탭이 모두 ChoreListRow 를 쓴다. 부모와 아이가 같은 미션을 이야기할 때
+ * 서로 다른 모양을 보고 있으면 말이 어긋난다.
+ *
+ * 등록된 미션이 없거나 아직 아이를 연결하지 않았으면 예시로 자리를 채운다.
  */
 export function ChildTodayProgress({
   familyId,
   childId,
   familyPending,
   onMorePress,
+  onChorePress,
 }: ChildTodayProgressProps) {
   const theme = useTheme();
   const { items, isPending, isError } = useTodayChores(familyId, childId);
+
+  // 홈으로 돌아올 때마다 미션 캐시를 턴다. 보상은 등록 직후가 아니라 AI 가 산정한 뒤에
+  // 채워지는데, 탭 화면은 전환해도 언마운트되지 않고 staleTime 이 60초라 다시 와도
+  // "산정 중"이 그대로 남아 있었다. 미션 탭은 이미 같은 훅을 쓴다.
+  useChoreRefresh();
 
   // 아이가 없으면 useTodayChores 가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다
   const loading = familyPending || (childId != null && isPending);
   const usingMock = !loading && items.length === 0;
-  const rows = usingMock ? mockTodayChores : items;
+  const source = usingMock ? mockTodayChores : items;
+
+  const rows = useMemo(() => registeredToday(source), [source]);
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -45,8 +68,8 @@ export function ChildTodayProgress({
           </Text>
           {usingMock ? <MockBadge /> : null}
         </View>
-        <Pressable onPress={onMorePress} hitSlop={8}>
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>더보기</Text>
+        <Pressable onPress={onMorePress} hitSlop={8} accessibilityRole="button">
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>전체보기 ›</Text>
         </Pressable>
       </View>
 
@@ -61,56 +84,40 @@ export function ChildTodayProgress({
               미션을 불러오지 못해 예시를 보여주고 있어요.
             </Text>
           ) : null}
-          <View style={{ gap: theme.space.sm }}>
-            {rows.map((chore) => (
-              <ChoreRow key={chore.choreId} chore={chore} onPress={onMorePress} />
-            ))}
-          </View>
+          {rows.length === 0 ? (
+            <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+              오늘 등록된 미션이 없어요.
+            </Text>
+          ) : (
+            <View style={{ gap: theme.space.sm }}>
+              {rows.map((chore) => (
+                <ChoreListRow
+                  key={chore.choreId}
+                  title={chore.title}
+                  repeatType={chore.repeatType}
+                  rewardPoints={chore.rewardPoints}
+                  status={chore.status}
+                  onPress={usingMock ? undefined : () => onChorePress(chore)}
+                />
+              ))}
+            </View>
+          )}
         </>
       )}
     </View>
   );
 }
 
-function ChoreRow({ chore, onPress }: { chore: TodayChore; onPress: () => void }) {
-  const theme = useTheme();
-  const done = chore.status === 'DONE';
-  const pending = chore.status === 'PENDING';
-
-  const icon = done ? 'checkmark-circle' : pending ? 'time-outline' : 'help-circle-outline';
-  const trailing = pending ? '승인 대기' : rewardLabel(chore.rewardPoints);
-  const trailingColor = pending ? theme.color.text.muted : theme.color.status.success.text;
-
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button">
-      <ContentCard style={[styles.row, { padding: theme.space.md, gap: theme.space.md }]}>
-        <View
-          style={[
-            styles.iconBox,
-            { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.md },
-          ]}
-        >
-          <Ionicons name={icon} size={20} color={theme.color.brand.solid} />
-        </View>
-        <Text
-          style={[theme.typography.body, { color: theme.color.text.strong, flex: 1 }]}
-          numberOfLines={1}
-        >
-          {chore.title}
-        </Text>
-        <Text style={[theme.typography.label, { color: trailingColor }]}>{trailing}</Text>
-      </ContentCard>
-    </Pressable>
-  );
-}
-
-function rewardLabel(rewardPoints: number | null): string {
-  return rewardPoints == null ? '산정 중' : `+${rewardPoints}P`;
+/** 오늘 등록된 것 중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+function registeredToday(chores: TodayChore[]): TodayChore[] {
+  const today = todayDate();
+  return [...chores]
+    .filter((chore) => chore.status !== 'DONE' && chore.createdAt.slice(0, 10) === today)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, PREVIEW_COUNT);
 }
 
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

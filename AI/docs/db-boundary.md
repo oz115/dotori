@@ -14,11 +14,11 @@
 
 | 테이블 | AI 서버의 권한 | 무엇을 하는가 |
 | --- | --- | --- |
-| `store_products` | 읽기 + `value`, `price` 쓰기 | 물품 가치를 평가해 채운다 |
-| `chores` | 읽기 + `reward_points` 쓰기 | 할 일 보상 포인트 책정 |
+| `store_products` | 읽기 + `value`, `price`, `reason` 쓰기 | 물품 가치를 평가해 채운다 |
+| `chores` | 읽기 + `value`, `reward_points`, `reason` 쓰기 | 할 일 보상 포인트 책정 |
 | `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
 | `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료 |
-| `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정. `current_price` 는 가족별 이력이 없을 때 쓰는 시작가로 좁힐 예정 (협의 2번). `news_context` 는 매일 뉴스 생성 프롬프트의 few-shot 참고자료 (협의 4번) |
+| `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정. `current_price` 는 가족별 이력이 없을 때 쓰는 시작가로 좁힐 예정 (협의 2번). `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
 | `investment_news` | INSERT | 매일 뉴스 3건 생성 |
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
 | `investment_price_history` | INSERT | 가족별 주가 변동 이력. `family_id` 컬럼 요청 중 (협의 2번) |
@@ -103,33 +103,32 @@
 담당: 투자 도메인 / 상태: **요청 전** (`family_id`·`impact` 두 컬럼을 한 번에 요청 —
 2026-09-10 재작성)
 
-### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다
+### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다 (해결됨)
 
-부모에게 "왜 이 가격인지"를 보여줘야 하는데 `store_products` 에는 `description` 뿐이고,
-부모가 수정하기 전의 AI 제안값도 남지 않는다.
+부모에게 "왜 이 가격/보상인지"를 보여줘야 하는데 `store_products`/`chores` 에는 이걸 담을
+컬럼이 없었다. `store_products.reason`, `chores.reason`(둘 다 TEXT, NULL 허용)이 추가됐다.
 
-두 가지 방법이 있다.
+LLM 응답에서 파싱하던 `reason` 은 원래도 있었고(`evaluate_product`/`evaluate_chore`) 로그에만
+남기고 버렸는데, 이제 `save_valuation`/`save_reward` 가 `value`·`price`(또는
+`reward_points`)와 같은 UPDATE 문으로 함께 쓴다. `ai_suggested_price` 같은 산정 당시
+원래 제안값 스냅샷은 이번 범위에 없다 — 필요해지면 별도 협의.
 
-- **저장하지 않는다 (v1 권장).** 근거를 API 응답에만 담아 Spring 이 부모 화면에 전달한다.
-  스키마 변경이 필요 없어 지금 바로 진행할 수 있다.
-- **컬럼을 추가한다.** 근거를 나중에 다시 보여줘야 한다면 `store_products` 에
-  `ai_reason`(TEXT), `ai_suggested_price`(INTEGER) 추가를 상점 도메인 담당자와 협의한다.
-
-담당: 상점 도메인 / 상태: **v1 은 저장 없이 진행**
+담당: 상점·할 일 도메인 / 상태: **DB 반영 + AI 서버 저장 로직 완료**
 
 ### 4. 회사 10개 시드 + 뉴스 프롬프트용 속성 (요청안 정리 완료, 2026-09-10)
 
-노션 「회사 리스트」가 회사 10개(시원아이스·푸른들농업·두근여행·신나는월드·하늘항공·번개택배·
-튼튼건설·고소한빵·씽씽자동차·파워배터리)와 각각의 대표 경제 요인·상승/하락 사건 예시를
-확정했다. `name`·`description`은 기존 컬럼에 매핑하고, `category`는 전부 `STOCK`으로 둔다
+노션 「회사 리스트」가 회사 10개(시원아이스/푸른들농업/두근여행/신나는월드/하늘항공/번개택배/
+튼튼건설/고소한빵/씽씽자동차/파워배터리)와 각각의 대표 경제 요인/영향 방향을
+확정했다. `name`/`description`은 기존 컬럼에 매핑하고, `category`는 전부 `STOCK`으로 둔다
 (ENUM 은 확장성을 위해 남겨둔 것, 지금은 나눌 대상이 없다).
 
-경제 요인·상승/하락 예시는 조회 대상이 아니라 매일 뉴스 3건을 만드는 LLM 프롬프트의
-few-shot 참고자료라 컬럼을 나누지 않고 자유 텍스트 하나로 묶었다.
+경제 요인/회사에 유리하거나 불리한 변화/뉴스 소재는 조회 대상이 아니라 매일 뉴스 3건을
+만드는 LLM 프롬프트의 참고자료라 컬럼을 나누지 않고 자유 텍스트 하나로 묶었다. 회사명이나
+사업 결과가 뉴스에 직접 노출되지 않도록 완성된 예시 문장은 넣지 않는다.
 
 | 컬럼 | 타입 | 의미 |
 | --- | --- | --- |
-| `news_context` | TEXT | 대표 경제 요인 + 상승/하락 사건 예시 (자유 텍스트) |
+| `news_context` | TEXT | 대표 경제 요인 + 유리/불리한 변화 + 뉴스 소재 (자유 텍스트) |
 
 `01-schema.sql`은 Notion DDL 문서의 동기화본이라 여기서 직접 고치지 않는다 — 위 컬럼
 요청을 Notion에 반영하는 건 투자 도메인 담당자 몫이다. 시드 데이터(회사 10개 INSERT 문)는

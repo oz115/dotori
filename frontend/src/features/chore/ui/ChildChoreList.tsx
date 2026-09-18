@@ -97,6 +97,7 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
             repeatType={item.repeatType}
             rewardPoints={item.rewardPoints}
             status={item.status}
+            endDate={item.endDate}
             onPress={() => setOpenChoreId(item.choreId)}
           />
         )}

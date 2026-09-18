@@ -40,4 +40,6 @@ class Chore(Base):
     repeat_type: Mapped[str] = mapped_column(String)
     value: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     reward_points: Mapped[int | None] = mapped_column()
+    # AI가 value·reward_points와 함께 산정하는 근거 문구. 산정 전에는 NULL.
+    reason: Mapped[str | None] = mapped_column()
     deleted_at: Mapped[datetime | None] = mapped_column()

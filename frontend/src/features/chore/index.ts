@@ -36,7 +36,7 @@ export { ChoreHeroBanner } from './ui/ChoreHeroBanner';
 export { ChoreListRow } from './ui/ChoreListRow';
 export { RepeatBadge } from './ui/RepeatBadge';
 export { RewardChip } from './ui/RewardChip';
-export { earliestStartDate, periodStartedAt, withStatus } from './lib/choreStatus';
+export { earliestStartDate, periodStartedAt, todayDate, withStatus } from './lib/choreStatus';
 export {
   DIFFICULTIES,
   REPEAT_TYPES,

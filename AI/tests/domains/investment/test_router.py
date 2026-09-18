@@ -50,9 +50,7 @@ def client_requiring_token(client, monkeypatch):
 
 def _fake_client():
     def create(**kwargs):
-        user_msg = kwargs["messages"][1]["content"]
-        company_line = next(line for line in user_msg.splitlines() if line.startswith("회사:"))
-        payload = {"title": f"{company_line} 뉴스", "content": "오늘도 잘 지내요."}
+        payload = {"title": "경제 환경 변화", "content": "시장 상황이 어제와 달라졌어요."}
         msg = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
         return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
 
