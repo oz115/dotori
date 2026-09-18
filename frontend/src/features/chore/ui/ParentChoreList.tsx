@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel } from '@/features/chore/lib/choreLabels';
 import {
@@ -15,10 +15,11 @@ import {
 import type { ChoreRepeatType } from '@/features/chore/model/types';
 import { ChildBadge } from '@/features/chore/ui/ChildBadge';
 import { ChoreFilterChips } from '@/features/chore/ui/ChoreFilterChips';
+import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { ContentCard, Header, Screen } from '@/shared/ui';
+import { ContentCard, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
 const PREVIEW_COUNT = 2;
@@ -73,30 +74,15 @@ export function ParentChoreList({
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
   const historyButton = onHistoryPress ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="완료 이력"
-      onPress={onHistoryPress}
-      hitSlop={8}
-      style={[
-        styles.historyChip,
-        {
-          borderRadius: theme.radius.full,
-          backgroundColor: theme.color.background.surfaceSunken,
-        },
-      ]}
-    >
-      <Text
-        numberOfLines={1}
-        style={[theme.typography.caption, { color: theme.color.text.default }]}
-      >
-        완료 이력
-      </Text>
-    </Pressable>
+    <HeaderChipButton label="완료 이력" onPress={onHistoryPress} />
   ) : undefined;
 
   return (
-    <Screen header={<Header title="미션" right={historyButton} />} padded={false}>
+    <Screen
+      header={<Header title="미션" right={historyButton} />}
+      padded={false}
+      style={{ paddingVertical: theme.space.sm }}
+    >
       <FlatList
         data={visible}
         keyExtractor={(item) => String(item.choreId)}
@@ -108,7 +94,11 @@ export function ParentChoreList({
         ]}
         ListHeaderComponent={
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <IntroBanner />
+            <ChoreHeroBanner
+              title="우리 가족 미션"
+              caption={'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
+              mascot={require('@/assets/images/chore/owl-cheer.png')}
+            />
             {requests.items.length > 0 ? (
               <PendingRequestsCard
                 requests={requests.items}
@@ -164,45 +154,6 @@ export function ParentChoreList({
         </Pressable>
       ) : null}
     </Screen>
-  );
-}
-
-/**
- * 화면 맨 위의 설명 배너. 상점(StoreBanner)과 같은 자리·같은 높이다.
- *
- * 누르는 배너가 아니다. 예전에는 이것이 등록 버튼이었는데, 목록을 보러 온 부모가 맨 위
- * 큰 박스를 눌러 등록 화면으로 빠지는 일이 잦았다. 등록은 우측 하단 + 버튼으로 옮겼다.
- */
-function IntroBanner() {
-  const theme = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.banner,
-        {
-          backgroundColor: theme.color.brand.subtle,
-          borderRadius: theme.radius.lg,
-          paddingVertical: theme.space.lg,
-          paddingHorizontal: theme.space.xl,
-          gap: theme.space.md,
-        },
-      ]}
-    >
-      <View style={styles.bannerBody}>
-        <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
-          우리 가족 미션
-        </Text>
-        <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-          {'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
-        </Text>
-      </View>
-      <Image
-        source={require('@/assets/images/chore/owl-cheer.png')}
-        style={styles.mascotSmall}
-        resizeMode="contain"
-      />
-    </View>
   );
 }
 
@@ -299,15 +250,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  // 위쪽 여백을 주지 않는다. Screen 이 padded={false} 여도 paddingVertical(16)은 항상
-  // 넣기 때문에, 여기서 또 주면 헤더와 배너 사이가 32px 이 되어 상점(16px)보다 벌어진다.
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingVertical: theme.space.sm }}로 헤더-배너
+  // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
-  banner: { flexDirection: 'row', alignItems: 'center' },
-  bannerBody: { flex: 1, gap: 4 },
-  historyChip: { paddingHorizontal: 12, paddingVertical: 6 },
-  // 상점 배너(StoreBanner)와 같은 88px. 글 영역이 52px 라 높이는 마스코트가 정한다 - 이 값이
-  // 두 탭의 배너를 똑같이 120px 로 맞춘다.
-  mascotSmall: { width: 88, height: 88 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   count: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },

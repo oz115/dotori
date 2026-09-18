@@ -58,7 +58,7 @@ export function ChildChoreHistory({ familyId, childId }: ChildChoreHistoryProps)
                   ? `${week.total.toLocaleString('ko-KR')} 도토리를 모았어요`
                   : undefined
               }
-              mascot={require('@/assets/images/chore/squirrel-jump.png')}
+              mascot={require('@/assets/images/chore/squirrel-win.png')}
             />
           </View>
         }

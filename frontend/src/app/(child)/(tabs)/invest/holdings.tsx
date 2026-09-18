@@ -8,7 +8,7 @@ import {
   useInvestmentHoldings,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header } from '@/shared/ui';
+import { Button, Header, Screen } from '@/shared/ui';
 
 /**
  * 보유 투자 상품. 합계 요약·보유 종목 목록·교육 팁의 배치만 담당하고,
@@ -19,12 +19,15 @@ export default function InvestHoldingsScreen() {
   const holdings = useInvestmentHoldings();
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="보유 투자 상품 보기"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="보유 투자 상품 보기"
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
+        />
+      }
+      padded={false}
+    >
       {holdings.isPending || holdings.isError ? (
         <View style={[styles.center, { gap: theme.space.lg }]}>
           <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
@@ -74,12 +77,11 @@ export default function InvestHoldingsScreen() {
           <TipBanner message={'여러 상품을 나누어 가지면\n더 안정적으로 배울 수 있어요.'} />
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',

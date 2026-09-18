@@ -7,6 +7,7 @@ export { CodeInput } from './CodeInput';
 export { ComingSoonScreen } from './ComingSoonScreen';
 export { ContentCard } from './ContentCard';
 export { Header } from './Header';
+export { HeaderChipButton } from './HeaderChipButton';
 export { Input } from './Input';
 export { MockBadge } from './MockBadge';
 export { NumericKeypad } from './NumericKeypad';

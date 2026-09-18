@@ -8,9 +8,9 @@ import { fontFamily } from '@/shared/theme/fonts';
 
 /** 화면 공통 레이아웃 값. */
 export const layout = {
-  screenX: 27, // 화면 좌우 여백 (Screen 컴포넌트)
+  screenX: 20, // 화면 좌우 여백 (Screen 컴포넌트)
   screenY: 16, // 스크롤 콘텐츠 상하 여백 (Screen 컴포넌트)
-  inputHeight: 55, // 박스형 입력·셀렉트 등 폼 컨트롤 높이
+  inputHeight: 52, // 박스형 입력·셀렉트 등 폼 컨트롤 높이
 } as const;
 
 /** 간격 스케일 (4의 배수). margin/padding/gap 공통. */

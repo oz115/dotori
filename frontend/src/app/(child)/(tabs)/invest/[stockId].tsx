@@ -8,7 +8,7 @@ import {
   useStockDetail,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header } from '@/shared/ui';
+import { Button, Header, Screen } from '@/shared/ui';
 
 /**
  * 투자 상품 상세. 상세 응답 + 가격 이력(차트) + 보유 여부를 useStockDetail 이 묶어 주고,
@@ -20,12 +20,15 @@ export default function InvestDetailScreen() {
   const { detail, isPending, isError, refetch } = useStockDetail(Number(stockId));
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header
-        title="투자 상품 상세 보기"
-        onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
-      />
-
+    <Screen
+      header={
+        <Header
+          title="투자 상품 상세 보기"
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
+        />
+      }
+      padded={false}
+    >
       {detail ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -50,12 +53,11 @@ export default function InvestDetailScreen() {
           ) : null}
         </View>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   empty: {
     flex: 1,
     alignItems: 'center',
