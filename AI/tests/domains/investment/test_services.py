@@ -18,12 +18,10 @@ from app.domains.investment.models import InvestmentNews, InvestmentNewsProduct,
 
 
 def _fake_client():
-    """`회사: <이름>` 줄을 읽어서 그 이름을 담은 제목을 돌려주는 목 LLM 클라이언트."""
+    """고정된 JSON 뉴스를 돌려주는 목 LLM 클라이언트."""
 
     def create(**kwargs):
-        user_msg = kwargs["messages"][1]["content"]
-        company_line = next(line for line in user_msg.splitlines() if line.startswith("회사:"))
-        payload = {"title": f"{company_line} 뉴스", "content": "오늘도 잘 지내요."}
+        payload = {"title": "원자재 가격 변화", "content": "시장에 들어오는 원자재의 양이 달라졌어요."}
         msg = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
         return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
 
@@ -77,6 +75,60 @@ class TestSelectTodaysCompanies:
 
 
 class TestGenerateTodaysNews:
+    @pytest.mark.parametrize(
+        ("impact", "expected_condition", "excluded_condition"),
+        [
+            ("POSITIVE", "원자재 가격 하락", "원자재 가격 상승"),
+            ("NEGATIVE", "원자재 가격 상승", "원자재 가격 하락"),
+        ],
+    )
+    def test_llm_prompt_omits_company_identity(
+        self, ten_companies, impact, expected_condition, excluded_condition
+    ):
+        product = ten_companies[0]
+        product.name = "고소한빵"
+        product.description = "밀가루로 빵을 만들어 판매해요."
+        captured: dict = {}
+
+        def create(**kwargs):
+            captured.update(kwargs)
+            payload = {"title": "원자재 가격 변화", "content": "원자재 가격이 달라졌어요."}
+            msg = SimpleNamespace(content=json.dumps(payload, ensure_ascii=False))
+            return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+        with patch.object(services, "get_client", return_value=fake_client):
+            services._generate_news_text(product, impact)
+
+        user_prompt = captured["messages"][1]["content"]
+        assert product.name not in user_prompt
+        assert product.description not in user_prompt
+        assert "회사:" not in user_prompt
+        assert "하는 일:" not in user_prompt
+        assert "대표 경제 요인: 원자재 가격" in user_prompt
+        assert f"선택된 사건 조건: {expected_condition}" in user_prompt
+        assert excluded_condition not in user_prompt
+        assert "사용 가능한 뉴스 소재: 생산량, 수입량, 재고량" in user_prompt
+        assert "출력 금지어: 빵, 제빵, 밀가루" in user_prompt
+        response_format = captured["response_format"]
+        assert response_format["type"] == "json_schema"
+        assert response_format["json_schema"]["strict"] is True
+        assert response_format["json_schema"]["schema"]["required"] == ["title", "content"]
+        assert response_format["json_schema"]["schema"]["additionalProperties"] is False
+
+    def test_llm_prompt_supports_legacy_news_context(self):
+        legacy_context = (
+            "대표 경제 요인: 밀 가격\n"
+            "상승 예시: 밀 가격이 내려 빵을 만드는 비용이 줄었어요.\n"
+            "하락 예시: 밀 가격이 올라 빵을 만드는 비용이 늘었어요."
+        )
+
+        user_prompt = services._build_news_user_prompt(legacy_context, "POSITIVE")
+
+        assert "대표 경제 요인: 밀 가격" in user_prompt
+        assert "선택된 사건 조건: 밀 가격이 내려 빵을 만드는 비용이 줄었어요." in user_prompt
+        assert "밀 가격이 올라" not in user_prompt
+
     def test_creates_three_news_with_two_up_one_down(self, db_session, ten_companies, now_kst_afternoon):
         with patch.object(services, "get_client", return_value=_fake_client()):
             created = services.generate_todays_news(db_session, now_kst_afternoon)
