@@ -194,9 +194,18 @@ function SignupSection({
   const valid = amount > 0 && !tooBig;
   const preview = valid ? estimateReturn(product, amount) : null;
 
-  const specs: { label: string; value: string }[] = [];
+  // 최대로 넣었을 때 받는 도토리. 이자율(%)을 쓰지 않는 이유는 카드와 같다 - 초등학생에게
+  // "15%" 는 도토리를 몇 개 받는지 알려 주지 못하고, 상품끼리 비교도 되지 않는다.
+  // 기준 금액을 sub 로 붙여, 이 숫자가 "최대로 넣었을 때" 의 값임을 같은 줄에서 밝힌다.
+  const atMax = estimateReturn(product, product.maxAmount);
+
+  const specs: { label: string; value: string; sub?: string }[] = [];
   if (product.contributionStyle === 'FREE') {
-    specs.push({ label: '이자', value: `매주 ${product.interestRate}%` });
+    specs.push({
+      label: '매주 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `${formatPoint(product.maxAmount)} 저금했을 때`,
+    });
     specs.push({ label: '기간', value: '자유롭게' });
   } else {
     if (product.termWeeks != null) {
@@ -211,7 +220,11 @@ function SignupSection({
     if (product.installmentCount != null) {
       specs.push({ label: '납입 횟수', value: `매주 1번, 총 ${product.installmentCount}회` });
     }
-    specs.push({ label: '이자율', value: `${product.interestRate}%` });
+    specs.push({
+      label: '다 모으면 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `최대로 넣었을 때`,
+    });
   }
   specs.push({
     label: AMOUNT_LABELS[product.contributionStyle],
@@ -250,7 +263,7 @@ function SignupSection({
       <InfoCard title="상품 정보">
         <View style={{ gap: theme.space.lg }}>
           {specs.map((row) => (
-            <InfoRow key={row.label} label={row.label} value={row.value} />
+            <InfoRow key={row.label} label={row.label} value={row.value} sub={row.sub} />
           ))}
         </View>
       </InfoCard>

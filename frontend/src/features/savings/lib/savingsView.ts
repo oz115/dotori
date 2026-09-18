@@ -104,12 +104,46 @@ function subscribedLines(
   }
 }
 
+/** 이 상품에 넣을 수 있는 최대 금액이 무엇을 뜻하는지. 카드 한 칸에 들어가야 해서 짧게 */
+export function savingsMaxAmountLabel(product: SavingsProductResponse): string {
+  switch (product.contributionStyle) {
+    case 'FREE':
+      return '최대 저금';
+    case 'LUMP_SUM':
+      return '최대 저금';
+    case 'FIXED_INSTALLMENT':
+      return '매주 최대';
+    case 'FLEXIBLE_GOAL':
+      return '최대 목표';
+  }
+}
+
+/**
+ * 미가입 카드에 싣는 줄 — "최대로 넣으면 도토리를 얼마 더 받는지".
+ *
+ * 이자율(%)을 쓰지 않는다. 초등학생에게 "15%" 는 읽을 수는 있어도 도토리를 몇 개 받는지
+ * 알 수 없는 값이고, 상품끼리 비교도 안 된다 — 이자율 15% 인 단리예금과 10% 인 복리예금
+ * 중 무엇이 많이 주는지는 퍼센트만 보면 거꾸로 읽힌다.
+ *
+ * 그래서 최대 금액으로 실제 받는 도토리를 계산해 보여 준다. 계산은 서버 정산과 같은 식
+ * (estimateReturn)이라 화면이 약속한 값과 실제 지급액이 어긋나지 않는다.
+ *
+ * 최대 금액을 앞에 두는 순서가 중요하다. 받는 도토리는 "최대로 넣었을 때" 의 값이라,
+ * 기준 금액이 먼저 보이지 않으면 아무 금액에나 그만큼 주는 것처럼 읽힌다.
+ */
 function productLines(product: SavingsProductResponse): SavingsCardLine[] {
-  const lines: SavingsCardLine[] = [{ label: '이자율', value: `${product.interestRate}%` }];
+  const preview = estimateReturn(product, product.maxAmount);
+  const lines: SavingsCardLine[] = [
+    { label: savingsMaxAmountLabel(product), value: formatPoint(product.maxAmount) },
+  ];
   if (product.termWeeks != null) {
     lines.push({ label: '기간', value: `${product.termWeeks}주` });
   }
-  lines.push({ label: '최대', value: formatPoint(product.maxAmount) });
+  // 보통예금은 만기가 없어 한 주치가 전부다 (weekly). 나머지는 만기에 한 번에 받는다.
+  lines.push({
+    label: preview.weekly ? '매주 도토리' : '받는 도토리',
+    value: `+ ${formatPoint(preview.interest)}`,
+  });
   return lines;
 }
 
