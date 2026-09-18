@@ -13,6 +13,7 @@
     "android": {
       "package": "com.bana.dotori",
       "googleServicesFile": "./google-services.json",
+      "backgroundColor": "#FFFFFF",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

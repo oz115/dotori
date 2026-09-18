@@ -9,6 +9,7 @@ export { ComingSoonScreen } from './ComingSoonScreen';
 export { ContentCard } from './ContentCard';
 export { FilterChips, type FilterOption } from './FilterChips';
 export { Header } from './Header';
+export { HeaderChipButton } from './HeaderChipButton';
 export { Input } from './Input';
 export { MockBadge } from './MockBadge';
 export { NumericKeypad } from './NumericKeypad';

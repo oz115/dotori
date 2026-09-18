@@ -25,7 +25,7 @@ import type {
 import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Input, ProgressBar } from '@/shared/ui';
+import { Button, Header, Input, ProgressBar, Screen } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -170,12 +170,10 @@ function Shell({
   onBack: () => void;
   children: React.ReactNode;
 }) {
-  const theme = useTheme();
   return (
-    <View style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}>
-      <Header title={title} onBack={onBack} />
+    <Screen header={<Header title={title} onBack={onBack} />} padded={false}>
       {children}
-    </View>
+    </Screen>
   );
 }
 
@@ -561,7 +559,6 @@ function savingsErrorMessage(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',

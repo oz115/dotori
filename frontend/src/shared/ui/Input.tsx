@@ -62,7 +62,7 @@ export function Input({
         onBlur?.(e);
       }}
       style={[
-        theme.typography.body,
+        theme.typography.bodySm,
         {
           color: lineActive ? theme.color.brand.solid : theme.color.text.strong,
           paddingVertical: theme.space.sm,

@@ -31,8 +31,7 @@ export function AppTopBar({ onProfilePress, onNotificationsPress, unreadCount }:
       style={[
         styles.row,
         {
-          paddingLeft: theme.layout.screenX,
-          paddingRight: theme.layout.screenX,
+          paddingHorizontal: theme.space['2xl'],
           paddingTop: theme.space.sm,
           marginBottom: theme.space.lg,
         },
