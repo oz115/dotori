@@ -13,7 +13,7 @@ export default function ParentMyPageScreen() {
   const notReady = () => Alert.alert('준비 중이에요', '곧 만나볼 수 있어요.');
 
   const menu: MyPageMenuItem[] = [
-    { label: '내 정보 수정', onPress: notReady },
+    { label: '내 정보 수정', onPress: () => router.push('/mypage-edit') },
     { label: '가족 관리', onPress: () => router.push('/family') },
     {
       label: '충전계좌관리',

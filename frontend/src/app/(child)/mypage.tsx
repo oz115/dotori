@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
 import { MyPage, type MyPageMenuItem } from '@/widgets/mypage';
@@ -10,7 +11,7 @@ export default function ChildMyPageScreen() {
   const notReady = () => Alert.alert('준비 중이에요', '곧 만나볼 수 있어요.');
 
   const menu: MyPageMenuItem[] = [
-    { label: '내 정보 수정', onPress: notReady },
+    { label: '내 정보 수정', onPress: () => router.push('/mypage-edit') },
     { label: '충전계좌관리', onPress: notReady },
   ];
 
