@@ -10,7 +10,7 @@ import {
   useProfile,
   useUpdateProfile,
 } from '@/features/auth';
-import { useTheme } from '@/shared/theme';
+import { fontFamily, useTheme } from '@/shared/theme';
 import { Button, Header, Input, Screen } from '@/shared/ui';
 
 /**
@@ -110,35 +110,42 @@ export function EditProfileView() {
     >
       <View style={{ marginTop: theme.space['2xl'], gap: theme.space['2xl'] }}>
         <View style={{ gap: theme.space.md }}>
-          <SectionLabel>계정 정보</SectionLabel>
           <Input
             variant="box"
             label="아이디"
+            labelStyle={styles.fieldLabel}
             value={profile.data?.loginId ?? ''}
             editable={false}
           />
-          <Input variant="box" label="이메일" value={profile.data?.email ?? ''} editable={false} />
+          <Input
+            variant="box"
+            label="이메일"
+            labelStyle={styles.fieldLabel}
+            value={profile.data?.email ?? ''}
+            editable={false}
+          />
           <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
             아이디와 이메일은 바꿀 수 없어요.
           </Text>
         </View>
 
-        <View style={{ gap: theme.space.md }}>
-          <SectionLabel>이름</SectionLabel>
-          <Input
-            variant="box"
-            placeholder="이름을 입력하세요"
-            value={name}
-            onChangeText={(v) => {
-              setNameInput(v);
-              if (nameError) setNameError('');
-            }}
-            error={nameError}
-          />
-        </View>
+        <Input
+          variant="box"
+          label="이름"
+          labelStyle={styles.fieldLabel}
+          placeholder="이름을 입력하세요"
+          value={name}
+          onChangeText={(v) => {
+            setNameInput(v);
+            if (nameError) setNameError('');
+          }}
+          error={nameError}
+        />
 
         <View style={{ gap: theme.space.md }}>
-          <SectionLabel>비밀번호 변경 (선택)</SectionLabel>
+          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+            비밀번호 변경 (선택)
+          </Text>
           <Input
             variant="box"
             placeholder="현재 비밀번호"
@@ -197,14 +204,8 @@ export function EditProfileView() {
   );
 }
 
-/** 폼 섹션 제목. Input 자체 label과 톤을 맞춘다(회색·label 타이포). */
-function SectionLabel({ children }: { children: string }) {
-  const theme = useTheme();
-  return (
-    <Text style={[theme.typography.label, { color: theme.color.text.label }]}>{children}</Text>
-  );
-}
-
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
+  // 아이디·이메일·이름 라벨을 기본 Input label(medium 16)보다 조금 크고 굵게
+  fieldLabel: { fontFamily: fontFamily.semibold, fontSize: 17 },
 });
