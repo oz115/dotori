@@ -83,6 +83,13 @@ ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
   internal-token: ${INTERNAL_TOKEN:}
 
+# 배치 QA용 임시 수동 트리거 — 하루 안 기다리고 스케줄러를 바로 재현한다 (QaTriggerController).
+# enabled 가 false(기본값)면 컨트롤러 빈 자체가 안 생긴다. 운영 환경엔 QA_TRIGGER_ENABLED 를
+# 절대 넣지 않는다. token 은 ai.internal-token 과 같은 값(INTERNAL_TOKEN)을 공유한다.
+qa-trigger:
+  enabled: ${QA_TRIGGER_ENABLED:false}
+  token: ${INTERNAL_TOKEN:}
+
 # 인증 사진 저장 (CHORE-13)
 #
 # 버킷은 비공개다. 앱만 액세스 키로 접근하고, 아이·부모 화면은 서버가 발급한
