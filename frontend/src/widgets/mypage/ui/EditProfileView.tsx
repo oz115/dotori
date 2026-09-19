@@ -6,6 +6,7 @@ import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import {
   changePasswordErrorMessage,
   updateProfileErrorMessage,
+  useAuthStore,
   useChangePassword,
   useProfile,
   useUpdateProfile,
@@ -24,6 +25,13 @@ export function EditProfileView() {
   const profile = useProfile();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
+  const authRole = useAuthStore((s) => s.user?.role);
+  const role = profile.data?.role ?? authRole;
+
+  const mascotSource =
+    role === 'PARENT'
+      ? require('@/assets/images/faces/parent-mypage.png')
+      : require('@/assets/images/faces/child-mypage.png');
 
   const originalName = profile.data?.name ?? '';
   // null이면 "아직 안 건드림" — 서버 값을 그대로 보여준다. 한 글자라도 입력하면 그 값을 따른다.
@@ -110,7 +118,7 @@ export function EditProfileView() {
     >
       <View style={[styles.mascotRow, { paddingTop: theme.space.lg }]}>
         <Image
-          source={require('@/assets/images/faces/face-basic.png')}
+          source={mascotSource}
           style={styles.mascot}
           resizeMode="contain"
         />
