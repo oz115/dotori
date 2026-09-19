@@ -213,7 +213,7 @@ function AccountSummary({
   account,
   isPending,
 }: {
-  account: AccountInfo | undefined;
+  account: AccountInfo | null | undefined;
   isPending: boolean;
 }) {
   const theme = useTheme();

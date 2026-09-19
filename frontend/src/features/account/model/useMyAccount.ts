@@ -11,7 +11,16 @@ import { apiErrorCode } from '@/shared/api';
 export function useMyAccount() {
   return useQuery({
     queryKey: accountKeys.me(),
-    queryFn: () => accountApi.getMyAccount(),
+    queryFn: async () => {
+      try {
+        return await accountApi.getMyAccount();
+      } catch (error) {
+        if (apiErrorCode(error) === 'ACCOUNT_NOT_LINKED') {
+          return null;
+        }
+        throw error;
+      }
+    },
     retry: (count, error) => (apiErrorCode(error) === 'ACCOUNT_NOT_LINKED' ? false : count < 2),
     staleTime: 30_000,
   });

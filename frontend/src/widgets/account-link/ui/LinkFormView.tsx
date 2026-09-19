@@ -7,6 +7,7 @@ import {
   BankBadge,
   findBank,
   useLinkAccountStore,
+  useMyAccount,
   useRequestAccountAuth,
   type AccountAuthResponse,
 } from '@/features/account';
@@ -27,15 +28,27 @@ type LinkFormViewProps = {
   /** 1원 송금 성공 — 인증 화면으로 넘긴다 */
   onRequested: (res: AccountAuthResponse) => void;
   subtitle: string;
+  headerTitle?: string;
+  title?: string;
+  notes?: string[];
 };
 
 /**
  * 은행·계좌번호를 받아 1원 송금을 요청하는 화면 (부모·자녀 공용).
  * 계좌 연동 API 는 역할 구분이 없어서 화면도 그대로 공유하고, 이동 경로만 받아서 쓴다.
  */
-export function LinkFormView({ onBack, onSelectBank, onRequested, subtitle }: LinkFormViewProps) {
+export function LinkFormView({
+  onBack,
+  onSelectBank,
+  onRequested,
+  subtitle,
+  headerTitle = '계좌 연동',
+  title = '내 계좌 연결하기',
+  notes = NOTES,
+}: LinkFormViewProps) {
   const theme = useTheme();
   const request = useRequestAccountAuth();
+  const myAccount = useMyAccount();
 
   const bankKey = useLinkAccountStore((s) => s.bankKey);
   const patch = useLinkAccountStore((s) => s.patch);
@@ -48,7 +61,17 @@ export function LinkFormView({ onBack, onSelectBank, onRequested, subtitle }: Li
   useEffect(() => reset(), [reset]);
 
   const bank = findBank(bankKey);
-  const canSubmit = !!bank && accountNo.trim().length >= 10 && !request.isPending;
+  const currentAccountNo = myAccount.data?.accountNo.replace(/[^0-9]/g, '');
+  const currentBankCode = myAccount.data?.bankCode;
+
+  const isSameAccount =
+    Boolean(myAccount.data) &&
+    bank?.code === currentBankCode &&
+    accountNo.trim().length > 0 &&
+    accountNo.trim() === currentAccountNo;
+
+  const canSubmit =
+    !!bank && accountNo.trim().length >= 10 && !request.isPending && !isSameAccount;
 
   const submit = () => {
     if (!bank || !canSubmit) return;
@@ -64,10 +87,10 @@ export function LinkFormView({ onBack, onSelectBank, onRequested, subtitle }: Li
   };
 
   return (
-    <Screen scroll keyboardAvoiding header={<Header title="계좌 연동" onBack={onBack} />}>
+    <Screen scroll keyboardAvoiding header={<Header title={headerTitle} onBack={onBack} />}>
       <View style={{ marginTop: theme.space['2xl'], gap: theme.space.xs }}>
         <Text style={[theme.typography.h1, { color: theme.color.text.strong }]}>
-          내 계좌 연결하기
+          {title}
         </Text>
         <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>{subtitle}</Text>
       </View>
@@ -122,6 +145,7 @@ export function LinkFormView({ onBack, onSelectBank, onRequested, subtitle }: Li
             if (error) setError('');
           }}
           maxLength={20}
+          error={isSameAccount ? '현재 연동된 계좌와 동일한 계좌번호예요.' : undefined}
         />
       </View>
 
@@ -132,7 +156,7 @@ export function LinkFormView({ onBack, onSelectBank, onRequested, subtitle }: Li
             계좌 연결 전 확인해주세요
           </Text>
         </View>
-        {NOTES.map((n) => (
+        {notes.map((n) => (
           <View key={n} style={styles.noteRow}>
             <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>•</Text>
             <Text

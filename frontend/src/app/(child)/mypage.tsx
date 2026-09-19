@@ -12,7 +12,7 @@ export default function ChildMyPageScreen() {
 
   const menu: MyPageMenuItem[] = [
     { label: '내 정보 수정', onPress: () => router.push('/mypage-edit') },
-    { label: '충전계좌관리', onPress: notReady },
+    { label: '연동 계좌 관리', onPress: () => router.push('/account-manage') },
   ];
 
   return <MyPage menu={menu} character={require('@/assets/images/faces/child-mypage.png')} />;

@@ -28,7 +28,7 @@ type BalanceCardProps = {
   /** 내가 보낸 환전 요청 내역으로 */
   onCashoutHistory: () => void;
   /** "내 자산 현황"의 연동 계좌 줄에 쓸 실제 계좌 정보 */
-  account: AccountInfo | undefined;
+  account: AccountInfo | null | undefined;
 };
 
 /**
@@ -160,7 +160,7 @@ function WalletPage({
  * 둘째 장 — 내 자산 현황. 예적금·투자는 아직 없는 도메인이라 예시 값이고,
  * 연동 계좌 한 줄만 실제 데이터다.
  */
-function AssetsPage({ account }: { account: AccountInfo | undefined }) {
+function AssetsPage({ account }: { account: AccountInfo | null | undefined }) {
   const theme = useTheme();
 
   return (

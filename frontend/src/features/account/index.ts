@@ -4,6 +4,7 @@ export { useLinkAccountStore } from './model/linkAccountStore';
 export { useTransferStore } from './model/transferStore';
 export { useRequestAccountAuth, useVerifyAccountAuth } from './model/useAccountAuth';
 export { useMyAccount } from './model/useMyAccount';
+export { useUnlinkAccount } from './model/useUnlinkAccount';
 export { useTransfer } from './model/useTransfer';
 export { useAccountTransactions } from './model/useAccountTransactions';
 export { accountAuthRequestErrorMessage, accountVerifyErrorMessage } from './lib/accountAuthError';
