@@ -1,12 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type TextInputProps,
+  type TextStyle,
+} from 'react-native';
 
 import { useTheme } from '@/shared/theme';
 
 type InputProps = TextInputProps & {
   /** 입력란 위에 표시되는 라벨 */
   label?: string;
+  /** label 기본 스타일(크기·굵기 등) override. 화면마다 라벨을 더 강조하고 싶을 때만 넘긴다 */
+  labelStyle?: StyleProp<TextStyle>;
   /** 에러 메시지. 있으면 강조색과 메시지가 danger 로 바뀐다 */
   error?: string;
   /**
@@ -24,6 +35,7 @@ type InputProps = TextInputProps & {
 
 export function Input({
   label,
+  labelStyle,
   error,
   variant = 'line',
   elevated = false,
@@ -39,14 +51,19 @@ export function Input({
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
+  // editable={false} — 읽기 전용 표시(아이디·이메일 등). 포커스·에러 강조 없이 항상 같은 톤.
+  const disabled = textInputProps.editable === false;
+
   const idle = variant === 'box' ? theme.color.border.default : theme.color.border.strong;
-  const accent = error
-    ? theme.color.status.danger.solid
-    : focused
-      ? theme.color.border.focus
-      : idle;
+  const accent = disabled
+    ? theme.color.border.default
+    : error
+      ? theme.color.status.danger.solid
+      : focused
+        ? theme.color.border.focus
+        : idle;
   // line 변형: 포커스 시 입력 텍스트도 브랜드 그린 (Figma)
-  const lineActive = variant === 'line' && focused && !error;
+  const lineActive = variant === 'line' && focused && !error && !disabled;
 
   const field = (
     <TextInput
@@ -64,7 +81,11 @@ export function Input({
       style={[
         theme.typography.bodySm,
         {
-          color: lineActive ? theme.color.brand.solid : theme.color.text.strong,
+          color: disabled
+            ? theme.color.text.muted
+            : lineActive
+              ? theme.color.brand.solid
+              : theme.color.text.strong,
           paddingVertical: theme.space.sm,
         },
         variant === 'line' && { borderBottomWidth: 2, borderBottomColor: accent },
@@ -77,7 +98,9 @@ export function Input({
   return (
     <View style={styles.container}>
       {label ? (
-        <Text style={[theme.typography.label, { color: theme.color.text.label }]}>{label}</Text>
+        <Text style={[theme.typography.label, { color: theme.color.text.label }, labelStyle]}>
+          {label}
+        </Text>
       ) : null}
 
       {variant === 'box' ? (
@@ -90,7 +113,9 @@ export function Input({
               gap: theme.space.sm,
               borderColor: accent,
               borderRadius: theme.radius.lg,
-              backgroundColor: theme.color.background.surface,
+              backgroundColor: disabled
+                ? theme.color.background.surfaceSunken
+                : theme.color.background.surface,
               paddingHorizontal: theme.space.lg,
             },
           ]}

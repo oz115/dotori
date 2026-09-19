@@ -7,6 +7,7 @@ import type {
   RefreshResponse,
   SignupBody,
   UserProfile,
+  UserUpdateResponse,
 } from '@/features/auth/model/types';
 
 /**
@@ -59,4 +60,17 @@ export const authApi = {
   /** 회원 탈퇴 (soft delete) — 본인 확인용 비밀번호 필요, 틀리면 PASSWORD_MISMATCH */
   withdraw: (userId: number, password: string) =>
     httpClient.delete(`/api/v1/users/${userId}`, { data: { password } }),
+
+  /** 마이페이지 - 이름 변경 (부분 수정) */
+  updateProfile: (userId: number, name: string) =>
+    httpClient
+      .patch<UserUpdateResponse>(`/api/v1/users/${userId}`, { name })
+      .then((res) => res.data),
+
+  /**
+   * 마이페이지 - 비밀번호 변경. 현재 비밀번호가 틀리면 401 PASSWORD_MISMATCH.
+   * 성공하면 서버가 기존 세션(현재 세션 포함)을 전부 폐기한다.
+   */
+  changePassword: (userId: number, currentPassword: string, newPassword: string) =>
+    httpClient.patch(`/api/v1/users/${userId}/password`, { currentPassword, newPassword }),
 };

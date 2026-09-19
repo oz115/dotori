@@ -39,6 +39,13 @@ export type UserProfile = {
   createdAt: string;
 };
 
+/** PATCH /api/v1/users/{userId} — 이름 변경 응답 */
+export type UserUpdateResponse = {
+  userId: number;
+  name: string;
+  updatedAt: string;
+};
+
 /** POST /api/v1/auth/refresh */
 export type RefreshResponse = {
   accessToken: string;
