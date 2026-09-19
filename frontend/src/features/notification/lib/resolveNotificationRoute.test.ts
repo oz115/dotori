@@ -36,8 +36,15 @@ describe('resolveNotificationRoute', () => {
     expect(resolveNotificationRoute({ type, refId }, 'PARENT')).toBe(expected);
   });
 
+  it('routes a CHILD CHORE to the task tab with the chore detail modal opened', () => {
+    expect(resolveNotificationRoute({ type: 'CHORE', refId: '3' }, 'CHILD')).toEqual({
+      pathname: '/(child)/(tabs)/task',
+      params: { openChoreId: '3' },
+    });
+  });
+
   it.each([
-    ['CHORE', '3', '/(child)/(tabs)/task'],
+    ['CHORE', undefined, '/(child)/(tabs)/task'],
     ['CASHOUT', '7', '/(child)/wallet/cashouts'],
     ['CHARGE', undefined, '/(child)/(tabs)'],
     ['INVITATION', '1', '/(child)/(tabs)'],

@@ -134,3 +134,33 @@ describe('ChildChoreList - 완료한 미션 처리', () => {
     await waitFor(() => expect(screen.getByText('수학 문제 20개 풀기')).toBeTruthy(), WAIT);
   });
 });
+
+describe('ChildChoreList - 알림에서 들어온 미션', () => {
+  it('requestedChoreId 를 받으면 열었다고 알려서 부르는 쪽이 값을 비우게 한다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
+    const onOpened = jest.fn();
+
+    await withQuery(
+      <ChildChoreList
+        familyId={FAMILY_ID}
+        childId={CHILD_ID}
+        requestedChoreId={1}
+        onRequestedChoreOpened={onOpened}
+      />,
+    );
+
+    await waitFor(() => expect(onOpened).toHaveBeenCalledTimes(1), WAIT);
+  });
+
+  it('requestedChoreId 가 없으면 아무 것도 열지 않는다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
+    const onOpened = jest.fn();
+
+    await withQuery(
+      <ChildChoreList familyId={FAMILY_ID} childId={CHILD_ID} onRequestedChoreOpened={onOpened} />,
+    );
+
+    expect(await screen.findByText('방 정리하기', {}, WAIT)).toBeTruthy();
+    expect(onOpened).not.toHaveBeenCalled();
+  });
+});

@@ -8,10 +8,10 @@ type Role = 'PARENT' | 'CHILD' | undefined;
  * 좁혀 쓴다. 처리할 수 없는 조합(모르는 타입, role 미확인, refId 가 꼭 필요한데 없음)은
  * null 을 반환하고, 호출자는 아무 것도 하지 않는다(현재 OS 기본 동작에 맡김).
  *
- * refId 로 상세까지 들어가는 건 상점 상품(PURCHASE)뿐이다. 나머지는 refId 가 가리키는
- * 대상(choreId·cashoutRequestId·savingsSubscriptionId·familyId)만으로 열 수 있는 상세 화면이
- * 없거나(부모 할 일 상세는 childId 도 필요), 애초에 refId 가 없는 알림(CHARGE·DAILY)이라
- * 그 알림을 처리할 수 있는 목록 화면으로 보낸다.
+ * refId 로 상세까지 들어가는 건 상점 상품(PURCHASE)과 아이의 할 일(CHORE, 목록 위 모달)뿐이다.
+ * 나머지는 refId 가 가리키는 대상(cashoutRequestId·savingsSubscriptionId·familyId)만으로 열 수
+ * 있는 상세 화면이 없거나(부모 할 일 상세는 childId 도 필요), 애초에 refId 가 없는
+ * 알림(CHARGE·DAILY)이라 그 알림을 처리할 수 있는 목록 화면으로 보낸다.
  */
 export function resolveNotificationRoute(
   data: Record<string, unknown> | undefined,
@@ -66,9 +66,10 @@ function resolveChildRoute(type: string, refId: string | undefined): Href | null
         pathname: '/(child)/(tabs)/store/[productId]',
         params: { productId: refId, viaDeepLink: '1' },
       };
-    // 새 할 일 / 완료 승인 / 거절 — 아이 쪽엔 할 일 상세 화면이 없어 할 일 탭
+    // 새 할 일 / 완료 승인 / 거절 — 할 일 탭에서 그 미션의 상세 모달을 연다
     case 'CHORE':
-      return '/(child)/(tabs)/task';
+      if (!refId) return '/(child)/(tabs)/task';
+      return { pathname: '/(child)/(tabs)/task', params: { openChoreId: refId } };
     // 환전 승인 / 거절 — 내 환전 요청 내역
     case 'CASHOUT':
       return '/(child)/wallet/cashouts';

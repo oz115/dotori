@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
@@ -16,6 +16,13 @@ import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 type ChildChoreListProps = {
   familyId: number | undefined;
   childId: number | undefined;
+  /**
+   * 바깥(알림)에서 "이 미션 상세를 열어 달라"고 넘긴 choreId. 받으면 모달을 열고
+   * onRequestedChoreOpened 로 알려서, 부르는 쪽이 이 값을 비우게 한다 — 안 비우면 같은
+   * 알림을 다시 눌렀을 때 값이 그대로라 모달이 다시 열리지 않는다.
+   */
+  requestedChoreId?: number;
+  onRequestedChoreOpened?: () => void;
 };
 
 const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
@@ -26,12 +33,34 @@ const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
  * 서버가 활성 집안일만 주므로 기간이 지난 것은 애초에 내려오지 않는다 - 화면에서 따로
  * 거르지 않는다. 반복 주기 필터는 이미 받아 둔 목록을 클라이언트에서 거르는 것이다.
  */
-export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
+export function ChildChoreList({
+  familyId,
+  childId,
+  requestedChoreId,
+  onRequestedChoreOpened,
+}: ChildChoreListProps) {
   const theme = useTheme();
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
   const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
-  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
+  // 알림에서 곧장 들어와 첫 마운트부터 요청이 있으면 그 미션을 연 채로 시작한다.
+  const [openChoreId, setOpenChoreId] = useState<number | null>(requestedChoreId ?? null);
+
+  // 탭 화면은 한 번 마운트되면 계속 살아 있어서 초기값으로는 못 받는다 - 값이 바뀔 때마다 연다.
+  // effect 에서 setState 하면 한 번 그린 뒤 다시 그리게 되므로, 렌더 중에 이전 값과 비교해 맞춘다.
+  const [seenRequestId, setSeenRequestId] = useState(requestedChoreId);
+  if (requestedChoreId !== seenRequestId) {
+    setSeenRequestId(requestedChoreId);
+    if (requestedChoreId != null) setOpenChoreId(requestedChoreId);
+  }
+
+  useEffect(() => {
+    if (requestedChoreId == null) return;
+
+    onRequestedChoreOpened?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 요청 값이 바뀔 때만 연다
+  }, [requestedChoreId]);
+
   const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
   // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
