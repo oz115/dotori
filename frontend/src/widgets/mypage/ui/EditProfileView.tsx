@@ -1,7 +1,7 @@
 // Created: 2026-09-19 13:19:56
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
 import {
   changePasswordErrorMessage,
@@ -108,6 +108,14 @@ export function EditProfileView() {
       keyboardAvoiding
       header={<Header title="내 정보 수정" onBack={() => router.back()} />}
     >
+      <View style={[styles.mascotRow, { paddingTop: theme.space.lg }]}>
+        <Image
+          source={require('@/assets/images/faces/face-basic.png')}
+          style={styles.mascot}
+          resizeMode="contain"
+        />
+      </View>
+
       <View style={{ marginTop: theme.space['2xl'], gap: theme.space['2xl'] }}>
         <View style={{ gap: theme.space.md }}>
           <Input
@@ -206,6 +214,8 @@ export function EditProfileView() {
 
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
+  mascotRow: { alignItems: 'center' },
+  mascot: { width: 96, height: 96 },
   // 아이디·이메일·이름 라벨을 기본 Input label(medium 16)보다 조금 크고 굵게
   fieldLabel: { fontFamily: fontFamily.semibold, fontSize: 17 },
 });
