@@ -17,12 +17,12 @@ type ChildChoreListProps = {
   familyId: number | undefined;
   childId: number | undefined;
   /**
-   * 바깥(알림)에서 "이 미션 상세를 열어 달라"고 넘긴 choreId. 받으면 모달을 열고
-   * onRequestedChoreOpened 로 알려서, 부르는 쪽이 이 값을 비우게 한다 — 안 비우면 같은
-   * 알림을 다시 눌렀을 때 값이 그대로라 모달이 다시 열리지 않는다.
+   * 바깥(알림)에서 넘긴 choreId. 아직 할 미션이면 상세 모달을, 이번 주기에 이미 받은
+   * 미션이면 완료 이력을 연다. 받자마자 onRequestedChoreConsumed 로 알려서 부르는 쪽이
+   * 이 값을 비우게 한다 — 안 비우면 같은 알림을 다시 눌렀을 때 값이 그대로라 반응하지 않는다.
    */
   requestedChoreId?: number;
-  onRequestedChoreOpened?: () => void;
+  onRequestedChoreConsumed?: () => void;
 };
 
 const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
@@ -37,31 +37,49 @@ export function ChildChoreList({
   familyId,
   childId,
   requestedChoreId,
-  onRequestedChoreOpened,
+  onRequestedChoreConsumed,
 }: ChildChoreListProps) {
   const theme = useTheme();
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
-  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
+  const { refreshing, onRefresh, refresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
-  // 알림에서 곧장 들어와 첫 마운트부터 요청이 있으면 그 미션을 연 채로 시작한다.
-  const [openChoreId, setOpenChoreId] = useState<number | null>(requestedChoreId ?? null);
+  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
+  const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
-  // 탭 화면은 한 번 마운트되면 계속 살아 있어서 초기값으로는 못 받는다 - 값이 바뀔 때마다 연다.
-  // effect 에서 setState 하면 한 번 그린 뒤 다시 그리게 되므로, 렌더 중에 이전 값과 비교해 맞춘다.
-  const [seenRequestId, setSeenRequestId] = useState(requestedChoreId);
-  if (requestedChoreId !== seenRequestId) {
-    setSeenRequestId(requestedChoreId);
-    if (requestedChoreId != null) setOpenChoreId(requestedChoreId);
-  }
+  // 알림에서 넘어온 미션은 최신 목록을 받은 뒤에 갈 곳을 정한다. 캐시(최대 60초)로 판단하면
+  // 방금 승인된 미션이 아직 TODO 로 보여서, 이미 받은 미션에 완료 요청 폼이 열린다.
+  const [resolvingChoreId, setResolvingChoreId] = useState<number | null>(null);
+  const [historyRedirects, setHistoryRedirects] = useState(0);
 
   useEffect(() => {
     if (requestedChoreId == null) return;
 
-    onRequestedChoreOpened?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 요청 값이 바뀔 때만 연다
+    onRequestedChoreConsumed?.();
+    // 값이 비워지면서 이 effect 가 다시 돌아도 진행 중인 새로고침은 취소하지 않는다.
+    refresh().finally(() => setResolvingChoreId(requestedChoreId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 요청 값이 바뀔 때만 처리한다
   }, [requestedChoreId]);
 
-  const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
+  // 새로고침이 끝나면 렌더 중에 상태를 맞춘다 (effect 에서 setState 하면 한 번 더 그린다).
+  // 이번 주기에 이미 받은 미션(승인 알림 등)은 다시 할 게 없으니 완료 이력으로 보내고,
+  // 아직 할 미션(새 미션·거절 알림)은 상세 모달을 연다.
+  if (resolvingChoreId != null && !isPending) {
+    setResolvingChoreId(null);
+    const target = items.find((chore) => chore.choreId === resolvingChoreId);
+    // 상태를 모르면(조회 실패) 아무 데도 안 간다 - 모르고 열면 완료 요청 폼이 뜰 수 있다.
+    if (!isError) {
+      if (target != null && target.status !== 'DONE') {
+        setOpenChoreId(resolvingChoreId);
+      } else {
+        setHistoryRedirects((count) => count + 1);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (historyRedirects === 0) return;
+    router.push('/task/history');
+  }, [historyRedirects]);
 
   // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
   // items 는 완료한 것까지 들고 있다 - 모달이 열린 사이에 부모가 승인해도 상태를 읽을 수

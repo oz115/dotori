@@ -41,14 +41,19 @@ export function earliestStartDate(chores: ChoreSummary[]): string | undefined {
   );
 }
 
-/** 오늘 날짜 (YYYY-MM-DD), 기기 로컬 시간 기준. 완료 내역 조회의 끝 날짜로 쓴다 */
-export function todayDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+/**
+ * 오늘 날짜 (YYYY-MM-DD), 서버와 같은 KST 기준. 완료 내역 조회의 끝 날짜로 쓴다.
+ *
+ * 기기 로컬 시간으로 세면 안 된다 - 시간대가 KST 가 아닌 기기(기본값이 GMT 인 에뮬레이터,
+ * 해외)에서는 자정~오전 9시 사이에 날짜가 하루 늦게 나와, 오늘 승인된 지급이 조회 범위에서
+ * 빠진다. 그러면 이미 받은 할 일이 TODO 로 되살아나 다시 완료 요청을 보낼 수 있게 된다.
+ */
+export function todayDate(now: number = Date.now()): string {
+  // KST 는 서머타임이 없어 +9시간을 더한 UTC 날짜가 곧 KST 날짜다.
+  return new Date(now + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /**
  * 이번 주기에 이미 보상을 받았는지. 지난 주기의 지급은 세지 않는다.

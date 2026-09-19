@@ -136,31 +136,51 @@ describe('ChildChoreList - 완료한 미션 처리', () => {
 });
 
 describe('ChildChoreList - 알림에서 들어온 미션', () => {
-  it('requestedChoreId 를 받으면 열었다고 알려서 부르는 쪽이 값을 비우게 한다', async () => {
+  const push = jest.requireMock('expo-router').router.push as jest.Mock;
+
+  it('이번 주기에 이미 받은 미션(승인 알림)이면 완료 이력으로 보낸다', async () => {
     mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
-    const onOpened = jest.fn();
+    mocked.getCompletions.mockResolvedValue([paid(1, '방 정리하기')]);
+    const onConsumed = jest.fn();
 
     await withQuery(
       <ChildChoreList
         familyId={FAMILY_ID}
         childId={CHILD_ID}
         requestedChoreId={1}
-        onRequestedChoreOpened={onOpened}
+        onRequestedChoreConsumed={onConsumed}
       />,
     );
 
-    await waitFor(() => expect(onOpened).toHaveBeenCalledTimes(1), WAIT);
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/task/history'), WAIT);
+    expect(onConsumed).toHaveBeenCalledTimes(1);
   });
 
-  it('requestedChoreId 가 없으면 아무 것도 열지 않는다', async () => {
-    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
-    const onOpened = jest.fn();
+  it('목록에 없는 미션이어도 완료 이력으로 보낸다 - 할 일 폼을 열지 않는다', async () => {
+    mocked.getChores.mockResolvedValue([chore(2, '설거지하기')]);
 
     await withQuery(
-      <ChildChoreList familyId={FAMILY_ID} childId={CHILD_ID} onRequestedChoreOpened={onOpened} />,
+      <ChildChoreList familyId={FAMILY_ID} childId={CHILD_ID} requestedChoreId={1} />,
     );
 
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/task/history'), WAIT);
+  });
+
+  it('아직 할 미션(새 미션 알림)이면 완료 이력으로 보내지 않는다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
+    const onConsumed = jest.fn();
+
+    await withQuery(
+      <ChildChoreList
+        familyId={FAMILY_ID}
+        childId={CHILD_ID}
+        requestedChoreId={1}
+        onRequestedChoreConsumed={onConsumed}
+      />,
+    );
+
+    await waitFor(() => expect(onConsumed).toHaveBeenCalledTimes(1), WAIT);
     expect(await screen.findByText('방 정리하기', {}, WAIT)).toBeTruthy();
-    expect(onOpened).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalledWith('/task/history');
   });
 });
