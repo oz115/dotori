@@ -39,14 +39,19 @@ export function Input({
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
+  // editable={false} — 읽기 전용 표시(아이디·이메일 등). 포커스·에러 강조 없이 항상 같은 톤.
+  const disabled = textInputProps.editable === false;
+
   const idle = variant === 'box' ? theme.color.border.default : theme.color.border.strong;
-  const accent = error
-    ? theme.color.status.danger.solid
-    : focused
-      ? theme.color.border.focus
-      : idle;
+  const accent = disabled
+    ? theme.color.border.default
+    : error
+      ? theme.color.status.danger.solid
+      : focused
+        ? theme.color.border.focus
+        : idle;
   // line 변형: 포커스 시 입력 텍스트도 브랜드 그린 (Figma)
-  const lineActive = variant === 'line' && focused && !error;
+  const lineActive = variant === 'line' && focused && !error && !disabled;
 
   const field = (
     <TextInput
@@ -64,7 +69,11 @@ export function Input({
       style={[
         theme.typography.bodySm,
         {
-          color: lineActive ? theme.color.brand.solid : theme.color.text.strong,
+          color: disabled
+            ? theme.color.text.muted
+            : lineActive
+              ? theme.color.brand.solid
+              : theme.color.text.strong,
           paddingVertical: theme.space.sm,
         },
         variant === 'line' && { borderBottomWidth: 2, borderBottomColor: accent },
@@ -90,7 +99,9 @@ export function Input({
               gap: theme.space.sm,
               borderColor: accent,
               borderRadius: theme.radius.lg,
-              backgroundColor: theme.color.background.surface,
+              backgroundColor: disabled
+                ? theme.color.background.surfaceSunken
+                : theme.color.background.surface,
               paddingHorizontal: theme.space.lg,
             },
           ]}

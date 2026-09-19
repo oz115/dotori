@@ -108,23 +108,37 @@ export function EditProfileView() {
       keyboardAvoiding
       header={<Header title="내 정보 수정" onBack={() => router.back()} />}
     >
-      <View style={{ gap: theme.space.xl }}>
-        <Input
-          variant="box"
-          label="이름"
-          placeholder="이름을 입력하세요"
-          value={name}
-          onChangeText={(v) => {
-            setNameInput(v);
-            if (nameError) setNameError('');
-          }}
-          error={nameError}
-        />
+      <View style={{ marginTop: theme.space['2xl'], gap: theme.space['2xl'] }}>
+        <View style={{ gap: theme.space.md }}>
+          <SectionLabel>계정 정보</SectionLabel>
+          <Input
+            variant="box"
+            label="아이디"
+            value={profile.data?.loginId ?? ''}
+            editable={false}
+          />
+          <Input variant="box" label="이메일" value={profile.data?.email ?? ''} editable={false} />
+          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+            아이디와 이메일은 바꿀 수 없어요.
+          </Text>
+        </View>
 
         <View style={{ gap: theme.space.md }}>
-          <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
-            비밀번호 변경 (선택)
-          </Text>
+          <SectionLabel>이름</SectionLabel>
+          <Input
+            variant="box"
+            placeholder="이름을 입력하세요"
+            value={name}
+            onChangeText={(v) => {
+              setNameInput(v);
+              if (nameError) setNameError('');
+            }}
+            error={nameError}
+          />
+        </View>
+
+        <View style={{ gap: theme.space.md }}>
+          <SectionLabel>비밀번호 변경 (선택)</SectionLabel>
           <Input
             variant="box"
             placeholder="현재 비밀번호"
@@ -180,6 +194,14 @@ export function EditProfileView() {
         disabled={!canSubmit}
       />
     </Screen>
+  );
+}
+
+/** 폼 섹션 제목. Input 자체 label과 톤을 맞춘다(회색·label 타이포). */
+function SectionLabel({ children }: { children: string }) {
+  const theme = useTheme();
+  return (
+    <Text style={[theme.typography.label, { color: theme.color.text.label }]}>{children}</Text>
   );
 }
 
