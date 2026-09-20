@@ -382,6 +382,50 @@ class QuizServiceImplTest {
 		}
 
 		@Test
+		@DisplayName("문제가 아주 길어도 보상 설명을 컬럼 길이(255자) 안으로 잘라 지급한다")
+		void 긴_문제도_보상_설명이_잘려서_지급() {
+			Quiz quiz = quiz();
+			ReflectionTestUtils.setField(quiz, "question", "가".repeat(400));
+			BDDMockito.given(quizRepository.findByIdForUpdate(QUIZ_ID)).willReturn(Optional.of(quiz));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID)).willReturn(List.of());
+			givenWeeklyRewardLimit();
+			BDDMockito.given(pointWalletService.deposit(any(PointChangeCommand.class)))
+				.willReturn(PointChangeResult.applied(PointTransaction.record(
+					CHILD_ID, PointTransactionReason.QUIZ_REWARD, QUIZ_REWARD_POINTS, 17600, "퀴즈 보상", "quiz:100")));
+			BDDMockito.given(quizAttemptRepository.save(any(QuizAttempt.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+			QuizSubmitResponse response =
+				quizService.submitQuiz(CHILD_ID, FAMILY_ID, CHILD_ID, QUIZ_ID, new QuizSubmitRequest("이자"));
+
+			assertThat(response.isCorrect()).isTrue();
+			BDDMockito.then(pointWalletService).should()
+				.deposit(BDDMockito.argThat(command -> command.description().length() == 255
+					&& command.description().startsWith("퀴즈 정답 보상: ")
+					&& command.description().endsWith("…")));
+		}
+
+		@Test
+		@DisplayName("짧은 문제의 보상 설명은 자르지 않는다")
+		void 짧은_문제는_설명을_자르지_않는다() {
+			Quiz quiz = quiz();
+			BDDMockito.given(quizRepository.findByIdForUpdate(QUIZ_ID)).willReturn(Optional.of(quiz));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID)).willReturn(List.of());
+			givenWeeklyRewardLimit();
+			BDDMockito.given(pointWalletService.deposit(any(PointChangeCommand.class)))
+				.willReturn(PointChangeResult.applied(PointTransaction.record(
+					CHILD_ID, PointTransactionReason.QUIZ_REWARD, QUIZ_REWARD_POINTS, 17600, "퀴즈 보상", "quiz:100")));
+			BDDMockito.given(quizAttemptRepository.save(any(QuizAttempt.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+			quizService.submitQuiz(CHILD_ID, FAMILY_ID, CHILD_ID, QUIZ_ID, new QuizSubmitRequest("이자"));
+
+			BDDMockito.then(pointWalletService).should()
+				.deposit(BDDMockito.argThat(command ->
+					"퀴즈 정답 보상: '이자'란 무엇일까요?".equals(command.description())));
+		}
+
+		@Test
 		@DisplayName("첫 시도 오답이면 포인트를 지급하지 않고 정답을 숨긴다")
 		void 첫시도_오답() {
 			Quiz quiz = quiz();
