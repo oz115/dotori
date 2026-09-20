@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bana.dotori.quiz.dto.QuizHistoryResponse;
+import com.bana.dotori.quiz.dto.QuizParentTodayResponse;
 import com.bana.dotori.quiz.dto.QuizSubmitRequest;
 import com.bana.dotori.quiz.dto.QuizSubmitResponse;
 import com.bana.dotori.quiz.dto.QuizTodayResponse;
@@ -24,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 경제 단어장 퀴즈 API (QUIZ-01·02·03). 오늘의 퀴즈·제출은 아이 본인만, 이력은 부모도 본다.
+ * {@code /today/review}는 부모 전용으로, 정답과 아이의 제출 내역을 함께 내려준다.
  */
 @RestController
 @RequestMapping("/api/v1/families/{familyId}/children/{childId}/quizzes")
@@ -36,6 +38,12 @@ public class QuizController {
 	public ResponseEntity<QuizTodayResponse> getTodayQuiz(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId, @PathVariable Integer childId) {
 		return ResponseEntity.ok(quizService.getTodayQuiz(userId, familyId, childId));
+	}
+
+	@GetMapping("/today/review")
+	public ResponseEntity<QuizParentTodayResponse> getTodayQuizForParent(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId, @PathVariable Integer childId) {
+		return ResponseEntity.ok(quizService.getTodayQuizForParent(userId, familyId, childId));
 	}
 
 	@GetMapping("/history")

@@ -2,6 +2,8 @@ package com.bana.dotori.quiz.service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.quiz.dto.QuizAttemptHistoryItem;
 import com.bana.dotori.quiz.dto.QuizHistoryResponse;
+import com.bana.dotori.quiz.dto.QuizParentAttemptItem;
+import com.bana.dotori.quiz.dto.QuizParentTodayResponse;
 import com.bana.dotori.quiz.dto.QuizSubmitRequest;
 import com.bana.dotori.quiz.dto.QuizSubmitResponse;
 import com.bana.dotori.quiz.dto.QuizTodayResponse;
@@ -80,6 +84,36 @@ public class QuizServiceImpl implements QuizService {
 			locked ? quiz.getCorrectAnswer() : null,
 			locked ? quiz.getExplanation() : null,
 			attempts.size());
+	}
+
+	/**
+	 * 부모용 오늘의 퀴즈 확인. 정답·해설을 잠금 여부와 상관없이 내려주므로 부모만 부를 수 있다.
+	 * 퀴즈 생성은 AI 배치 몫이라 여기서 만들지 않는다 — 아직 없으면 {@code QUIZ_NOT_READY}다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public QuizParentTodayResponse getTodayQuizForParent(Integer userId, Integer familyId, Integer childId) {
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
+
+		Quiz quiz = quizRepository.findByFamilyIdAndChildIdAndQuizDate(familyId, childId, LocalDate.now(KST))
+			.orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_READY));
+
+		// 시도 id 는 IDENTITY 로 제출 순서대로 커지므로 id 순이 곧 제출 순서다.
+		List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndChildId(quiz.getId(), childId).stream()
+			.sorted(Comparator.comparing(QuizAttempt::getId))
+			.toList();
+		List<QuizParentAttemptItem> items = new ArrayList<>();
+		for (int i = 0; i < attempts.size(); i++) {
+			QuizAttempt attempt = attempts.get(i);
+			items.add(new QuizParentAttemptItem(attempt.getId(), i + 1, attempt.getSubmittedAnswer(),
+				attempt.isCorrect(), attempt.getEarnedPoints(), attempt.getSubmittedAt()));
+		}
+
+		return new QuizParentTodayResponse(
+			quiz.getId(), quiz.getQuizDate(), quiz.getQuestion(), quiz.getCorrectAnswer(), quiz.getExplanation(),
+			attempts.size(), MAX_ATTEMPTS, attempts.stream().anyMatch(QuizAttempt::isCorrect), isLocked(attempts),
+			items);
 	}
 
 	@Override
