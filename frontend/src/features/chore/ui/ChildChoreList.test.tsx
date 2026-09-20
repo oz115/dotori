@@ -134,3 +134,53 @@ describe('ChildChoreList - 완료한 미션 처리', () => {
     await waitFor(() => expect(screen.getByText('수학 문제 20개 풀기')).toBeTruthy(), WAIT);
   });
 });
+
+describe('ChildChoreList - 알림에서 들어온 미션', () => {
+  const push = jest.requireMock('expo-router').router.push as jest.Mock;
+
+  it('이번 주기에 이미 받은 미션(승인 알림)이면 완료 이력으로 보낸다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
+    mocked.getCompletions.mockResolvedValue([paid(1, '방 정리하기')]);
+    const onConsumed = jest.fn();
+
+    await withQuery(
+      <ChildChoreList
+        familyId={FAMILY_ID}
+        childId={CHILD_ID}
+        requestedChoreId={1}
+        onRequestedChoreConsumed={onConsumed}
+      />,
+    );
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/task/history'), WAIT);
+    expect(onConsumed).toHaveBeenCalledTimes(1);
+  });
+
+  it('목록에 없는 미션이어도 완료 이력으로 보낸다 - 할 일 폼을 열지 않는다', async () => {
+    mocked.getChores.mockResolvedValue([chore(2, '설거지하기')]);
+
+    await withQuery(
+      <ChildChoreList familyId={FAMILY_ID} childId={CHILD_ID} requestedChoreId={1} />,
+    );
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/task/history'), WAIT);
+  });
+
+  it('아직 할 미션(새 미션 알림)이면 완료 이력으로 보내지 않는다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '방 정리하기')]);
+    const onConsumed = jest.fn();
+
+    await withQuery(
+      <ChildChoreList
+        familyId={FAMILY_ID}
+        childId={CHILD_ID}
+        requestedChoreId={1}
+        onRequestedChoreConsumed={onConsumed}
+      />,
+    );
+
+    await waitFor(() => expect(onConsumed).toHaveBeenCalledTimes(1), WAIT);
+    expect(await screen.findByText('방 정리하기', {}, WAIT)).toBeTruthy();
+    expect(push).not.toHaveBeenCalledWith('/task/history');
+  });
+});

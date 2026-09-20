@@ -8,9 +8,6 @@ public enum PayoutTiming {
 	/** 보통예금 — 매주 정산일에 이자를 즉시 지급 */
 	WEEKLY_IMMEDIATE,
 
-	/** 단리·복리·소액적금·장기적금 — 만기에 원금과 이자를 한 번에 지급 */
-	MATURITY_LUMP_SUM,
-
-	/** 목표적금 — 목표 금액을 달성한 즉시 지급 */
-	ON_GOAL_ACHIEVED
+	/** 단리·복리·소액·중기·장기적금 — 만기에 원금과 이자를 한 번에 지급 */
+	MATURITY_LUMP_SUM
 }

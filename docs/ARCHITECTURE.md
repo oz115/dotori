@@ -126,26 +126,25 @@ API 명세(WLT-06 거래내역 조회)가 요구하는 `transactionDirection` �
 
 #### 예적금 (SAV, S15P21A505-227)
 
-6개 고정 상품(보통·단리·복리예금, 소액·목표·장기적금)뿐이고 부모가 만들거나 고치지 않는다.
+6개 고정 상품(보통·단리·복리예금, 소액·중기·장기적금)뿐이고 부모가 만들거나 고치지 않는다.
 그래서 **카탈로그의 원본은 DB 가 아니라 코드(`savings/entity/SavingsProductType`)** 이고,
 `SavingsProductSeeder` 가 앱 기동 시마다 `savings_products` 행을 그 값으로 덮어 동기화한다.
 DB 행이 있어야 하는 이유는 `savings_subscriptions.savings_product_id` FK 하나뿐이다.
 
 가족마다 달라지는 값은 "최대 납입/예치 가능 금액(X)" 하나이고, 가족의 `weekly_reward_limit`(RL)
 에서 매번 계산한다. 가입 시점의 값을 `savings_subscriptions.principal` 에 스냅샷해서
-(거치식=최초원금, 정액 적립식=주당 약정액, 목표적금=목표 금액) 이후 가족 설정이 바뀌어도
+(거치식=최초원금, 정액 적립식=주당 약정액) 이후 가족 설정이 바뀌어도
 이미 가입된 건은 흔들리지 않는다.
 
 **이자는 상품마다 계산 방식이 다르지만 도달점은 같다.** 목표 총이자는 모두
-`0.4 × rewardRatio × RL`(`SavingsProductType.targetTotalInterest`)이고, `InterestAccrual` 네 방식이
+`0.4 × rewardRatio × RL`(`SavingsProductType.targetTotalInterest`)이고, `InterestAccrual` 세 방식이
 각자의 경로로 그 값에 도달한다 — 복리예금만 원안 스펙대로 그 4배를 지급하는 예외다.
 
 | 방식 | 상품 | 매주 하는 일 |
 | --- | --- | --- |
 | `WEEKLY_PAYOUT` | 보통예금 | 원금 잔액 × 이자율을 계산해 그 자리에서 지갑으로 지급 |
-| `WEEKLY_STRAIGHT` | 단리예금·소액적금·장기적금 | 원금 잔액 × 이자율 ÷ 전체 주수를 쌓아 둔다 (적립식에서는 이 식이 곧 평잔 × 이자율이 된다) |
+| `WEEKLY_STRAIGHT` | 단리예금·소액적금·중기적금·장기적금 | 원금 잔액 × 이자율 ÷ 전체 주수를 쌓아 둔다 (적립식에서는 이 식이 곧 평잔 × 이자율이 된다) |
 | `WEEKLY_COMPOUND` | 복리예금 | (원금 + 쌓인 이자) × 이자율을 쌓아 둔다 |
-| `ON_GOAL_ACHIEVEMENT` | 목표적금 | 아무것도 하지 않는다. 목표를 채운 순간 목표 금액 × 이자율을 한 번에 얹는다 |
 
 `savings_subscriptions` 는 **원금(`current_amount`)과 이자(`accrued_interest`)를 나눠 들고 있다.**
 섞으면 복리는 맞지만 단리·적립식은 틀린 이자가 나온다. 나눠 두면 복리만 두 값을 더한 것을
@@ -154,7 +153,6 @@ DB 행이 있어야 하는 이유는 `savings_subscriptions.savings_product_id` 
 상태는 `ACTIVE → MATURED → COMPLETED` 가 정상 경로이고, `ACTIVE → CANCELLED` 가 중도 해지다.
 중도 해지는 납입 원금만 돌려주고 쌓인 이자는 지급하지 않는다(그 사실 자체가 학습 내용이다).
 만기 지급은 자동이 아니라 아이가 수령을 눌러야 일어난다 — `MATURED` 가 그 대기 상태다.
-목표적금만 예외로 달성 즉시 `ACTIVE → COMPLETED` 로 지급까지 끝낸다.
 
 **정산일은 가입일 기준이다**(가입 시각 + n주). 모두를 월요일에 맞추면 일요일에 가입한 아이가
 하루 만에 한 주치 이자를 받는다. 대신 정산 크론(`SavingsSettlementScheduler`)은 매일 00:20 에

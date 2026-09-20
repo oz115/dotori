@@ -39,6 +39,9 @@ public class SecurityConfig {
 				.requestMatchers("/api/v1/auth/login-id/check").permitAll()
 				.requestMatchers("/actuator/health").permitAll()
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+				// 배치 QA 임시 트리거. JWT 대신 컨트롤러 안에서 X-Internal-Token 으로 막는다
+				// (QaTriggerController 참고) — qa-trigger.enabled 가 꺼져 있으면 빈 자체가 없어 404.
+				.requestMatchers("/api/v1/internal/qa/**").permitAll()
 				.anyRequest().authenticated())
 			.exceptionHandling(handling -> handling
 				.authenticationEntryPoint(jwtAuthenticationEntryPoint)

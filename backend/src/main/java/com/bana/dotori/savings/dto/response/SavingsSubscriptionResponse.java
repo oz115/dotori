@@ -10,7 +10,7 @@ import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
  * 예적금 가입 건 하나 (가입 응답이자 목록·상세 조회 응답으로 함께 쓴다).
  *
  * @param contributionStyle 상품의 납입 방식. 화면이 진행률을 어떤 기준으로 그릴지 정하는 값이다 —
- *                          정액 적립식은 납입 회차, 목표적금은 모은 금액, 나머지는 기간이다
+ *                          정액 적립식은 납입 회차, 나머지는 기간이다
  * @param installmentCount  정액 적립식이 약속한 총 납입 회차. 해당 없는 상품은 null
  * @param currentAmount     지금까지 납입된 원금 누계 (이자 제외)
  * @param accruedInterest   지금까지 쌓인 이자. 보통예금은 매주 지갑으로 바로 나가므로 늘 0이다

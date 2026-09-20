@@ -12,6 +12,7 @@ const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   CHORE: '할 일',
   SAVINGS: '예적금',
   INVESTMENT: '투자',
+  DAILY: '오늘의 퀴즈',
 };
 
 /**
@@ -27,6 +28,8 @@ const NOTIFICATION_TYPE_IMAGES: Record<NotificationType, number> = {
   CHORE: require('@/assets/images/notification/chore.png'),
   SAVINGS: require('@/assets/images/notification/savings.png'),
   INVESTMENT: require('@/assets/images/notification/investment.png'),
+  // 전용 일러스트가 아직 없어 홈 활동 보드의 퀴즈 아이콘을 같이 쓴다
+  DAILY: require('@/assets/images/icons/icon-quiz.png'),
 };
 
 export function notificationTypeLabel(type: NotificationType): string {

@@ -10,6 +10,7 @@ import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.service.AccountService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.repository.UserRepository;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 import lombok.RequiredArgsConstructor;
@@ -27,10 +28,12 @@ import lombok.RequiredArgsConstructor;
 public class AccountBankTransferClient implements BankTransferClient {
 
 	private static final String CHARGE_TRANSFER_MEMO = "포인트 충전";
+	private static final String CHARGE_DEPOSIT_SUMMARY_SUFFIX = " 도토리충전";
 	private static final String CASHOUT_TRANSFER_MEMO = "포인트 환전";
 
 	private final AccountService accountService;
 	private final FamilyMembershipReader familyMembershipReader;
+	private final UserRepository userRepository;
 
 	@Override
 	public BankTransferResult transferFromChildToParent(Integer familyId, Integer childId, int amount,
@@ -42,8 +45,13 @@ public class AccountBankTransferClient implements BankTransferClient {
 		}
 
 		String parentAccountNo = accountService.getLinkedAccountNumber(parentUserId);
+		// 부모 계좌 거래내역에는 '자녀이름 도토리충전'으로 표시한다
+		String childName = userRepository.findById(childId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND))
+				.getName();
 		TransferResponse response = accountService.transfer(childId,
-				new TransferRequest(parentAccountNo, (long)amount, CHARGE_TRANSFER_MEMO), idempotencyKey);
+				new TransferRequest(parentAccountNo, (long)amount, CHARGE_TRANSFER_MEMO), idempotencyKey,
+				childName + CHARGE_DEPOSIT_SUMMARY_SUFFIX);
 
 		return toResult(response, idempotencyKey);
 	}

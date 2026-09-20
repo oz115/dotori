@@ -168,7 +168,7 @@ CREATE TYPE savings_products_product_type AS ENUM (
     'SIMPLE_INTEREST',
     'COMPOUND_INTEREST',
     'SMALL_INSTALLMENT',
-    'GOAL_INSTALLMENT',
+    'MID_TERM_INSTALLMENT',
     'LONG_TERM_INSTALLMENT'
 );
 
@@ -177,16 +177,14 @@ CREATE TYPE savings_products_product_type AS ENUM (
 CREATE TYPE savings_products_contribution_style AS ENUM (
     'FREE',              -- 보통예금: 수시입출금
     'LUMP_SUM',           -- 단리·복리예금: 가입 시 최초 1회 납입
-    'FIXED_INSTALLMENT',  -- 소액·장기적금: 매주 동일 금액 납입
-    'FLEXIBLE_GOAL'       -- 목표적금: 목표 금액 안에서 자유 납입
+    'FIXED_INSTALLMENT'   -- 소액·중기·장기적금: 매주 동일 금액 납입
 );
 
 
 /* 예적금 지급 시점 */
 CREATE TYPE savings_products_payout_timing AS ENUM (
     'WEEKLY_IMMEDIATE',   -- 보통예금: 매주 정산일에 이자 즉시 지급
-    'MATURITY_LUMP_SUM',  -- 단리·복리·소액·장기: 만기에 원금+이자 일괄 지급
-    'ON_GOAL_ACHIEVED'    -- 목표적금: 목표 달성 즉시 지급
+    'MATURITY_LUMP_SUM'   -- 단리·복리·소액·중기·장기: 만기에 원금+이자 일괄 지급
 );
 
 
@@ -379,8 +377,8 @@ CREATE TABLE "families" (
 );
 
 
-/* principal: 가입 시점에 확정한 금액 스냅샷 (거치식=최초원금, 적립식=주당 약정액,
-              목표적금=목표 금액). 이후 가족의 weekly_reward_limit 이 바뀌어도
+/* principal: 가입 시점에 확정한 금액 스냅샷 (거치식=최초원금, 적립식=주당 약정액).
+              이후 가족의 weekly_reward_limit 이 바뀌어도
               이미 가입된 건은 영향받지 않는다.
    current_amount: 납입 원금 누계. 이자는 여기 섞지 않는다.
    accrued_interest: 정산으로 쌓인 이자 누계. 원금과 분리해 두면 복리예금은

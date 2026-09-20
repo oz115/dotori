@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import com.bana.dotori.account.dto.TransferResponse;
 import com.bana.dotori.account.service.AccountService;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.repository.UserRepository;
 import com.bana.dotori.wallet.repository.FamilyMembershipReader;
 
 /**
@@ -33,12 +36,17 @@ class AccountBankTransferClientTest {
 	private static final Integer PARENT_ID = 9;
 	private static final String PARENT_ACCOUNT_NO = "0016174648358792";
 	private static final String KEY = "charge-001";
+	private static final String CHILD_NAME = "김도토";
+	private static final String DEPOSIT_SUMMARY = "김도토 도토리충전";
 
 	@Mock
 	private AccountService accountService;
 
 	@Mock
 	private FamilyMembershipReader familyMembershipReader;
+
+	@Mock
+	private UserRepository userRepository;
 
 	@InjectMocks
 	private AccountBankTransferClient bankTransferClient;
@@ -48,7 +56,10 @@ class AccountBankTransferClientTest {
 	void 부모_계좌로_이체를_위임한다() {
 		given(familyMembershipReader.findParentUserId(FAMILY_ID)).willReturn(PARENT_ID);
 		given(accountService.getLinkedAccountNumber(PARENT_ID)).willReturn(PARENT_ACCOUNT_NO);
-		given(accountService.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), KEY))
+		User child = org.mockito.Mockito.mock(User.class);
+		given(child.getName()).willReturn(CHILD_NAME);
+		given(userRepository.findById(CHILD_ID)).willReturn(Optional.of(child));
+		given(accountService.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), KEY, DEPOSIT_SUMMARY))
 				.willReturn(new TransferResponse("0011214764051239", PARENT_ACCOUNT_NO, 10_000L, OffsetDateTime.now()));
 
 		BankTransferResult result = bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, KEY);
@@ -56,7 +67,7 @@ class AccountBankTransferClientTest {
 		assertThat(result.transferredAmount()).isEqualTo(10_000);
 		assertThat(result.externalTransactionId()).isEqualTo(KEY);
 		then(accountService).should()
-				.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), KEY);
+				.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), KEY, DEPOSIT_SUMMARY);
 	}
 
 	@Test
@@ -64,7 +75,10 @@ class AccountBankTransferClientTest {
 	void idempotencyKey_없으면_임의_식별자를_만든다() {
 		given(familyMembershipReader.findParentUserId(FAMILY_ID)).willReturn(PARENT_ID);
 		given(accountService.getLinkedAccountNumber(PARENT_ID)).willReturn(PARENT_ACCOUNT_NO);
-		given(accountService.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), null))
+		User child = org.mockito.Mockito.mock(User.class);
+		given(child.getName()).willReturn(CHILD_NAME);
+		given(userRepository.findById(CHILD_ID)).willReturn(Optional.of(child));
+		given(accountService.transfer(CHILD_ID, new TransferRequest(PARENT_ACCOUNT_NO, 10_000L, "포인트 충전"), null, DEPOSIT_SUMMARY))
 				.willReturn(new TransferResponse("0011214764051239", PARENT_ACCOUNT_NO, 10_000L, OffsetDateTime.now()));
 
 		BankTransferResult result = bankTransferClient.transferFromChildToParent(FAMILY_ID, CHILD_ID, 10_000, null);

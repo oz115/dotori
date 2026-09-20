@@ -163,6 +163,14 @@ public class AccountServiceImpl implements AccountService {
 	@Override
 	@Transactional(readOnly = true)
 	public TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey) {
+		return transfer(userId, request, idempotencyKey, null);
+	}
+
+	// 받는 계좌 적요(depositSummary)를 지정해 이체를 수행한다
+	@Override
+	@Transactional(readOnly = true)
+	public TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey,
+		String depositSummary) {
 		Account fromAccount = accountRepository.findFirstByUserId(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_LINKED));
 
@@ -192,10 +200,13 @@ public class AccountServiceImpl implements AccountService {
 		String summary = (request.memo() != null && !request.memo().isBlank())
 			? request.memo()
 			: DEFAULT_TRANSFER_SUMMARY;
+		String resolvedDepositSummary = (depositSummary != null && !depositSummary.isBlank())
+			? depositSummary
+			: DEFAULT_DEPOSIT_SUMMARY;
 		try {
 			financeClient.updateDemandDepositAccountTransfer(fromAccount.getFinanceUserKey(),
 				fromAccount.getAccountNumber(), request.toAccountNo(), request.amount(),
-				summary, DEFAULT_DEPOSIT_SUMMARY);
+				summary, resolvedDepositSummary);
 		} catch (FinanceApiException ex) {
 			throw new BusinessException(ErrorCode.BANK_TRANSFER_FAILED);
 		}

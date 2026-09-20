@@ -38,8 +38,8 @@ public interface SavingsSubscriptionRepository extends JpaRepository<SavingsSubs
 	/**
 	 * 납입·해지·수령처럼 잔액을 바꾸는 경로가 잡는 행 잠금.
 	 *
-	 * <p>같은 가입 건에 동시에 두 요청이 들어오면 둘 다 "아직 목표 미달"로 읽고 둘 다 납입해
-	 * 목표를 넘겨 버린다. 지갑 락은 이걸 막지 못한다 — 지갑은 포인트가 두 번 빠지는 것만 막고,
+	 * <p>같은 가입 건에 동시에 두 요청이 들어오면 둘 다 "아직 회차가 남았다"로 읽고 둘 다 납입해
+	 * 약속한 회차를 넘겨 버린다. 지갑 락은 이걸 막지 못한다 — 지갑은 포인트가 두 번 빠지는 것만 막고,
 	 * 여기서 깨지는 것은 가입 건의 한도다.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -63,7 +63,7 @@ public interface SavingsSubscriptionRepository extends JpaRepository<SavingsSubs
 	 * <p>상품은 연관관계가 아니라 id 로만 이어져 있어 세타 조인으로 묶는다.
 	 *
 	 * <p>적립식만 본다 - 보통예금(수시입출금)과 거치식(가입 시 1회)은 이번 주에 넣어야 할
-	 * 금액이라는 것이 없고, 목표적금은 넣는 시점을 아이가 정한다.
+	 * 금액이라는 것이 없다.
 	 */
 	@Query("select s from SavingsSubscription s, SavingsProduct p "
 		+ "where p.id = s.savingsProductId "
