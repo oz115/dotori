@@ -3,6 +3,7 @@ package com.bana.dotori.savings.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +82,10 @@ public class SavingsServiceImpl implements SavingsService {
 		savingsAccessValidator.validate(userId, familyId, childId);
 		FamilySettings familySettings = familySettingsReader.read(familyId, childId);
 
+		// 정렬 없는 조회는 DB 의 물리적 행 순서로 나온다(행이 UPDATE 되면 뒤로 밀린다).
+		// 화면 순서는 상품 타입의 선언 순서(보통 → … → 소액 → 중기 → 장기)로 고정한다.
 		return savingsProductRepository.findByActiveIsTrue().stream()
+			.sorted(Comparator.comparing(SavingsProduct::getProductType))
 			.map(product -> savingsMapper.toProductResponse(product, familySettings))
 			.toList();
 	}
