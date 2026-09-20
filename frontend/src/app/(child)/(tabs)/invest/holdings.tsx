@@ -3,12 +3,13 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   HoldingCard,
+  InvestmentQueryError,
   HoldingsSummaryCard,
   TipBanner,
   useInvestmentHoldings,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Header, Screen } from '@/shared/ui';
 
 /**
  * 보유 투자 상품. 합계 요약·보유 종목 목록·교육 팁의 배치만 담당하고,
@@ -36,7 +37,11 @@ export default function InvestHoldingsScreen() {
             {holdings.isPending ? '보유한 주식을 불러오는 중이에요.' : '불러오지 못했어요.'}
           </Text>
           {holdings.isError ? (
-            <Button label="다시 시도" variant="outline" onPress={() => holdings.refetch()} />
+            <InvestmentQueryError
+              error={holdings.error}
+              fetching={holdings.isFetching}
+              onRetry={() => holdings.refetch()}
+            />
           ) : null}
         </View>
       ) : (

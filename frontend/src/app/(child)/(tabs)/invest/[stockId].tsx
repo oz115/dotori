@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { walletKeys } from '@/features/wallet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -16,8 +18,18 @@ import { Button, Header, Screen } from '@/shared/ui';
  */
 export default function InvestDetailScreen() {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const { stockId } = useLocalSearchParams<{ stockId: string }>();
-  const { detail, isPending, isError, refetch } = useStockDetail(Number(stockId));
+  const {
+    detail,
+    isPending,
+    isError,
+    refetch,
+    historyPending,
+    historyError,
+    historyFetching,
+    refetchHistory,
+  } = useStockDetail(Number(stockId));
 
   return (
     <Screen
@@ -41,10 +53,21 @@ export default function InvestDetailScreen() {
             gap: theme.space.xl,
           }}
         >
-          <StockOverviewCard detail={detail} />
+          <StockOverviewCard
+            detail={detail}
+            historyPending={historyPending}
+            historyFetching={historyFetching}
+            historyError={historyError}
+            onRetryHistory={refetchHistory}
+          />
           <StockInfoCard detail={detail} />
 
-          <TradeButtons detail={detail} />
+          <TradeButtons
+            detail={detail}
+            onTradeSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: walletKeys.all });
+            }}
+          />
         </ScrollView>
       ) : (
         <View style={[styles.empty, { gap: theme.space.lg }]}>

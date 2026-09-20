@@ -14,13 +14,13 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -235,6 +235,8 @@ class InvestmentOrderServiceImplTest {
 	void sell_success() {
 		givenChild();
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, true)));
+		given(investmentHoldingRepository.findForSell(FAMILY_ID, CHILD_ID, 1))
+			.willReturn(Optional.of(InvestmentHolding.builder().buyPrice(1000).quantity(1).build()));
 		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(1);
 		givenCurrentPrice(1, 1300);
 		given(pointWalletService.deposit(any(PointChangeCommand.class)))
@@ -249,6 +251,8 @@ class InvestmentOrderServiceImplTest {
 		assertThat(response.unitPrice()).isEqualTo(1300);
 		assertThat(response.totalAmount()).isEqualTo(1300);
 		assertThat(response.pointBalanceAfter()).isEqualTo(9300);
+		assertThat(response.buyPrice()).isEqualTo(1000);
+		assertThat(response.realizedProfit()).isEqualTo(300);
 
 		ArgumentCaptor<PointChangeCommand> commandCaptor = ArgumentCaptor.forClass(PointChangeCommand.class);
 		then(pointWalletService).should().deposit(commandCaptor.capture());
@@ -260,6 +264,8 @@ class InvestmentOrderServiceImplTest {
 	@DisplayName("거래 중지된 종목도 매도는 가능하다 — 아이 포인트가 묶이지 않게")
 	void sell_inactiveProductAllowed() {
 		givenChild();
+		given(investmentHoldingRepository.findForSell(FAMILY_ID, CHILD_ID, 1))
+			.willReturn(Optional.of(InvestmentHolding.builder().buyPrice(1000).quantity(1).build()));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, false)));
 		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(1);
 		givenCurrentPrice(1, 900);
@@ -271,6 +277,7 @@ class InvestmentOrderServiceImplTest {
 		InvestmentOrderResponse response = investmentOrderService.sell(CHILD_ID, new InvestmentOrderRequest(1));
 
 		assertThat(response.unitPrice()).isEqualTo(900);
+		assertThat(response.realizedProfit()).isEqualTo(-100);
 	}
 
 	@Test
@@ -278,7 +285,7 @@ class InvestmentOrderServiceImplTest {
 	void sell_notHolding() {
 		givenChild();
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, true)));
-		given(investmentHoldingRepository.deleteHolding(FAMILY_ID, CHILD_ID, 1)).willReturn(0);
+		given(investmentHoldingRepository.findForSell(FAMILY_ID, CHILD_ID, 1)).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> investmentOrderService.sell(CHILD_ID, new InvestmentOrderRequest(1)))
 			.isInstanceOf(BusinessException.class)

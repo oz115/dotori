@@ -15,26 +15,28 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
-import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
+import com.bana.dotori.investment.dto.InvestmentHoldingSummary;
 import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
-import com.bana.dotori.investment.dto.InvestmentTransactionListResponse;
-import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentProductSummary;
+import com.bana.dotori.investment.dto.InvestmentTransactionListResponse;
+import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
 import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
@@ -71,6 +73,9 @@ class InvestmentProductServiceImplTest {
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
 
+	@Mock
+	private FamilyRepository familyRepository;
+
 	@Spy
 	private InvestmentProductMapper investmentProductMapper;
 
@@ -89,6 +94,7 @@ class InvestmentProductServiceImplTest {
 			.updatedAt(SEED_AT)
 			.build();
 		ReflectionTestUtils.setField(product, "id", id);
+		ReflectionTestUtils.setField(product, "createdAt", SEED_AT);
 		return product;
 	}
 
@@ -384,6 +390,7 @@ class InvestmentProductServiceImplTest {
 	@Test
 	@DisplayName("날짜를 안 주면 최근 30일 범위(KST 하루 경계)로 조회한다")
 	void getPriceHistory_defaultRange() {
+		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
 		given(investmentPriceHistoryRepository.findAllInRange(eq(FAMILY_ID), eq(1), any(OffsetDateTime.class),
@@ -393,14 +400,16 @@ class InvestmentProductServiceImplTest {
 			null);
 
 		assertThat(response.investmentProductId()).isEqualTo(1);
-		assertThat(response.history()).isEmpty();
+		assertThat(response.history()).isNotEmpty().allSatisfy(point -> assertThat(point.price()).isEqualTo(10000));
 		then(investmentPriceHistoryRepository).should().findAllInRange(FAMILY_ID, 1,
-			todayStart().minusDays(30), todayStart().plusDays(1));
+			todayStart().minusDays(30).isAfter(SEED_AT) ? todayStart().minusDays(30) : SEED_AT,
+			todayStart().plusDays(1));
 	}
 
 	@Test
 	@DisplayName("기간을 주면 그 범위의 이력을 시간 오름차순 그대로 한국 시간으로 내려 준다")
 	void getPriceHistory_withDates() {
+		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
 		OffsetDateTime start = LocalDate.of(2026, 9, 1).atStartOfDay(KST).toOffsetDateTime();
@@ -412,11 +421,11 @@ class InvestmentProductServiceImplTest {
 		InvestmentPriceHistoryResponse response = investmentProductService.getPriceHistory(USER_ID, 1,
 			LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 15));
 
-		assertThat(response.history()).hasSize(2);
-		assertThat(response.history().get(0).price()).isEqualTo(1150);
-		assertThat(response.history().get(0).recordedAt())
-			.isEqualTo(OffsetDateTime.parse("2026-09-14T00:05:00+09:00"));
-		assertThat(response.history().get(1).price()).isEqualTo(1200);
+		assertThat(response.history()).hasSize(15);
+		assertThat(response.history().get(13).price()).isEqualTo(1150);
+		assertThat(response.history().get(13).recordedAt())
+			.isEqualTo(OffsetDateTime.parse("2026-09-14T00:00:00+09:00"));
+		assertThat(response.history().get(14).price()).isEqualTo(1200);
 	}
 
 	private InvestmentTransaction transaction(Integer id, Integer productId, InvestmentTransactionType type,
@@ -485,6 +494,8 @@ class InvestmentProductServiceImplTest {
 		assertThat(latest.quantity()).isEqualTo(1);
 		assertThat(latest.unitPrice()).isEqualTo(1300);
 		assertThat(latest.totalAmount()).isEqualTo(1300);
+		assertThat(latest.buyPrice()).isEqualTo(1000);
+		assertThat(latest.realizedProfit()).isEqualTo(300);
 		assertThat(latest.createdAt()).isEqualTo(OffsetDateTime.parse("2026-09-15T10:00:00+09:00"));
 	}
 
@@ -501,6 +512,74 @@ class InvestmentProductServiceImplTest {
 
 		assertThat(response.transactions()).isEmpty();
 		then(investmentProductRepository).shouldHaveNoInteractions();
+	}
+
+	@Test
+	void getPriceHistory_carriesEarlierPriceAcrossFlatDays() {
+		givenFamilyCreated(SEED_AT);
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		OffsetDateTime start = SEED_AT.plusDays(2);
+		given(investmentPriceHistoryRepository
+			.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(FAMILY_ID, 1, start))
+			.willReturn(Optional.of(history(1, 1100, start.minusHours(10))));
+		given(investmentPriceHistoryRepository.findAllInRange(FAMILY_ID, 1, start, start.plusDays(4)))
+			.willReturn(List.of(history(1, 1200, start.plusDays(2).plusMinutes(5))));
+		var response = investmentProductService.getPriceHistory(USER_ID, 1,
+			start.toLocalDate(), start.plusDays(3).toLocalDate());
+		assertThat(response.history()).extracting(point -> point.price()).containsExactly(1100, 1100, 1200, 1200);
+	}
+
+	@Test
+	void getPriceHistory_startsAtLaterCreationAndStopsToday() {
+		givenFamilyCreated(todayStart().minusDays(1));
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		InvestmentProduct product = product(1, "새 회사", 100);
+		ReflectionTestUtils.setField(product, "createdAt", todayStart());
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product));
+		var response = investmentProductService.getPriceHistory(USER_ID, 1,
+			LocalDate.now(KST).minusDays(30), LocalDate.now(KST).plusDays(30));
+		assertThat(response.history()).hasSize(1);
+		assertThat(response.history().get(0).price()).isEqualTo(100);
+		assertThat(response.history().get(0).recordedAt()).isEqualTo(todayStart());
+	}
+
+	@Test
+	void getPriceHistory_beforeCreationIsEmpty() {
+		givenFamilyCreated(todayStart());
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 100)));
+		var response = investmentProductService.getPriceHistory(USER_ID, 1,
+			LocalDate.now(KST).minusDays(3), LocalDate.now(KST).minusDays(1));
+		assertThat(response.history()).isEmpty();
+		then(investmentPriceHistoryRepository).shouldHaveNoInteractions();
+	}
+
+	@Test
+	void getTransactions_filteredSaleUsesEarlierBuyAndLatestRound() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		var firstBuy = transaction(1, 1, InvestmentTransactionType.BUY, 1000, SEED_AT);
+		var firstSell = transaction(2, 1, InvestmentTransactionType.SELL, 1200, SEED_AT.plusDays(1));
+		var secondBuy = transaction(3, 1, InvestmentTransactionType.BUY, 1500, SEED_AT.plusDays(2));
+		var secondSell = transaction(4, 1, InvestmentTransactionType.SELL, 1300, SEED_AT.plusDays(3));
+		given(investmentTransactionRepository.findAllInRangeByType(eq(FAMILY_ID), eq(USER_ID),
+			eq(InvestmentTransactionType.SELL), any(OffsetDateTime.class), any(OffsetDateTime.class)))
+			.willReturn(List.of(secondSell));
+		given(investmentTransactionRepository.findAllInRange(eq(FAMILY_ID), eq(USER_ID),
+			any(OffsetDateTime.class), any(OffsetDateTime.class)))
+			.willReturn(List.of(secondSell, secondBuy, firstSell, firstBuy));
+		given(investmentProductRepository.findAllById(List.of(1)))
+			.willReturn(List.of(product(1, "시원아이스", 10000)));
+		var response = investmentProductService.getTransactions(USER_ID, null, SEED_AT.plusDays(3).toLocalDate(),
+			SEED_AT.plusDays(4).toLocalDate(), InvestmentTransactionType.SELL);
+		assertThat(response.transactions().get(0).buyPrice()).isEqualTo(1500);
+		assertThat(response.transactions().get(0).realizedProfit()).isEqualTo(-200);
+	}
+
+	private void givenFamilyCreated(OffsetDateTime createdAt) {
+		Family family = Family.builder().name("가족").build();
+		ReflectionTestUtils.setField(family, "createdAt", createdAt);
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID)).willReturn(Optional.of(family));
 	}
 
 	private OffsetDateTime todayStart() {

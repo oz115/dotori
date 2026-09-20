@@ -1,12 +1,13 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * 투자 기능이 다루는 도메인 타입. 아직 백엔드 투자 API가 없어 화면 구현에 필요한
- * 모양을 먼저 정의한 것 — API 명세(노션)가 확정되면 응답 타입에 맞춰 조정한다.
+ * 투자 API 응답과 화면 표시 타입. 평가손익과 매도로 확정된 손익은 구분한다.
  */
 
-/** 투자 요약 — 넣은 돈(원금)과 번 돈(수익), 단위는 포인트(P) */
+/** 투자 요약 — 보유 원금과 현재 평가손익, 단위는 포인트(P) */
 export type InvestmentSummary = {
+  /** 지금 들고 있는 종목 수 — 0이면 아직 산 주식이 없는 상태 */
+  count: number;
   investedPoints: number;
   earnedPoints: number;
 };
@@ -49,6 +50,8 @@ export type StockDetail = {
   description: string;
   /** 아이가 이 상품을 보유 중인지 (보유중 배지) */
   holding: boolean;
+  /** 현재 보유한 주식의 실제 매수가 */
+  buyPrice?: number;
   /** 현재가, 단위는 도토리 */
   currentPrice: number;
   /** 어제 대비 등락, 단위는 도토리 */
@@ -57,12 +60,12 @@ export type StockDetail = {
   history: PricePoint[];
 };
 
-/** 보유 화면 상단 합계 (가지고 있는 상품·지금 가치·번 돈) */
+/** 보유 화면 상단 합계 (가지고 있는 상품·지금 가치·평가손익) */
 export type HoldingsSummary = {
   count: number;
   /** 보유 종목 현재가 합, 단위는 도토리 */
   totalValue: number;
-  /** 번 돈, 단위는 도토리 */
+  /** 보유 주식의 평가손익, 단위는 도토리 */
   totalEarned: number;
 };
 
@@ -101,8 +104,13 @@ export type InvestmentTransactionItem = {
   type: 'BUY' | 'SELL';
   /** 총 거래 금액, 단위는 도토리 (1주 규칙이라 체결 단가와 같음) */
   totalAmount: number;
+  buyAmount?: number | null;
+  buyPrice?: number | null;
+  realizedProfit?: number | null;
   /** 표시용 날짜 문자열 (예: 2026. 09. 16) */
   date: string;
+  /** 서버가 준 거래 시각 원문 — 최근 N일 필터처럼 날짜 계산에 쓴다 */
+  createdAt: string;
 };
 
 /* =========================================================
@@ -184,6 +192,8 @@ export type TransactionResponse = {
   unitPrice: number;
   totalAmount: number;
   createdAt: string;
+  buyPrice?: number | null;
+  realizedProfit?: number | null;
 };
 
 /** POST /investments/orders/buy·sell 응답 */
@@ -195,4 +205,21 @@ export type OrderResponse = {
   totalAmount: number;
   pointBalanceAfter: number;
   createdAt: string;
+  buyPrice?: number | null;
+  realizedProfit?: number | null;
+};
+
+/** 가족별 가격 반영 후 공개되는 어제 뉴스 복습. */
+export type NewsReviewResponse = {
+  newsDate: string;
+  reviews: {
+    investmentNewsId: number;
+    title: string;
+    content: string;
+    ready: boolean;
+    productName: string | null;
+    previousPrice: number | null;
+    currentPrice: number | null;
+    explanation: string | null;
+  }[];
 };

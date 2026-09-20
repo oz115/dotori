@@ -12,8 +12,7 @@ type Props = {
 };
 
 /**
- * 뉴스 카드를 탭하면 뜨는 상세 팝업. 본문과 관련 회사, 가격에 주는 영향 방향을
- * 보여줘서 아이가 "어느 회사가 오를지/내릴지"를 판단하게 돕는다.
+ * 뉴스 카드를 탭하면 뜨는 상세 팝업. 본문만 보여주고 회사·업종·등락 방향은 알려주지 않는다.
  * 딤 영역 탭·안드로이드 뒤로가기·확인 버튼 모두로 닫힌다.
  * 본문(content)은 목록 응답에 없어서 팝업이 열릴 때 상세 API 로 가져온다 —
  * news.content 가 이미 있으면(테스트 등) 그 값을 그대로 쓴다.
@@ -60,14 +59,14 @@ export function NewsDetailModal({ news, onClose }: Props) {
               ]}
             >
               <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-                {news.tag}
+                경제 소식
               </Text>
             </View>
           </View>
 
           <View style={[styles.titleRow, { gap: theme.space.md }]}>
             {/* 일러스트 자리 표시자 — Figma 에셋 export 후 이미지로 교체 */}
-            <Text style={styles.emoji}>{news.emoji}</Text>
+            <Text style={styles.emoji}>📰</Text>
             <Text style={[theme.typography.h3, styles.title, { color: theme.color.text.strong }]}>
               {news.title.replace('\n', ' ')}
             </Text>
@@ -78,10 +77,6 @@ export function NewsDetailModal({ news, onClose }: Props) {
           </Text>
 
           <View style={styles.metaRow}>
-            <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-              관련 회사{' '}
-              <Text style={{ color: theme.color.text.strong }}>{news.relatedProductName}</Text>
-            </Text>
             <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
               {news.date}
             </Text>

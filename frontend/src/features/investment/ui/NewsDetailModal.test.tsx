@@ -40,11 +40,13 @@ describe('NewsDetailModal', () => {
     expect(screen.queryByText('확인')).toBeNull();
   });
 
-  it('뉴스 본문과 관련 회사를 보여주되, 오를지/내릴지 방향은 알려주지 않는다', async () => {
+  it('뉴스 본문만 보여주고 회사와 업종 힌트는 숨긴다', async () => {
     await renderWithQuery(<NewsDetailModal news={news} onClose={jest.fn()} />);
 
     expect(screen.getByText(content)).toBeTruthy();
-    expect(screen.getByText('태수 마트')).toBeTruthy();
+    expect(screen.queryByText('태수 마트')).toBeNull();
+    expect(screen.queryByText('생활')).toBeNull();
+    expect(screen.queryByText('🛒')).toBeNull();
     // 방향 배지는 뺐다 — 답을 미리 주면 아이가 스스로 판단할 게 없어진다
     expect(screen.queryByText('📉 내리는 뉴스')).toBeNull();
   });

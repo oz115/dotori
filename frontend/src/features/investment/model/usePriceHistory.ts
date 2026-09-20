@@ -9,6 +9,7 @@ export function usePriceHistory(productId: number | undefined) {
     queryKey: investmentKeys.priceHistory(productId ?? -1),
     queryFn: () => investmentApi.getPriceHistory(productId as number),
     enabled: productId != null,
+    retry: false,
     staleTime: 60_000,
   });
 }

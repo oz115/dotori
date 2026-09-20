@@ -9,6 +9,7 @@ export function useInvestmentNewsDetail(newsId: number | undefined) {
     queryKey: investmentKeys.newsDetail(newsId ?? -1),
     queryFn: () => investmentApi.getNewsDetail(newsId as number),
     enabled: newsId != null,
+    retry: false,
     staleTime: 5 * 60_000,
   });
 }
