@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Circle, Defs, Line, LinearGradient, Polygon, Polyline, Stop, Svg } from 'react-native-svg';
 
-import { changeColor } from '@/features/investment/lib/change';
 import { axisTicks, scalePoints, scaleY, toPolylinePoints } from '@/features/investment/lib/chart';
 import { formatNumber } from '@/features/investment/lib/format';
 import type { PricePoint } from '@/features/investment/model/types';
@@ -34,7 +33,9 @@ export function PriceLineChart({ history }: Props) {
   }
 
   const prices = history.map((point) => point.price);
-  const lineColor = changeColor(prices[prices.length - 1] - prices[0], theme.color);
+  // 등락과 상관없이 늘 초록으로 고정한다(팀 결정). 상승·하락·보합을 색으로 나누지 않고,
+  // 등락은 다른 화면의 부호·문구가 알려 준다.
+  const lineColor = theme.color.status.success.solid;
   const ticks = axisTicks(Math.min(...prices), Math.max(...prices));
   const domainMin = ticks[0];
   const domainMax = ticks[ticks.length - 1];
