@@ -31,3 +31,35 @@ export type QuizSubmitResult = {
   earnedPoints: number;
   pointBalanceAfter: number;
 };
+
+/** 부모용 오늘의 퀴즈 확인 안의 시도 1회 (아이가 실제로 낸 답과 정오답). */
+export type QuizParentAttempt = {
+  quizAttemptId: number;
+  /** 1부터 세는 제출 순서 */
+  attemptNumber: number;
+  submittedAnswer: string;
+  isCorrect: boolean;
+  earnedPoints: number;
+  submittedAt: string;
+};
+
+/**
+ * GET .../quizzes/today/review 응답 — **부모 전용**. 아이가 아직 안 풀었어도 정답을 준다.
+ * 아이용 QuizToday 와 달리 정답이 잠금 여부와 무관하게 항상 채워지므로, 이 타입은
+ * 아이 화면 쪽 코드에서 절대 쓰지 않는다.
+ */
+export type QuizParentToday = {
+  quizId: number;
+  quizDate: string;
+  question: string;
+  correctAnswer: string;
+  explanation: string | null;
+  attemptCount: number;
+  /** 하루 최대 제출 횟수 (서버 규칙) */
+  maxAttempts: number;
+  solved: boolean;
+  /** 정답을 맞혔거나 횟수를 다 써서 더 제출할 수 없는 상태 */
+  locked: boolean;
+  /** 제출 순서대로. 아직 안 풀었으면 빈 배열 */
+  attempts: QuizParentAttempt[];
+};
