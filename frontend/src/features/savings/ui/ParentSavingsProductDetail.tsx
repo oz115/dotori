@@ -57,7 +57,12 @@ export function ParentSavingsProductDetail({
       : '저축 상품';
 
   return (
-    <Screen header={<Header title={title} onBack={onBack} />} padded={false}>
+    <Screen
+      header={<Header title={title} onBack={onBack} />}
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
+      padded={false}
+    >
       {product.isPending ? (
         <Centered message="상품 정보를 불러오는 중이에요." />
       ) : product.isError || product.data == null ? (
@@ -72,7 +77,9 @@ export function ParentSavingsProductDetail({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
-            paddingVertical: theme.layout.screenY,
+            paddingTop: theme.layout.screenY,
+            // 탭바가 스크롤 영역 아래를 덮으므로 마지막 항목이 가려지지 않게 하단 여백을 넉넉히 둔다
+            paddingBottom: theme.space['4xl'],
             gap: theme.space.lg,
           }}
         >
