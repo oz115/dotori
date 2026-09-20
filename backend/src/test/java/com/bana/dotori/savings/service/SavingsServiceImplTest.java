@@ -174,6 +174,22 @@ class SavingsServiceImplTest {
 			assertThat(responses).hasSize(1);
 			assertThat(responses.get(0).maxAmount()).isEqualTo(maxAmountOf(SavingsProductType.ORDINARY));
 		}
+
+		@Test
+		@DisplayName("DB 가 어떤 순서로 돌려줘도 상품 타입 선언 순서(소액 → 중기 → 장기)로 정렬한다")
+		void 상품_타입_순서로_정렬한다() {
+			SavingsProduct small = product(SavingsProductType.SMALL_INSTALLMENT);
+			SavingsProduct mid = product(SavingsProductType.MID_TERM_INSTALLMENT);
+			SavingsProduct longTerm = product(SavingsProductType.LONG_TERM_INSTALLMENT);
+			// UPDATE 로 행이 뒤로 밀린 상황: 소액 → 장기 → 중기
+			given(savingsProductRepository.findByActiveIsTrue()).willReturn(List.of(small, longTerm, mid));
+
+			List<SavingsProductResponse> responses = savingsService.listProducts(CHILD_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(responses).extracting(SavingsProductResponse::productType)
+				.containsExactly(SavingsProductType.SMALL_INSTALLMENT, SavingsProductType.MID_TERM_INSTALLMENT,
+					SavingsProductType.LONG_TERM_INSTALLMENT);
+		}
 	}
 
 	@Nested
