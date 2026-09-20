@@ -53,7 +53,7 @@ public class SavingsProductSeeder implements ApplicationRunner {
 			case SIMPLE_INTEREST -> "단리예금";
 			case COMPOUND_INTEREST -> "복리예금";
 			case SMALL_INSTALLMENT -> "소액적금";
-			case GOAL_INSTALLMENT -> "목표적금";
+			case MID_TERM_INSTALLMENT -> "중기적금";
 			case LONG_TERM_INSTALLMENT -> "장기적금";
 		};
 	}

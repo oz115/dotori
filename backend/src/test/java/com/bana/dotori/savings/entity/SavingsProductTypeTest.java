@@ -88,7 +88,7 @@ class SavingsProductTypeTest {
 	}
 
 	@Nested
-	@DisplayName("정액 적립식 (소액·장기적금)")
+	@DisplayName("정액 적립식 (소액·중기·장기적금)")
 	class FixedInstallmentProducts {
 
 		@ParameterizedTest
@@ -96,6 +96,17 @@ class SavingsProductTypeTest {
 		@DisplayName("소액적금 — 2회 적립 동안 쌓은 이자가 목표와 일치한다")
 		void 소액적금_총이자가_목표와_일치한다(long rewardLimit) {
 			SavingsProductType type = SavingsProductType.SMALL_INSTALLMENT;
+			long weekly = type.calculateMaxAmount(familySettingsOf(rewardLimit));
+
+			assertRoughly(accrueToMaturity(type, weekly, type.getInstallmentCount()),
+				type.targetTotalInterest(rewardLimit));
+		}
+
+		@ParameterizedTest
+		@ValueSource(longs = {7_500, 12_345, 100_000})
+		@DisplayName("중기적금 — 4회 적립 동안 쌓은 이자가 목표와 일치한다")
+		void 중기적금_총이자가_목표와_일치한다(long rewardLimit) {
+			SavingsProductType type = SavingsProductType.MID_TERM_INSTALLMENT;
 			long weekly = type.calculateMaxAmount(familySettingsOf(rewardLimit));
 
 			assertRoughly(accrueToMaturity(type, weekly, type.getInstallmentCount()),
@@ -114,40 +125,14 @@ class SavingsProductTypeTest {
 		}
 
 		@Test
-		@DisplayName("한도는 원안 그대로 소액적금 RL의 4/3배, 장기적금 RL의 2/7배다")
+		@DisplayName("한도는 소액적금 RL의 4/3배, 중기적금 RL의 8/15배, 장기적금 RL의 2/7배다")
 		void 한도는_원안_그대로다() {
 			assertThat(SavingsProductType.SMALL_INSTALLMENT.calculateMaxAmount(familySettingsOf(3_000)))
 				.isEqualTo(4_000);
+			assertThat(SavingsProductType.MID_TERM_INSTALLMENT.calculateMaxAmount(familySettingsOf(15_000)))
+				.isEqualTo(8_000);
 			assertThat(SavingsProductType.LONG_TERM_INSTALLMENT.calculateMaxAmount(familySettingsOf(7_000)))
 				.isEqualTo(2_000);
-		}
-	}
-
-	@Nested
-	@DisplayName("목표적금")
-	class GoalInstallment {
-
-		@ParameterizedTest
-		@ValueSource(longs = {1_000, 12_345, 100_000})
-		@DisplayName("목표를 달성하면 받는 이자가 목표와 일치한다")
-		void 달성_이자가_목표와_일치한다(long rewardLimit) {
-			SavingsProductType type = SavingsProductType.GOAL_INSTALLMENT;
-			long goalAmount = type.calculateMaxAmount(familySettingsOf(rewardLimit));
-
-			assertRoughly(type.goalAchievementInterest(goalAmount), type.targetTotalInterest(rewardLimit));
-		}
-
-		@Test
-		@DisplayName("주간 정산으로는 이자가 붙지 않는다")
-		void 주간_이자는_없다() {
-			assertThat(SavingsProductType.GOAL_INSTALLMENT.weeklyInterest(10_000, 0)).isZero();
-		}
-
-		@Test
-		@DisplayName("다른 상품은 목표 달성 이자를 주지 않는다")
-		void 다른_상품은_달성_이자가_없다() {
-			assertThat(SavingsProductType.SIMPLE_INTEREST.goalAchievementInterest(10_000)).isZero();
-			assertThat(SavingsProductType.ORDINARY.goalAchievementInterest(10_000)).isZero();
 		}
 	}
 

@@ -26,7 +26,6 @@ import com.bana.dotori.savings.dto.response.SavingsSubscriptionResponse;
 import com.bana.dotori.savings.dto.response.SavingsSummaryResponse;
 import com.bana.dotori.savings.dto.response.SavingsTransactionResponse;
 import com.bana.dotori.savings.entity.ContributionStyle;
-import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProduct;
 import com.bana.dotori.savings.entity.SavingsSubscription;
 import com.bana.dotori.savings.entity.SavingsSubscriptionStatus;
@@ -53,7 +52,7 @@ import lombok.extern.slf4j.Slf4j;
  * 일어나는 일과 아이가 눌러서 일어나는 일을 갈라 둔 것이다.
  *
  * <p><b>포인트가 움직이는 모든 경로는 가입 건 행을 먼저 잠근다.</b> 지갑 락만으로는 부족하다 —
- * 지갑은 포인트가 두 번 빠지는 것만 막고, 목표 금액·납입 회차 같은 가입 건의 한도는 지갑이
+ * 지갑은 포인트가 두 번 빠지는 것만 막고, 납입 회차 같은 가입 건의 한도는 지갑이
  * 알지 못한다.
  */
 @Slf4j
@@ -98,7 +97,7 @@ public class SavingsServiceImpl implements SavingsService {
 	}
 
 	/**
-	 * 가입. 가입 즉시 최초 납입액이 지갑에서 빠진다 (목표적금만 0 — 목표만 정하고 납입은 이후다).
+	 * 가입. 가입 즉시 최초 납입액이 지갑에서 빠진다 .
 	 *
 	 * <p><b>재시도로 같은 멱등키가 다시 오면 새 가입을 만들지 않고 먼저 만든 가입을 그대로
 	 * 돌려준다.</b> 지갑은 멱등키로 이중 차감을 막아 주지만 가입 행까지 막아 주지는 못해서,
@@ -130,7 +129,7 @@ public class SavingsServiceImpl implements SavingsService {
 		}
 
 		ContributionStyle contributionStyle = product.getContributionStyle();
-		int initialDeposit = contributionStyle.initialDeposit(request.amount());
+		int initialDeposit = request.amount();
 
 		OffsetDateTime startedAt = OffsetDateTime.now(KST);
 		Integer termWeeks = product.getTermWeeks();
@@ -150,10 +149,8 @@ public class SavingsServiceImpl implements SavingsService {
 				"같은 요청이 이미 처리 중입니다. childId=" + childId + ", idempotencyKey=" + idempotencyKey, e);
 		}
 
-		if (initialDeposit > 0) {
-			withdrawFromWallet(childId, initialDeposit, product.getName() + " 가입", idempotencyKey);
-			record(subscription, SavingsTransactionType.INITIAL_DEPOSIT, initialDeposit);
-		}
+		withdrawFromWallet(childId, initialDeposit, product.getName() + " 가입", idempotencyKey);
+		record(subscription, SavingsTransactionType.INITIAL_DEPOSIT, initialDeposit);
 
 		log.info("예적금 가입 완료. familyId={}, childId={}, productType={}, principal={}, 최초납입={}",
 			familyId, childId, product.getProductType(), request.amount(), initialDeposit);
@@ -163,9 +160,6 @@ public class SavingsServiceImpl implements SavingsService {
 
 	/**
 	 * 추가 납입. 금액 규칙은 상품의 납입 방식이 정한다 ({@link #validateContribution}).
-	 *
-	 * <p>목표적금이 이 납입으로 목표를 채우면 그 자리에서 이자를 얹어 지급까지 끝낸다 —
-	 * 목표 달성 즉시 지급이 이 상품의 규칙이라 만기를 기다리게 할 이유가 없다.
 	 */
 	@Override
 	@Transactional
@@ -185,10 +179,6 @@ public class SavingsServiceImpl implements SavingsService {
 		withdrawFromWallet(childId, request.amount(), product.getName() + " 납입", idempotencyKey);
 		subscription.contribute(request.amount());
 		record(subscription, SavingsTransactionType.CONTRIBUTION, request.amount());
-
-		if (product.getPayoutTiming() == PayoutTiming.ON_GOAL_ACHIEVED && subscription.hasReachedGoal()) {
-			payOutOnGoalAchieved(subscription, product, idempotencyKey);
-		}
 
 		return savingsMapper.toSubscriptionResponse(subscription, product);
 	}
@@ -345,9 +335,8 @@ public class SavingsServiceImpl implements SavingsService {
 	 *
 	 * <ul>
 	 *   <li>거치식(단리·복리) — 추가 납입 자체가 없다.</li>
-	 *   <li>정액 적립식(소액·장기) — 가입 때 정한 회당 약정액과 정확히 같아야 하고, 약속한 회차를
+	 *   <li>정액 적립식(소액·중기·장기) — 가입 때 정한 회당 약정액과 정확히 같아야 하고, 약속한 회차를
 	 *       넘길 수 없다. 금액이 달라지면 매주 같은 금액을 지킨다는 상품의 뜻이 사라진다.</li>
-	 *   <li>목표적금 — 목표 금액을 넘길 수 없다. 넘겨 받으면 목표 이자를 목표보다 큰 원금에 주게 된다.</li>
 	 *   <li>보통예금 — 이 가족의 한도(X)가 잔액 상한이다. 한도는 가입 시점이 아니라 지금 기준으로
 	 *       다시 계산한다. 수시입출금이라 스냅샷해 둘 약정 금액이 없기 때문이다.</li>
 	 * </ul>
@@ -381,13 +370,6 @@ public class SavingsServiceImpl implements SavingsService {
 							+ ", 가입 후 경과=" + elapsedWeeks + "주");
 				}
 			}
-			case FLEXIBLE_GOAL -> {
-				long remaining = (long)subscription.getPrincipal() - subscription.getCurrentAmount();
-				if (amount > remaining) {
-					throw new BusinessException(ErrorCode.SAVINGS_INVALID_CONTRIBUTION_AMOUNT,
-						"목표 금액을 넘을 수 없습니다. 남은 금액=" + remaining + ", 요청=" + amount);
-				}
-			}
 			case FREE -> {
 				FamilySettings familySettings = familySettingsReader.read(familyId, childId);
 				long maxAmount = product.getProductType().calculateMaxAmount(familySettings);
@@ -400,31 +382,6 @@ public class SavingsServiceImpl implements SavingsService {
 			default -> throw new BusinessException(ErrorCode.SAVINGS_CONTRIBUTION_NOT_ALLOWED,
 				"납입 규칙이 정의되지 않은 상품입니다. contributionStyle=" + style);
 		}
-	}
-
-	/** 목표 달성 즉시 지급 — 목표 금액에 이자를 얹어 한 번에 돌려주고 가입을 끝낸다 */
-	private void payOutOnGoalAchieved(SavingsSubscription subscription, SavingsProduct product,
-		String idempotencyKey) {
-		int interest = Math.toIntExact(
-			product.getProductType().goalAchievementInterest(subscription.getCurrentAmount()));
-		if (interest > 0) {
-			subscription.accrueInterest(interest);
-			record(subscription, SavingsTransactionType.INTEREST, interest);
-		}
-
-		int payout = subscription.payoutAmount();
-		subscription.complete(OffsetDateTime.now(KST));
-		// 납입 차감과 같은 멱등키를 그대로 쓰면 지갑이 이미 처리된 요청으로 보고 지급을 건너뛴다.
-		depositToWallet(subscription.getChildId(), payout, product.getName() + " 목표 달성 수령",
-			goalPayoutKey(idempotencyKey));
-		record(subscription, SavingsTransactionType.MATURITY_PAYOUT, payout);
-
-		log.info("목표적금 달성 지급. childId={}, savingsSubscriptionId={}, 목표={}, 이자={}, 지급액={}",
-			subscription.getChildId(), subscription.getId(), subscription.getPrincipal(), interest, payout);
-	}
-
-	private String goalPayoutKey(String contributionIdempotencyKey) {
-		return contributionIdempotencyKey == null ? null : contributionIdempotencyKey + ":goal-payout";
 	}
 
 	/**

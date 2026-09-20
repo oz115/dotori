@@ -104,7 +104,7 @@ function subscribedLines(
             ? periodProgress(subscription.startedAt, subscription.maturityAt, now)
             : undefined,
       };
-    // 소액·장기적금 — 매주 같은 금액을 약속한 회차만큼 납입
+    // 소액·중기·장기적금 — 매주 같은 금액을 약속한 회차만큼 납입
     case 'FIXED_INSTALLMENT': {
       const total = subscription.installmentCount ?? 0;
       return {
@@ -116,19 +116,6 @@ function subscribedLines(
         progress: total > 0 ? Math.min(1, subscription.contributionCount / total) : undefined,
       };
     }
-    // 목표적금 — 목표 금액을 채우면 즉시 지급
-    case 'FLEXIBLE_GOAL':
-      return {
-        lines: [
-          { label: '목표', value: formatPoint(subscription.principal) },
-          { label: '모은 돈', value: formatPoint(subscription.currentAmount) },
-          maturityLine(subscription, now),
-        ],
-        progress:
-          subscription.principal > 0
-            ? Math.min(1, subscription.currentAmount / subscription.principal)
-            : undefined,
-      };
   }
 }
 
@@ -141,8 +128,6 @@ export function savingsMaxAmountLabel(product: SavingsProductResponse): string {
       return '최대 저금';
     case 'FIXED_INSTALLMENT':
       return '매주 최대';
-    case 'FLEXIBLE_GOAL':
-      return '최대 목표';
   }
 }
 
@@ -223,11 +208,6 @@ export function estimateReturn(
       }
       const principal = amount * count;
       return { principal, interest, total: principal + interest, weekly: false };
-    }
-    // 목표적금 — 목표를 채우는 순간 목표 금액 기준 이자를 한 번에 받는다
-    case 'FLEXIBLE_GOAL': {
-      const interest = Math.round((amount * rate) / 100);
-      return { principal: amount, interest, total: amount + interest, weekly: false };
     }
   }
 }

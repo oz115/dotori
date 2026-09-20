@@ -64,7 +64,7 @@ describe('ongoingSavingsAccounts', () => {
   it('진행 중과 수령 대기만 남긴다', () => {
     const all = [
       sub(1, '보통예금', 'ORDINARY', 'ACTIVE'),
-      sub(2, '목표적금', 'GOAL_INSTALLMENT', 'MATURED'),
+      sub(2, '중기적금', 'MID_TERM_INSTALLMENT', 'MATURED'),
       sub(3, '단리예금', 'SIMPLE_INTEREST', 'COMPLETED'),
       sub(4, '장기적금', 'LONG_TERM_INSTALLMENT', 'CANCELLED'),
     ];
@@ -80,14 +80,14 @@ describe('ongoingSavingsAccounts', () => {
 describe('previewSavingsAccounts', () => {
   const accounts = [
     sub(1, '보통예금', 'ORDINARY', 'ACTIVE'),
-    sub(2, '목표적금', 'GOAL_INSTALLMENT', 'ACTIVE'),
+    sub(2, '중기적금', 'MID_TERM_INSTALLMENT', 'ACTIVE'),
     sub(3, '장기적금', 'LONG_TERM_INSTALLMENT', 'ACTIVE'),
   ];
 
   it('기본 3개까지는 전부 보여주고 나머지는 없다', () => {
     const preview = previewSavingsAccounts(accounts);
 
-    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '목표적금', '장기적금']);
+    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '중기적금', '장기적금']);
     expect(preview.restCount).toBe(0);
   });
 
@@ -110,7 +110,7 @@ describe('previewSavingsAccounts', () => {
     ];
 
     const preview = previewSavingsAccounts(many);
-    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '목표적금', '장기적금']);
+    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '중기적금', '장기적금']);
     expect(preview.restCount).toBe(2);
   });
 

@@ -18,11 +18,11 @@ public interface SavingsService {
 	/** SAV-02 상품 하나의 상세. 목록과 같은 내용이며 이 가족 기준 최대 금액도 함께 준다 */
 	SavingsProductResponse getProduct(Integer userId, Integer familyId, Integer childId, Integer savingsProductId);
 
-	/** 예적금 가입. 원금(또는 회당 약정액)만큼 지갑에서 즉시 차감한다 — 목표적금만 차감이 없다 */
+	/** 예적금 가입. 원금(또는 회당 약정액)만큼 지갑에서 즉시 차감한다 */
 	SavingsSubscriptionResponse subscribe(Integer userId, Integer familyId, Integer childId,
 		SavingsSubscribeRequest request, String idempotencyKey);
 
-	/** 추가 납입. 목표적금이 이 납입으로 목표를 채우면 그 자리에서 만기 지급까지 끝난다 */
+	/** 추가 납입. 금액 규칙은 상품의 납입 방식이 정한다 */
 	SavingsSubscriptionResponse contribute(Integer userId, Integer familyId, Integer childId,
 		Integer savingsSubscriptionId, SavingsContributeRequest request, String idempotencyKey);
 

@@ -97,6 +97,17 @@ class SavingsExpectedReturnCalculatorTest {
 		}
 
 		@Test
+		@DisplayName("중기적금은 4회 완납 기준으로 계산한다")
+		void 중기적금_완납_기준() {
+			SavingsProduct mid = product(SavingsProductType.MID_TERM_INSTALLMENT);
+
+			long interest = calculator.remainingInterest(subscription(mid, 2_000, 2_000, 1, 0), mid);
+
+			// (1+2+3+4) × 2_000 ÷ 4 × 15% = 750.
+			assertThat(interest).isEqualTo(750);
+		}
+
+		@Test
 		@DisplayName("장기적금도 6회 완납 기준으로 계산한다")
 		void 장기적금_완납_기준() {
 			SavingsProduct longTerm = product(SavingsProductType.LONG_TERM_INSTALLMENT);
@@ -109,7 +120,7 @@ class SavingsExpectedReturnCalculatorTest {
 	}
 
 	@Nested
-	@DisplayName("만기가 없거나 목표로 지급하는 상품")
+	@DisplayName("만기가 없거나 이미 끝난 건")
 	class SpecialCases {
 
 		@Test
@@ -119,16 +130,6 @@ class SavingsExpectedReturnCalculatorTest {
 
 			assertThat(calculator.remainingInterest(subscription(ordinary, 40_000, 40_000, 0, 0), ordinary))
 				.isEqualTo(400);
-		}
-
-		@Test
-		@DisplayName("목표적금은 목표를 채운다고 보고 목표 금액 기준 이자를 예상한다")
-		void 목표적금은_목표_달성을_가정한다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-
-			// 아직 3_000 밖에 못 모았어도 목표(10_000)를 채웠을 때의 이자를 보여준다.
-			assertThat(calculator.remainingInterest(subscription(goal, 10_000, 3_000, 2, 1), goal))
-				.isEqualTo(1_500);
 		}
 
 		@Test

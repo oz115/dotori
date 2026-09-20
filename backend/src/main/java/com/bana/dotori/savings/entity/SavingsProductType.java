@@ -54,12 +54,12 @@ public enum SavingsProductType {
 		// targetTotalInterest 와의 일치를 아직 검증하지 못했다.
 		rewardLimit -> Math.round(rewardLimit * 4.0 / 3.0)),
 
-	/** 가입 시 4주간 모을 목표 금액을 정하고 매주 자유 납입, 목표 달성 즉시(또는 6주 내) 만기 */
-	GOAL_INSTALLMENT(15, 0.5, 4, ContributionStyle.FLEXIBLE_GOAL, PayoutTiming.ON_GOAL_ACHIEVED, InterestAccrual.ON_GOAL_ACHIEVEMENT, null,
-		"유동적인 적금",
-		"4주 안에 목표 금액을 모으면 원금과 달성 이자를 바로 받아요.",
-		// TODO(SAV): 위와 동일 — 목표 미달성 시 유예(6주?) 정책도 별도 확인 필요.
-		rewardLimit -> Math.round(rewardLimit * 4.0 / 3.0)),
+	/** 가입 시 매주 납입액을 정하고 그대로 4회 납입, 4회 완료 시 만기 */
+	MID_TERM_INSTALLMENT(15, 0.5, 4, ContributionStyle.FIXED_INSTALLMENT, PayoutTiming.MATURITY_LUMP_SUM, InterestAccrual.WEEKLY_STRAIGHT, 4,
+		"기간이 길수록 이자율이 유리해지는 경험",
+		"매주 같은 금액을 4번 납입하면 원금과 만기 이자를 함께 받아요.",
+		// 정액 적립식 총이자 = X × (n+1)/2 × 이자율 → 2.5X × 15% = 0.2·RL 이므로 X = 8/15·RL
+		rewardLimit -> Math.round(rewardLimit * 8.0 / 15.0)),
 
 	/** 가입 시 매주 납입액을 정하고 그대로 6회 납입, 6회 완료 시 만기 */
 	LONG_TERM_INSTALLMENT(20, 0.5, 6, ContributionStyle.FIXED_INSTALLMENT, PayoutTiming.MATURITY_LUMP_SUM, InterestAccrual.WEEKLY_STRAIGHT, 6,
@@ -112,8 +112,8 @@ public enum SavingsProductType {
 
 	/**
 	 * 가족의 온보딩 설정(RL)에서 이 상품의 최대 납입/예치 가능 금액(X)을 계산한다.
-	 * 거치식(단리·복리)은 최초 납입 원금의 상한, 정액 적립식(소액·장기)은 회당 납입액의 상한,
-	 * 목표적금은 목표 금액의 상한, 보통예금은 보유 잔액 상한을 의미한다.
+	 * 거치식(단리·복리)은 최초 납입 원금의 상한, 정액 적립식(소액·중기·장기)은 회당 납입액의 상한,
+	 * 보통예금은 보유 잔액 상한을 의미한다.
 	 */
 	public long calculateMaxAmount(FamilySettings familySettings) {
 		return maxAmountFormula.calculate(familySettings.weeklyRewardLimit());
@@ -139,18 +139,7 @@ public enum SavingsProductType {
 			case WEEKLY_PAYOUT -> Math.round(principalBalance * interestRate / 100.0);
 			case WEEKLY_STRAIGHT -> Math.round(principalBalance * interestRate / 100.0 / termWeeks);
 			case WEEKLY_COMPOUND -> Math.round((principalBalance + accruedInterest) * interestRate / 100.0);
-			// 목표적금은 주간 적립이 없다. 달성 순간에 goalAchievementInterest 로 한 번에 얹는다.
-			case ON_GOAL_ACHIEVEMENT -> 0L;
 		};
-	}
-
-	/**
-	 * 목표적금이 목표를 달성했을 때 얹어 주는 이자. 다른 상품은 이 경로로 오지 않으므로 0이다.
-	 */
-	public long goalAchievementInterest(long goalAmount) {
-		return interestAccrual == InterestAccrual.ON_GOAL_ACHIEVEMENT
-			? Math.round(goalAmount * interestRate / 100.0)
-			: 0L;
 	}
 
 	/** 이자를 쌓아 두지 않고 정산 즉시 지갑으로 보내는 상품인가 (보통예금) */

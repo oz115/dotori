@@ -111,7 +111,7 @@ export function ParentSavingsProductDetail({
  * 부모가 궁금해하는 것만 추린다 - 얼마까지 넣을 수 있고, 얼마나 묶이며, 얼마가 붙는가.
  *
  * 금액 라벨이 상품마다 다른 이유는 amount 의 의미가 달라서다. 거치식은 한 번에 맡기는
- * 돈, 정액 적립식은 매주 내는 돈, 목표적금은 모으려는 목표 금액이다.
+ * 돈, 정액 적립식은 매주 내는 돈이다.
  */
 function productSpecs(product: SavingsProductResponse): { label: string; value: string }[] {
   const specs: { label: string; value: string }[] = [];
@@ -125,10 +125,7 @@ function productSpecs(product: SavingsProductResponse): { label: string; value: 
     if (product.termWeeks != null) {
       specs.push({
         label: '예치 기간',
-        value:
-          product.contributionStyle === 'FLEXIBLE_GOAL'
-            ? `${product.termWeeks}주 안에`
-            : `${product.termWeeks}주`,
+        value: `${product.termWeeks}주`,
       });
     }
     if (product.installmentCount != null) {
@@ -148,8 +145,6 @@ function maxAmountLabel(product: SavingsProductResponse): string {
       return '최대 예치 금액';
     case 'FIXED_INSTALLMENT':
       return '매주 최대 납입 금액';
-    case 'FLEXIBLE_GOAL':
-      return '최대 목표 금액';
   }
 }
 

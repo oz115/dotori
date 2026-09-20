@@ -39,7 +39,6 @@ const AMOUNT_LABELS: Record<ContributionStyle, string> = {
   FREE: '먼저 넣을 금액',
   LUMP_SUM: '맡길 금액',
   FIXED_INSTALLMENT: '매주 납입할 금액',
-  FLEXIBLE_GOAL: '목표 금액',
 };
 
 /**
@@ -214,10 +213,7 @@ function SignupSection({
     if (product.termWeeks != null) {
       specs.push({
         label: '가입 기간',
-        value:
-          product.contributionStyle === 'FLEXIBLE_GOAL'
-            ? `${product.termWeeks}주 안에`
-            : `${product.termWeeks}주`,
+        value: `${product.termWeeks}주`,
       });
     }
     if (product.installmentCount != null) {
@@ -235,10 +231,7 @@ function SignupSection({
   });
 
   const confirmSubscribe = () => {
-    const summary =
-      product.contributionStyle === 'FLEXIBLE_GOAL'
-        ? `목표 ${formatPoint(amount)}로 가입할까요?\n납입은 가입 후에 자유롭게 해요.`
-        : `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
+    const summary = `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
     const warning =
       product.contributionStyle === 'FREE' ? '' : '\n중도에 해지하면 이자는 받을 수 없어요.';
     Alert.alert(`${savingsProductName(product.productType)} 가입`, summary + warning, [
@@ -350,9 +343,8 @@ function SubscribedSection({
   // 메인 카드와 같은 뷰모델을 그대로 써서 진행 정보 표기가 화면끼리 어긋나지 않게 한다
   const card = buildSavingsCards([product], [subscription], new Date())[0];
 
-  // 자유 납입(보통예금·목표적금)만 금액을 입력받는다. 정액 적립식은 약정액 고정.
-  const freeAmount =
-    subscription.contributionStyle === 'FREE' || subscription.contributionStyle === 'FLEXIBLE_GOAL';
+  // 자유 납입(보통예금)만 금액을 입력받는다. 정액 적립식은 약정액 고정.
+  const freeAmount = subscription.contributionStyle === 'FREE';
   const contributable = subscription.contributionStyle !== 'LUMP_SUM' && !matured;
   const amount = freeAmount ? Number(raw.replace(/[^0-9]/g, '') || '0') : subscription.principal;
 

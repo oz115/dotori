@@ -84,7 +84,7 @@ class SavingsSettlementServiceTest {
 	private SavingsSubscription subscription(SavingsProduct product, int amount, OffsetDateTime startedAt) {
 		Integer termWeeks = product.getTermWeeks();
 		SavingsSubscription subscription = SavingsSubscription.subscribe(FAMILY_ID, CHILD_ID, PRODUCT_ID, amount,
-			product.getContributionStyle().initialDeposit(amount),
+			amount,
 			product.getContributionStyle().countsInitialDepositAsInstallment(), "key", startedAt,
 			termWeeks == null ? null : startedAt.plusWeeks(termWeeks), startedAt.plusWeeks(1));
 		ReflectionTestUtils.setField(subscription, "id", SUBSCRIPTION_ID);
@@ -147,19 +147,6 @@ class SavingsSettlementServiceTest {
 			assertThat(subscription.getAccruedInterest()).isEqualTo(2_100);
 		}
 
-		@Test
-		@DisplayName("목표적금은 주간 정산으로 이자가 붙지 않는다")
-		void 목표적금은_주간_이자가_없다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			OffsetDateTime startedAt = OffsetDateTime.now().minusWeeks(1).minusHours(1);
-			SavingsSubscription subscription = subscription(goal, 10_000, startedAt);
-
-			int interest = savingsSettlementService.settle(SUBSCRIPTION_ID, OffsetDateTime.now());
-
-			assertThat(interest).isZero();
-			assertThat(subscription.getAccruedInterest()).isZero();
-			verify(savingsTransactionRepository, never()).save(any());
-		}
 	}
 
 	@Nested
