@@ -1,3 +1,8 @@
+export { NewsList } from './ui/NewsList';
+export { NewsArticle } from './ui/NewsArticle';
+export { InvestmentQueryError } from './ui/InvestmentQueryError';
+export { NewsReview } from './ui/NewsReview';
+export { RealizedProfitCard } from './ui/RealizedProfitCard';
 export { InvestmentSummaryCards } from './ui/InvestmentSummaryCards';
 export { NewsCarousel } from './ui/NewsCarousel';
 export { NewsDetailModal } from './ui/NewsDetailModal';

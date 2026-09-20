@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Circle, Defs, Line, LinearGradient, Polygon, Polyline, Stop, Svg } from 'react-native-svg';
 
+import { changeColor } from '@/features/investment/lib/change';
 import { axisTicks, scalePoints, scaleY, toPolylinePoints } from '@/features/investment/lib/chart';
 import { formatNumber } from '@/features/investment/lib/format';
 import type { PricePoint } from '@/features/investment/model/types';
@@ -24,7 +25,16 @@ export function PriceLineChart({ history }: Props) {
   const theme = useTheme();
   const [chartWidth, setChartWidth] = useState(0);
 
+  if (history.length === 0) {
+    return (
+      <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+        아직 가격 기록을 모으고 있어요.
+      </Text>
+    );
+  }
+
   const prices = history.map((point) => point.price);
+  const lineColor = changeColor(prices[prices.length - 1] - prices[0], theme.color);
   const ticks = axisTicks(Math.min(...prices), Math.max(...prices));
   const domainMin = ticks[0];
   const domainMax = ticks[ticks.length - 1];
@@ -56,8 +66,8 @@ export function PriceLineChart({ history }: Props) {
               <Svg width={chartWidth} height={CHART_HEIGHT}>
                 <Defs>
                   <LinearGradient id="priceAreaFill" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={theme.color.brand.solid} stopOpacity={0.28} />
-                    <Stop offset="1" stopColor={theme.color.brand.solid} stopOpacity={0} />
+                    <Stop offset="0" stopColor={lineColor} stopOpacity={0.28} />
+                    <Stop offset="1" stopColor={lineColor} stopOpacity={0} />
                   </LinearGradient>
                 </Defs>
                 {ticks.map((tick) => {
@@ -83,7 +93,7 @@ export function PriceLineChart({ history }: Props) {
                     <Polyline
                       points={toPolylinePoints(points)}
                       fill="none"
-                      stroke={theme.color.brand.solid}
+                      stroke={lineColor}
                       strokeWidth={2.5}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -94,7 +104,7 @@ export function PriceLineChart({ history }: Props) {
                   cx={last.x}
                   cy={last.y}
                   r={4.5}
-                  fill={theme.color.brand.solidActive}
+                  fill={lineColor}
                   stroke={theme.color.background.surface}
                   strokeWidth={2}
                 />
@@ -120,11 +130,33 @@ export function PriceLineChart({ history }: Props) {
       </View>
 
       <View style={styles.xLabels}>
-        {history.map((point) => (
-          <Text key={point.label} style={[styles.axisLabel, { color: theme.color.text.muted }]}>
-            {point.label}
-          </Text>
-        ))}
+        {history
+          .map((point, index) => ({ ...point, index }))
+          .filter(
+            (_, index) =>
+              index % Math.max(1, Math.ceil((history.length - 1) / 4)) === 0 ||
+              index === history.length - 1,
+          )
+          .map((point) => (
+            <Text
+              key={point.index}
+              style={[
+                styles.axisLabel,
+                styles.xLabel,
+                { color: theme.color.text.muted },
+                point.index === history.length - 1
+                  ? { right: 0 }
+                  : point.index === 0
+                    ? { left: 0 }
+                    : {
+                        left: (chartWidth * point.index) / (history.length - 1),
+                        transform: [{ translateX: -16 }],
+                      },
+              ]}
+            >
+              {point.label}
+            </Text>
+          ))}
       </View>
     </View>
   );
@@ -156,9 +188,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  xLabel: { position: 'absolute', textAlign: 'center' },
   xLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    height: 20,
     marginLeft: Y_LABEL_WIDTH + 8,
   },
 });

@@ -374,7 +374,7 @@ function SubscribedSection({
                   );
                 } else {
                   Alert.alert(
-                    '납입했어요! 🌰',
+                    '납입했어요!',
                     `지금까지 ${formatPoint(updated.currentAmount)} 모았어요.`,
                   );
                 }

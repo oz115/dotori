@@ -1,6 +1,6 @@
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { formatAcorns } from '@/features/investment/lib/format';
+import { formatAcorns, profitLabel } from '@/features/investment/lib/format';
 import { useBuyStock } from '@/features/investment/model/useBuyStock';
 import { useSellStock } from '@/features/investment/model/useSellStock';
 import type { OrderResponse, StockDetail } from '@/features/investment/model/types';
@@ -10,6 +10,7 @@ import { Button } from '@/shared/ui';
 
 type Props = {
   detail: StockDetail;
+  onTradeSuccess?: () => void;
 };
 
 /**
@@ -17,7 +18,7 @@ type Props = {
  * 종목당 1주 규칙이라 보유 중이면 사기가, 미보유면 팔기가 비활성화된다.
  * 처리 중에는 두 버튼을 모두 잠가 중복 주문을 막는다.
  */
-export function TradeButtons({ detail }: Props) {
+export function TradeButtons({ detail, onTradeSuccess }: Props) {
   const theme = useTheme();
   const buy = useBuyStock();
   const sell = useSellStock();
@@ -34,8 +35,9 @@ export function TradeButtons({ detail }: Props) {
           onPress: () =>
             buy.mutate(detail.id, {
               onSuccess: (order: OrderResponse) => {
+                onTradeSuccess?.();
                 Alert.alert(
-                  '샀어요! 🌰',
+                  '샀어요!',
                   `${detail.name} 1주를 ${formatAcorns(order.unitPrice)}에 샀어요.\n` +
                     `남은 도토리: ${formatAcorns(order.pointBalanceAfter)}`,
                 );
@@ -60,10 +62,18 @@ export function TradeButtons({ detail }: Props) {
           onPress: () =>
             sell.mutate(detail.id, {
               onSuccess: (order: OrderResponse) => {
+                onTradeSuccess?.();
+                const buyPrice = order.buyPrice ?? detail.buyPrice;
+                const profit =
+                  order.realizedProfit ??
+                  (buyPrice == null ? undefined : (order.unitPrice - buyPrice) * order.quantity);
                 Alert.alert(
-                  '팔았어요! 🌰',
+                  '팔았어요!',
                   `${detail.name} 1주를 ${formatAcorns(order.unitPrice)}에 팔았어요.\n` +
-                    `도토리: ${formatAcorns(order.pointBalanceAfter)}`,
+                    (buyPrice != null && profit != null
+                      ? `살 때 ${formatAcorns(buyPrice)} → 팔 때 ${formatAcorns(order.unitPrice)}\n${profitLabel(profit)}\n`
+                      : '') +
+                    `지갑 잔액: ${formatAcorns(order.pointBalanceAfter)}`,
                 );
               },
               onError: (error: unknown) => {
@@ -78,7 +88,7 @@ export function TradeButtons({ detail }: Props) {
   return (
     <View style={[styles.row, { gap: theme.space.md }]}>
       <Button
-        label="🌰 사기"
+        label="사기"
         variant="primary"
         style={styles.flex}
         disabled={detail.holding || busy}
@@ -86,7 +96,7 @@ export function TradeButtons({ detail }: Props) {
         onPress={confirmBuy}
       />
       <Button
-        label="🌰 팔기"
+        label="팔기"
         variant="outline"
         style={styles.flex}
         disabled={!detail.holding || busy}
@@ -100,7 +110,7 @@ export function TradeButtons({ detail }: Props) {
 /** 주문 실패를 아이 눈높이 문구로 바꾼다. 네트워크 단절은 결과를 모르는 상태라 따로 안내. */
 function orderErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {
-    return '인터넷 연결을 확인하고 다시 시도해 주세요.';
+    return '거래가 완료됐는지 확인하지 못했어요. 거래 내역과 잔액을 먼저 확인해 주세요.';
   }
   switch (apiErrorCode(error)) {
     case 'INSUFFICIENT_POINT':

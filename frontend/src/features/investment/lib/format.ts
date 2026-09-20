@@ -42,3 +42,12 @@ export function signedAcorns(change: number): string {
   }
   return '0 도토리';
 }
+
+/** 실현 손익은 매도 대금과 구분해서 안내한다. */
+export function profitLabel(profit: number): string {
+  return profit > 0
+    ? '수익 ' + formatAcorns(profit)
+    : profit < 0
+      ? '손해 ' + formatAcorns(-profit)
+      : '수익 0 도토리';
+}

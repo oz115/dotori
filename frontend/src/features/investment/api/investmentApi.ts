@@ -2,6 +2,7 @@ import { httpClient } from '@/shared/api';
 import type {
   HoldingResponse,
   NewsDetailResponse,
+  NewsReviewResponse,
   NewsSummaryResponse,
   OrderResponse,
   PriceHistoryResponse,
@@ -15,6 +16,16 @@ import type {
  * 세션·토큰은 httpClient 인터셉터가, 캐시 갱신은 model 훅이 담당.
  */
 export const investmentApi = {
+  getNewsReview: () =>
+    httpClient
+      .get<NewsReviewResponse>('/api/v1/investments/news/review')
+      .then((res) => res.data)
+      .catch((error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        // 구버전 서버는 /news/{newsId}로 매칭하여 400을 반환할 수도 있다.
+        if (status === 400 || status === 404 || status === 405) return null;
+        throw error;
+      }),
   getProducts: () =>
     httpClient
       .get<{ products: ProductSummaryResponse[] }>('/api/v1/investments/products')

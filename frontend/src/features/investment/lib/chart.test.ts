@@ -56,3 +56,9 @@ describe('toPolylinePoints', () => {
     ).toBe('0,1.5 10,2');
   });
 });
+
+it('보합 날짜는 같은 높이로 이어지고 상승한 날만 높이가 바뀐다', () => {
+  const points = scalePoints([100, 100, 100, 110, 110], 100, 110, 400, 100);
+  expect(points.map((p) => p.x)).toEqual([0, 100, 200, 300, 400]);
+  expect(points.map((p) => p.y)).toEqual([100, 100, 100, 0, 0]);
+});

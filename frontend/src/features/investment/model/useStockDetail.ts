@@ -7,7 +7,7 @@ import { usePriceHistory } from '@/features/investment/model/usePriceHistory';
 
 /**
  * 상세 화면용 StockDetail 조합 — 상세 응답 + 가격 이력(차트) + 보유 여부(배지)
- * 세 조회를 묶는다. 상세가 있으면 이력이 늦어도 현재가 한 점으로 먼저 그린다.
+ * 세 조회를 묶는다. 상세·차트의 로딩과 오류를 따로 표시하고 임시 가격을 만들지 않는다.
  */
 export function useStockDetail(productId: number | undefined) {
   const product = useInvestmentProduct(productId);
@@ -18,13 +18,20 @@ export function useStockDetail(productId: number | undefined) {
     if (product.data == null) {
       return undefined;
     }
-    const holding = (holdings.data ?? []).some((h) => h.id === product.data.investmentProductId);
-    return toStockDetail(product.data, history.data ?? [], holding);
+    const holding = (holdings.data ?? []).find((h) => h.id === product.data.investmentProductId);
+    return {
+      ...toStockDetail(product.data, history.data ?? [], holding != null),
+      buyPrice: holding?.buyPrice,
+    };
   }, [product.data, history.data, holdings.data]);
 
   return {
     detail,
     holding: detail?.holding ?? false,
+    historyFetching: history.isFetching,
+    historyPending: history.isPending,
+    historyError: history.isError,
+    refetchHistory: history.refetch,
     isPending: product.isPending,
     isError: product.isError,
     refetch: product.refetch,

@@ -41,6 +41,11 @@ export const colorLight = {
     acorn: palette.acorn,
     cream: palette.cream,
   },
+  investment: {
+    rise: palette.blue[700],
+    fall: palette.red[700],
+    flat: palette.neutral[500],
+  },
   status: {
     success: { solid: palette.green[500], subtle: palette.green[50], text: palette.green[700] },
     info: { solid: palette.blue[500], subtle: palette.blue[100], text: palette.blue[700] },
