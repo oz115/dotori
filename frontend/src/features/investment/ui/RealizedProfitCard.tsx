@@ -2,6 +2,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { changeColor } from '@/features/investment/lib/change';
 import { profitLabel } from '@/features/investment/lib/format';
+import { summarizeRealizedProfit } from '@/features/investment/lib/transactions';
 import type { InvestmentTransactionItem } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -14,9 +15,7 @@ export function RealizedProfitCard({
   transactions: InvestmentTransactionItem[];
 }) {
   const theme = useTheme();
-  const sales = transactions.filter((item) => item.type === 'SELL');
-  const incomplete = sales.some((item) => item.realizedProfit == null);
-  const total = sales.reduce((sum, item) => sum + (item.realizedProfit ?? 0), 0);
+  const { total, incomplete } = summarizeRealizedProfit(transactions);
   return (
     <View
       style={[

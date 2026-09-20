@@ -101,6 +101,7 @@ export function toTransactionItem(transaction: TransactionResponse): InvestmentT
     buyAmount: transaction.buyPrice == null ? null : transaction.buyPrice * transaction.quantity,
     realizedProfit: transaction.realizedProfit,
     date: formatNewsDate(transaction.createdAt),
+    createdAt: transaction.createdAt,
   };
 }
 

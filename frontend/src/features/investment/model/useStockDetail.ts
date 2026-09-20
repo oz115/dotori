@@ -8,11 +8,12 @@ import { usePriceHistory } from '@/features/investment/model/usePriceHistory';
 /**
  * 상세 화면용 StockDetail 조합 — 상세 응답 + 가격 이력(차트) + 보유 여부(배지)
  * 세 조회를 묶는다. 상세·차트의 로딩과 오류를 따로 표시하고 임시 가격을 만들지 않는다.
+ * 보유 여부는 childId 없으면 본인 기준이고, 부모가 특정 자녀의 보유를 볼 때만 childId 를 넘긴다.
  */
-export function useStockDetail(productId: number | undefined) {
+export function useStockDetail(productId: number | undefined, childId?: number) {
   const product = useInvestmentProduct(productId);
   const history = usePriceHistory(productId);
-  const holdings = useInvestmentHoldings();
+  const holdings = useInvestmentHoldings(childId);
 
   const detail = useMemo(() => {
     if (product.data == null) {

@@ -4,8 +4,8 @@ import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } fr
 import { useTheme } from '@/shared/theme';
 
 type Props = {
-  /** 좌측 3D 아이콘 (Figma 아이콘 시트에서 추출한 이미지) */
-  icon: ImageSourcePropType;
+  /** 좌측 3D 아이콘 (Figma 아이콘 시트에서 추출한 이미지). 생략하면 글자만 나온다 */
+  icon?: ImageSourcePropType;
   title: string;
   /** 우측 텍스트 액션 (예: "보유한 주식 보기") */
   action?: { label: string; onPress: () => void };
@@ -20,7 +20,7 @@ export function SectionTitle({ icon, title, action }: Props) {
   return (
     <View style={styles.row}>
       <View style={[styles.left, { gap: theme.space.sm }]}>
-        <Image source={icon} style={styles.icon} resizeMode="contain" />
+        {icon ? <Image source={icon} style={styles.icon} resizeMode="contain" /> : null}
         <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>{title}</Text>
       </View>
       {action ? (

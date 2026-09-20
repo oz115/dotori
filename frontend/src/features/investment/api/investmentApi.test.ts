@@ -16,3 +16,21 @@ it('연결 실패는 미지원으로 숨기지 않고 재시도할 수 있게 �
   jest.mocked(httpClient.get).mockRejectedValue(error);
   await expect(investmentApi.getNewsReview()).rejects.toBe(error);
 });
+
+describe('getTransactions', () => {
+  beforeEach(() => jest.mocked(httpClient.get).mockResolvedValue({ data: { transactions: [] } }));
+
+  it('부모가 자녀 거래를 볼 때만 childId 를 쿼리로 보낸다', async () => {
+    await investmentApi.getTransactions(7);
+    expect(httpClient.get).toHaveBeenCalledWith('/api/v1/investments/transactions', {
+      params: { childId: 7 },
+    });
+  });
+
+  it('자녀 본인 조회는 childId 를 보내지 않는다', async () => {
+    await investmentApi.getTransactions();
+    expect(httpClient.get).toHaveBeenCalledWith('/api/v1/investments/transactions', {
+      params: undefined,
+    });
+  });
+});

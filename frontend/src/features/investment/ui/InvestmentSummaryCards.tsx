@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
-import { changeColor } from '@/features/investment/lib/change';
+import { changeColor, sinceBoughtLabel } from '@/features/investment/lib/change';
 import { formatAcorns } from '@/features/investment/lib/format';
 import type { InvestmentSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
@@ -37,10 +37,7 @@ export function InvestmentSummaryCards({ summary, balance, mascot = FOX }: Props
   const earned = summary.earnedPoints;
   const stockValue = summary.investedPoints + earned;
   const earnedColor = changeColor(earned, theme.color);
-  const changeText =
-    earned === 0
-      ? '산 값과 같아요'
-      : `산 값보다 ${formatAcorns(Math.abs(earned))} ${earned > 0 ? '올랐어요' : '내렸어요'}`;
+  const changeText = sinceBoughtLabel(earned);
 
   const sub = [theme.typography.bodySm, { color: theme.color.text.sub }];
   const strong = { color: theme.color.text.strong };

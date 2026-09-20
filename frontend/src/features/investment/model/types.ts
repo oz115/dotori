@@ -109,6 +109,8 @@ export type InvestmentTransactionItem = {
   realizedProfit?: number | null;
   /** 표시용 날짜 문자열 (예: 2026. 09. 16) */
   date: string;
+  /** 서버가 준 거래 시각 원문 — 최근 N일 필터처럼 날짜 계산에 쓴다 */
+  createdAt: string;
 };
 
 /* =========================================================

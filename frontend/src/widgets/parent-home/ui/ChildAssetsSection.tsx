@@ -34,8 +34,7 @@ type ChildAssetsSectionProps = {
 /**
  * "자녀 자산" 섹션. 예적금·투자 모두 자녀 기준 요약 API를 읽어 집계만 보여 준다.
  *
- * 카드를 누르면 해당 탭(저축·투자)으로 보낸다 — 투자 탭은 아직 준비 중 안내뿐이지만
- * 자리는 실제 라우트라 화면이 채워져도 이쪽은 그대로 둔다.
+ * 카드를 누르면 해당 탭(저축·투자)으로 보낸다.
  */
 export function ChildAssetsSection({
   familyId,

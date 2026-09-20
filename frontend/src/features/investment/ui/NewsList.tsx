@@ -26,7 +26,7 @@ export function NewsList({
           style={({ pressed }) => [
             styles.card,
             {
-              backgroundColor: theme.color.brand.subtle,
+              backgroundColor: theme.color.background.surfaceSunken,
               borderRadius: theme.radius.xl,
               padding: theme.space.xl,
               gap: theme.space.md,

@@ -7,6 +7,7 @@ export const investmentKeys = {
   holdings: (childId?: number) => [...investmentKeys.all, 'holdings', childId ?? 'me'] as const,
   news: (date?: string) => [...investmentKeys.all, 'news', date ?? 'today'] as const,
   newsReview: () => [...investmentKeys.all, 'newsReview'] as const,
-  transactions: () => [...investmentKeys.all, 'transactions'] as const,
+  transactions: (childId?: number) =>
+    [...investmentKeys.all, 'transactions', childId ?? 'me'] as const,
   newsDetail: (newsId: number) => [...investmentKeys.all, 'newsDetail', newsId] as const,
 };

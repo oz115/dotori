@@ -37,3 +37,12 @@ export type {
   Holding,
   OrderResponse,
 } from './model/types';
+export { ParentInvestmentHome } from './ui/ParentInvestmentHome';
+export { ChildInvestmentSummary } from './ui/ChildInvestmentSummary';
+export { recentTransactions, summarizeRealizedProfit } from './lib/transactions';
+export type { ParentInvestmentChild } from './ui/ParentInvestmentHome';
+export type { RecentSalesProfit } from './ui/ChildInvestmentSummary';
+export { ParentInvestmentHoldings } from './ui/ParentInvestmentHoldings';
+export { ParentInvestmentTransactions } from './ui/ParentInvestmentTransactions';
+export { ParentInvestmentNews } from './ui/ParentInvestmentNews';
+export { ParentInvestmentMarket } from './ui/ParentInvestmentMarket';

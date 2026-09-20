@@ -65,10 +65,15 @@ export const investmentApi = {
       .get<NewsDetailResponse>(`/api/v1/investments/news/${newsId}`)
       .then((res) => res.data),
 
-  /** 거래 이력 (최신순). 필터 없이 전체 — 기간·유형 필터가 필요해지면 params 를 확장한다 */
-  getTransactions: () =>
+  /**
+   * 거래 이력 (최신순). 필터 없이 전체 — 기간·유형 필터가 필요해지면 params 를 확장한다.
+   * childId 없으면 본인(자녀용)이고, 부모가 자녀 것을 볼 때만 넘긴다.
+   */
+  getTransactions: (childId?: number) =>
     httpClient
-      .get<{ transactions: TransactionResponse[] }>('/api/v1/investments/transactions')
+      .get<{ transactions: TransactionResponse[] }>('/api/v1/investments/transactions', {
+        params: childId != null ? { childId } : undefined,
+      })
       .then((res) => res.data.transactions),
 
   /** 매수 — 종목당 1주 규칙이라 수량 없이 종목만 보낸다 */
