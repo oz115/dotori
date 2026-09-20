@@ -1,2 +1,3 @@
 export { QuizScreen } from './ui/QuizScreen';
-export { ParentQuizCard } from './ui/ParentQuizCard';
+export { ParentQuizEntryCard } from './ui/ParentQuizEntryCard';
+export { ParentQuizScreen } from './ui/ParentQuizScreen';

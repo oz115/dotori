@@ -1,21 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, type ReactNode } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import {
-  hasSubmissions,
-  parentQuizStatus,
-  parentQuizStatusLabel,
-  type ParentQuizStatus,
-} from '@/features/quiz/lib/parentQuiz';
+import { hasSubmissions, parentQuizStatus } from '@/features/quiz/lib/parentQuiz';
 import { parentQuizFailure, parentQuizFailureMessage } from '@/features/quiz/lib/quizError';
 import type { QuizParentAttempt, QuizParentToday } from '@/features/quiz/model/types';
 import { useParentTodayQuiz } from '@/features/quiz/model/useParentTodayQuiz';
-import { useTheme, type Theme } from '@/shared/theme';
-import { Button, ContentCard } from '@/shared/ui';
+import { ParentQuizStatusBadge } from '@/features/quiz/ui/ParentQuizStatusBadge';
+import { useTheme } from '@/shared/theme';
+import { Button, ContentCard, Header, Screen } from '@/shared/ui';
 
-type ParentQuizCardProps = {
+type ParentQuizScreenProps = {
   familyId: number | undefined;
   childId: number | undefined;
   /** 가족·자녀 조회가 끝나기 전 — 아직 조회에 쓸 id 가 없다 */
@@ -23,19 +19,19 @@ type ParentQuizCardProps = {
 };
 
 /**
- * 부모 홈 "오늘의 경제 퀴즈" 카드. 아이가 아직 안 풀었으면 문제와 정답만, 제출했으면
+ * 부모용 "오늘의 경제 퀴즈" 화면. 아이가 아직 안 풀었으면 문제와 정답만, 제출했으면
  * (맞췄든 틀렸든) 아이가 낸 답과 정오답까지 시도별로 보여 준다.
  *
- * 아이 홈의 퀴즈 카드(풀러 가는 진입 카드)와 성격이 다르다 — 부모는 풀 수 없고 결과를 읽기만
- * 하므로 눌러서 이동하는 자리가 아니라 그 자리에서 내용을 펼쳐 보여 준다.
+ * 아이의 퀴즈 화면(QuizScreen)과 성격이 다르다 — 부모는 풀 수 없고 결과를 읽기만 한다.
+ * 홈의 진입 카드(ParentQuizEntryCard)를 눌러 들어오는 독립 화면이다.
  *
  * 오늘의 퀴즈가 아직 생성 전이면(QUIZ_NOT_READY) 오류가 아니라 준비 중 안내로 처리한다.
  */
-export function ParentQuizCard({ familyId, childId, familyPending }: ParentQuizCardProps) {
+export function ParentQuizScreen({ familyId, childId, familyPending }: ParentQuizScreenProps) {
   const theme = useTheme();
   const query = useParentTodayQuiz(familyId, childId);
 
-  // 탭 화면은 전환해도 언마운트되지 않는다 — 홈으로 돌아올 때마다 아이가 그새 푼 결과를 다시 받는다.
+  // 아이가 그새 푼 결과를 화면에 돌아올 때마다 다시 받는다.
   // 마운트 직후의 첫 조회와 겹쳐도 진행 중인 요청을 끊지 않는다.
   const refetch = query.refetch;
   const canQuery = familyId != null && childId != null;
@@ -47,38 +43,38 @@ export function ParentQuizCard({ familyId, childId, familyPending }: ParentQuizC
     }, [canQuery, refetch]),
   );
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const loading = familyPending || (canQuery && query.isPending);
 
   return (
-    <ContentCard style={[styles.card, { padding: theme.space.lg, gap: theme.space.lg }]}>
-      <View style={[styles.headRow, { gap: theme.space.md }]}>
-        <Image
-          source={require('@/assets/images/icons/icon-quiz.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-        <View style={styles.headText}>
-          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            오늘의 경제 퀴즈
-          </Text>
-        </View>
-        {query.data != null ? <StatusBadge status={parentQuizStatus(query.data)} /> : null}
-      </View>
+    <Screen
+      header={<Header title="오늘의 경제 퀴즈" onBack={goBack} />}
+      scroll
+      // Screen 기본 상하 여백이 0이라 카드가 헤더·하단 제스처 바에 붙어 보인다.
+      style={{ paddingTop: theme.space.lg, paddingBottom: theme.space['4xl'] }}
+    >
+      <ContentCard style={{ padding: theme.space['2xl'], gap: theme.space.xl }}>
+        {query.data != null ? (
+          <View style={styles.statusRow}>
+            <ParentQuizStatusBadge status={parentQuizStatus(query.data)} />
+          </View>
+        ) : null}
 
-      {loading ? (
-        <Notice text="불러오는 중이에요" />
-      ) : !canQuery ? (
-        <Notice text="연결된 자녀가 없어요" />
-      ) : query.isError ? (
-        <FailureNotice
-          error={query.error}
-          retrying={query.isFetching}
-          onRetry={() => query.refetch()}
-        />
-      ) : query.data != null ? (
-        <QuizBody quiz={query.data} />
-      ) : null}
-    </ContentCard>
+        {loading ? (
+          <Notice text="불러오는 중이에요" />
+        ) : !canQuery ? (
+          <Notice text="연결된 자녀가 없어요" />
+        ) : query.isError ? (
+          <FailureNotice
+            error={query.error}
+            retrying={query.isFetching}
+            onRetry={() => query.refetch()}
+          />
+        ) : query.data != null ? (
+          <QuizBody quiz={query.data} />
+        ) : null}
+      </ContentCard>
+    </Screen>
   );
 }
 
@@ -126,55 +122,13 @@ function FailureNotice({
   );
 }
 
-function StatusBadge({ status }: { status: ParentQuizStatus }) {
-  const theme = useTheme();
-  const { background, text } = statusColors(theme, status);
-
-  return (
-    <View
-      style={[
-        styles.badge,
-        {
-          backgroundColor: background,
-          borderRadius: theme.radius.full,
-          paddingHorizontal: theme.space.md,
-          paddingVertical: theme.space.xs,
-        },
-      ]}
-    >
-      <Text style={[theme.typography.bodySm, { color: text }]}>
-        {parentQuizStatusLabel(status)}
-      </Text>
-    </View>
-  );
-}
-
-function statusColors(theme: Theme, status: ParentQuizStatus) {
-  switch (status) {
-    case 'SOLVED':
-      return {
-        background: theme.color.status.success.subtle,
-        text: theme.color.status.success.text,
-      };
-    case 'FAILED':
-      return { background: theme.color.status.danger.subtle, text: theme.color.status.danger.text };
-    case 'IN_PROGRESS':
-      return {
-        background: theme.color.status.warning.subtle,
-        text: theme.color.status.warning.text,
-      };
-    case 'UNSOLVED':
-      return { background: theme.color.background.surfaceSunken, text: theme.color.text.sub };
-  }
-}
-
 function QuizBody({ quiz }: { quiz: QuizParentToday }) {
   const theme = useTheme();
 
   return (
-    <View style={{ gap: theme.space.lg }}>
+    <View style={{ gap: theme.space.xl }}>
       <Field label="문제">
-        <Text style={[theme.typography.body, { color: theme.color.text.strong }]}>
+        <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
           {quiz.question}
         </Text>
       </Field>
@@ -187,7 +141,7 @@ function QuizBody({ quiz }: { quiz: QuizParentToday }) {
 
       {hasSubmissions(quiz) ? (
         <Field label={`아이가 제출한 답 (${quiz.attemptCount}/${quiz.maxAttempts}회)`}>
-          <View style={{ gap: theme.space.sm }}>
+          <View style={{ gap: theme.space.md }}>
             {quiz.attempts.map((attempt) => (
               <AttemptRow key={attempt.quizAttemptId} attempt={attempt} />
             ))}
@@ -204,7 +158,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   const theme = useTheme();
 
   return (
-    <View style={{ gap: theme.space.xs }}>
+    <View style={{ gap: theme.space.sm }}>
       <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{label}</Text>
       {children}
     </View>
@@ -244,11 +198,7 @@ function AttemptRow({ attempt }: { attempt: QuizParentAttempt }) {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'column' },
-  headRow: { flexDirection: 'row', alignItems: 'center' },
-  icon: { width: 56, height: 56 },
-  headText: { flex: 1 },
-  badge: { alignSelf: 'center' },
+  statusRow: { flexDirection: 'row' },
   retry: { alignSelf: 'flex-start' },
   attemptRow: { flexDirection: 'row', alignItems: 'center', minHeight: 32 },
   resultDot: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },

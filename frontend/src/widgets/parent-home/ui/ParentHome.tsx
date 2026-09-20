@@ -37,6 +37,8 @@ export function ParentHome() {
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
   // '/word' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 단어장으로 간다
   const openWords = () => router.push('/(parent)/word');
+  // '/quiz' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 퀴즈 화면으로 간다
+  const openQuiz = () => router.push('/(parent)/quiz');
 
   return (
     <SafeAreaView
@@ -109,7 +111,7 @@ export function ParentHome() {
         <ChildActivityBoard
           familyId={familyId}
           childId={childId}
-          familyPending={familyPending}
+          onOpenQuiz={openQuiz}
           onOpenWords={openWords}
         />
       </ScrollView>

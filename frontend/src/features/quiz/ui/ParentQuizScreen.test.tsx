@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { quizApi } from '@/features/quiz/api/quizApi';
 import type { QuizParentToday } from '@/features/quiz/model/types';
-import { ParentQuizCard } from './ParentQuizCard';
+import { ParentQuizScreen } from './ParentQuizScreen';
 
 jest.mock('@/features/quiz/api/quizApi', () => ({
   quizApi: { getParentTodayQuiz: jest.fn() },
@@ -50,7 +50,7 @@ async function show(props: { familyId?: number; childId?: number; familyPending?
   const familyPending = props.familyPending ?? false;
   return render(
     <QueryClientProvider client={client}>
-      <ParentQuizCard familyId={familyId} childId={childId} familyPending={familyPending} />
+      <ParentQuizScreen familyId={familyId} childId={childId} familyPending={familyPending} />
     </QueryClientProvider>,
   );
 }

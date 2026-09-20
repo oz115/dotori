@@ -329,6 +329,8 @@ DB 스키마 변경은 없다(`quizzes.correct_answer`·`explanation` 컬럼을 
   자녀가 부르면 403이다(`QuizAccessValidator.requireParent`). 이 조회는 퀴즈를 생성하지 않아
   생성 전이면 `QUIZ_NOT_READY`(404)다 — 화면은 오류가 아니라 "준비되지 않았어요"로 그린다.
   이력(`/history`)은 자녀도 쓰는 공통 API라 정답 필드를 얹지 않았다.
+  화면은 홈에서 내용을 펼치지 않는다. 홈 카드는 아이가 풀었는지 배지만 보여 주는 진입 카드이고,
+  누르면 `(parent)/quiz` 전용 화면에서 문제·정답·아이의 제출 내용을 보여 준다(단어장과 같은 방식).
 - **부모 홈 경제 단어장**: 단어 API는 전역 사전이라 부모·자녀 구분 없이 인증만 요구하므로 백엔드 변경이 없다.
   `(parent)/word` 라우트가 아이 단어장 화면(`features/word`의 `WordCatalog`·`WordDetail`)을 그대로 재사용한다.
   부모·아이 그룹에 같은 `/word` 경로가 있어 화면이 이동 함수(`onSelectWord`·`onBack`)를 라우트에서 받는다.
