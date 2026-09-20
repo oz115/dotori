@@ -25,6 +25,6 @@ public enum SavingsTransactionType {
 	/** 중도 해지 반환금 */
 	EARLY_TERMINATION_PAYOUT,
 
-	/** 만기(또는 목표 달성) 수령액 */
+	/** 만기 수령액 */
 	MATURITY_PAYOUT
 }

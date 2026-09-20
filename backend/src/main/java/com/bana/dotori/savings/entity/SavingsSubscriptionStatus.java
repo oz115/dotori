@@ -8,7 +8,7 @@ public enum SavingsSubscriptionStatus {
 	/** 정상 진행 중 */
 	ACTIVE,
 
-	/** 만기(또는 목표 달성) 도달, 지급 대기 */
+	/** 만기 도달, 지급 대기 */
 	MATURED,
 
 	/** 중도 해지 */

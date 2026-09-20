@@ -59,7 +59,7 @@ describe('savingsGroupOf', () => {
     expect(savingsGroupOf('ORDINARY')).toBe('DEPOSIT');
     expect(savingsGroupOf('COMPOUND_INTEREST')).toBe('DEPOSIT');
     expect(savingsGroupOf('SMALL_INSTALLMENT')).toBe('INSTALLMENT');
-    expect(savingsGroupOf('GOAL_INSTALLMENT')).toBe('INSTALLMENT');
+    expect(savingsGroupOf('MID_TERM_INSTALLMENT')).toBe('INSTALLMENT');
   });
 });
 
@@ -150,16 +150,6 @@ describe('buildSavingsCards', () => {
     expect(card.lines[0].label).toBe('매주 최대');
   });
 
-  it('목표적금의 최대 금액은 목표라 라벨이 다르다', () => {
-    const [card] = buildSavingsCards(
-      [product({ contributionStyle: 'FLEXIBLE_GOAL', termWeeks: 4, maxAmount: 2000 })],
-      [],
-      NOW,
-    );
-
-    expect(card.lines[0].label).toBe('최대 목표');
-  });
-
   it('거치식 가입은 예치 금액·쌓인 이자·만기까지와 기간 진행률을 싣는다', () => {
     const [card] = buildSavingsCards([product({})], [subscription({})], NOW);
 
@@ -191,26 +181,6 @@ describe('buildSavingsCards', () => {
     expect(card.lines[0]).toEqual({ label: '매주', value: '500P' });
     expect(card.lines[2]).toEqual({ label: '납입', value: '1회 / 4회' });
     expect(card.progress).toBe(0.25);
-  });
-
-  it('목표적금은 모은 금액 기준 진행률이고, 만기 도달은 matured 로 표시된다', () => {
-    const [card] = buildSavingsCards(
-      [product({ productType: 'GOAL_INSTALLMENT', contributionStyle: 'FLEXIBLE_GOAL' })],
-      [
-        subscription({
-          productType: 'GOAL_INSTALLMENT',
-          contributionStyle: 'FLEXIBLE_GOAL',
-          principal: 2000,
-          currentAmount: 1800,
-          status: 'MATURED',
-        }),
-      ],
-      NOW,
-    );
-
-    expect(card.matured).toBe(true);
-    expect(card.progress).toBe(0.9);
-    expect(card.lines[2]).toEqual({ label: '만기', value: '달성!' });
   });
 
   it('해지·수령 완료된 가입은 보유로 치지 않는다', () => {
@@ -253,19 +223,6 @@ describe('estimateReturn — 서버 정산과 같은 식이어야 화면 약속�
 
     // 1주차 round(500×10%÷2)=25, 2주차 round(1000×5%)=50
     expect(result).toEqual({ principal: 1000, interest: 75, total: 1075, weekly: false });
-  });
-
-  it('목표적금은 목표 금액 기준 이자를 한 번에 받는다', () => {
-    const result = estimateReturn(
-      product({
-        productType: 'GOAL_INSTALLMENT',
-        contributionStyle: 'FLEXIBLE_GOAL',
-        interestRate: 15,
-      }),
-      2000,
-    );
-
-    expect(result).toEqual({ principal: 2000, interest: 300, total: 2300, weekly: false });
   });
 
   it('보통예금은 만기 대신 매주 받는 이자 한 주치를 준다', () => {

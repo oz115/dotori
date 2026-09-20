@@ -6,7 +6,6 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Component;
 
 import com.bana.dotori.savings.entity.ContributionStyle;
-import com.bana.dotori.savings.entity.PayoutTiming;
 import com.bana.dotori.savings.entity.SavingsProduct;
 import com.bana.dotori.savings.entity.SavingsProductType;
 import com.bana.dotori.savings.entity.SavingsSubscription;
@@ -19,10 +18,9 @@ import lombok.RequiredArgsConstructor;
  * <p>정산이 실제로 하는 계산({@link SavingsProductType#weeklyInterest})을 남은 주만큼 앞당겨
  * 돌려볼 뿐이다. 계산을 따로 구현하면 화면에 보여준 예상과 나중에 실제로 들어온 금액이 어긋난다.
  *
- * <p><b>가정 두 가지.</b> 예상이므로 아이가 약속을 지킨다고 본다.
+ * <p><b>가정.</b> 예상이므로 아이가 약속을 지킨다고 본다.
  * <ul>
  *   <li>정액 적립식은 남은 회차를 매주 그대로 납입한다.</li>
- *   <li>목표적금은 만기 안에 목표를 채운다.</li>
  * </ul>
  * 약속이 깨지면 실제 이자는 이보다 줄어든다 — 그 편차 자체가 이 상품들이 가르치려는 것이다.
  */
@@ -46,10 +44,6 @@ public class SavingsExpectedReturnCalculator {
 		SavingsProductType type = product.getProductType();
 		if (type.paysInterestImmediately()) {
 			return type.weeklyInterest(subscription.getCurrentAmount(), 0);
-		}
-		if (product.getPayoutTiming() == PayoutTiming.ON_GOAL_ACHIEVED) {
-			// 목표를 채운 순간 목표 금액 기준으로 한 번에 얹힌다. 주간 적립은 없다.
-			return type.goalAchievementInterest(subscription.getPrincipal());
 		}
 
 		return accrueRemainingWeeks(subscription, product);

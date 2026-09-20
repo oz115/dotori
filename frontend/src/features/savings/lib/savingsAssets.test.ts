@@ -12,7 +12,7 @@ const PRODUCT_TYPES: SavingsProductType[] = [
   'SIMPLE_INTEREST',
   'COMPOUND_INTEREST',
   'SMALL_INSTALLMENT',
-  'GOAL_INSTALLMENT',
+  'MID_TERM_INSTALLMENT',
   'LONG_TERM_INSTALLMENT',
 ];
 
@@ -50,7 +50,7 @@ describe('문구 줄 길이', () => {
       SIMPLE_INTEREST: '단리예금',
       COMPOUND_INTEREST: '복리예금',
       SMALL_INSTALLMENT: '소액적금',
-      GOAL_INSTALLMENT: '목표적금',
+      MID_TERM_INSTALLMENT: '중기적금',
       LONG_TERM_INSTALLMENT: '장기적금',
     };
 

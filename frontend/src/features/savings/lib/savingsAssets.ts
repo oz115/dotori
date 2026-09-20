@@ -18,7 +18,7 @@ const PRODUCT_IMAGES: Record<SavingsProductType, ImageSourcePropType> = {
   COMPOUND_INTEREST: require('@/assets/images/invest/sprout.png'), // 복리예금 — 이자가 자라는 새싹
   // 적금 3종
   SMALL_INSTALLMENT: require('@/assets/images/acorn.png'), // 소액적금 — 도토리 한 알씩
-  GOAL_INSTALLMENT: require('@/assets/images/savings/target.png'), // 목표적금 — 과녁
+  MID_TERM_INSTALLMENT: require('@/assets/images/savings/target.png'), // 중기적금 — 과녁(다음 목표 지점)
   LONG_TERM_INSTALLMENT: require('@/assets/images/savings/safe.png'), // 장기적금 — 금고
 };
 
@@ -121,7 +121,7 @@ const PRODUCT_NAMES: Record<SavingsProductType, string> = {
   SIMPLE_INTEREST: '도토리 항아리',
   COMPOUND_INTEREST: '도토리 나무',
   SMALL_INSTALLMENT: '몸풀기 저금',
-  GOAL_INSTALLMENT: '소원 바구니',
+  MID_TERM_INSTALLMENT: '도토리 곳간',
   LONG_TERM_INSTALLMENT: '겨울 대비 창고',
 };
 
@@ -173,11 +173,10 @@ const PRODUCT_DESCRIPTIONS: Record<SavingsProductType, string> = {
     '매주 같은 금액을 두 번 넣는 소액적금이에요.\n' +
     '2주면 끝나니까 처음이어도 괜찮아요.\n' +
     '작게 시작해 모으는 재미를 느껴봐요.',
-  GOAL_INSTALLMENT:
-    '갖고 싶은 것을 정하고 채우는 목표적금이에요.\n' +
-    '매주 얼마를 넣을지는 자유롭고,\n' +
-    '정해진 기간 안에 채우면 돼요.\n' +
-    '다 채우면 모은 돈과 이자를 바로 받아요.',
+  MID_TERM_INSTALLMENT:
+    '매주 같은 금액을 네 번 넣는 중기적금이에요.\n' +
+    '소액적금보다 길고 장기적금보다 짧아요.\n' +
+    '기간이 길수록 이자율이 높아져요.',
   LONG_TERM_INSTALLMENT:
     '매주 같은 금액을 여섯 번 넣는 장기적금이에요.\n' +
     '오래 기다려야 하지만 도토리가 가장 많아요.\n' +

@@ -11,13 +11,13 @@ export type SavingsProductType =
   | 'SIMPLE_INTEREST'
   | 'COMPOUND_INTEREST'
   | 'SMALL_INSTALLMENT'
-  | 'GOAL_INSTALLMENT'
+  | 'MID_TERM_INSTALLMENT'
   | 'LONG_TERM_INSTALLMENT';
 
 /** 납입 방식. 화면이 진행률을 무엇으로 그릴지 정하는 값이다 */
-export type ContributionStyle = 'FREE' | 'LUMP_SUM' | 'FIXED_INSTALLMENT' | 'FLEXIBLE_GOAL';
+export type ContributionStyle = 'FREE' | 'LUMP_SUM' | 'FIXED_INSTALLMENT';
 
-export type PayoutTiming = 'WEEKLY_IMMEDIATE' | 'MATURITY_LUMP_SUM' | 'ON_GOAL_ACHIEVED';
+export type PayoutTiming = 'WEEKLY_IMMEDIATE' | 'MATURITY_LUMP_SUM';
 
 export type SavingsSubscriptionStatus = 'ACTIVE' | 'MATURED' | 'CANCELLED' | 'COMPLETED';
 
@@ -69,7 +69,7 @@ export type SavingsSubscription = {
   contributionStyle: ContributionStyle;
   /** 정액 적립식이 약속한 총 납입 회차. 해당 없는 상품은 null */
   installmentCount: number | null;
-  /** 가입 때 확정한 금액 (거치식=최초원금, 정액 적립식=회당 약정액, 목표적금=목표 금액) */
+  /** 가입 때 확정한 금액 (거치식=최초원금, 정액 적립식=회당 약정액) */
   principal: number;
   currentAmount: number;
   accruedInterest: number;

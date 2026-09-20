@@ -221,20 +221,6 @@ class SavingsServiceImplTest {
 		}
 
 		@Test
-		@DisplayName("목표적금은 목표 금액만 정하고 가입 시 차감하지 않는다")
-		void 목표적금은_가입시_차감하지_않는다() {
-			product(SavingsProductType.GOAL_INSTALLMENT);
-			int goal = (int)maxAmountOf(SavingsProductType.GOAL_INSTALLMENT);
-
-			SavingsSubscriptionResponse response = savingsService.subscribe(CHILD_ID, FAMILY_ID, CHILD_ID,
-				requestOf(goal), IDEMPOTENCY_KEY);
-
-			assertThat(response.principal()).isEqualTo(goal);
-			assertThat(response.currentAmount()).isZero();
-			verify(pointWalletService, never()).withdraw(any());
-		}
-
-		@Test
 		@DisplayName("정액 적립식은 가입 시 최초 납입이 1회차로 잡힌다")
 		void 정액적립식은_최초납입이_1회차다() {
 			product(SavingsProductType.SMALL_INSTALLMENT);
@@ -365,56 +351,10 @@ class SavingsServiceImplTest {
 		}
 
 		@Test
-		@DisplayName("목표적금은 목표 금액을 넘겨 납입할 수 없다")
-		void 목표를_넘기면_거부한다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			existingSubscription(goal, 10_000, 9_000, 3);
-
-			assertThatThrownBy(() -> savingsService.contribute(CHILD_ID, FAMILY_ID, CHILD_ID, SUBSCRIPTION_ID,
-				new SavingsContributeRequest(1_001), IDEMPOTENCY_KEY))
-				.isInstanceOf(BusinessException.class)
-				.extracting(e -> ((BusinessException)e).getErrorCode())
-				.isEqualTo(ErrorCode.SAVINGS_INVALID_CONTRIBUTION_AMOUNT);
-		}
-
-		@Test
-		@DisplayName("목표를 채우면 그 자리에서 이자를 얹어 지급하고 수령 완료가 된다")
-		void 목표를_채우면_즉시_지급한다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			SavingsSubscription subscription = existingSubscription(goal, 10_000, 9_000, 3);
-
-			SavingsSubscriptionResponse response = savingsService.contribute(CHILD_ID, FAMILY_ID, CHILD_ID,
-				SUBSCRIPTION_ID, new SavingsContributeRequest(1_000), IDEMPOTENCY_KEY);
-
-			long expectedInterest = SavingsProductType.GOAL_INSTALLMENT.goalAchievementInterest(10_000);
-			assertThat(response.status()).isEqualTo(SavingsSubscriptionStatus.COMPLETED);
-			assertThat(response.accruedInterest()).isEqualTo((int)expectedInterest);
-			assertThat(response.totalAmount()).isEqualTo(10_000 + (int)expectedInterest);
-			assertThat(subscription.getReceivedAt()).isNotNull();
-			verify(pointWalletService).deposit(reasonIs(PointTransactionReason.SAVINGS_WITHDRAWAL));
-			verifyRecorded(SavingsTransactionType.MATURITY_PAYOUT);
-		}
-
-		@Test
-		@DisplayName("목표에 못 미치는 납입은 진행 중 상태 그대로 둔다")
-		void 목표_미달이면_계속_진행한다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			existingSubscription(goal, 10_000, 3_000, 1);
-
-			SavingsSubscriptionResponse response = savingsService.contribute(CHILD_ID, FAMILY_ID, CHILD_ID,
-				SUBSCRIPTION_ID, new SavingsContributeRequest(2_000), IDEMPOTENCY_KEY);
-
-			assertThat(response.status()).isEqualTo(SavingsSubscriptionStatus.ACTIVE);
-			assertThat(response.currentAmount()).isEqualTo(5_000);
-			assertThat(response.contributionCount()).isEqualTo(2);
-			verify(pointWalletService, never()).deposit(any());
-		}
-
-		@Test
 		@DisplayName("지갑이 이미 처리된 요청이라고 하면 납입 전체를 되돌린다")
 		void 지갑이_중복이라고_하면_거부한다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			existingSubscription(goal, 10_000, 1_000, 1);
+			SavingsProduct mid = product(SavingsProductType.MID_TERM_INSTALLMENT);
+			existingSubscription(mid, 1_000, 1_000, 1, 1);
 			given(pointWalletService.withdraw(any())).willReturn(
 				new PointChangeResult(1, CHILD_ID, PointTransactionReason.SAVINGS_DEPOSIT, 1_000, 0,
 					OffsetDateTime.now(), true));
@@ -516,10 +456,10 @@ class SavingsServiceImplTest {
 		}
 
 		@Test
-		@DisplayName("아직 한 푼도 납입하지 않은 목표적금은 지갑을 건드리지 않고 해지된다")
+		@DisplayName("아직 한 푼도 납입하지 않은 중기적금은 지갑을 건드리지 않고 해지된다")
 		void 납입이_없으면_지갑을_건드리지_않는다() {
-			SavingsProduct goal = product(SavingsProductType.GOAL_INSTALLMENT);
-			existingSubscription(goal, 10_000, 0, 0);
+			SavingsProduct mid = product(SavingsProductType.MID_TERM_INSTALLMENT);
+			existingSubscription(mid, 10_000, 0, 0);
 
 			SavingsSubscriptionResponse response = savingsService.terminate(CHILD_ID, FAMILY_ID, CHILD_ID,
 				SUBSCRIPTION_ID, IDEMPOTENCY_KEY);
