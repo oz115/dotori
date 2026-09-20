@@ -1,6 +1,7 @@
 import type {
   SavingsSubscription,
   SavingsSubscriptionStatus,
+  SavingsSummary,
 } from '@/features/savings/model/types';
 import { parseServerDate } from '@/shared/lib/datetime';
 
@@ -51,6 +52,36 @@ export function ongoingSavingsAccounts(
   subscriptions: SavingsSubscription[],
 ): SavingsSubscription[] {
   return subscriptions.filter((subscription) => ONGOING_STATUSES.includes(subscription.status));
+}
+
+/** "내 자산" 한 줄에 쓰는 예적금 자산 — 몇 건에 얼마가 들어 있는지 */
+export type SavingsAssets = {
+  /** 진행 중(ACTIVE) + 수령 대기(MATURED) 가입 건수 */
+  count: number;
+  /** 원금 + 아직 받지 않은 이자, 단위는 포인트 */
+  totalAmount: number;
+};
+
+/**
+ * 서버 요약(SavingsSummary)에서 "지금 내 예적금 자산"을 뽑는다.
+ *
+ * <p>ACTIVE·MATURED 만 센다 — 이미 수령(COMPLETED)하거나 해지(CANCELLED)한 건은 지갑으로
+ * 빠져나가 더는 예적금 자산이 아니다. 서버 요약이 이 집합만 집계하므로 그 값을 그대로 쓴다.
+ *
+ * <p>금액은 서버가 원금(currentAmount)과 이자(accruedInterest)를 나눠 더한 totalAmount 다.
+ * 클라이언트가 가입 목록을 다시 더하지 않는다 — 원금·이자를 섞어 계산하다 어긋나는 것을
+ * 막고, 저축 탭(부모 "보유 현황"의 `개수 · 합계`)이 쓰는 원금 + 이자와 같은 값을 유지한다.
+ * 이미 지갑으로 나간 보통예금 이자는 애초에 여기 없다.
+ *
+ * <p>포인트 단위 그대로라 원↔포인트 환산이 없다.
+ */
+export function summarizeSavingsAssets(
+  summary: Pick<SavingsSummary, 'activeCount' | 'maturedCount' | 'totalAmount'>,
+): SavingsAssets {
+  return {
+    count: summary.activeCount + summary.maturedCount,
+    totalAmount: summary.totalAmount,
+  };
 }
 
 /** 요약 카드에 계좌를 몇 줄까지 늘어놓을지 — 카드가 화면 절반 폭이라 이 이상은 안 들어간다 */

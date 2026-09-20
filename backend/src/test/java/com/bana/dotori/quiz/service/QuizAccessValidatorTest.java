@@ -158,6 +158,36 @@ class QuizAccessValidatorTest {
 	}
 
 	@Nested
+	@DisplayName("부모만 할 수 있는 동작일 때")
+	class RequireParent {
+
+		@Test
+		@DisplayName("부모는 통과한다")
+		void 부모는_통과() {
+			assertThatCode(() -> accessValidator.requireParent(PARENT_ID)).doesNotThrowAnyException();
+		}
+
+		@Test
+		@DisplayName("아이는 403이다")
+		void 아이는_403() {
+			// 정답을 미리 보는 조회는 부모 전용이다. 아이가 부르면 재도전 규칙이 무너진다.
+			assertThatThrownBy(() -> accessValidator.requireParent(CHILD_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+		}
+
+		@Test
+		@DisplayName("없는 사용자면 401이다")
+		void 없는_사용자는_401() {
+			given(userRepository.findById(OUTSIDER_ID)).willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> accessValidator.requireParent(OUTSIDER_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+		}
+	}
+
+	@Nested
 	@DisplayName("아이만 할 수 있는 동작일 때")
 	class RequireChild {
 

@@ -2,6 +2,8 @@ package com.bana.dotori.quiz.service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -11,8 +13,11 @@ import com.bana.dotori.family.dto.FamilySettings;
 import com.bana.dotori.family.service.FamilySettingsReader;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.ChosungHint;
 import com.bana.dotori.quiz.dto.QuizAttemptHistoryItem;
 import com.bana.dotori.quiz.dto.QuizHistoryResponse;
+import com.bana.dotori.quiz.dto.QuizParentAttemptItem;
+import com.bana.dotori.quiz.dto.QuizParentTodayResponse;
 import com.bana.dotori.quiz.dto.QuizSubmitRequest;
 import com.bana.dotori.quiz.dto.QuizSubmitResponse;
 import com.bana.dotori.quiz.dto.QuizTodayResponse;
@@ -55,6 +60,9 @@ public class QuizServiceImpl implements QuizService {
 
 	private static final String REWARD_DESCRIPTION_PREFIX = "퀴즈 정답 보상: ";
 
+	/** point_transactions.description 컬럼 길이(VARCHAR 255). 넘으면 INSERT 가 실패해 지급 전체가 깨진다. */
+	private static final int REWARD_DESCRIPTION_MAX_LENGTH = 255;
+
 	private final QuizRepository quizRepository;
 	private final QuizAttemptRepository quizAttemptRepository;
 	private final QuizAccessValidator accessValidator;
@@ -79,7 +87,38 @@ public class QuizServiceImpl implements QuizService {
 			quiz.getId(), quiz.getQuizDate(), quiz.getQuestion(), null, rewardPoints, locked,
 			locked ? quiz.getCorrectAnswer() : null,
 			locked ? quiz.getExplanation() : null,
-			attempts.size());
+			attempts.size(),
+			hintFor(quiz, attempts.size(), locked));
+	}
+
+	/**
+	 * 부모용 오늘의 퀴즈 확인. 정답·해설을 잠금 여부와 상관없이 내려주므로 부모만 부를 수 있다.
+	 * 퀴즈 생성은 AI 배치 몫이라 여기서 만들지 않는다 — 아직 없으면 {@code QUIZ_NOT_READY}다.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public QuizParentTodayResponse getTodayQuizForParent(Integer userId, Integer familyId, Integer childId) {
+		accessValidator.validate(userId, familyId, childId);
+		accessValidator.requireParent(userId);
+
+		Quiz quiz = quizRepository.findByFamilyIdAndChildIdAndQuizDate(familyId, childId, LocalDate.now(KST))
+			.orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_READY));
+
+		// 시도 id 는 IDENTITY 로 제출 순서대로 커지므로 id 순이 곧 제출 순서다.
+		List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndChildId(quiz.getId(), childId).stream()
+			.sorted(Comparator.comparing(QuizAttempt::getId))
+			.toList();
+		List<QuizParentAttemptItem> items = new ArrayList<>();
+		for (int i = 0; i < attempts.size(); i++) {
+			QuizAttempt attempt = attempts.get(i);
+			items.add(new QuizParentAttemptItem(attempt.getId(), i + 1, attempt.getSubmittedAnswer(),
+				attempt.isCorrect(), attempt.getEarnedPoints(), attempt.getSubmittedAt()));
+		}
+
+		return new QuizParentTodayResponse(
+			quiz.getId(), quiz.getQuizDate(), quiz.getQuestion(), quiz.getCorrectAnswer(), quiz.getExplanation(),
+			attempts.size(), MAX_ATTEMPTS, attempts.stream().anyMatch(QuizAttempt::isCorrect), isLocked(attempts),
+			items);
 	}
 
 	@Override
@@ -116,7 +155,7 @@ public class QuizServiceImpl implements QuizService {
 			pointWalletService.createWalletIfAbsent(childId);
 			PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
 				childId, earnedPoints, PointTransactionReason.QUIZ_REWARD,
-				REWARD_DESCRIPTION_PREFIX + quiz.getQuestion(), quiz.rewardIdempotencyKey()));
+				rewardDescription(quiz), quiz.rewardIdempotencyKey()));
 			if (result.replayed()) {
 				// 퀴즈 행 락이 이미 동시 제출을 막아서 정상 흐름에서는 오지 않는다. 대비용 방어다.
 				throw new BusinessException(ErrorCode.ALREADY_SUBMITTED,
@@ -142,7 +181,8 @@ public class QuizServiceImpl implements QuizService {
 			attempt.getId(), isCorrect,
 			reveal ? quiz.getCorrectAnswer() : null,
 			reveal ? quiz.getExplanation() : null,
-			earnedPoints, balanceAfter);
+			earnedPoints, balanceAfter,
+			hintFor(quiz, attemptNumber, reveal));
 	}
 
 	@Override
@@ -155,6 +195,35 @@ public class QuizServiceImpl implements QuizService {
 
 		List<QuizAttemptHistoryItem> attempts = quizAttemptRepository.findHistory(childId, startDate, endDate);
 		return new QuizHistoryResponse(attempts);
+	}
+
+	/**
+	 * 보상 거래 설명. 문제(quizzes.question)는 길이 제한이 없는 TEXT 인데 설명 컬럼은 255자라서,
+	 * 긴 문제를 그대로 붙이면 정답을 맞혀도 지급 INSERT 가 실패한다. 넘치면 말줄임표로 자른다.
+	 */
+	private String rewardDescription(Quiz quiz) {
+		String description = REWARD_DESCRIPTION_PREFIX + quiz.getQuestion();
+		if (description.length() <= REWARD_DESCRIPTION_MAX_LENGTH) {
+			return description;
+		}
+
+		int end = REWARD_DESCRIPTION_MAX_LENGTH - 1;
+		// 서로게이트 쌍(이모지 등)의 한가운데를 자르면 DB 인코딩 오류가 나므로 앞 절반만 남기지 않는다.
+		if (Character.isHighSurrogate(description.charAt(end - 1))) {
+			end--;
+		}
+		return description.substring(0, end) + "…";
+	}
+
+	/**
+	 * 초성 힌트. 한 번이라도 풀어 봤고(attemptCount >= 1) 아직 정답이 공개되지 않았을 때만 준다.
+	 * 정답이 공개되는 상태에서는 힌트가 필요 없고, 한 번도 안 풀었으면 먼저 스스로 풀어 보게 한다.
+	 */
+	private String hintFor(Quiz quiz, int attemptCount, boolean revealed) {
+		if (attemptCount < 1 || revealed) {
+			return null;
+		}
+		return ChosungHint.of(quiz.getCorrectAnswer());
 	}
 
 	private boolean isLocked(List<QuizAttempt> attempts) {

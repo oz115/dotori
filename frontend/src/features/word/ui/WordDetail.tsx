@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +14,11 @@ import { Button, Header } from '@/shared/ui';
 
 type WordDetailProps = {
   wordId: number;
+  /**
+   * 뒤로가기. 부모·아이 라우트 그룹에 같은 `/word` 경로가 있어서 스택에 돌아갈 곳이 없을 때
+   * 어느 그룹의 목록으로 갈지는 화면(라우트)이 정한다.
+   */
+  onBack: () => void;
 };
 
 /**
@@ -26,7 +30,7 @@ type WordDetailProps = {
  * 대신 지금 보고 있는 wordId를 로컬 state로 들고, 버튼을 누르면 그 state만 바꿔서
  * 같은 화면 안에서 내용(배지·단어·뜻)만 갈아 끼운다 — 헤더는 그대로 고정된다.
  */
-export function WordDetail({ wordId: initialWordId }: WordDetailProps) {
+export function WordDetail({ wordId: initialWordId, onBack: goBack }: WordDetailProps) {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [currentWordId, setCurrentWordId] = useState(initialWordId);
@@ -58,8 +62,6 @@ export function WordDetail({ wordId: initialWordId }: WordDetailProps) {
       });
     }
   }, [hasNeighbor, index, loadedWords, queryClient]);
-
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/word'));
 
   if (isPending) {
     return (

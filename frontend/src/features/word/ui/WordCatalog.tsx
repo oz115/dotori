@@ -16,9 +16,19 @@ import { Header, Input, Screen } from '@/shared/ui';
 /** 입력이 멈추고 이 시간(ms)이 지나야 검색 API를 부른다. 타이핑마다 매번 부르면 낭비다. */
 const SEARCH_DEBOUNCE_MS = 300;
 
+type WordCatalogProps = {
+  /**
+   * 단어를 눌렀을 때의 이동. 부모·아이 라우트 그룹에 같은 `/word/[wordId]` 경로가 있어서
+   * 어느 그룹의 상세로 갈지는 화면(라우트)이 정한다 — 그룹을 안 적으면 아이 쪽으로 간다.
+   */
+  onSelectWord: (wordId: number) => void;
+};
+
 /**
  * 경제 단어장 목록. 완료해야 할 목록이 아니라 필요할 때 찾아보는 사전이라, 검색·초성
  * 인덱스로 훑어보는 걸 우선한다 — 진도·완료 표시는 없다.
+ *
+ * 전역 사전이라 조회만 있고 사용자별 데이터가 없다 — 부모와 아이가 똑같은 화면을 쓴다.
  *
  * 두 데이터 소스를 상황에 따라 갈아 낀다.
  * - 검색어가 없으면: 카테고리별 무한 스크롤 목록(`useWords`, GET .../words).
@@ -26,7 +36,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  *   로드돼 있어서 클라이언트에서 걸러내면 아직 안 불러온 페이지의 단어를 놓친다.
  *   검색 API는 카테고리를 모르므로, 검색 중엔 카테고리 필터를 비활성화한다.
  */
-export function WordCatalog() {
+export function WordCatalog({ onSelectWord }: WordCatalogProps) {
   const theme = useTheme();
   const listRef = useRef<SectionList<WordListItem>>(null);
   const [query, setQuery] = useState('');
@@ -102,15 +112,7 @@ export function WordCatalog() {
           sections={sections}
           keyExtractor={(item) => String(item.wordId)}
           renderItem={({ item }) => (
-            <WordListRow
-              word={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/word/[wordId]',
-                  params: { wordId: String(item.wordId) },
-                })
-              }
-            />
+            <WordListRow word={item} onPress={() => onSelectWord(item.wordId)} />
           )}
           renderSectionHeader={({ section }) => (
             <Text

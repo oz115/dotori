@@ -17,6 +17,8 @@ import { formatPoint, formatWonNumber } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
 import { ContentCard } from '@/shared/ui';
 
+import type { AssetRowText } from '@/widgets/child-home/model/assetRows';
+
 /** 장과 장 사이 간격. 넘기는 도중에만 보이고, 멈추면 이만큼 화면 밖으로 빠진다 */
 const PAGE_GAP = 16;
 
@@ -29,6 +31,8 @@ type BalanceCardProps = {
   onCashoutHistory: () => void;
   /** "내 자산 현황"의 연동 계좌 줄에 쓸 실제 계좌 정보 */
   account: AccountInfo | null | undefined;
+  /** "내 자산 현황"의 예적금·투자 줄 문구 (조회 상태까지 반영된 것) */
+  assets: { savings: AssetRowText; investment: AssetRowText };
 };
 
 /**
@@ -45,6 +49,7 @@ export function BalanceCard({
   onCashout,
   onCashoutHistory,
   account,
+  assets,
 }: BalanceCardProps) {
   const theme = useTheme();
   const [page, setPage] = useState(0);
@@ -87,7 +92,7 @@ export function BalanceCard({
               />
             </View>
             <View style={{ width: pageWidth }}>
-              <AssetsPage account={account} />
+              <AssetsPage account={account} assets={assets} />
             </View>
           </>
         ) : null}
@@ -98,7 +103,7 @@ export function BalanceCard({
   );
 }
 
-type WalletPageProps = Omit<BalanceCardProps, 'account'>;
+type WalletPageProps = Omit<BalanceCardProps, 'account' | 'assets'>;
 
 /** 첫 장 — 보유 도토리와 충전·환전 버튼. */
 function WalletPage({
@@ -157,10 +162,16 @@ function WalletPage({
 }
 
 /**
- * 둘째 장 — 내 자산 현황. 예적금·투자는 아직 없는 도메인이라 예시 값이고,
- * 연동 계좌 한 줄만 실제 데이터다.
+ * 둘째 장 — 내 자산 현황. 예적금·투자·연동 계좌 세 줄 모두 실제 데이터다.
+ * 예적금·투자는 포인트, 연동 계좌는 원 단위라 한 장 안에서도 단위가 다르다.
  */
-function AssetsPage({ account }: { account: AccountInfo | null | undefined }) {
+function AssetsPage({
+  account,
+  assets,
+}: {
+  account: AccountInfo | null | undefined;
+  assets: BalanceCardProps['assets'];
+}) {
   const theme = useTheme();
 
   return (
@@ -172,14 +183,14 @@ function AssetsPage({ account }: { account: AccountInfo | null | undefined }) {
         <DetailRow
           icon={<SavingsIcon />}
           title="예적금"
-          subtitle="3개 상품에 저축 중"
-          amount={formatPoint(3000)}
+          subtitle={assets.savings.subtitle}
+          amount={assets.savings.amount}
         />
         <DetailRow
           icon={<InvestIcon />}
           title="투자"
-          subtitle="3개 회사 보유 중"
-          amount={formatPoint(3000)}
+          subtitle={assets.investment.subtitle}
+          amount={assets.investment.amount}
         />
         <DetailRow
           icon={<AccountIcon bankCode={account?.bankCode} />}

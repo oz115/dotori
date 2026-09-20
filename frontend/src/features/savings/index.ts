@@ -23,6 +23,7 @@ export {
   ongoingSavingsAccounts,
   previewSavingsAccounts,
   savingsMaturityMarker,
+  summarizeSavingsAssets,
 } from './lib/summary';
 export { savingsProductImage, savingsProductName } from './lib/savingsAssets';
 export {
@@ -44,6 +45,7 @@ export { SavingsProductCard } from './ui/SavingsProductCard';
 export { SavingsProductDetail } from './ui/SavingsProductDetail';
 export { SavingsTransactionCard } from './ui/SavingsTransactionCard';
 export type {
+  SavingsAssets,
   SavingsAccountPreviewItem,
   SavingsAccountsPreview,
   SavingsMaturityMarker,

@@ -25,6 +25,7 @@ import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.quiz.dto.QuizAttemptHistoryItem;
 import com.bana.dotori.quiz.dto.QuizHistoryResponse;
+import com.bana.dotori.quiz.dto.QuizParentTodayResponse;
 import com.bana.dotori.quiz.dto.QuizSubmitRequest;
 import com.bana.dotori.quiz.dto.QuizSubmitResponse;
 import com.bana.dotori.quiz.dto.QuizTodayResponse;
@@ -123,6 +124,39 @@ class QuizServiceImplTest {
 			assertThat(response.correctAnswer()).isNull();
 			assertThat(response.explanation()).isNull();
 			assertThat(response.choices()).isNull();
+			assertThat(response.hint()).isNull();
+		}
+
+		@Test
+		@DisplayName("한 번 틀렸고 재도전할 수 있으면 정답은 숨긴 채 초성 힌트를 준다")
+		void 오답_뒤_재도전_가능하면_초성_힌트() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attempt(false)));
+			givenWeeklyRewardLimit();
+
+			QuizTodayResponse response = quizService.getTodayQuiz(CHILD_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.alreadySubmitted()).isFalse();
+			assertThat(response.hint()).isEqualTo("ㅇㅈ");
+			assertThat(response.correctAnswer()).isNull();
+		}
+
+		@Test
+		@DisplayName("정답이 공개되는 상태에서는 힌트를 주지 않는다")
+		void 정답_공개되면_힌트_없다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attempt(false), attempt(true)));
+			givenWeeklyRewardLimit();
+
+			QuizTodayResponse response = quizService.getTodayQuiz(CHILD_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.alreadySubmitted()).isTrue();
+			assertThat(response.correctAnswer()).isEqualTo("이자");
+			assertThat(response.hint()).isNull();
 		}
 
 		@Test
@@ -165,6 +199,125 @@ class QuizServiceImplTest {
 
 			assertThat(response.alreadySubmitted()).isTrue();
 			assertThat(response.correctAnswer()).isEqualTo("이자");
+		}
+	}
+
+	@Nested
+	@DisplayName("부모용 오늘의 퀴즈 확인")
+	class GetTodayQuizForParent {
+
+		private static final Integer PARENT_ID = 1;
+
+		private QuizAttempt attemptWithId(int id, String answer, boolean correct) {
+			QuizAttempt attempt = QuizAttempt.builder()
+				.quizId(QUIZ_ID)
+				.childId(CHILD_ID)
+				.submittedAnswer(answer)
+				.correct(correct)
+				.earnedPoints(correct ? QUIZ_REWARD_POINTS : 0)
+				.build();
+			ReflectionTestUtils.setField(attempt, "id", id);
+			return attempt;
+		}
+
+		@Test
+		@DisplayName("아직 안 풀었어도 문제와 정답·해설을 내려주고 제출 내역은 비어 있다")
+		void 안_풀었어도_정답을_준다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of());
+
+			QuizParentTodayResponse response = quizService.getTodayQuizForParent(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.quizId()).isEqualTo(QUIZ_ID);
+			assertThat(response.question()).isEqualTo("'이자'란 무엇일까요?");
+			assertThat(response.correctAnswer()).isEqualTo("이자");
+			assertThat(response.explanation()).isEqualTo("돈을 맡기거나 빌려줘서 받는 보상이에요.");
+			assertThat(response.attemptCount()).isZero();
+			assertThat(response.maxAttempts()).isEqualTo(3);
+			assertThat(response.solved()).isFalse();
+			assertThat(response.locked()).isFalse();
+			assertThat(response.attempts()).isEmpty();
+		}
+
+		@Test
+		@DisplayName("오답 뒤 정답이면 제출 순서대로 답과 정오답을 내려주고 잠긴 상태로 본다")
+		void 제출_내역을_순서대로_준다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			// 리포지토리 순서와 무관하게 id(=제출) 순으로 정렬돼야 한다
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attemptWithId(12, "이자", true), attemptWithId(11, "수수료", false)));
+
+			QuizParentTodayResponse response = quizService.getTodayQuizForParent(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.attemptCount()).isEqualTo(2);
+			assertThat(response.solved()).isTrue();
+			assertThat(response.locked()).isTrue();
+			assertThat(response.attempts()).hasSize(2);
+			assertThat(response.attempts().get(0).attemptNumber()).isEqualTo(1);
+			assertThat(response.attempts().get(0).submittedAnswer()).isEqualTo("수수료");
+			assertThat(response.attempts().get(0).isCorrect()).isFalse();
+			assertThat(response.attempts().get(1).attemptNumber()).isEqualTo(2);
+			assertThat(response.attempts().get(1).submittedAnswer()).isEqualTo("이자");
+			assertThat(response.attempts().get(1).isCorrect()).isTrue();
+			assertThat(response.attempts().get(1).earnedPoints()).isEqualTo(QUIZ_REWARD_POINTS);
+		}
+
+		@Test
+		@DisplayName("3회 다 오답이면 맞히진 못했지만 잠긴 상태다")
+		void 세번_다_오답이면_잠긴다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attemptWithId(1, "a", false), attemptWithId(2, "b", false),
+					attemptWithId(3, "c", false)));
+
+			QuizParentTodayResponse response = quizService.getTodayQuizForParent(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.solved()).isFalse();
+			assertThat(response.locked()).isTrue();
+			assertThat(response.attemptCount()).isEqualTo(3);
+		}
+
+		@Test
+		@DisplayName("2회 오답이고 기회가 남아 있으면 잠기지 않은 채 제출 내역을 준다")
+		void 기회가_남았으면_잠기지_않는다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attemptWithId(1, "a", false), attemptWithId(2, "b", false)));
+
+			QuizParentTodayResponse response = quizService.getTodayQuizForParent(PARENT_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.locked()).isFalse();
+			assertThat(response.attempts()).hasSize(2);
+		}
+
+		@Test
+		@DisplayName("오늘자 퀴즈가 없으면 QUIZ_NOT_READY 예외가 발생한다")
+		void 퀴즈_없으면_예외() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.empty());
+
+			assertThatThrownBy(() -> quizService.getTodayQuizForParent(PARENT_ID, FAMILY_ID, CHILD_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.QUIZ_NOT_READY);
+		}
+
+		@Test
+		@DisplayName("부모가 아니면 퀴즈를 조회하기 전에 막는다")
+		void 부모가_아니면_조회하지_않는다() {
+			BDDMockito.willThrow(new BusinessException(ErrorCode.FORBIDDEN))
+				.given(accessValidator).requireParent(CHILD_ID);
+
+			assertThatThrownBy(() -> quizService.getTodayQuizForParent(CHILD_ID, FAMILY_ID, CHILD_ID))
+				.isInstanceOf(BusinessException.class)
+				.hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+
+			BDDMockito.then(quizRepository).shouldHaveNoInteractions();
+			BDDMockito.then(quizAttemptRepository).shouldHaveNoInteractions();
 		}
 	}
 
@@ -229,6 +382,50 @@ class QuizServiceImplTest {
 		}
 
 		@Test
+		@DisplayName("문제가 아주 길어도 보상 설명을 컬럼 길이(255자) 안으로 잘라 지급한다")
+		void 긴_문제도_보상_설명이_잘려서_지급() {
+			Quiz quiz = quiz();
+			ReflectionTestUtils.setField(quiz, "question", "가".repeat(400));
+			BDDMockito.given(quizRepository.findByIdForUpdate(QUIZ_ID)).willReturn(Optional.of(quiz));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID)).willReturn(List.of());
+			givenWeeklyRewardLimit();
+			BDDMockito.given(pointWalletService.deposit(any(PointChangeCommand.class)))
+				.willReturn(PointChangeResult.applied(PointTransaction.record(
+					CHILD_ID, PointTransactionReason.QUIZ_REWARD, QUIZ_REWARD_POINTS, 17600, "퀴즈 보상", "quiz:100")));
+			BDDMockito.given(quizAttemptRepository.save(any(QuizAttempt.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+			QuizSubmitResponse response =
+				quizService.submitQuiz(CHILD_ID, FAMILY_ID, CHILD_ID, QUIZ_ID, new QuizSubmitRequest("이자"));
+
+			assertThat(response.isCorrect()).isTrue();
+			BDDMockito.then(pointWalletService).should()
+				.deposit(BDDMockito.argThat(command -> command.description().length() == 255
+					&& command.description().startsWith("퀴즈 정답 보상: ")
+					&& command.description().endsWith("…")));
+		}
+
+		@Test
+		@DisplayName("짧은 문제의 보상 설명은 자르지 않는다")
+		void 짧은_문제는_설명을_자르지_않는다() {
+			Quiz quiz = quiz();
+			BDDMockito.given(quizRepository.findByIdForUpdate(QUIZ_ID)).willReturn(Optional.of(quiz));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID)).willReturn(List.of());
+			givenWeeklyRewardLimit();
+			BDDMockito.given(pointWalletService.deposit(any(PointChangeCommand.class)))
+				.willReturn(PointChangeResult.applied(PointTransaction.record(
+					CHILD_ID, PointTransactionReason.QUIZ_REWARD, QUIZ_REWARD_POINTS, 17600, "퀴즈 보상", "quiz:100")));
+			BDDMockito.given(quizAttemptRepository.save(any(QuizAttempt.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+			quizService.submitQuiz(CHILD_ID, FAMILY_ID, CHILD_ID, QUIZ_ID, new QuizSubmitRequest("이자"));
+
+			BDDMockito.then(pointWalletService).should()
+				.deposit(BDDMockito.argThat(command ->
+					"퀴즈 정답 보상: '이자'란 무엇일까요?".equals(command.description())));
+		}
+
+		@Test
 		@DisplayName("첫 시도 오답이면 포인트를 지급하지 않고 정답을 숨긴다")
 		void 첫시도_오답() {
 			Quiz quiz = quiz();
@@ -247,6 +444,8 @@ class QuizServiceImplTest {
 			assertThat(response.correctAnswer()).isNull();
 			assertThat(response.explanation()).isNull();
 			assertThat(response.pointBalanceAfter()).isEqualTo(5000);
+			// 답은 숨기되 재도전을 돕도록 초성만 준다
+			assertThat(response.hint()).isEqualTo("ㅇㅈ");
 			BDDMockito.then(pointWalletService).shouldHaveNoInteractions();
 		}
 
@@ -267,6 +466,8 @@ class QuizServiceImplTest {
 
 			assertThat(response.isCorrect()).isFalse();
 			assertThat(response.correctAnswer()).isEqualTo("이자");
+			// 정답이 공개되는 마지막 시도에는 힌트가 필요 없다
+			assertThat(response.hint()).isNull();
 			assertThat(response.explanation()).isEqualTo("돈을 맡기거나 빌려줘서 받는 보상이에요.");
 		}
 
