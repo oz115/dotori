@@ -150,6 +150,8 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
       backgroundColor={QUIZ_BACKGROUND}
       keyboardAvoiding
       scroll
+      // Screen 기본 상하 여백이 0이라 카드가 헤더·하단 제스처 바에 붙어 보인다.
+      style={{ paddingTop: theme.space.lg, paddingBottom: theme.space['4xl'] }}
     >
       <View style={{ gap: theme.space.lg }}>
         <ContentCard style={styles.attemptCard}>
