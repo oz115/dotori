@@ -314,3 +314,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS "UX_USERS_EMAIL_ACTIVE"
   계산(`transactionPeriod`)을 쓴다. 투자 주기 기준(월요일 기준 등)이 서버에서 정해지면 그 경계로 대체한다.
 - 판매 수익은 원가를 모르는 판매가 하나라도 섞이면 합계를 확정값처럼 보여주지 않는다
   (거래 내역의 판매 수익 카드와 같은 규칙, `summarizeRealizedProfit`).
+
+### 메인 화면 연동 (S15P21A505-289)
+
+DB 스키마 변경은 없다(`quizzes.correct_answer`·`explanation` 컬럼을 그대로 읽는다).
+
+- **아이 홈 "내 자산 현황"**: 예적금은 `GET .../savings/summary`의 `activeCount + maturedCount`와
+  `totalAmount`(원금 + 아직 받지 않은 이자, ACTIVE·MATURED만), 투자는 보유 목록의 현재 시세 기준
+  보유 가치(`summarizeHoldings().totalValue` — 투자 탭 "보유 자산"과 같은 값). 둘 다 포인트 단위 그대로라
+  환산이 없다. 가입·보유가 없으면 0P와 빈 상태 문구를 보여준다.
+- **부모 홈 경제 퀴즈**: 정답은 아이에게 새면 안 되므로 아이용 `/quizzes/today`·`/submit`의 응답 규칙
+  (잠기기 전 `correctAnswer=null`)은 그대로 두고, **부모 전용** `GET .../quizzes/today/review`를 추가했다.
+  아이가 안 풀었어도 문제·정답을 주고, 제출했으면 시도별 답·정오답(`attempts`)을 함께 준다.
+  자녀가 부르면 403이다(`QuizAccessValidator.requireParent`). 이 조회는 퀴즈를 생성하지 않아
+  생성 전이면 `QUIZ_NOT_READY`(404)다 — 화면은 오류가 아니라 "준비되지 않았어요"로 그린다.
+  이력(`/history`)은 자녀도 쓰는 공통 API라 정답 필드를 얹지 않았다.
+- **부모 홈 경제 단어장**: 단어 API는 전역 사전이라 부모·자녀 구분 없이 인증만 요구하므로 백엔드 변경이 없다.
+  `(parent)/word` 라우트가 아이 단어장 화면(`features/word`의 `WordCatalog`·`WordDetail`)을 그대로 재사용한다.
+  부모·아이 그룹에 같은 `/word` 경로가 있어 화면이 이동 함수(`onSelectWord`·`onBack`)를 라우트에서 받는다.
