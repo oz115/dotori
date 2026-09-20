@@ -12,7 +12,15 @@ export type DeviceTokenStatus = {
 };
 
 export type NotificationType =
-  'INVITATION' | 'PURCHASE' | 'CHARGE' | 'CASHOUT' | 'CHORE' | 'SAVINGS' | 'INVESTMENT';
+  | 'INVITATION'
+  | 'PURCHASE'
+  | 'CHARGE'
+  | 'CASHOUT'
+  | 'CHORE'
+  | 'SAVINGS'
+  | 'INVESTMENT'
+  /** 아침 알림 — 오늘의 퀴즈·뉴스가 준비됐음을 알린다 (refId 없음) */
+  | 'DAILY';
 
 /** GET .../notifications 목록의 한 건 (NOTI-01) */
 export type NotificationItem = {

@@ -4,7 +4,7 @@ import type {
   ChoreSummary,
 } from '@/features/chore/model/types';
 
-import { earliestStartDate, periodStartedAt, withStatus } from './choreStatus';
+import { earliestStartDate, periodStartedAt, todayDate, withStatus } from './choreStatus';
 
 const chore = (choreId: number, startDate: string): ChoreSummary => ({
   choreId,
@@ -44,6 +44,17 @@ describe('periodStartedAt', () => {
 
   it('UTC 자정으로 계산하지 않는다 (아홉 시간 차이)', () => {
     expect(periodStartedAt('2026-09-15')).not.toBe(Date.parse('2026-09-15T00:00:00Z'));
+  });
+});
+
+describe('todayDate', () => {
+  it('기기 시간대와 무관하게 KST 날짜를 준다 - KST 새벽은 UTC 로는 전날이다', () => {
+    // 2026-09-20 03:00 KST = 2026-09-19 18:00 UTC
+    expect(todayDate(Date.parse('2026-09-19T18:00:00Z'))).toBe('2026-09-20');
+  });
+
+  it('KST 자정 직전은 아직 그날이다', () => {
+    expect(todayDate(Date.parse('2026-09-20T23:59:59+09:00'))).toBe('2026-09-20');
   });
 });
 

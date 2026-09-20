@@ -58,5 +58,5 @@ export function useChoreRefresh(familyId: number | undefined, childIds: number[]
     }, [refresh]),
   );
 
-  return { refreshing, onRefresh };
+  return { refreshing, onRefresh, refresh };
 }

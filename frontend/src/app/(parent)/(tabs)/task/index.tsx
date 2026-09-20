@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo } from 'react';
 
 import { ParentChoreList } from '@/features/chore';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
@@ -14,6 +14,16 @@ import { useFamilyId, useFamilyMembers } from '@/features/family';
  * 여기에 한 줄씩 붙는다.
  */
 export default function ParentTaskScreen() {
+  const { openRequests } = useLocalSearchParams<{ openRequests?: string }>();
+
+  // 알림에서 완료 요청 목록으로 곧장 들어왔다가 이 목록으로 replace된 경우, 그 위에 요청
+  // 목록을 다시 push해 "할 일 목록 → 완료 요청" 스택을 만든다 (상점 목록의 openProductId와 같다).
+  useEffect(() => {
+    if (openRequests !== '1') return;
+
+    router.push('/(parent)/(tabs)/task/requests');
+  }, [openRequests]);
+
   const { data: familyId } = useFamilyId();
   const { data: members } = useFamilyMembers(familyId ?? undefined);
 
