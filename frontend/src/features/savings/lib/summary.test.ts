@@ -3,6 +3,7 @@ import {
   ongoingSavingsAccounts,
   previewSavingsAccounts,
   savingsMaturityMarker,
+  summarizeSavingsAssets,
 } from './summary';
 import type { SavingsAccountPreviewItem } from './summary';
 import type {
@@ -193,6 +194,29 @@ describe('savingsMaturityMarker — 서버 실제 응답 형태', () => {
     expect(savingsMaturityMarker(account, new Date(2026, 8, 18, 15, 30))).toEqual({
       kind: 'COUNTDOWN',
       days: 28,
+    });
+  });
+});
+
+describe('summarizeSavingsAssets', () => {
+  it('진행 중과 수령 대기 건수를 합치고, 금액은 서버가 더한 원금 + 이자를 쓴다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 2, maturedCount: 1, totalAmount: 5300 })).toEqual({
+      count: 3,
+      totalAmount: 5300,
+    });
+  });
+
+  it('가입한 건이 없으면 0건 0포인트다 — 가짜 값으로 채우지 않는다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 0, maturedCount: 0, totalAmount: 0 })).toEqual({
+      count: 0,
+      totalAmount: 0,
+    });
+  });
+
+  it('수령 대기 건만 있어도 자산으로 센다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 0, maturedCount: 1, totalAmount: 1200 })).toEqual({
+      count: 1,
+      totalAmount: 1200,
     });
   });
 });
