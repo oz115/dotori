@@ -30,6 +30,9 @@ public interface AccountService {
 	// 연동 계좌 간 이체를 수행한다
 	TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey);
 
+	// 연동 계좌 간 이체를 수행하며, 받는 계좌에 표시될 적요를 직접 지정한다 (null/공백이면 기본 적요)
+	TransferResponse transfer(Integer userId, TransferRequest request, String idempotencyKey, String depositSummary);
+
 	// 연동 계좌번호만 조회한다 (금융망 호출 없이 로컬 DB만 본다)
 	String getLinkedAccountNumber(Integer userId);
 
