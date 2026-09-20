@@ -107,6 +107,10 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 		InvestmentProduct product = investmentProductRepository.findById(request.investmentProductId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
+		InvestmentHolding holding = investmentHoldingRepository.findForSell(familyId, userId, product.getId())
+			.orElseThrow(() -> new BusinessException(ErrorCode.INSUFFICIENT_QUANTITY));
+		int buyPrice = holding.getBuyPrice();
+
 		// 보유 확인을 겸하는 삭제 — 지운 행이 없으면 팔 것이 없다.
 		// 동시 매도(연타)도 행 잠금 덕에 한쪽만 1을 받아, 포인트가 두 번 지급되지 않는다.
 		if (investmentHoldingRepository.deleteHolding(familyId, userId, product.getId()) == 0) {
@@ -119,7 +123,10 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 
 		InvestmentTransaction transaction = investmentTransactionRepository.save(
 			transaction(familyId, userId, product.getId(), InvestmentTransactionType.SELL, unitPrice));
-		return investmentProductMapper.toOrderResponse(transaction, balanceAfter);
+		InvestmentOrderResponse result = investmentProductMapper.toOrderResponse(transaction, balanceAfter);
+		return new InvestmentOrderResponse(result.investmentTransactionId(), result.transactionType(),
+			result.quantity(), result.unitPrice(), result.totalAmount(), result.pointBalanceAfter(),
+			result.createdAt(), buyPrice, (unitPrice - buyPrice) * SINGLE_SHARE);
 	}
 
 	/** 매수/매도는 아이 전용 — 부모는 자녀의 투자를 보기만 한다. */

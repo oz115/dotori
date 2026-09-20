@@ -11,6 +11,8 @@ type FilterChipsProps<T extends string> = {
   onSelect: (key: T | null) => void;
   /** '전체' 칩 문구. 기본 '전체' */
   allLabel?: string;
+  /** false 면 '전체' 칩을 빼고 옵션만 보여준다 — 항상 하나가 골라져 있어야 하는 화면(자녀 한 명씩 보기)용. 기본 true */
+  showAll?: boolean;
 };
 
 /**
@@ -29,9 +31,12 @@ export function FilterChips<T extends string>({
   selected,
   onSelect,
   allLabel = '전체',
+  showAll = true,
 }: FilterChipsProps<T>) {
   const theme = useTheme();
-  const items: { key: T | null; label: string }[] = [{ key: null, label: allLabel }, ...options];
+  const items: { key: T | null; label: string }[] = showAll
+    ? [{ key: null, label: allLabel }, ...options]
+    : options;
 
   return (
     <ScrollView

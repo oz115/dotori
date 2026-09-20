@@ -92,7 +92,7 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
           hasNextPage ? (
             <View style={[styles.footer, { paddingVertical: theme.space.lg, gap: theme.space.sm }]}>
               <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-                🌰 더 많은 알림이 있어요! 🌰
+                더 많은 알림이 있어요!
               </Text>
               {isFetchingNextPage ? <ActivityIndicator color={theme.color.brand.solid} /> : null}
             </View>

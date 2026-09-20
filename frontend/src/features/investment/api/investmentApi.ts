@@ -2,6 +2,7 @@ import { httpClient } from '@/shared/api';
 import type {
   HoldingResponse,
   NewsDetailResponse,
+  NewsReviewResponse,
   NewsSummaryResponse,
   OrderResponse,
   PriceHistoryResponse,
@@ -15,6 +16,16 @@ import type {
  * 세션·토큰은 httpClient 인터셉터가, 캐시 갱신은 model 훅이 담당.
  */
 export const investmentApi = {
+  getNewsReview: () =>
+    httpClient
+      .get<NewsReviewResponse>('/api/v1/investments/news/review')
+      .then((res) => res.data)
+      .catch((error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        // 구버전 서버는 /news/{newsId}로 매칭하여 400을 반환할 수도 있다.
+        if (status === 400 || status === 404 || status === 405) return null;
+        throw error;
+      }),
   getProducts: () =>
     httpClient
       .get<{ products: ProductSummaryResponse[] }>('/api/v1/investments/products')
@@ -54,10 +65,15 @@ export const investmentApi = {
       .get<NewsDetailResponse>(`/api/v1/investments/news/${newsId}`)
       .then((res) => res.data),
 
-  /** 거래 이력 (최신순). 필터 없이 전체 — 기간·유형 필터가 필요해지면 params 를 확장한다 */
-  getTransactions: () =>
+  /**
+   * 거래 이력 (최신순). 필터 없이 전체 — 기간·유형 필터가 필요해지면 params 를 확장한다.
+   * childId 없으면 본인(자녀용)이고, 부모가 자녀 것을 볼 때만 넘긴다.
+   */
+  getTransactions: (childId?: number) =>
     httpClient
-      .get<{ transactions: TransactionResponse[] }>('/api/v1/investments/transactions')
+      .get<{ transactions: TransactionResponse[] }>('/api/v1/investments/transactions', {
+        params: childId != null ? { childId } : undefined,
+      })
       .then((res) => res.data.transactions),
 
   /** 매수 — 종목당 1주 규칙이라 수량 없이 종목만 보낸다 */

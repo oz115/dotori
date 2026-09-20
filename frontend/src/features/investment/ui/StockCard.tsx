@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { changeColor, changeLabel } from '@/features/investment/lib/change';
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { StockSummary } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
@@ -18,8 +19,7 @@ type Props = {
 export function StockCard({ stock, onPress }: Props) {
   const theme = useTheme();
 
-  const rising = stock.change >= 0;
-  const chipColors = rising ? theme.color.status.success : theme.color.status.danger;
+  const color = changeColor(stock.change, theme.color);
 
   return (
     <Pressable
@@ -57,10 +57,10 @@ export function StockCard({ stock, onPress }: Props) {
         <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
           {formatAcorns(stock.currentPrice)}
         </Text>
-        <View style={styles.change}>
+        <View style={styles.change} accessibilityLabel={changeLabel(stock.change)}>
           <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
-          <Text style={[theme.typography.label, { color: chipColors.text }]}>
-            {signedAcorns(stock.change)}
+          <Text style={[theme.typography.label, { color }]}>
+            {stock.change === 0 ? '변동 없음' : signedAcorns(stock.change)}
           </Text>
         </View>
       </View>

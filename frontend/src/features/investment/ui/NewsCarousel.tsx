@@ -20,7 +20,7 @@ type Props = {
 };
 
 /**
- * 오늘의 뉴스 가로 캐러셀. 카드 한 장이 화면 폭을 꽉 채우고 스냅으로 넘기며,
+ * 오늘의 뉴스 가로 캐러셀. 뉴스 카드 한 장이 화면 폭을 꽉 채우고 스냅으로 넘기며,
  * 아래 점 인디케이터가 현재 위치를 보여준다. 카드를 탭하면 onPressItem 으로 알린다.
  */
 export function NewsCarousel({ items, onPressItem }: Props) {
@@ -60,10 +60,9 @@ export function NewsCarousel({ items, onPressItem }: Props) {
             accessibilityLabel={`${item.title.replace('\n', ' ')} 자세히 보기`}
             onPress={() => onPressItem?.(item)}
             style={({ pressed }) => [
-              styles.card,
               {
                 width: cardWidth,
-                backgroundColor: theme.color.brand.subtle,
+                backgroundColor: theme.color.background.surfaceSunken,
                 borderRadius: theme.radius.xl,
                 padding: theme.space.xl,
                 gap: theme.space.sm,
@@ -123,9 +122,6 @@ export function NewsCarousel({ items, onPressItem }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    overflow: 'hidden',
-  },
   cardBody: {
     flexDirection: 'row',
     alignItems: 'center',

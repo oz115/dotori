@@ -3,6 +3,9 @@ package com.bana.dotori.investment.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,13 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentHoldingsResponse;
 import com.bana.dotori.investment.dto.InvestmentPriceHistoryResponse;
+import com.bana.dotori.investment.dto.InvestmentPricePoint;
 import com.bana.dotori.investment.dto.InvestmentProductDetailResponse;
 import com.bana.dotori.investment.dto.InvestmentProductListResponse;
 import com.bana.dotori.investment.dto.InvestmentTransactionListResponse;
+import com.bana.dotori.investment.dto.InvestmentTransactionSummary;
 import com.bana.dotori.investment.entity.InvestmentHolding;
 import com.bana.dotori.investment.entity.InvestmentPriceHistory;
 import com.bana.dotori.investment.entity.InvestmentProduct;
@@ -48,6 +54,7 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	private final InvestmentHoldingRepository investmentHoldingRepository;
 	private final InvestmentTransactionRepository investmentTransactionRepository;
 	private final FamilyMemberRepository familyMemberRepository;
+	private final FamilyRepository familyRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 
 	/**
@@ -140,8 +147,8 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	/**
 	 * 상세 화면 차트용 가격 이력 (INV-T-06). 가격이 가족별이라 조회한 사용자의 가족 기준이고,
-	 * 기간 기본값은 명세대로 최근 30일 [30일 전, 오늘]이다. AI 가 아직 가격을 안 움직인
-	 * 기간은 행이 없어 빈 배열이 나갈 수 있다 — 프론트는 그때 시작가 한 점으로 그린다.
+	 * 기간 기본값은 최근 30일 [30일 전, 오늘]이다. 변동 없는 날짜는 직전 가격으로
+	 * 채우고 최초 기록 전에는 시작가를 쓴다. 가족·상품 생성 전과 미래는 제외한다.
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -159,11 +166,36 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
 		}
 
-		// recorded_at 이 TIMESTAMPTZ 라 날짜 동등 비교 대신 KST 하루 경계 범위로 거른다 (뉴스와 같은 방식)
+		// 아직 존재하지 않은 날짜와 미래 가격은 만들지 않는다.
+		LocalDate familyCreated = familyRepository.findByIdAndDeletedAtIsNull(familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND))
+			.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
+		LocalDate productCreated = product.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
+		start = start.isBefore(familyCreated) ? familyCreated : start;
+		start = start.isBefore(productCreated) ? productCreated : start;
+		LocalDate today = LocalDate.now(KST);
+		end = end.isAfter(today) ? today : end;
+		if (start.isAfter(end)) {
+			return new InvestmentPriceHistoryResponse(productId, List.of());
+		}
+
+		// 기간 이전 최신가를 이어 받는다. 이력이 전혀 없으면 상품 시작가가 실제 가격이다.
+		int price = latestPriceRow(familyId, productId, start.atStartOfDay(KST).toOffsetDateTime())
+			.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice());
 		List<InvestmentPriceHistory> rows = investmentPriceHistoryRepository.findAllInRange(familyId,
 			product.getId(), start.atStartOfDay(KST).toOffsetDateTime(),
 			end.plusDays(1).atStartOfDay(KST).toOffsetDateTime());
-		return investmentProductMapper.toPriceHistoryResponse(product.getId(), rows);
+		List<InvestmentPricePoint> points = new ArrayList<>();
+		int index = 0;
+		for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
+			while (index < rows.size()
+				&& !rows.get(index).getRecordedAt().atZoneSameInstant(KST).toLocalDate().isAfter(day)) {
+				price = rows.get(index++).getPrice();
+			}
+			// recordedAt은 이 응답에서 일별 가격 기준일(KST 00:00)을 나타낸다.
+			points.add(new InvestmentPricePoint(price, day.atStartOfDay(KST).toOffsetDateTime()));
+		}
+		return new InvestmentPriceHistoryResponse(productId, points);
 	}
 
 	/**
@@ -203,9 +235,33 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			.stream()
 			.collect(Collectors.toMap(InvestmentProduct::getId, product -> product));
 
+		// 기간·유형 필터 밖의 매수도 포함해야 매도의 실제 원가를 찾을 수 있다.
+		List<InvestmentTransaction> all = type == null && startDate == null ? transactions
+			: investmentTransactionRepository.findAllInRange(familyId, targetUserId,
+				EARLIEST_DATE.atStartOfDay(KST).toOffsetDateTime(), end);
+		Map<Integer, Integer> openBuys = new HashMap<>();
+		Map<Integer, Integer> buyPrices = new HashMap<>();
+		all.stream().sorted(Comparator.comparing(InvestmentTransaction::getCreatedAt)
+			.thenComparing(InvestmentTransaction::getId)).forEach(transaction -> {
+				if (transaction.getTransactionType() == InvestmentTransactionType.BUY) {
+					openBuys.put(transaction.getInvestmentProductId(), transaction.getUnitPrice());
+				} else {
+					Integer buyPrice = openBuys.remove(transaction.getInvestmentProductId());
+					if (buyPrice != null) {
+						buyPrices.put(transaction.getId(), buyPrice);
+					}
+				}
+			});
 		return new InvestmentTransactionListResponse(transactions.stream()
-			.map(transaction -> investmentProductMapper.toTransactionSummary(transaction,
-				products.get(transaction.getInvestmentProductId()).getName()))
+			.map(transaction -> {
+				InvestmentTransactionSummary row = investmentProductMapper.toTransactionSummary(transaction,
+					products.get(transaction.getInvestmentProductId()).getName());
+				Integer buyPrice = buyPrices.get(transaction.getId());
+				Integer profit = buyPrice == null ? null : (row.unitPrice() - buyPrice) * row.quantity();
+				return new InvestmentTransactionSummary(row.investmentTransactionId(), row.productName(),
+					row.transactionType(), row.quantity(), row.unitPrice(), row.totalAmount(), row.createdAt(),
+					buyPrice, profit);
+			})
 			.toList());
 	}
 

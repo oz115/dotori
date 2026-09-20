@@ -73,12 +73,19 @@ export function ChildrenSavingsStatus({
   const isError = products.isError || children.isError;
 
   return (
-    <Screen header={<Header title="자녀 예적금 보유 현황" onBack={onBack} />} padded={false}>
+    <Screen
+      header={<Header title="자녀 예적금 보유 현황" onBack={onBack} />}
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
+      padded={false}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
-          paddingVertical: theme.layout.screenY,
+          paddingTop: theme.layout.screenY,
+          // 탭바가 스크롤 영역 아래를 덮으므로 마지막 항목이 가려지지 않게 하단 여백을 넉넉히 둔다
+          paddingBottom: theme.space['4xl'],
           gap: theme.space.lg,
         }}
       >
