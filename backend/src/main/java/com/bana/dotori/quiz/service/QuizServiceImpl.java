@@ -13,6 +13,7 @@ import com.bana.dotori.family.dto.FamilySettings;
 import com.bana.dotori.family.service.FamilySettingsReader;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.global.util.ChosungHint;
 import com.bana.dotori.quiz.dto.QuizAttemptHistoryItem;
 import com.bana.dotori.quiz.dto.QuizHistoryResponse;
 import com.bana.dotori.quiz.dto.QuizParentAttemptItem;
@@ -83,7 +84,8 @@ public class QuizServiceImpl implements QuizService {
 			quiz.getId(), quiz.getQuizDate(), quiz.getQuestion(), null, rewardPoints, locked,
 			locked ? quiz.getCorrectAnswer() : null,
 			locked ? quiz.getExplanation() : null,
-			attempts.size());
+			attempts.size(),
+			hintFor(quiz, attempts.size(), locked));
 	}
 
 	/**
@@ -176,7 +178,8 @@ public class QuizServiceImpl implements QuizService {
 			attempt.getId(), isCorrect,
 			reveal ? quiz.getCorrectAnswer() : null,
 			reveal ? quiz.getExplanation() : null,
-			earnedPoints, balanceAfter);
+			earnedPoints, balanceAfter,
+			hintFor(quiz, attemptNumber, reveal));
 	}
 
 	@Override
@@ -189,6 +192,17 @@ public class QuizServiceImpl implements QuizService {
 
 		List<QuizAttemptHistoryItem> attempts = quizAttemptRepository.findHistory(childId, startDate, endDate);
 		return new QuizHistoryResponse(attempts);
+	}
+
+	/**
+	 * 초성 힌트. 한 번이라도 풀어 봤고(attemptCount >= 1) 아직 정답이 공개되지 않았을 때만 준다.
+	 * 정답이 공개되는 상태에서는 힌트가 필요 없고, 한 번도 안 풀었으면 먼저 스스로 풀어 보게 한다.
+	 */
+	private String hintFor(Quiz quiz, int attemptCount, boolean revealed) {
+		if (attemptCount < 1 || revealed) {
+			return null;
+		}
+		return ChosungHint.of(quiz.getCorrectAnswer());
 	}
 
 	private boolean isLocked(List<QuizAttempt> attempts) {

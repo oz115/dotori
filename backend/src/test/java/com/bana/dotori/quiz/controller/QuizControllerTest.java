@@ -75,7 +75,7 @@ class QuizControllerTest {
 	void getTodayQuiz_ok() throws Exception {
 		givenAuthenticated();
 		given(quizService.getTodayQuiz(any(), any(), any())).willReturn(new QuizTodayResponse(
-			QUIZ_ID, LocalDate.of(2026, 9, 16), "'이자'란 무엇일까요?", null, 100, false, null, null, 0));
+			QUIZ_ID, LocalDate.of(2026, 9, 16), "'이자'란 무엇일까요?", null, 100, false, null, null, 0, null));
 
 		mockMvc.perform(get(TODAY_URL).header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isOk())
@@ -182,7 +182,7 @@ class QuizControllerTest {
 	void submitQuiz_correct() throws Exception {
 		givenAuthenticated();
 		given(quizService.submitQuiz(any(), any(), any(), any(), any())).willReturn(
-			new QuizSubmitResponse(1, true, "이자", "설명", 100, 17600));
+			new QuizSubmitResponse(1, true, "이자", "설명", 100, 17600, null));
 
 		mockMvc.perform(post(SUBMIT_URL)
 				.header(HttpHeaders.AUTHORIZATION, BEARER)
@@ -194,6 +194,23 @@ class QuizControllerTest {
 			.andExpect(jsonPath("$.correctAnswer").value("이자"))
 			.andExpect(jsonPath("$.earnedPoints").value(100))
 			.andExpect(jsonPath("$.pointBalanceAfter").value(17600));
+	}
+
+	@Test
+	@DisplayName("오답을 제출하면 정답은 숨기고 초성 힌트를 반환한다")
+	void submitQuiz_wrongWithHint() throws Exception {
+		givenAuthenticated();
+		given(quizService.submitQuiz(any(), any(), any(), any(), any())).willReturn(
+			new QuizSubmitResponse(2, false, null, null, 0, 17500, "ㅇㅈ"));
+
+		mockMvc.perform(post(SUBMIT_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"answer\": \"수수료\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.isCorrect").value(false))
+			.andExpect(jsonPath("$.correctAnswer").doesNotExist())
+			.andExpect(jsonPath("$.hint").value("ㅇㅈ"));
 	}
 
 	@Test

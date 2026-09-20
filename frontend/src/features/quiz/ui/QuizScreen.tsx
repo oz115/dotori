@@ -114,6 +114,9 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
   const locked = quiz.alreadySubmitted || (result != null && result.correctAnswer != null);
   const usedAttempts = Math.min(quiz.attemptCount + pendingBump, MAX_ATTEMPTS);
   const showRetryHint = result != null && !result.isCorrect && result.correctAnswer == null;
+  // 초성 힌트는 서버가 준다(정답은 잠기기 전까지 클라이언트에 없다). 방금 제출한 결과가 가장 최신이고,
+  // 화면을 나갔다 다시 들어온 경우엔 오늘의 퀴즈 조회 응답이 같은 힌트를 들고 있다.
+  const chosungHint = result?.hint ?? quiz.hint ?? null;
 
   if (locked) {
     // 이번 세션에서 막 제출해 결과를 아는 경우엔 그 정답 여부를 그대로 쓴다. 새로고침 등으로
@@ -214,6 +217,30 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
                 ]}
               >
                 남은 기회 {MAX_ATTEMPTS - usedAttempts}번
+              </Text>
+            </View>
+          ) : null}
+
+          {chosungHint ? (
+            <View
+              accessible
+              accessibilityLabel={`초성 힌트 ${chosungHint}`}
+              style={[
+                styles.hintBox,
+                {
+                  backgroundColor: theme.color.brand.subtle,
+                  borderRadius: theme.radius.lg,
+                  padding: theme.space.lg,
+                },
+              ]}
+            >
+              <Text style={[theme.typography.label, { color: theme.color.brand.subtleText }]}>
+                초성 힌트
+              </Text>
+              <Text
+                style={[theme.typography.h3, styles.hintText, { color: theme.color.text.strong }]}
+              >
+                {chosungHint}
               </Text>
             </View>
           ) : null}
@@ -415,6 +442,8 @@ const styles = StyleSheet.create({
   selfCenter: { alignSelf: 'center' },
   alignStart: { alignSelf: 'flex-start' },
   dangerBanner: { gap: 4 },
+  hintBox: { gap: 6 },
+  hintText: { letterSpacing: 2 },
   dangerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dangerSubtext: { marginLeft: 22 },
   resultBody: { alignItems: 'center' },

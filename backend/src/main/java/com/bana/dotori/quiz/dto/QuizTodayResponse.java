@@ -13,6 +13,10 @@ import java.util.List;
  *
  * <p>{@code attemptCount}도 명세에 없는 필드다. 화면을 나갔다가 다시 들어와도 "도전 기회
  * n/3" 표시가 정확하도록, 지금까지 제출한 시도 수를 그대로 내려준다 (팀 결정).
+ *
+ * <p>{@code hint}도 명세에 없는 필드다. 한 번이라도 틀렸고 아직 재도전할 수 있을 때만 정답의
+ * 초성을 채운다. 정답이 공개되는 상태(alreadySubmitted=true)이거나 아직 한 번도 안 풀었으면
+ * null이다. 정답 자체는 잠기기 전까지 내려주지 않으므로 초성은 서버가 만들어 준다.
  */
 public record QuizTodayResponse(
 	Integer quizId,
@@ -23,6 +27,7 @@ public record QuizTodayResponse(
 	boolean alreadySubmitted,
 	String correctAnswer,
 	String explanation,
-	int attemptCount
+	int attemptCount,
+	String hint
 ) {
 }

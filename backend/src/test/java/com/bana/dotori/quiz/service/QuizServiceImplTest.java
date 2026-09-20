@@ -124,6 +124,39 @@ class QuizServiceImplTest {
 			assertThat(response.correctAnswer()).isNull();
 			assertThat(response.explanation()).isNull();
 			assertThat(response.choices()).isNull();
+			assertThat(response.hint()).isNull();
+		}
+
+		@Test
+		@DisplayName("한 번 틀렸고 재도전할 수 있으면 정답은 숨긴 채 초성 힌트를 준다")
+		void 오답_뒤_재도전_가능하면_초성_힌트() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attempt(false)));
+			givenWeeklyRewardLimit();
+
+			QuizTodayResponse response = quizService.getTodayQuiz(CHILD_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.alreadySubmitted()).isFalse();
+			assertThat(response.hint()).isEqualTo("ㅇㅈ");
+			assertThat(response.correctAnswer()).isNull();
+		}
+
+		@Test
+		@DisplayName("정답이 공개되는 상태에서는 힌트를 주지 않는다")
+		void 정답_공개되면_힌트_없다() {
+			BDDMockito.given(quizRepository.findByFamilyIdAndChildIdAndQuizDate(any(), any(), any()))
+				.willReturn(Optional.of(quiz()));
+			BDDMockito.given(quizAttemptRepository.findByQuizIdAndChildId(QUIZ_ID, CHILD_ID))
+				.willReturn(List.of(attempt(false), attempt(true)));
+			givenWeeklyRewardLimit();
+
+			QuizTodayResponse response = quizService.getTodayQuiz(CHILD_ID, FAMILY_ID, CHILD_ID);
+
+			assertThat(response.alreadySubmitted()).isTrue();
+			assertThat(response.correctAnswer()).isEqualTo("이자");
+			assertThat(response.hint()).isNull();
 		}
 
 		@Test
@@ -367,6 +400,8 @@ class QuizServiceImplTest {
 			assertThat(response.correctAnswer()).isNull();
 			assertThat(response.explanation()).isNull();
 			assertThat(response.pointBalanceAfter()).isEqualTo(5000);
+			// 답은 숨기되 재도전을 돕도록 초성만 준다
+			assertThat(response.hint()).isEqualTo("ㅇㅈ");
 			BDDMockito.then(pointWalletService).shouldHaveNoInteractions();
 		}
 
@@ -387,6 +422,8 @@ class QuizServiceImplTest {
 
 			assertThat(response.isCorrect()).isFalse();
 			assertThat(response.correctAnswer()).isEqualTo("이자");
+			// 정답이 공개되는 마지막 시도에는 힌트가 필요 없다
+			assertThat(response.hint()).isNull();
 			assertThat(response.explanation()).isEqualTo("돈을 맡기거나 빌려줘서 받는 보상이에요.");
 		}
 
