@@ -32,10 +32,14 @@ type ChoreListRowProps = {
    */
   endDate?: string;
   /**
-   * 이번 주기에 끝낸 미션. 목록에 남기되 흐리게 그린다 (QA).
+   * 이번 주기에 끝낸 미션. 목록에 남기되 "꺼진" 카드로 그린다 (QA).
    *
    * 지워 버리면 아이도 부모도 무엇을 걸어 놨는지 알 수 없다. 대신 할 일이 남은 미션과
-   * 같은 밝기면 무엇이 남았는지 흐려지므로 카드째 투명도를 낮춘다.
+   * 같은 밝기면 무엇이 남았는지 흐려진다.
+   *
+   * <p>투명도(opacity)로 낮추지 않는다. 흰 카드가 반투명해지면 배경색과 섞여 카드 자체가
+   * 사라져 "덜 그려진 화면"처럼 보였다. 대신 채움을 회색으로 바꾸고 그림자를 뺀다 -
+   * 상자는 상자대로 남고 한 칸 가라앉은 것처럼 읽힌다.
    */
   dimmed?: boolean;
   onPress?: () => void;
@@ -65,20 +69,18 @@ export function ChoreListRow({
   const deadline = repeatType === 'ONCE' && endDate ? deadlineLabel(endDate) : null;
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={onPress == null}
-      accessibilityRole="button"
-      style={dimmed ? styles.dimmed : undefined}
-    >
+    <Pressable onPress={onPress} disabled={onPress == null} accessibilityRole="button">
       <ContentCard
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingVertical: theme.space.md,
-          paddingHorizontal: theme.space.lg,
-          gap: theme.space.md,
-        }}
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: theme.space.md,
+            paddingHorizontal: theme.space.lg,
+            gap: theme.space.md,
+          },
+          dimmed ? [{ backgroundColor: theme.color.background.surfaceSunken }, styles.flat] : null,
+        ]}
       >
         {/* 세 줄로 나눠 읽는다: 배지 / 제목 / 부가 정보. 한 줄에 몰아 두면 배지·문구·날짜가
             뒤섞여 무엇이 제목인지 한눈에 안 들어온다. */}
@@ -93,7 +95,10 @@ export function ChoreListRow({
 
           <Text
             numberOfLines={1}
-            style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+            style={[
+              theme.typography.titleMd,
+              { color: dimmed ? theme.color.text.muted : theme.color.text.strong },
+            ]}
           >
             {title}
           </Text>
@@ -114,8 +119,8 @@ export function ChoreListRow({
 }
 
 const styles = StyleSheet.create({
-  // 카드째 낮춘다 - 글자 색만 바꾸면 배지와 도토리 칩이 그대로 선명해 덜 끝난 것처럼 보인다
-  dimmed: { opacity: 0.45 },
+  // 끝낸 카드는 떠 보이지 않아야 한다 - 그림자를 지워 배경에 가라앉힌다
+  flat: { shadowOpacity: 0, elevation: 0 },
   // 세 줄이라 줄 간격을 좁게 잡는다. 6 이면 카드가 불필요하게 길어진다.
   body: { flex: 1, gap: 4 },
   meta: { flexDirection: 'row', alignItems: 'center' },
