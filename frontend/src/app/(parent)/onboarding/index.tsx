@@ -1,5 +1,5 @@
-import { Redirect, router } from 'expo-router';
-import { useEffect } from 'react';
+import { Redirect, router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { signOut, useAuthStore, WithdrawButton } from '@/features/auth';
@@ -22,8 +22,14 @@ export default function OnboardingHomeScreen() {
   const reset = useOnboardingStore((s) => s.reset);
   const family = useFamilyReady(JOIN_POLL_MS);
 
-  // 온보딩 퍼널의 진입점 — 이전 회차 입력값 초기화
-  useEffect(() => reset(), [reset]);
+  // 온보딩 퍼널의 진입점 — 이전 회차 입력값 초기화.
+  // 허브는 스택에 남아 있어서 스텝에서 뒤로 돌아와도 다시 마운트되지 않는다. 마운트가 아니라
+  // 포커스 기준으로 비워야 "처음으로 돌아왔을 때 이전에 적은 가족 이름·금액이 남는" 일이 없다.
+  useFocusEffect(
+    useCallback(() => {
+      reset();
+    }, [reset]),
+  );
 
   // 아이가 합류했다 — 폴링이 이를 알아채면 바로 홈으로 보낸다
   if (family.ready) {
