@@ -35,38 +35,9 @@ it('변동이 없으면 산 값과 같다고 알려주고, 가격이 하루 한 
   expect(screen.getByText('가격은 하루에 한 번, 자정 직후에 바뀌어요.')).toBeTruthy();
 });
 
-it('잔액이 있으면 내 도토리를 맨 위에 크게 보여주고 주식 가치와 수익을 함께 보여준다', async () => {
+it('지갑 잔액(포인트)은 투자 화면 요약에 보여주지 않는다', async () => {
   await render(
-    <InvestmentSummaryCards
-      summary={{ count: 2, investedPoints: 20000, earnedPoints: 300 }}
-      balance={{ amount: 5000 }}
-    />,
+    <InvestmentSummaryCards summary={{ count: 2, investedPoints: 20000, earnedPoints: 300 }} />,
   );
-  expect(screen.getByText('내 도토리')).toBeTruthy();
-  expect(screen.getByText('5,000 도토리')).toBeTruthy();
-  expect(screen.getByText('투자 중인 주식 2개')).toBeTruthy();
-  expect(screen.getByText('20,300 도토리')).toBeTruthy();
-  expect(screen.getByText('산 값보다 300 도토리 올랐어요')).toBeTruthy();
-});
-
-it('잔액을 아직 못 받았거나 실패해도 잔액 자리에 상태를 알려주고 투자 정보는 그대로 보여준다', async () => {
-  const summary = { count: 1, investedPoints: 10000, earnedPoints: -200 };
-  const { rerender } = await render(<InvestmentSummaryCards summary={summary} balance={{}} />);
-  expect(screen.getByText('불러오는 중이에요')).toBeTruthy();
-  expect(screen.getByText('산 값보다 200 도토리 내렸어요')).toBeTruthy();
-
-  await rerender(<InvestmentSummaryCards summary={summary} balance={{ failed: true }} />);
-  expect(screen.getByText('잔액을 불러오지 못했어요')).toBeTruthy();
-});
-
-it('잔액이 있어도 산 주식이 없으면 수익 대신 뉴스를 읽어 보라는 안내를 보여준다', async () => {
-  await render(
-    <InvestmentSummaryCards
-      summary={{ count: 0, investedPoints: 0, earnedPoints: 0 }}
-      balance={{ amount: 5000 }}
-    />,
-  );
-  expect(screen.getByText('5,000 도토리')).toBeTruthy();
-  expect(screen.getByText('아직 산 주식이 없어요')).toBeTruthy();
-  expect(screen.queryByText(/투자 중인 주식/)).toBeNull();
+  expect(screen.queryByText('내 도토리')).toBeNull();
 });

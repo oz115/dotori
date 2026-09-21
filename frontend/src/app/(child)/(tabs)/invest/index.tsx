@@ -2,8 +2,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { useAuthStore } from '@/features/auth';
-import { useFamilyId } from '@/features/family';
 import {
   InvestmentSummaryCards,
   InvestmentQueryError,
@@ -15,7 +13,6 @@ import {
   useInvestmentNews,
   useInvestmentProducts,
 } from '@/features/investment';
-import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
 import { Header, HeaderChipButton, Screen } from '@/shared/ui';
 
@@ -24,15 +21,12 @@ const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
 const CLIPBOARD = require('@/assets/images/invest/clipboard.png');
 
 /**
- * 자녀 투자 탭. 내 도토리(지갑 잔액)와 내 주식 요약(보유 목록에서 계산)·오늘의 뉴스·주식 리스트를 보여준다.
- * 지갑 잔액은 wallet feature 소유라 features 끼리 직접 import 하지 않도록 이 라우트에서 조회해 넘긴다.
- * 탭 화면은 전환해도 언마운트되지 않아서, 돌아올 때마다 가격·뉴스·보유·잔액을 다시 받아온다.
+ * 자녀 투자 탭. 내 주식 요약(보유 목록에서 계산한 보유 가치·순이익)·오늘의 뉴스·주식 리스트를
+ * 보여준다. 지갑 잔액(포인트)은 여기서 보여주지 않는다 — 홈·지갑 화면의 몫이다.
+ * 탭 화면은 전환해도 언마운트되지 않아서, 돌아올 때마다 가격·뉴스·보유를 다시 받아온다.
  */
 export default function InvestScreen() {
   const theme = useTheme();
-  const { data: familyId } = useFamilyId();
-  const childId = useAuthStore((s) => s.user?.userId);
-  const balance = useWalletBalance(familyId ?? undefined, childId);
   const products = useInvestmentProducts();
   const news = useInvestmentNews();
   const holdings = useInvestmentHoldings();
@@ -43,22 +37,14 @@ export default function InvestScreen() {
   const { refetch: refetchProducts } = products;
   const { refetch: refetchNews } = news;
   const { refetch: refetchHoldings } = holdings;
-  const { refetch: refetchBalance } = balance;
-  const canFetchBalance = familyId != null && childId != null;
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        refetchProducts(),
-        refetchNews(),
-        refetchHoldings(),
-        // 가족·아이 정보가 오기 전에는 잔액 요청을 보내지 않는다 (useWalletBalance 가 꺼져 있다)
-        canFetchBalance ? refetchBalance() : undefined,
-      ]);
+      await Promise.all([refetchProducts(), refetchNews(), refetchHoldings()]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchProducts, refetchNews, refetchHoldings, refetchBalance, canFetchBalance]);
+  }, [refetchProducts, refetchNews, refetchHoldings]);
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -103,10 +89,7 @@ export default function InvestScreen() {
             onRetry={() => holdings.refetch()}
           />
         ) : (
-          <InvestmentSummaryCards
-            summary={summarizeInvestment(holdings.data)}
-            balance={{ amount: balance.data?.balance, failed: balance.isError }}
-          />
+          <InvestmentSummaryCards summary={summarizeInvestment(holdings.data)} />
         )}
 
         <View style={{ gap: theme.space.lg }}>
