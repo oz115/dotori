@@ -142,7 +142,7 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가격 이력이 없으면 온보딩 한도(weekly_reward_limit)가 가족별 시작가가 된다")
+	@DisplayName("가격 이력이 없으면 주간 용돈(weekly_allowance) ÷ 종목 수(10)가 가족별 시작가가 된다")
 	void getProducts_noHistoryUsesFamilyStartPrice() {
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findAllByOrderByIdAsc())
@@ -151,13 +151,14 @@ class InvestmentProductServiceImplTest {
 			eq(todayStart().plusDays(1)))).willReturn(List.of());
 		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID), eq(todayStart())))
 			.willReturn(List.of());
+		// 주간 용돈 8000P 가족 — 일주일 용돈으로 10개 종목을 전부 살 수 있는 800P 가 시작가다
 		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
-			.willReturn(Optional.of(Family.builder().name("가족").weeklyRewardLimit(8000).build()));
+			.willReturn(Optional.of(Family.builder().name("가족").weeklyAllowance(8000).build()));
 
 		InvestmentProductSummary summary = investmentProductService.getProducts(USER_ID, null)
 			.products().get(0);
 
-		assertThat(summary.currentPrice()).isEqualTo(8000);
+		assertThat(summary.currentPrice()).isEqualTo(800);
 		assertThat(summary.changeAmount()).isZero();
 	}
 

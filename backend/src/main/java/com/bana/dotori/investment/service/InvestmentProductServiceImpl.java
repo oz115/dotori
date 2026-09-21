@@ -49,6 +49,8 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 	// 거래 이력 조회에서 시작일을 안 줬을 때의 하한 — 서비스 오픈 이전이라 사실상 전체 조회다
 	private static final LocalDate EARLIEST_DATE = LocalDate.of(2000, 1, 1);
+	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
+	private static final int STOCK_COUNT = 10;
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
@@ -289,14 +291,17 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	/**
 	 * 이 가족의 시작가 — 가격 이력이 아직 없을 때 쓰는 가격. 시드 current_price(전 가족 공통
-	 * 자리표시자)가 아니라 온보딩 한도(weekly_reward_limit)를 쓴다. 예적금 최대 금액,
-	 * AI 의 주가 변동폭(한도의 40%/7)과 같은 축이라 가족의 경제 규모에 맞는 가격이 된다.
-	 * 온보딩 전(한도 없음·0)이면 null 을 돌려주고 상품 시드 값으로 폴백한다.
+	 * 자리표시자)가 아니라 <b>주간 기본 용돈(weekly_allowance, 포인트) ÷ 종목 수(10)</b>다.
+	 * 아이가 일주일 용돈으로 10개 종목을 전부 살 수 있는 가격이고, 그렇게 다 사서 일주일
+	 * (뉴스 21건 = 상승 14·하락 7) 들고 팔아도 최대 이익이 투자 배정액(한도의 40%)을 넘지
+	 * 않는다 — AI 의 하루 변동폭(한도×40%÷7)과 짝을 이루는 설계다.
+	 * 온보딩 전(용돈 없음·0)이면 null 을 돌려주고 상품 시드 값으로 폴백한다.
 	 */
 	private Integer familyStartPrice(Integer familyId) {
 		return familyRepository.findByIdAndDeletedAtIsNull(familyId)
-			.map(Family::getWeeklyRewardLimit)
-			.filter(limit -> limit > 0)
+			.map(Family::getWeeklyAllowance)
+			.filter(allowance -> allowance > 0)
+			.map(allowance -> Math.max(1, (allowance + STOCK_COUNT / 2) / STOCK_COUNT))
 			.orElse(null);
 	}
 

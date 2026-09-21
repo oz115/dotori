@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class InvestmentNewsReviewService {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
+	private static final int STOCK_COUNT = 10;
 	private final FamilyMemberRepository familyMemberRepository;
 	private final FamilyRepository familyRepository;
 	private final InvestmentNewsRepository newsRepository;
@@ -59,14 +61,15 @@ public class InvestmentNewsReviewService {
 			if (current.isEmpty() || current.get().getRecordedAt().isBefore(start)) {
 				return waiting(item);
 			}
-			// 이력이 없으면 가족별 시작가(온보딩 한도) — 조회·주문 API 의 가격 규칙과 같다
+			// 이력이 없으면 가족별 시작가(주간 용돈 ÷ 종목 수 10) — 조회·주문 API 의 가격 규칙과 같다
 			int previous = priceRepository
 				.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(
 					familyId, product.getId(), start)
 				.map(row -> row.getPrice())
 				.orElseGet(() -> familyRepository.findByIdAndDeletedAtIsNull(familyId)
-					.map(Family::getWeeklyRewardLimit)
-					.filter(limit -> limit > 0)
+					.map(Family::getWeeklyAllowance)
+					.filter(allowance -> allowance > 0)
+					.map(allowance -> Math.max(1, (allowance + STOCK_COUNT / 2) / STOCK_COUNT))
 					.orElse(product.getCurrentPrice()));
 			int price = current.get().getPrice();
 			return new Review(item.getId(), item.getTitle(), item.getContent(), true, product.getName(),

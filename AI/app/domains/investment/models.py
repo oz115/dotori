@@ -26,8 +26,9 @@ _investment_news_impact = PgEnum("POSITIVE", "NEGATIVE", name="investment_news_i
 class InvestmentProduct(Base):
     """읽기 전용. 회사 10개 고정.
 
-    가격 생성의 기준가(시작가)는 이 테이블이 아니라 가족의 `weekly_reward_limit` 이다 —
-    `current_price` 는 온보딩 전 가족을 위한 백엔드 폴백으로만 남아 있다.
+    가격 생성의 기준가(시작가)는 이 테이블이 아니라 가족의 주간 용돈
+    (`weekly_allowance` ÷ 종목 수 10)이다 — `current_price` 는 온보딩 전 가족을 위한
+    폴백으로만 남아 있다.
     """
 
     __tablename__ = "investment_products"

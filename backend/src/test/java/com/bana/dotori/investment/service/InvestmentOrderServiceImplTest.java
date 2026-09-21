@@ -180,20 +180,21 @@ class InvestmentOrderServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("가격 이력이 없으면 온보딩 한도(weekly_reward_limit)가 체결가가 된다")
+	@DisplayName("가격 이력이 없으면 주간 용돈(weekly_allowance) ÷ 종목 수(10)가 체결가가 된다")
 	void buy_noHistoryUsesFamilyStartPrice() {
 		givenChild();
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, true)));
 		given(investmentHoldingRepository.existsByChildIdAndInvestmentProductId(CHILD_ID, 1)).willReturn(false);
 		givenCurrentPrice(1, null);
+		// 주간 용돈 8000P 가족 — 일주일 용돈으로 10개 종목을 전부 살 수 있는 800P 가 시작가다
 		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
-			.willReturn(Optional.of(Family.builder().name("가족").weeklyRewardLimit(8000).build()));
-		givenDeduction(8000, 2000);
+			.willReturn(Optional.of(Family.builder().name("가족").weeklyAllowance(8000).build()));
+		givenDeduction(800, 2000);
 		givenTransactionSaved();
 
 		InvestmentOrderResponse response = investmentOrderService.buy(CHILD_ID, new InvestmentOrderRequest(1));
 
-		assertThat(response.unitPrice()).isEqualTo(8000);
+		assertThat(response.unitPrice()).isEqualTo(800);
 	}
 
 	@Test

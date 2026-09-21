@@ -48,6 +48,8 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 	private static final int SINGLE_SHARE = 1;
+	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
+	private static final int STOCK_COUNT = 10;
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
@@ -146,7 +148,8 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 
 	/**
 	 * 체결가 = 그 가족의 오늘 현재가 (조회 API 들과 같은 규칙). 이력이 없으면 가족별 시작가 —
-	 * 온보딩 한도(weekly_reward_limit)가 곧 시작가고, 온보딩 전이면 상품 시드 값으로 폴백한다.
+	 * 주간 기본 용돈(weekly_allowance) ÷ 종목 수(10)로, 아이가 일주일 용돈으로 10개 종목을
+	 * 전부 살 수 있는 가격이다. 온보딩 전이면 상품 시드 값으로 폴백한다.
 	 * InvestmentProductServiceImpl 의 가격 규칙과 항상 같아야 화면가와 체결가가 어긋나지 않는다.
 	 */
 	private int currentPrice(Integer familyId, InvestmentProduct product) {
@@ -156,8 +159,9 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 				familyId, product.getId(), tomorrowStart)
 			.map(InvestmentPriceHistory::getPrice)
 			.orElseGet(() -> familyRepository.findByIdAndDeletedAtIsNull(familyId)
-				.map(Family::getWeeklyRewardLimit)
-				.filter(limit -> limit > 0)
+				.map(Family::getWeeklyAllowance)
+				.filter(allowance -> allowance > 0)
+				.map(allowance -> Math.max(1, (allowance + STOCK_COUNT / 2) / STOCK_COUNT))
 				.orElse(product.getCurrentPrice()));
 	}
 
