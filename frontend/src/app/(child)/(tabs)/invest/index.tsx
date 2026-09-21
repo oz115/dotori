@@ -37,6 +37,9 @@ export default function InvestScreen() {
   const news = useInvestmentNews();
   const holdings = useInvestmentHoldings();
   const [refreshing, setRefreshing] = useState(false);
+  // 뉴스 캐러셀에 손이 닿아 있는 동안은 당겨서 새로고침을 꺼 둔다 —
+  // 가로 스와이프에 섞인 세로 움직임이 새로고침을 잘못 당기는 것을 막는다.
+  const [newsTouching, setNewsTouching] = useState(false);
   const { refetch: refetchProducts } = products;
   const { refetch: refetchNews } = news;
   const { refetch: refetchHoldings } = holdings;
@@ -82,7 +85,9 @@ export default function InvestScreen() {
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} enabled={!newsTouching} />
+        }
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
           paddingBottom: theme.space['4xl'],
@@ -119,6 +124,7 @@ export default function InvestScreen() {
           ) : (
             <NewsCarousel
               items={news.data}
+              onTouchingChange={setNewsTouching}
               onPressItem={(item) =>
                 router.push({
                   pathname: '/invest/news/[newsId]',

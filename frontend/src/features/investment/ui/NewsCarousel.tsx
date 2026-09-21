@@ -15,15 +15,21 @@ import { useTheme } from '@/shared/theme';
 
 type Props = {
   items: InvestmentNews[];
-  /** 카드 탭 — 상세 팝업(NewsDetailModal)을 여는 데 쓴다 */
+  /** 카드 탭 — 뉴스 본문 페이지로 넘어가는 데 쓴다 */
   onPressItem?: (news: InvestmentNews) => void;
+  /**
+   * 캐러셀에 손가락이 닿아 있는 동안 true 로 알린다. 부모 화면이 이 동안
+   * 당겨서 새로고침을 꺼 두면, 가로 스와이프에 섞인 세로 움직임이 새로고침을
+   * 잘못 당기는 일이 없어진다.
+   */
+  onTouchingChange?: (touching: boolean) => void;
 };
 
 /**
  * 오늘의 뉴스 가로 캐러셀. 뉴스 카드 한 장이 화면 폭을 꽉 채우고 스냅으로 넘기며,
  * 아래 점 인디케이터가 현재 위치를 보여준다. 카드를 탭하면 onPressItem 으로 알린다.
  */
-export function NewsCarousel({ items, onPressItem }: Props) {
+export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -53,6 +59,9 @@ export function NewsCarousel({ items, onPressItem }: Props) {
         decelerationRate="fast"
         onScroll={onScroll}
         scrollEventThrottle={16}
+        onTouchStart={() => onTouchingChange?.(true)}
+        onTouchEnd={() => onTouchingChange?.(false)}
+        onTouchCancel={() => onTouchingChange?.(false)}
         ItemSeparatorComponent={() => <View style={{ width: gap }} />}
         renderItem={({ item }) => (
           <Pressable
