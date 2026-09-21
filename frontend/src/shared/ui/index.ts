@@ -20,4 +20,5 @@ export { StepCard } from './StepCard';
 export { ProgressIndicator, Steps } from './Stepper';
 export { tabScreenOptions, tabIcon } from './tabBarOptions';
 export { TabScene, useTabOverlap } from './TabScene';
+export { usePullToRefresh } from './usePullToRefresh';
 export { navIcons, type NavIconName, IdIcon, PasswordIcon, CheckCircleIcon } from './icons';

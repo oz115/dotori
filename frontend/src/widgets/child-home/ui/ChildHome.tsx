@@ -6,7 +6,7 @@ import { useMyAccount } from '@/features/account';
 import { useUnreadNotificationCount } from '@/features/notification';
 import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
-import { AppTopBar } from '@/shared/ui';
+import { AppTopBar, usePullToRefresh } from '@/shared/ui';
 
 import { useChildAssets } from '@/widgets/child-home/model/useChildAssets';
 import { useChildIdentity } from '@/widgets/child-home/model/useChildIdentity';
@@ -23,6 +23,7 @@ import { UpdateBanner } from './UpdateBanner';
  */
 export function ChildHome() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
   const account = useMyAccount();
@@ -41,6 +42,7 @@ export function ChildHome() {
       />
 
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
