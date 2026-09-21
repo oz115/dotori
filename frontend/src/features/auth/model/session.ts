@@ -1,5 +1,6 @@
 import { authApi } from '@/features/auth/api/authApi';
 import { decodeJwt } from '@/features/auth/lib/decodeJwt';
+import { savedLoginId } from '@/features/auth/lib/savedLoginId';
 import { tokenStorage } from '@/features/auth/lib/tokenStorage';
 import { useAuthStore } from '@/features/auth/model/authStore';
 import type { LoginBody } from '@/features/auth/model/types';
@@ -44,6 +45,8 @@ export async function withdrawAccount(password: string): Promise<void> {
   if (userId == null) throw new Error('세션이 없습니다');
   await authApi.withdraw(userId, password);
   await clearLocalSession();
+  // 탈퇴한 계정의 아이디가 로그인 화면에 계속 채워져 있지 않게 "아이디 저장" 값도 지운다
+  await savedLoginId.clear().catch(() => undefined);
 }
 
 /**

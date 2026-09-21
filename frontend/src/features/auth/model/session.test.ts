@@ -1,23 +1,27 @@
 import { authApi } from '@/features/auth/api/authApi';
+import { savedLoginId } from '@/features/auth/lib/savedLoginId';
 import { tokenStorage } from '@/features/auth/lib/tokenStorage';
 import { useAuthStore } from '@/features/auth/model/authStore';
-import { restoreSession, signIn, signOut } from '@/features/auth/model/session';
+import { restoreSession, signIn, signOut, withdrawAccount } from '@/features/auth/model/session';
 import { queryClient } from '@/shared/api';
 import { clearSessionScopedStorage } from '@/shared/lib/sessionScopedStorage';
 
 jest.mock('@/features/auth/api/authApi');
 jest.mock('@/features/auth/lib/tokenStorage');
+jest.mock('@/features/auth/lib/savedLoginId');
 jest.mock('@/shared/lib/sessionScopedStorage');
 
 const mockedApi = jest.mocked(authApi);
 const mockedStorage = jest.mocked(tokenStorage);
 const mockedSessionStorage = jest.mocked(clearSessionScopedStorage);
+const mockedSavedLoginId = jest.mocked(savedLoginId);
 
 // payload: {"sub":"7","role":"PARENT","exp":9999999999}
 const PARENT_ACCESS = 'x.eyJzdWIiOiI3Iiwicm9sZSI6IlBBUkVOVCIsImV4cCI6OTk5OTk5OTk5OX0.y';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockedSavedLoginId.clear.mockResolvedValue(undefined);
   useAuthStore.setState({ status: 'loading', accessToken: null, user: null });
 });
 
@@ -39,6 +43,37 @@ describe('signIn', () => {
       accessToken: 'access-1',
       user: { userId: 7, role: 'PARENT', name: '영주' },
     });
+  });
+});
+
+describe('withdrawAccount', () => {
+  it('탈퇴하면 세션과 함께 "아이디 저장" 값도 지운다', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      accessToken: 'a',
+      user: { userId: 7, role: 'PARENT' },
+    });
+    mockedApi.withdraw.mockResolvedValue(undefined as never);
+
+    await withdrawAccount('pw12345678');
+
+    expect(mockedApi.withdraw).toHaveBeenCalledWith(7, 'pw12345678');
+    expect(mockedSavedLoginId.clear).toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe('guest');
+  });
+
+  it('비밀번호가 틀려 실패하면 세션도 저장된 아이디도 그대로 둔다', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      accessToken: 'a',
+      user: { userId: 7, role: 'PARENT' },
+    });
+    mockedApi.withdraw.mockRejectedValue(new Error('PASSWORD_MISMATCH'));
+
+    await expect(withdrawAccount('wrong')).rejects.toThrow('PASSWORD_MISMATCH');
+
+    expect(mockedSavedLoginId.clear).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe('authenticated');
   });
 });
 
