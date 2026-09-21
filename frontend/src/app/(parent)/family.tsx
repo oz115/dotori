@@ -152,6 +152,8 @@ export default function FamilyManageScreen() {
         />
       </View>
 
+      {/* 초대 박스 — 버튼을 맨 위에 두고 설명을 아래에 붙인다. 이 박스가 하는 일은 하나(초대
+          코드 발급)라, 제목을 따로 얹는 대신 버튼이 제목 노릇을 한다 */}
       <View
         style={[
           styles.infoBox,
@@ -164,25 +166,43 @@ export default function FamilyManageScreen() {
           },
         ]}
       >
-        <View style={{ gap: theme.space.xs }}>
-          <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-            연결된 아이 {children.length}명
-          </Text>
-          <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-            아이를 초대하려면 코드를 발급해 알려주세요. 코드는 10분간만 쓸 수 있어요.
-          </Text>
-        </View>
+        <Button
+          label="초대 코드 발급"
+          variant="gradient"
+          onPress={openInvite}
+          disabled={familyId == null}
+        />
+        <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+          아이를 초대하려면 코드를 발급해 알려주세요. 코드는 10분간만 쓸 수 있어요.
+        </Text>
+      </View>
 
-        {/* 누가 연결돼 있는지 이름으로 보여 준다. 숫자만 있으면 초대가 잘못 들어갔을 때도
-            알아챌 수 없다. 제외는 줄마다 따로 둔다 - 가족 삭제와 달리 한 아이만 끊는 일이다. */}
+      {/* 연결된 아이 박스 — 초대와 다른 일(누가 있는지 보고 내보내기)이라 박스를 나눈다.
+          아이 수만큼 줄이 늘어난다 */}
+      <View
+        style={[
+          styles.infoBox,
+          {
+            marginTop: theme.space.md,
+            borderRadius: theme.radius.lg,
+            backgroundColor: theme.color.background.surfaceSunken,
+            padding: theme.space.lg,
+            gap: theme.space.md,
+          },
+        ]}
+      >
+        <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+          연결된 아이 {children.length}명
+        </Text>
+
         {members.isPending ? (
           <ActivityIndicator color={theme.color.brand.solid} />
         ) : children.length === 0 ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-            아직 연결된 아이가 없어요.
+            아직 연결된 아이가 없어요. 초대 코드를 발급해 알려주세요.
           </Text>
         ) : (
-          <View style={{ gap: theme.space.sm }}>
+          <View style={{ gap: theme.space.md }}>
             {children.map((child) => (
               <View key={child.userId} style={styles.childRow}>
                 <ChildBadge name={child.name} />
@@ -214,12 +234,6 @@ export default function FamilyManageScreen() {
             ))}
           </View>
         )}
-        <Button
-          label="초대 코드 발급"
-          variant="gradient"
-          onPress={openInvite}
-          disabled={familyId == null}
-        />
       </View>
 
       <View style={styles.spacer} />
