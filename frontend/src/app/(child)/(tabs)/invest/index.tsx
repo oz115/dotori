@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import {
   InvestmentSummaryCards,
@@ -8,10 +8,12 @@ import {
   NewsCarousel,
   SectionTitle,
   StockCard,
+  TradeSelectionBar,
   summarizeInvestment,
   useInvestmentHoldings,
   useInvestmentNews,
   useInvestmentProducts,
+  type StockSummary,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
 import { Header, HeaderChipButton, Screen } from '@/shared/ui';
@@ -34,6 +36,24 @@ export default function InvestScreen() {
   // 뉴스 캐러셀에 손이 닿아 있는 동안은 당겨서 새로고침을 꺼 둔다 —
   // 가로 스와이프에 섞인 세로 움직임이 새로고침을 잘못 당기는 것을 막는다.
   const [newsTouching, setNewsTouching] = useState(false);
+
+  // 카드를 꾹 누르면 여러 종목을 골라 한 번에 사는 선택 모드. 하나라도 골라져 있으면 켜진 상태다.
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const selectionMode = selectedIds.length > 0;
+  const heldIds = useMemo(
+    () => new Set((holdings.data ?? []).map((holding) => holding.id)),
+    [holdings.data],
+  );
+  const toggleSelect = (stock: StockSummary) => {
+    // 종목당 1주 규칙 — 이미 보유한 종목은 살 수 없으니 선택 대상에서 뺀다
+    if (heldIds.has(stock.id)) {
+      Alert.alert('이미 가지고 있는 주식이에요', '한 회사는 1주만 살 수 있어요.');
+      return;
+    }
+    setSelectedIds((prev) =>
+      prev.includes(stock.id) ? prev.filter((id) => id !== stock.id) : [...prev, stock.id],
+    );
+  };
   const { refetch: refetchProducts } = products;
   const { refetch: refetchNews } = news;
   const { refetch: refetchHoldings } = holdings;
@@ -129,7 +149,10 @@ export default function InvestScreen() {
               onPress: () => router.push('/invest/holdings'),
             }}
           />
-          <Text style={muted}>현재 가격과 어제보다 오른 만큼(내린 만큼)을 함께 보여줘요.</Text>
+          <Text style={muted}>
+            현재 가격과 어제보다 오른 만큼(내린 만큼)을 함께 보여줘요. 카드를 꾹 누르면 여러 개를
+            골라 한 번에 살 수 있어요.
+          </Text>
           {products.isPending ? (
             <Text style={muted}>주식을 불러오는 중이에요.</Text>
           ) : products.isError ? (
@@ -144,11 +167,16 @@ export default function InvestScreen() {
                 <StockCard
                   key={stock.id}
                   stock={stock}
+                  selectionMode={selectionMode && !heldIds.has(stock.id)}
+                  selected={selectedIds.includes(stock.id)}
+                  onLongPress={() => toggleSelect(stock)}
                   onPress={() =>
-                    router.push({
-                      pathname: '/invest/[stockId]',
-                      params: { stockId: String(stock.id) },
-                    })
+                    selectionMode
+                      ? toggleSelect(stock)
+                      : router.push({
+                          pathname: '/invest/[stockId]',
+                          params: { stockId: String(stock.id) },
+                        })
                   }
                 />
               ))}
@@ -156,6 +184,16 @@ export default function InvestScreen() {
           )}
         </View>
       </ScrollView>
+
+      {selectionMode ? (
+        <TradeSelectionBar
+          mode="buy"
+          items={(products.data ?? [])
+            .filter((stock) => selectedIds.includes(stock.id))
+            .map((stock) => ({ id: stock.id, name: stock.name, price: stock.currentPrice }))}
+          onClose={() => setSelectedIds([])}
+        />
+      ) : null}
     </Screen>
   );
 }

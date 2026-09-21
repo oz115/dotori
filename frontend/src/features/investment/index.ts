@@ -13,6 +13,8 @@ export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
 export { TradeButtons } from './ui/TradeButtons';
+export { TradeSelectionBar } from './ui/TradeSelectionBar';
+export { orderErrorMessage, sellOutcomeMessage } from './lib/orderMessages';
 export { TransactionCard } from './ui/TransactionCard';
 export { useInvestmentTransactions } from './model/useInvestmentTransactions';
 export { formatPoints, formatAcorns, formatNumber, signedAcorns, signedPoints } from './lib/format';
