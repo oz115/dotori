@@ -16,6 +16,7 @@ export { NumericKeypad } from './NumericKeypad';
 export { ProgressBar } from './ProgressBar';
 export { Screen } from './Screen';
 export { SelectableCard } from './SelectableCard';
+export { StepCard } from './StepCard';
 export { ProgressIndicator, Steps } from './Stepper';
 export { tabScreenOptions, tabIcon } from './tabBarOptions';
 export { TabScene, useTabOverlap } from './TabScene';
