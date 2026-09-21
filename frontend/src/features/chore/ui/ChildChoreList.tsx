@@ -153,19 +153,21 @@ export function ChildChoreList({
           { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
         ]}
         ListHeaderComponent={
-          <View style={{ gap: theme.space.md, marginBottom: theme.space.lg }}>
+          <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <ChoreHeroBanner
               eyebrow="오늘 해야 할 미션이"
               title={`${remainingCount}개 남았어요!`}
               caption={rewardCaption(total, pendingCount) ?? '하나씩 완료하고 도토리를 모아봐요!'}
               mascot={require('@/assets/images/chore/squirrel-win.png')}
             />
-            {/* 칩이 한 줄을 다 쓴다. 체크박스와 나란히 뒀더니 다섯 칸(전체·한번·매일·매주·
-                매월) 중 "매월" 이 화면 밖으로 잘려 있는지조차 알 수 없었다 (QA).
-                체크박스는 목록 바로 위로 내린다 - 거르는 대상 옆에 붙는 편이 읽기도 쉽다. */}
-            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-            <View style={styles.filterRow}>
-              <Checkbox checked={onlyActive} onChange={setOnlyActive} label="남은 것만 보기" />
+            {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (저축 화면과 같다).
+                칩은 상점(CategoryFilterBar)과 같은 자리·같은 크기이고, 다섯 칸이라 좁은
+                기기에서는 가로로 밀어서 "매월" 을 본다. */}
+            <View style={[styles.filterRow, { gap: theme.space.sm }]}>
+              <View style={styles.chips}>
+                <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+              </View>
+              <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
             </View>
           </View>
         }
@@ -223,7 +225,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  filterRow: { alignItems: 'flex-end' },
+  filterRow: { flexDirection: 'row', alignItems: 'center' },
+  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
+  chips: { flex: 1 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
