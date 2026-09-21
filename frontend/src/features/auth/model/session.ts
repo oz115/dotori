@@ -46,6 +46,18 @@ export async function withdrawAccount(password: string): Promise<void> {
   await clearLocalSession();
 }
 
+/**
+ * 비밀번호 변경 — 성공하면 서버가 기존 세션(현재 세션 포함)을 전부 폐기하므로
+ * 로컬 세션도 함께 정리해 로그인 화면으로 돌려보낸다.
+ * 현재 비밀번호가 틀리면(PASSWORD_MISMATCH) throw 하고 세션은 유지된다.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const userId = useAuthStore.getState().user?.userId;
+  if (userId == null) throw new Error('세션이 없습니다');
+  await authApi.changePassword(userId, currentPassword, newPassword);
+  await clearLocalSession();
+}
+
 /** 로그아웃: 서버 무효화(실패 무시) + 로컬 정리 */
 export async function signOut(): Promise<void> {
   const refreshToken = await tokenStorage.get();

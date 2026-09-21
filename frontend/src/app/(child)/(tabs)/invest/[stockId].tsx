@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { walletKeys } from '@/features/wallet';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -16,8 +18,18 @@ import { Button, Header, Screen } from '@/shared/ui';
  */
 export default function InvestDetailScreen() {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const { stockId } = useLocalSearchParams<{ stockId: string }>();
-  const { detail, isPending, isError, refetch } = useStockDetail(Number(stockId));
+  const {
+    detail,
+    isPending,
+    isError,
+    refetch,
+    historyPending,
+    historyError,
+    historyFetching,
+    refetchHistory,
+  } = useStockDetail(Number(stockId));
 
   return (
     <Screen
@@ -27,6 +39,8 @@ export default function InvestDetailScreen() {
           onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
         />
       }
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
       padded={false}
     >
       {detail ? (
@@ -35,13 +49,25 @@ export default function InvestDetailScreen() {
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
             paddingVertical: theme.layout.screenY,
+            paddingBottom: theme.space.lg,
             gap: theme.space.xl,
           }}
         >
-          <StockOverviewCard detail={detail} />
+          <StockOverviewCard
+            detail={detail}
+            historyPending={historyPending}
+            historyFetching={historyFetching}
+            historyError={historyError}
+            onRetryHistory={refetchHistory}
+          />
           <StockInfoCard detail={detail} />
 
-          <TradeButtons detail={detail} />
+          <TradeButtons
+            detail={detail}
+            onTradeSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: walletKeys.all });
+            }}
+          />
         </ScrollView>
       ) : (
         <View style={[styles.empty, { gap: theme.space.lg }]}>

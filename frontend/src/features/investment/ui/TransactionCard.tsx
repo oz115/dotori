@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { formatAcorns } from '@/features/investment/lib/format';
+import { changeColor } from '@/features/investment/lib/change';
+import { formatAcorns, profitLabel } from '@/features/investment/lib/format';
 import type { InvestmentTransactionItem } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -16,9 +17,9 @@ export function TransactionCard({ item }: Props) {
   const theme = useTheme();
 
   const bought = item.type === 'BUY';
-  const amountColor = bought ? theme.color.text.strong : theme.color.status.success.text;
-  const badgeBg = bought ? theme.color.brand.subtle : theme.color.status.success.subtle;
-  const badgeText = bought ? theme.color.brand.subtleText : theme.color.status.success.text;
+  const amountColor = bought ? theme.color.text.strong : theme.color.investment.rise;
+  const badgeBg = bought ? theme.color.brand.subtle : theme.color.status.info.subtle;
+  const badgeText = bought ? theme.color.brand.subtleText : theme.color.investment.rise;
 
   return (
     <View
@@ -51,12 +52,34 @@ export function TransactionCard({ item }: Props) {
         <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
           {item.date}
         </Text>
+        {!bought && item.buyAmount != null ? (
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+            구매 {formatAcorns(item.buyAmount)} → 판매 {formatAcorns(item.totalAmount)}
+          </Text>
+        ) : null}
+        {!bought ? (
+          <Text
+            style={[
+              theme.typography.bodySm,
+              {
+                color:
+                  item.realizedProfit == null
+                    ? theme.color.text.sub
+                    : changeColor(item.realizedProfit, theme.color),
+              },
+            ]}
+          >
+            {item.realizedProfit == null
+              ? '판매 수익을 계산할 정보가 부족해요.'
+              : profitLabel(item.realizedProfit)}
+          </Text>
+        ) : null}
       </View>
 
       <View style={[styles.amountBlock, { gap: theme.space.xs }]}>
         <View style={[styles.badge, { backgroundColor: badgeBg, borderRadius: theme.radius.full }]}>
           <Text style={[theme.typography.caption, { color: badgeText }]}>
-            {bought ? '샀어요' : '팔았어요'}
+            {bought ? '산 금액' : '판 금액'}
           </Text>
         </View>
         <Text style={[theme.typography.label, { color: amountColor }]}>

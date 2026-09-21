@@ -23,11 +23,14 @@ export {
   ongoingSavingsAccounts,
   previewSavingsAccounts,
   savingsMaturityMarker,
+  summarizeSavingsAssets,
 } from './lib/summary';
-export { savingsProductImage } from './lib/savingsAssets';
+export { savingsProductImage, savingsProductName } from './lib/savingsAssets';
 export {
+  SAVINGS_GROUP_FILTERS,
   buildSavingsCards,
   estimateReturn,
+  savingsGroupLabel,
   savingsGroupOf,
   toSavingsTransactionItem,
 } from './lib/savingsView';
@@ -35,7 +38,6 @@ export { SavingsHome } from './ui/SavingsHome';
 export { ParentSavingsHome } from './ui/ParentSavingsHome';
 export { ParentSavingsProductDetail } from './ui/ParentSavingsProductDetail';
 export { ChildrenSavingsStatus } from './ui/ChildrenSavingsStatus';
-export { SavingsGroupSegment, savingsGroupLabel } from './ui/SavingsGroupSegment';
 export { SavingsProductHero } from './ui/SavingsProductHero';
 export { SavingsHistory } from './ui/SavingsHistory';
 export { SavingsIntroBanner } from './ui/SavingsIntroBanner';
@@ -43,6 +45,7 @@ export { SavingsProductCard } from './ui/SavingsProductCard';
 export { SavingsProductDetail } from './ui/SavingsProductDetail';
 export { SavingsTransactionCard } from './ui/SavingsTransactionCard';
 export type {
+  SavingsAssets,
   SavingsAccountPreviewItem,
   SavingsAccountsPreview,
   SavingsMaturityMarker,

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { savingsProductName } from '@/features/savings/lib/savingsAssets';
 import {
   buildSavingsCards,
   estimateReturn,
@@ -38,7 +39,6 @@ const AMOUNT_LABELS: Record<ContributionStyle, string> = {
   FREE: '먼저 넣을 금액',
   LUMP_SUM: '맡길 금액',
   FIXED_INSTALLMENT: '매주 납입할 금액',
-  FLEXIBLE_GOAL: '목표 금액',
 };
 
 /**
@@ -99,6 +99,7 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
           paddingVertical: theme.layout.screenY,
+          paddingBottom: theme.space.lg,
           gap: theme.space.lg,
         }}
       >
@@ -130,7 +131,8 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <Screen header={<Header title={title} onBack={onBack} />} padded={false}>
+    // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+    <Screen header={<Header title={title} onBack={onBack} />} padded={false} edges={[]}>
       {children}
     </Screen>
   );
@@ -194,24 +196,34 @@ function SignupSection({
   const valid = amount > 0 && !tooBig;
   const preview = valid ? estimateReturn(product, amount) : null;
 
-  const specs: { label: string; value: string }[] = [];
+  // 최대로 넣었을 때 받는 도토리. 이자율(%)을 쓰지 않는 이유는 카드와 같다 - 초등학생에게
+  // "15%" 는 도토리를 몇 개 받는지 알려 주지 못하고, 상품끼리 비교도 되지 않는다.
+  // 기준 금액을 sub 로 붙여, 이 숫자가 "최대로 넣었을 때" 의 값임을 같은 줄에서 밝힌다.
+  const atMax = estimateReturn(product, product.maxAmount);
+
+  const specs: { label: string; value: string; sub?: string }[] = [];
   if (product.contributionStyle === 'FREE') {
-    specs.push({ label: '이자', value: `매주 ${product.interestRate}%` });
+    specs.push({
+      label: '매주 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `${formatPoint(product.maxAmount)} 저금했을 때`,
+    });
     specs.push({ label: '기간', value: '자유롭게' });
   } else {
     if (product.termWeeks != null) {
       specs.push({
         label: '가입 기간',
-        value:
-          product.contributionStyle === 'FLEXIBLE_GOAL'
-            ? `${product.termWeeks}주 안에`
-            : `${product.termWeeks}주`,
+        value: `${product.termWeeks}주`,
       });
     }
     if (product.installmentCount != null) {
       specs.push({ label: '납입 횟수', value: `매주 1번, 총 ${product.installmentCount}회` });
     }
-    specs.push({ label: '이자율', value: `${product.interestRate}%` });
+    specs.push({
+      label: '다 모으면 받는 도토리',
+      value: `+ ${formatPoint(atMax.interest)}`,
+      sub: `최대로 넣었을 때`,
+    });
   }
   specs.push({
     label: AMOUNT_LABELS[product.contributionStyle],
@@ -219,13 +231,10 @@ function SignupSection({
   });
 
   const confirmSubscribe = () => {
-    const summary =
-      product.contributionStyle === 'FLEXIBLE_GOAL'
-        ? `목표 ${formatPoint(amount)}로 가입할까요?\n납입은 가입 후에 자유롭게 해요.`
-        : `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
+    const summary = `${formatPoint(amount)}로 가입할까요?\n가입하면 바로 ${formatPoint(amount)}가 나가요.`;
     const warning =
       product.contributionStyle === 'FREE' ? '' : '\n중도에 해지하면 이자는 받을 수 없어요.';
-    Alert.alert(`${product.name} 가입`, summary + warning, [
+    Alert.alert(`${savingsProductName(product.productType)} 가입`, summary + warning, [
       { text: '아니요', style: 'cancel' },
       {
         text: '가입할래요',
@@ -250,7 +259,7 @@ function SignupSection({
       <InfoCard title="상품 정보">
         <View style={{ gap: theme.space.lg }}>
           {specs.map((row) => (
-            <InfoRow key={row.label} label={row.label} value={row.value} />
+            <InfoRow key={row.label} label={row.label} value={row.value} sub={row.sub} />
           ))}
         </View>
       </InfoCard>
@@ -334,9 +343,8 @@ function SubscribedSection({
   // 메인 카드와 같은 뷰모델을 그대로 써서 진행 정보 표기가 화면끼리 어긋나지 않게 한다
   const card = buildSavingsCards([product], [subscription], new Date())[0];
 
-  // 자유 납입(보통예금·목표적금)만 금액을 입력받는다. 정액 적립식은 약정액 고정.
-  const freeAmount =
-    subscription.contributionStyle === 'FREE' || subscription.contributionStyle === 'FLEXIBLE_GOAL';
+  // 자유 납입(보통예금)만 금액을 입력받는다. 정액 적립식은 약정액 고정.
+  const freeAmount = subscription.contributionStyle === 'FREE';
   const contributable = subscription.contributionStyle !== 'LUMP_SUM' && !matured;
   const amount = freeAmount ? Number(raw.replace(/[^0-9]/g, '') || '0') : subscription.principal;
 
@@ -358,7 +366,7 @@ function SubscribedSection({
                   );
                 } else {
                   Alert.alert(
-                    '납입했어요! 🌰',
+                    '납입했어요!',
                     `지금까지 ${formatPoint(updated.currentAmount)} 모았어요.`,
                   );
                 }

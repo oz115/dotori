@@ -61,6 +61,7 @@ describe('toStockSummary', () => {
 
 describe('toStockDetail', () => {
   it('가격 이력을 x축 라벨이 붙은 차트 점으로 바꾼다', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-16T12:00:00+09:00'));
     const detail = toStockDetail(
       detailResponse,
       [
@@ -76,12 +77,11 @@ describe('toStockDetail', () => {
       { label: '9/15', price: 10100 },
       { label: '9/16', price: 10250 },
     ]);
+    jest.useRealTimers();
   });
 
-  it('이력이 비어 있으면 현재가 한 점으로 차트를 그린다', () => {
-    const detail = toStockDetail(detailResponse, [], false);
-
-    expect(detail.history).toEqual([{ label: '오늘', price: 10250 }]);
+  it('이력이 비어 있으면 가짜 가격을 만들지 않는다', () => {
+    expect(toStockDetail(detailResponse, [], false).history).toEqual([]);
   });
 });
 
@@ -106,9 +106,14 @@ describe('toHolding / summarizeInvestment', () => {
 
     expect(holdings[0].buyPrice).toBe(10000);
     expect(summarizeInvestment(holdings)).toEqual({
+      count: 2,
       investedPoints: 20000,
       earnedPoints: 50,
     });
+  });
+
+  it('산 주식이 없으면 종목 수 0과 0 도토리로 요약한다', () => {
+    expect(summarizeInvestment([])).toEqual({ count: 0, investedPoints: 0, earnedPoints: 0 });
   });
 });
 
@@ -121,14 +126,14 @@ describe('toInvestmentNews', () => {
     publishedAt: '2026-09-16T00:05:00+09:00',
   };
 
-  it('관련 회사의 업종·이모지와 영향 방향 문구를 붙인다', () => {
+  it('관련 회사와 등락 방향을 노출하지 않는다', () => {
     const view = toInvestmentNews(news);
 
     expect(view.id).toBe(3);
-    expect(view.tag).toBe('제빵');
-    expect(view.emoji).toBe('🥐');
-    expect(view.body).toBe('가격이 내릴 수 있는 소식이에요.');
-    expect(view.relatedProductName).toBe('고소한빵');
+    expect(view.tag).toBe('경제 소식');
+    expect(view.emoji).toBe('📰');
+    expect(view.body).toBe('어떤 회사에 영향을 줄지 생각해 보세요.');
+    expect(view.relatedProductName).toBe('');
     expect(view.date).toBe('2026. 09. 16');
     expect(view.content).toBeUndefined();
   });
@@ -136,7 +141,7 @@ describe('toInvestmentNews', () => {
   it('관련 회사가 없어도 기본값으로 안전하게 표시한다', () => {
     const view = toInvestmentNews({ ...news, relatedProducts: [] });
 
-    expect(view.tag).toBe('오늘의 소식');
+    expect(view.tag).toBe('경제 소식');
     expect(view.emoji).toBe('📰');
     expect(view.relatedProductName).toBe('');
   });

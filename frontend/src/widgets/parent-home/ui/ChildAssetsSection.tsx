@@ -13,6 +13,7 @@ import {
   previewSavingsAccounts,
   savingsMaturityMarker,
   savingsProductImage,
+  savingsProductName,
   useSavingsSubscriptions,
   useSavingsSummary,
   type SavingsAccountPreviewItem,
@@ -35,8 +36,7 @@ type ChildAssetsSectionProps = {
 /**
  * "자녀 자산" 섹션. 예적금·투자 모두 자녀 기준 요약 API를 읽어 집계만 보여 준다.
  *
- * 카드를 누르면 해당 탭(저축·투자)으로 보낸다 — 투자 탭은 아직 준비 중 안내뿐이지만
- * 자리는 실제 라우트라 화면이 채워져도 이쪽은 그대로 둔다.
+ * 카드를 누르면 해당 탭(저축·투자)으로 보낸다.
  */
 export function ChildAssetsSection({
   familyId,
@@ -205,12 +205,13 @@ function SavingsAccountPreviewRow({ item }: { item: SavingsAccountPreviewItem })
         resizeMode="contain"
       />
       {/* 이름이 남는 자리를 전부 가져가고 넘치면 말줄임 — 만기 표시에 밀리지 않게 한다.
-          상품명이 전부 네 글자라 좁은 기기에서만 한 글자쯤 잘린다 */}
+          서버 productName(단리예금) 이 아니라 화면 이름(도토리 항아리)을 쓴다. 저축 탭과
+          같은 이름이어야 한다 — 여섯·일곱 글자라 좁은 기기에서는 말줄임이 걸린다 */}
       <Text
         style={[theme.typography.caption, { color: theme.color.text.sub, flex: 1 }]}
         numberOfLines={1}
       >
-        {item.productName}
+        {savingsProductName(item.productType)}
       </Text>
       {marker != null ? (
         <Text

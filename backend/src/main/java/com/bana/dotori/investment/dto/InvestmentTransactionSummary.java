@@ -12,6 +12,12 @@ public record InvestmentTransactionSummary(
 	Integer quantity,
 	Integer unitPrice,
 	Integer totalAmount,
-	OffsetDateTime createdAt
+	OffsetDateTime createdAt,
+	Integer buyPrice,
+	Integer realizedProfit
 ) {
+	public InvestmentTransactionSummary(Integer id, String name, InvestmentTransactionType type,
+		Integer quantity, Integer unitPrice, Integer totalAmount, OffsetDateTime createdAt) {
+		this(id, name, type, quantity, unitPrice, totalAmount, createdAt, null, null);
+	}
 }

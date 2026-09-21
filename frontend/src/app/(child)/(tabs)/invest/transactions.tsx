@@ -1,9 +1,14 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { TransactionCard, useInvestmentTransactions } from '@/features/investment';
+import {
+  RealizedProfitCard,
+  InvestmentQueryError,
+  TransactionCard,
+  useInvestmentTransactions,
+} from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Header, Screen } from '@/shared/ui';
 
 /**
  * 투자 거래 내역. 매수/매도한 기록을 최신순으로 보여준다 (INV-T-05).
@@ -20,6 +25,8 @@ export default function InvestTransactionsScreen() {
           onBack={() => (router.canGoBack() ? router.back() : router.replace('/invest/index'))}
         />
       }
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
       padded={false}
     >
       {transactions.isPending || transactions.isError ? (
@@ -28,7 +35,11 @@ export default function InvestTransactionsScreen() {
             {transactions.isPending ? '거래 내역을 불러오는 중이에요.' : '불러오지 못했어요.'}
           </Text>
           {transactions.isError ? (
-            <Button label="다시 시도" variant="outline" onPress={() => transactions.refetch()} />
+            <InvestmentQueryError
+              error={transactions.error}
+              fetching={transactions.isFetching}
+              onRetry={() => transactions.refetch()}
+            />
           ) : null}
         </View>
       ) : transactions.data.length === 0 ? (
@@ -43,9 +54,11 @@ export default function InvestTransactionsScreen() {
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
             paddingVertical: theme.layout.screenY,
+            paddingBottom: theme.space.lg,
             gap: theme.space.md,
           }}
         >
+          <RealizedProfitCard transactions={transactions.data} />
           {transactions.data.map((item) => (
             <TransactionCard key={item.id} item={item} />
           ))}

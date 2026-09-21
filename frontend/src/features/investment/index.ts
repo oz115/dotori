@@ -1,3 +1,8 @@
+export { NewsList } from './ui/NewsList';
+export { NewsArticle } from './ui/NewsArticle';
+export { InvestmentQueryError } from './ui/InvestmentQueryError';
+export { NewsReview } from './ui/NewsReview';
+export { RealizedProfitCard } from './ui/RealizedProfitCard';
 export { InvestmentSummaryCards } from './ui/InvestmentSummaryCards';
 export { NewsCarousel } from './ui/NewsCarousel';
 export { NewsDetailModal } from './ui/NewsDetailModal';
@@ -32,3 +37,12 @@ export type {
   Holding,
   OrderResponse,
 } from './model/types';
+export { ParentInvestmentHome } from './ui/ParentInvestmentHome';
+export { ChildInvestmentSummary } from './ui/ChildInvestmentSummary';
+export { recentTransactions, summarizeRealizedProfit } from './lib/transactions';
+export type { ParentInvestmentChild } from './ui/ParentInvestmentHome';
+export type { RecentSalesProfit } from './ui/ChildInvestmentSummary';
+export { ParentInvestmentHoldings } from './ui/ParentInvestmentHoldings';
+export { ParentInvestmentTransactions } from './ui/ParentInvestmentTransactions';
+export { ParentInvestmentNews } from './ui/ParentInvestmentNews';
+export { ParentInvestmentMarket } from './ui/ParentInvestmentMarket';

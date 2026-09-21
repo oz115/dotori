@@ -37,6 +37,10 @@ export function ParentHome() {
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
   // 리포트는 탭이 아니라 푸시 라우트다 — 부모 탭이 다섯 개로 차 있다
   const openReport = () => router.push('/(parent)/report');
+  // '/word' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 단어장으로 간다
+  const openWords = () => router.push('/(parent)/word');
+  // '/quiz' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 퀴즈 화면으로 간다
+  const openQuiz = () => router.push('/(parent)/quiz');
 
   return (
     <SafeAreaView
@@ -107,7 +111,12 @@ export function ParentHome() {
           }
         />
 
-        <ChildActivityBoard />
+        <ChildActivityBoard
+          familyId={familyId}
+          childId={childId}
+          onOpenQuiz={openQuiz}
+          onOpenWords={openWords}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -115,5 +124,6 @@ export function ParentHome() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingTop: 4, paddingBottom: 40 },
+  // 마지막 활동 보드의 배경이 둥근 탭바 뒤까지 이어진다.
+  content: { paddingTop: 4, paddingBottom: 0 },
 });

@@ -58,8 +58,8 @@ describe('TradeButtons', () => {
   it('미보유 종목은 사기만 활성화된다', async () => {
     await renderWithQuery(<TradeButtons detail={detail} />);
 
-    expect(screen.getByText('🌰 사기').props.accessibilityState?.disabled).toBeFalsy();
-    fireEvent.press(screen.getByText('🌰 팔기'));
+    expect(screen.getByText('사기').props.accessibilityState?.disabled).toBeFalsy();
+    fireEvent.press(screen.getByText('팔기'));
     expect(jest.mocked(Alert.alert)).not.toHaveBeenCalled();
   });
 
@@ -67,7 +67,7 @@ describe('TradeButtons', () => {
     jest.mocked(investmentApi.buy).mockResolvedValue(order);
     await renderWithQuery(<TradeButtons detail={detail} />);
 
-    fireEvent.press(screen.getByText('🌰 사기'));
+    fireEvent.press(screen.getByText('사기'));
     expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith(
       '주식 사기',
       expect.stringContaining('시원아이스'),
@@ -78,7 +78,7 @@ describe('TradeButtons', () => {
     await waitFor(() => expect(jest.mocked(investmentApi.buy)).toHaveBeenCalledWith(1));
     await waitFor(() =>
       expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith(
-        '샀어요! 🌰',
+        '샀어요!',
         expect.stringContaining('4,750'),
       ),
     );
@@ -90,7 +90,7 @@ describe('TradeButtons', () => {
       .mockRejectedValue({ response: { data: { code: 'INSUFFICIENT_POINT' } } });
     await renderWithQuery(<TradeButtons detail={detail} />);
 
-    fireEvent.press(screen.getByText('🌰 사기'));
+    fireEvent.press(screen.getByText('사기'));
     pressAlertButton('살래요');
 
     await waitFor(() =>
@@ -102,19 +102,23 @@ describe('TradeButtons', () => {
   });
 
   it('보유 종목은 팔기 확인 후 매도 API 를 호출한다', async () => {
-    jest
-      .mocked(investmentApi.sell)
-      .mockResolvedValue({ ...order, transactionType: 'SELL', pointBalanceAfter: 15000 });
+    jest.mocked(investmentApi.sell).mockResolvedValue({
+      ...order,
+      transactionType: 'SELL',
+      pointBalanceAfter: 15000,
+      buyPrice: 10000,
+      realizedProfit: 250,
+    });
     await renderWithQuery(<TradeButtons detail={{ ...detail, holding: true }} />);
 
-    fireEvent.press(screen.getByText('🌰 팔기'));
+    fireEvent.press(screen.getByText('팔기'));
     pressAlertButton('팔래요');
 
     await waitFor(() => expect(jest.mocked(investmentApi.sell)).toHaveBeenCalledWith(1));
     await waitFor(() =>
       expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith(
-        '팔았어요! 🌰',
-        expect.stringContaining('15,000'),
+        '팔았어요!',
+        expect.stringContaining('살 때 10,000 도토리 → 팔 때 10,250 도토리\n수익 250 도토리'),
       ),
     );
   });

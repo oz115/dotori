@@ -86,8 +86,10 @@ export function ParentChoreList({
   return (
     <Screen
       header={<Header title="미션" right={historyButton} />}
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
       padded={false}
-      style={{ paddingVertical: theme.space.sm }}
+      style={{ paddingTop: theme.space.sm }}
     >
       <FlatList
         data={visible}
@@ -257,7 +259,7 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingVertical: theme.space.sm }}로 헤더-배너
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -6,13 +6,14 @@ import { formatWonNumber } from '@/shared/lib/money';
 import { bankBrand, fontFamily, useTheme } from '@/shared/theme';
 
 type AccountCardProps = {
-  account: AccountInfo | undefined;
+  account: AccountInfo | null | undefined;
   isPending: boolean;
   /** 계좌가 없을 때 연동 화면으로 */
   onLinkAccount: () => void;
   /** 이체 화면(계좌번호 입력)으로 */
-  onTransfer: () => void;
-  onHistory: () => void;
+  onTransfer?: () => void;
+  onHistory?: () => void;
+  showActions?: boolean;
 };
 
 /**
@@ -29,11 +30,13 @@ export function AccountCard({
   onLinkAccount,
   onTransfer,
   onHistory,
+  showActions = true,
 }: AccountCardProps) {
   const theme = useTheme();
   const bank = BANKS.find((b) => b.code === account?.bankCode);
-  const cardColor = bank ? bankBrand[bank.key].color : theme.color.accent.acorn;
-  const textColor = bank ? bankBrand[bank.key].textOnBrand : theme.color.text.onBrand;
+  const cardColor = bank ? bankBrand[bank.key].color : '#F4F6F8';
+  const textColor = bank ? bankBrand[bank.key].textOnBrand : '#333D4B';
+  const subTextColor = bank ? textColor : '#6B7684';
 
   return (
     <View
@@ -56,7 +59,7 @@ export function AccountCard({
               {account.accountName}
             </Text>
           ) : (
-            <Text style={[theme.typography.caption, { color: textColor, opacity: 0.85 }]}>
+            <Text style={[theme.typography.caption, { color: subTextColor }]}>
               내 계좌
             </Text>
           )}
@@ -79,7 +82,7 @@ export function AccountCard({
               </Text>
             </>
           ) : (
-            <Text style={[theme.typography.body, { color: textColor }]}>
+            <Text style={[theme.typography.body, { color: textColor, fontFamily: fontFamily.bold }]}>
               아직 연동된 계좌가 없어요
             </Text>
           )}
@@ -107,13 +110,13 @@ export function AccountCard({
             style={[
               styles.linkButton,
               {
-                backgroundColor: theme.color.background.surface,
+                backgroundColor: theme.color.brand.solid,
                 borderRadius: theme.radius.sm,
                 paddingHorizontal: theme.space.md,
               },
             ]}
           >
-            <Text style={[theme.typography.label, { color: theme.color.accent.acorn }]}>
+            <Text style={[theme.typography.label, { color: theme.color.text.onBrand }]}>
               계좌 연동
             </Text>
           </Pressable>
@@ -121,15 +124,15 @@ export function AccountCard({
       </View>
 
       {!isPending && !account ? (
-        <Text style={[theme.typography.caption, { color: textColor, opacity: 0.85 }]}>
+        <Text style={[theme.typography.caption, { color: subTextColor }]}>
           계좌를 연결해야 아이가 도토리를 충전하고 환전할 수 있어요.
         </Text>
       ) : null}
 
-      {account ? (
+      {account && showActions && (onTransfer || onHistory) ? (
         <View style={[styles.actionRow, { gap: theme.space.sm }]}>
-          <AccountPill label="이체하기" color={cardColor} onPress={onTransfer} />
-          <AccountPill label="거래내역 조회" color={cardColor} onPress={onHistory} />
+          {onTransfer ? <AccountPill label="이체하기" color={cardColor} onPress={onTransfer} /> : null}
+          {onHistory ? <AccountPill label="거래내역 조회" color={cardColor} onPress={onHistory} /> : null}
         </View>
       ) : null}
     </View>

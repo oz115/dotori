@@ -3,6 +3,7 @@ import {
   ongoingSavingsAccounts,
   previewSavingsAccounts,
   savingsMaturityMarker,
+  summarizeSavingsAssets,
 } from './summary';
 import type { SavingsAccountPreviewItem } from './summary';
 import type {
@@ -64,7 +65,7 @@ describe('ongoingSavingsAccounts', () => {
   it('진행 중과 수령 대기만 남긴다', () => {
     const all = [
       sub(1, '보통예금', 'ORDINARY', 'ACTIVE'),
-      sub(2, '목표적금', 'GOAL_INSTALLMENT', 'MATURED'),
+      sub(2, '중기적금', 'MID_TERM_INSTALLMENT', 'MATURED'),
       sub(3, '단리예금', 'SIMPLE_INTEREST', 'COMPLETED'),
       sub(4, '장기적금', 'LONG_TERM_INSTALLMENT', 'CANCELLED'),
     ];
@@ -80,14 +81,14 @@ describe('ongoingSavingsAccounts', () => {
 describe('previewSavingsAccounts', () => {
   const accounts = [
     sub(1, '보통예금', 'ORDINARY', 'ACTIVE'),
-    sub(2, '목표적금', 'GOAL_INSTALLMENT', 'ACTIVE'),
+    sub(2, '중기적금', 'MID_TERM_INSTALLMENT', 'ACTIVE'),
     sub(3, '장기적금', 'LONG_TERM_INSTALLMENT', 'ACTIVE'),
   ];
 
   it('기본 3개까지는 전부 보여주고 나머지는 없다', () => {
     const preview = previewSavingsAccounts(accounts);
 
-    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '목표적금', '장기적금']);
+    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '중기적금', '장기적금']);
     expect(preview.restCount).toBe(0);
   });
 
@@ -110,7 +111,7 @@ describe('previewSavingsAccounts', () => {
     ];
 
     const preview = previewSavingsAccounts(many);
-    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '목표적금', '장기적금']);
+    expect(preview.items.map((i) => i.productName)).toEqual(['보통예금', '중기적금', '장기적금']);
     expect(preview.restCount).toBe(2);
   });
 
@@ -193,6 +194,29 @@ describe('savingsMaturityMarker — 서버 실제 응답 형태', () => {
     expect(savingsMaturityMarker(account, new Date(2026, 8, 18, 15, 30))).toEqual({
       kind: 'COUNTDOWN',
       days: 28,
+    });
+  });
+});
+
+describe('summarizeSavingsAssets', () => {
+  it('진행 중과 수령 대기 건수를 합치고, 금액은 서버가 더한 원금 + 이자를 쓴다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 2, maturedCount: 1, totalAmount: 5300 })).toEqual({
+      count: 3,
+      totalAmount: 5300,
+    });
+  });
+
+  it('가입한 건이 없으면 0건 0포인트다 — 가짜 값으로 채우지 않는다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 0, maturedCount: 0, totalAmount: 0 })).toEqual({
+      count: 0,
+      totalAmount: 0,
+    });
+  });
+
+  it('수령 대기 건만 있어도 자산으로 센다', () => {
+    expect(summarizeSavingsAssets({ activeCount: 0, maturedCount: 1, totalAmount: 1200 })).toEqual({
+      count: 1,
+      totalAmount: 1200,
     });
   });
 });

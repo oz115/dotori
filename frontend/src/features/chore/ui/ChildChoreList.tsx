@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
@@ -16,6 +16,13 @@ import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 type ChildChoreListProps = {
   familyId: number | undefined;
   childId: number | undefined;
+  /**
+   * 바깥(알림)에서 넘긴 choreId. 아직 할 미션이면 상세 모달을, 이번 주기에 이미 받은
+   * 미션이면 완료 이력을 연다. 받자마자 onRequestedChoreConsumed 로 알려서 부르는 쪽이
+   * 이 값을 비우게 한다 — 안 비우면 같은 알림을 다시 눌렀을 때 값이 그대로라 반응하지 않는다.
+   */
+  requestedChoreId?: number;
+  onRequestedChoreConsumed?: () => void;
 };
 
 const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
@@ -26,13 +33,53 @@ const FILTERS = REPEAT_TYPES.map((key) => ({ key, label: repeatLabel(key) }));
  * 서버가 활성 집안일만 주므로 기간이 지난 것은 애초에 내려오지 않는다 - 화면에서 따로
  * 거르지 않는다. 반복 주기 필터는 이미 받아 둔 목록을 클라이언트에서 거르는 것이다.
  */
-export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
+export function ChildChoreList({
+  familyId,
+  childId,
+  requestedChoreId,
+  onRequestedChoreConsumed,
+}: ChildChoreListProps) {
   const theme = useTheme();
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
-  const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
+  const { refreshing, onRefresh, refresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
   const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
+
+  // 알림에서 넘어온 미션은 최신 목록을 받은 뒤에 갈 곳을 정한다. 캐시(최대 60초)로 판단하면
+  // 방금 승인된 미션이 아직 TODO 로 보여서, 이미 받은 미션에 완료 요청 폼이 열린다.
+  const [resolvingChoreId, setResolvingChoreId] = useState<number | null>(null);
+  const [historyRedirects, setHistoryRedirects] = useState(0);
+
+  useEffect(() => {
+    if (requestedChoreId == null) return;
+
+    onRequestedChoreConsumed?.();
+    // 값이 비워지면서 이 effect 가 다시 돌아도 진행 중인 새로고침은 취소하지 않는다.
+    refresh().finally(() => setResolvingChoreId(requestedChoreId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 요청 값이 바뀔 때만 처리한다
+  }, [requestedChoreId]);
+
+  // 새로고침이 끝나면 렌더 중에 상태를 맞춘다 (effect 에서 setState 하면 한 번 더 그린다).
+  // 이번 주기에 이미 받은 미션(승인 알림 등)은 다시 할 게 없으니 완료 이력으로 보내고,
+  // 아직 할 미션(새 미션·거절 알림)은 상세 모달을 연다.
+  if (resolvingChoreId != null && !isPending) {
+    setResolvingChoreId(null);
+    const target = items.find((chore) => chore.choreId === resolvingChoreId);
+    // 상태를 모르면(조회 실패) 아무 데도 안 간다 - 모르고 열면 완료 요청 폼이 뜰 수 있다.
+    if (!isError) {
+      if (target != null && target.status !== 'DONE') {
+        setOpenChoreId(resolvingChoreId);
+      } else {
+        setHistoryRedirects((count) => count + 1);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (historyRedirects === 0) return;
+    router.push('/task/history');
+  }, [historyRedirects]);
 
   // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
   // items 는 완료한 것까지 들고 있다 - 모달이 열린 사이에 부모가 승인해도 상태를 읽을 수
@@ -68,8 +115,10 @@ export function ChildChoreList({ familyId, childId }: ChildChoreListProps) {
   return (
     <Screen
       header={<Header title="미션" right={historyButton} />}
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
       padded={false}
-      style={{ paddingVertical: theme.space.sm }}
+      style={{ paddingTop: theme.space.sm }}
     >
       <FlatList
         data={visible}
@@ -153,7 +202,7 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingVertical: theme.space.sm }}로 헤더-배너
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },

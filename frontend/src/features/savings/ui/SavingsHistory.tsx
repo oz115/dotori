@@ -41,6 +41,8 @@ export function SavingsHistory({ familyId, childId, title, onBack }: Props) {
           onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/save')))}
         />
       }
+      // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
+      edges={[]}
       padded={false}
     >
       {transactions.isPending || transactions.isError ? (
@@ -64,6 +66,7 @@ export function SavingsHistory({ familyId, childId, title, onBack }: Props) {
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
             paddingVertical: theme.layout.screenY,
+            paddingBottom: theme.space.lg,
             gap: theme.space.md,
           }}
         >

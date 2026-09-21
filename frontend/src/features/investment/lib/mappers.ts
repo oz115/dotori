@@ -1,4 +1,5 @@
-import { companyEmoji, companyImage, companyLabel } from '@/features/investment/lib/companyAssets';
+import { dailyPricePoints } from '@/features/investment/lib/priceHistory';
+import { companyImage, companyLabel } from '@/features/investment/lib/companyAssets';
 import type {
   Holding,
   HoldingResponse,
@@ -7,7 +8,6 @@ import type {
   InvestmentTransactionItem,
   NewsSummaryResponse,
   PriceHistoryResponse,
-  PricePoint,
   ProductDetailResponse,
   ProductSummaryResponse,
   StockDetail,
@@ -56,10 +56,7 @@ export function toStockDetail(
   history: PriceHistoryResponse['history'],
   holding: boolean,
 ): StockDetail {
-  const points: PricePoint[] = history.map((row) => ({
-    label: formatDayLabel(row.recordedAt),
-    price: row.price,
-  }));
+  const points = dailyPricePoints(history);
   return {
     id: detail.investmentProductId,
     name: detail.name,
@@ -69,8 +66,7 @@ export function toStockDetail(
     holding,
     currentPrice: detail.currentPrice,
     changeFromYesterday: detail.changeAmount,
-    // 아직 가격이 움직인 적 없는 가족은 이력이 비어 있다 — 현재가 한 점으로 차트를 그린다
-    history: points.length > 0 ? points : [{ label: '오늘', price: detail.currentPrice }],
+    history: points,
   };
 }
 
@@ -88,6 +84,7 @@ export function toHolding(holding: HoldingResponse): Holding {
 /** 투자 요약(넣은 돈/번 돈) — 별도 API 없이 보유 목록에서 계산한다 (팀 결정) */
 export function summarizeInvestment(holdings: Holding[]): InvestmentSummary {
   return {
+    count: holdings.length,
     investedPoints: holdings.reduce((sum, h) => sum + h.buyPrice * h.quantity, 0),
     earnedPoints: holdings.reduce((sum, h) => sum + (h.currentPrice - h.buyPrice) * h.quantity, 0),
   };
@@ -100,24 +97,23 @@ export function toTransactionItem(transaction: TransactionResponse): InvestmentT
     image: companyImage(transaction.productName),
     type: transaction.transactionType,
     totalAmount: transaction.totalAmount,
+    buyPrice: transaction.buyPrice,
+    buyAmount: transaction.buyPrice == null ? null : transaction.buyPrice * transaction.quantity,
+    realizedProfit: transaction.realizedProfit,
     date: formatNewsDate(transaction.createdAt),
+    createdAt: transaction.createdAt,
   };
 }
 
 export function toInvestmentNews(news: NewsSummaryResponse): InvestmentNews {
-  const productName = news.relatedProducts[0]?.productName ?? '';
-  const category = news.relatedProducts[0]?.category ?? null;
   return {
     id: news.investmentNewsId,
-    tag: productName !== '' ? companyLabel(productName, category) : '오늘의 소식',
+    tag: '경제 소식',
     title: news.title,
-    body:
-      news.impact === 'POSITIVE'
-        ? '가격이 오를 수 있는 소식이에요.'
-        : '가격이 내릴 수 있는 소식이에요.',
+    body: '어떤 회사에 영향을 줄지 생각해 보세요.',
     impact: news.impact,
-    relatedProductName: productName,
+    relatedProductName: '',
     date: formatNewsDate(news.publishedAt),
-    emoji: productName !== '' ? companyEmoji(productName) : '📰',
+    emoji: '📰',
   };
 }

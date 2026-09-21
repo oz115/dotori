@@ -1,22 +1,33 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { changeColor } from '@/features/investment/lib/change';
 import { formatNumber, signedAcorns } from '@/features/investment/lib/format';
 import type { StockDetail } from '@/features/investment/model/types';
 import { PriceLineChart } from '@/features/investment/ui/PriceLineChart';
+import { Button } from '@/shared/ui';
 import { useTheme } from '@/shared/theme';
 
 type Props = {
   detail: StockDetail;
+  historyPending?: boolean;
+  historyError?: boolean;
+  historyFetching?: boolean;
+  onRetryHistory?: () => void;
 };
 
 /**
  * 상세 화면 상단 개요 카드 — 상품 이름·배지(카테고리/보유중)·현재가·어제 대비·가격 차트.
  */
-export function StockOverviewCard({ detail }: Props) {
+export function StockOverviewCard({
+  detail,
+  historyPending,
+  historyError,
+  historyFetching,
+  onRetryHistory,
+}: Props) {
   const theme = useTheme();
 
-  const rising = detail.changeFromYesterday >= 0;
-  const changeColor = rising ? theme.color.status.success.text : theme.color.status.danger.text;
+  const color = changeColor(detail.changeFromYesterday, theme.color);
 
   return (
     <View
@@ -86,11 +97,33 @@ export function StockOverviewCard({ detail }: Props) {
         </View>
         <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
           어제보다{' '}
-          <Text style={{ color: changeColor }}>{signedAcorns(detail.changeFromYesterday)}</Text>
+          <Text style={{ color }}>
+            {detail.changeFromYesterday === 0
+              ? '변동 없음'
+              : signedAcorns(detail.changeFromYesterday)}
+          </Text>
         </Text>
       </View>
 
-      <PriceLineChart history={detail.history} />
+      {historyError ? (
+        <View style={{ gap: theme.space.sm }}>
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+            가격 기록을 불러오지 못했어요.
+          </Text>
+          <Button
+            label="다시 불러오기"
+            variant="outline"
+            loading={historyFetching}
+            onPress={onRetryHistory}
+          />
+        </View>
+      ) : historyPending ? (
+        <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+          가격 기록을 불러오는 중이에요.
+        </Text>
+      ) : (
+        <PriceLineChart history={detail.history} />
+      )}
     </View>
   );
 }

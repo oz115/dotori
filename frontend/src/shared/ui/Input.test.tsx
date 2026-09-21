@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
+import { theme } from '@/shared/theme';
+
 import { Input } from './Input';
 
 describe('Input', () => {
@@ -54,5 +56,26 @@ describe('Input', () => {
         false,
       ),
     );
+  });
+
+  it('shows a muted, read-only look when editable is false', async () => {
+    await render(
+      <Input
+        variant="box"
+        label="아이디"
+        value="dotori"
+        editable={false}
+        onChangeText={() => {}}
+      />,
+    );
+
+    const field = screen.getByDisplayValue('dotori');
+    expect(field.props.editable).toBe(false);
+
+    const container = field.parent;
+    const backgroundColor = container?.props.style
+      .flat()
+      .find((s: { backgroundColor?: string }) => s?.backgroundColor)?.backgroundColor;
+    expect(backgroundColor).toBe(theme.color.background.surfaceSunken);
   });
 });

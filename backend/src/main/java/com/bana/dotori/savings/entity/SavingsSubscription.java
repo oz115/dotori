@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 가족·아이별 예적금 가입 기록. {@code principal} 은 가입 시점에 확정한 금액 스냅샷이다
- * (거치식=최초원금, 정액 적립식=주당 약정액, 목표적금=목표 금액) — 이후 가족의
+ * (거치식=최초원금, 정액 적립식=주당 약정액) — 이후 가족의
  * {@code weeklyRewardLimit} 이 바뀌어도 이미 가입된 건은 영향받지 않는다.
  *
  * <p><b>원금과 이자를 나눠 들고 있다.</b> {@code currentAmount} 는 납입된 원금 누계,
@@ -107,7 +107,7 @@ public class SavingsSubscription {
 	 * 새 가입을 만든다.
 	 *
 	 * @param principal                   가입 시점에 확정한 금액 스냅샷
-	 * @param initialDeposit              가입과 동시에 실제로 납입되는 금액 (목표적금은 0)
+	 * @param initialDeposit              가입과 동시에 실제로 납입되는 금액
 	 * @param initialDepositIsInstallment 그 최초 납입을 1회차로 셀 것인가 (정액 적립식)
 	 * @param maturityAt                  만기 시각. 보통예금(무기한)은 null
 	 */
@@ -125,11 +125,6 @@ public class SavingsSubscription {
 
 	public boolean isActive() {
 		return status == SavingsSubscriptionStatus.ACTIVE;
-	}
-
-	/** 목표적금이 목표 금액을 채웠는가. 다른 상품에서는 의미가 없다 */
-	public boolean hasReachedGoal() {
-		return currentAmount >= principal;
 	}
 
 	/** 추가 납입을 반영한다. 금액 검증은 상품 규칙을 아는 서비스가 먼저 끝낸다 */
@@ -161,7 +156,7 @@ public class SavingsSubscription {
 	}
 
 	/**
-	 * 만기 수령 완료. 목표적금처럼 달성 즉시 지급하는 상품은 ACTIVE 에서 곧바로 이리 온다.
+	 * 만기 수령 완료.
 	 */
 	public void complete(OffsetDateTime now) {
 		if (status != SavingsSubscriptionStatus.ACTIVE && status != SavingsSubscriptionStatus.MATURED) {

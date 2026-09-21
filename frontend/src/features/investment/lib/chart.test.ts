@@ -29,9 +29,12 @@ describe('scaleY', () => {
 });
 
 describe('scalePoints', () => {
-  it('값이 2개 미만이면 빈 배열을 돌려준다', () => {
+  it('값이 없으면 빈 배열을 돌려준다', () => {
     expect(scalePoints([], 0, 100, 100, 100)).toEqual([]);
-    expect(scalePoints([10], 0, 100, 100, 100)).toEqual([]);
+  });
+
+  it('값이 하나뿐이면 선을 그릴 기준이 없어 오른쪽 끝에 점 하나만 찍는다', () => {
+    expect(scalePoints([50], 0, 100, 90, 50, 0)).toEqual([{ x: 90, y: 25 }]);
   });
 
   it('x 는 균등 간격, y 는 domain 기준으로 정규화된다', () => {
@@ -52,4 +55,10 @@ describe('toPolylinePoints', () => {
       ]),
     ).toBe('0,1.5 10,2');
   });
+});
+
+it('보합 날짜는 같은 높이로 이어지고 상승한 날만 높이가 바뀐다', () => {
+  const points = scalePoints([100, 100, 100, 110, 110], 100, 110, 400, 100);
+  expect(points.map((p) => p.x)).toEqual([0, 100, 200, 300, 400]);
+  expect(points.map((p) => p.y)).toEqual([100, 100, 100, 0, 0]);
 });

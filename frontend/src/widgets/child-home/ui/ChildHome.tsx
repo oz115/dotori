@@ -8,6 +8,7 @@ import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
 import { AppTopBar } from '@/shared/ui';
 
+import { useChildAssets } from '@/widgets/child-home/model/useChildAssets';
 import { useChildIdentity } from '@/widgets/child-home/model/useChildIdentity';
 
 import { ActivityBoard } from './ActivityBoard';
@@ -25,6 +26,7 @@ export function ChildHome() {
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
   const account = useMyAccount();
+  const assets = useChildAssets(familyId, childId);
   const unreadCount = useUnreadNotificationCount();
 
   return (
@@ -53,6 +55,7 @@ export function ChildHome() {
           // '/wallet/cashouts' 는 부모 그룹에도 있는 경로라 그룹까지 적어야 아이 화면으로 간다
           onCashoutHistory={() => router.push('/(child)/wallet/cashouts')}
           account={account.data}
+          assets={assets}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores

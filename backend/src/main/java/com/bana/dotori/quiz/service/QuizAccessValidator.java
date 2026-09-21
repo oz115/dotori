@@ -58,6 +58,17 @@ public class QuizAccessValidator {
 		}
 	}
 
+	/**
+	 * 정답을 미리 볼 수 있는 조회는 부모만 할 수 있다. 자녀가 이 경로로 정답을 보면 퀴즈의
+	 * 재도전 규칙(정답은 잠긴 뒤에만 공개)이 무너진다. {@link #validate}가 가족·자녀 경로를 먼저
+	 * 검증한 뒤에 부른다.
+	 */
+	public void requireParent(Integer userId) {
+		if (findUser(userId).getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+	}
+
 	private User findUser(Integer userId) {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { changeColor, changeLabel } from '@/features/investment/lib/change';
 import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { Holding } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
@@ -19,7 +20,7 @@ export function HoldingCard({ holding, onPress }: Props) {
   const theme = useTheme();
 
   const earned = (holding.currentPrice - holding.buyPrice) * holding.quantity;
-  const chipColors = earned >= 0 ? theme.color.status.success : theme.color.status.danger;
+  const color = changeColor(earned, theme.color);
 
   return (
     <Pressable
@@ -57,10 +58,10 @@ export function HoldingCard({ holding, onPress }: Props) {
         <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
           {formatAcorns(holding.currentPrice)}
         </Text>
-        <View style={styles.change}>
+        <View style={styles.change} accessibilityLabel={changeLabel(earned)}>
           <Image source={ACORN} style={styles.acorn} resizeMode="contain" />
-          <Text style={[theme.typography.label, { color: chipColors.text }]}>
-            {signedAcorns(earned)}
+          <Text style={[theme.typography.label, { color }]}>
+            {earned === 0 ? '변동 없음' : signedAcorns(earned)}
           </Text>
         </View>
       </View>

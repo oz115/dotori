@@ -16,6 +16,12 @@ public record InvestmentOrderResponse(
 	Integer unitPrice,
 	Integer totalAmount,
 	Integer pointBalanceAfter,
-	OffsetDateTime createdAt
+	OffsetDateTime createdAt,
+	Integer buyPrice,
+	Integer realizedProfit
 ) {
+	public InvestmentOrderResponse(Integer id, InvestmentTransactionType type, Integer quantity,
+		Integer unitPrice, Integer totalAmount, Integer balance, OffsetDateTime createdAt) {
+		this(id, type, quantity, unitPrice, totalAmount, balance, createdAt, null, null);
+	}
 }

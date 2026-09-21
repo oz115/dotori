@@ -1,18 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { choreApi } from '@/features/chore/api/choreApi';
-import { withStatus, type TodayChoreStatus } from '@/features/chore/lib/choreStatus';
+import { todayDate, withStatus, type TodayChoreStatus } from '@/features/chore/lib/choreStatus';
 import { choreKeys } from '@/features/chore/model/choreKeys';
 import { usePendingCompletionRequest } from '@/features/chore/model/usePendingCompletionRequest';
 import type { ChoreDetail, ChoreSummary } from '@/features/chore/model/types';
-
-/** 오늘 (YYYY-MM-DD), 기기 로컬 시간 기준 */
-function todayDate(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
 
 /**
  * 할 일 하나의 진행 상태. 상세 화면의 배지가 쓴다.
