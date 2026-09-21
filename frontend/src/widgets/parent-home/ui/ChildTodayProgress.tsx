@@ -27,7 +27,7 @@ type ChildTodayProgressProps = {
 const PREVIEW_COUNT = 3;
 
 /**
- * "미션 진척도" 섹션. 자녀 홈의 "오늘 등록된 미션"과 같은 데이터(`useTodayChores`)를 쓰지만,
+ * "오늘의 미션" 섹션. 자녀 홈의 "오늘 등록된 미션"과 같은 데이터(`useTodayChores`)를 쓰지만,
  * 부모 홈 전용으로 따로 둔다 — widgets는 서로를 import하지 않는 게 이 프로젝트 규칙이라
  * child-home 컴포넌트를 그대로 가져다 쓸 수 없다.
  *
@@ -65,7 +65,7 @@ export function ChildTodayProgress({
       <View style={styles.headerRow}>
         <View style={[styles.titleRow, { gap: theme.space.xs }]}>
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-            미션 진척도
+            오늘의 미션
           </Text>
           {usingMock ? <MockBadge /> : null}
         </View>

@@ -1,9 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { EmailVerification, resetPasswordErrorMessage, useResetPassword } from '@/features/auth';
+import {
+  EmailVerification,
+  recoveryHandoff,
+  resetPasswordErrorMessage,
+  useResetPassword,
+} from '@/features/auth';
+import { apiErrorCode } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
 import { Button, Callout, Header, Input, Screen } from '@/shared/ui';
 
@@ -12,9 +18,15 @@ export default function ResetPasswordScreen() {
   const resetPassword = useResetPassword();
 
   const [loginId, setLoginId] = useState('');
+  // 아이디 찾기에서 이미 이메일 인증을 마치고 넘어왔다면 그 결과를 이어 쓴다 (인증을 또 받지 않게)
+  const [handoff, setHandoff] = useState(() => recoveryHandoff.peek());
+  const [verifyKey, setVerifyKey] = useState(0);
   const [verified, setVerified] = useState<{ email: string; verificationToken: string } | null>(
-    null,
+    handoff,
   );
+
+  // 토큰은 한 번 받아 state 에 옮겼으면 전달 슬롯에서 비운다
+  useEffect(() => recoveryHandoff.clear(), []);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [fieldError, setFieldError] = useState('');
@@ -52,7 +64,15 @@ export default function ResetPasswordScreen() {
             { text: '확인', onPress: () => router.replace('/') },
           ]);
         },
-        onError: (e) => setSubmitError(resetPasswordErrorMessage(e)),
+        onError: (e) => {
+          setSubmitError(resetPasswordErrorMessage(e));
+          // 인증이 만료됐으면 인증 블록을 처음 상태로 되돌려 다시 받게 한다
+          if (apiErrorCode(e) === 'INVALID_VERIFICATION_TOKEN') {
+            setHandoff(null);
+            setVerified(null);
+            setVerifyKey((k) => k + 1);
+          }
+        },
       },
     );
   };
@@ -87,7 +107,13 @@ export default function ResetPasswordScreen() {
           onChangeText={setLoginId}
         />
 
-        <EmailVerification purpose="PASSWORD_RESET" onVerified={setVerified} onReset={onReset} />
+        <EmailVerification
+          key={verifyKey}
+          purpose="PASSWORD_RESET"
+          initialVerified={handoff ?? undefined}
+          onVerified={setVerified}
+          onReset={onReset}
+        />
 
         {verified ? (
           <View style={{ gap: theme.space.xl }}>

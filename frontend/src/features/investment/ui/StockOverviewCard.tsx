@@ -103,6 +103,19 @@ export function StockOverviewCard({
               : signedAcorns(detail.changeFromYesterday)}
           </Text>
         </Text>
+        {/* 보유 중이면 산 값 대비 차익을 수치로 — "같아요" 같은 말 대신 숫자를 보여준다 */}
+        {detail.holding && detail.buyPrice != null ? (
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+            내가 산 값 {formatNumber(detail.buyPrice)} 도토리 · 차익{' '}
+            <Text
+              style={{ color: changeColor(detail.currentPrice - detail.buyPrice, theme.color) }}
+            >
+              {detail.currentPrice === detail.buyPrice
+                ? '0 도토리'
+                : signedAcorns(detail.currentPrice - detail.buyPrice)}
+            </Text>
+          </Text>
+        ) : null}
       </View>
 
       {historyError ? (

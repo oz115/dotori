@@ -15,11 +15,7 @@ export type InvestmentSummary = {
 /** 오늘의 뉴스 카드 한 장 + 상세 팝업 내용 */
 export type InvestmentNews = {
   id: number;
-  /** 분류 배지 (환경, 기술, 생활 …) */
-  tag: string;
   title: string;
-  /** 카드에 보이는 요약 한 줄 */
-  body: string;
   /** 상세 팝업 본문 (API 의 content). 목록 응답에는 없어 팝업이 상세 API 로 채운다 */
   content?: string;
   /** 종목 가격에 주는 영향 방향 (API 의 impact) */

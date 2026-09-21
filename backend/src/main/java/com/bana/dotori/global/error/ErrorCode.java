@@ -32,6 +32,7 @@ public enum ErrorCode {
 	PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치하지 않습니다"),
 	HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "잔여 자산이 있어 탈퇴할 수 없습니다"),
 	FAMILY_HAS_CHILDREN(HttpStatus.CONFLICT, "가족에 남은 자녀가 있어 탈퇴할 수 없습니다"),
+	CHILD_HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "자녀에게 남은 자산이 있어 진행할 수 없습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
 	// 이메일 인증 (AUTH-07)

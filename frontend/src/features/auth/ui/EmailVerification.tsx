@@ -2,6 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import {
+  EMAIL_CODE_LENGTH,
+  isCompleteEmailCode,
+  normalizeEmailCode,
+} from '@/features/auth/lib/emailCode';
 import { emailVerificationErrorMessage } from '@/features/auth/lib/emailVerificationError';
 import { isValidEmail } from '@/features/auth/lib/signupValidation';
 import { useCountdown } from '@/shared/lib/useCountdown';
@@ -22,6 +27,11 @@ type Props = {
   onReset?: () => void;
   /** 앞 단계에서 넘어온 초기 이메일 값 */
   initialEmail?: string;
+  /**
+   * 이미 인증을 마친 채로 시작한다 (아이디 찾기에서 넘어온 비밀번호 재설정).
+   * 서버가 같은 토큰을 이어 쓰게 해 두므로 같은 이메일로 인증을 또 받게 하지 않는다.
+   */
+  initialVerified?: { email: string; verificationToken: string };
 };
 
 /**
@@ -31,13 +41,19 @@ type Props = {
  * 발송은 서버가 SMTP 를 거쳐 느릴 수 있어 응답을 기다리지 않고 코드 입력 UI 로
  * 바로 넘어간다. 실패하면 되돌린다.
  */
-export function EmailVerification({ purpose, onVerified, onReset, initialEmail = '' }: Props) {
+export function EmailVerification({
+  purpose,
+  onVerified,
+  onReset,
+  initialEmail = '',
+  initialVerified,
+}: Props) {
   const theme = useTheme();
 
-  const [email, setEmail] = useState(initialEmail);
+  const [email, setEmail] = useState(initialVerified?.email ?? initialEmail);
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-  const [verified, setVerified] = useState(false);
+  const [verified, setVerified] = useState(initialVerified != null);
   const [error, setError] = useState('');
 
   const codeTtl = useCountdown();
@@ -83,10 +99,10 @@ export function EmailVerification({ purpose, onVerified, onReset, initialEmail =
   };
 
   const verifyCode = () => {
-    if (confirm.isPending || verified || !codeSent || code.trim().length === 0) return;
+    if (confirm.isPending || verified || !codeSent || !isCompleteEmailCode(code)) return;
     setError('');
     confirm.mutate(
-      { email: email.trim(), code: code.trim() },
+      { email: email.trim(), code },
       {
         onSuccess: (res) => {
           setVerified(true);
@@ -131,9 +147,12 @@ export function EmailVerification({ purpose, onVerified, onReset, initialEmail =
           variant="box"
           label="인증코드"
           placeholder="인증코드 입력"
-          keyboardType="number-pad"
+          // 서버 코드는 대문자·숫자 6자리라 숫자 키패드로는 입력할 수 없다
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={EMAIL_CODE_LENGTH}
           value={code}
-          onChangeText={setCode}
+          onChangeText={(v) => setCode(normalizeEmailCode(v))}
           rightSlot={
             <View style={styles.codeSlot}>
               {codeTtl.running ? (
@@ -147,7 +166,7 @@ export function EmailVerification({ purpose, onVerified, onReset, initialEmail =
                 size="sm"
                 onPress={verifyCode}
                 loading={confirm.isPending}
-                disabled={code.trim().length === 0}
+                disabled={!isCompleteEmailCode(code)}
               />
             </View>
           }

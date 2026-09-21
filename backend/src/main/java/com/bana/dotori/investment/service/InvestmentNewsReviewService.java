@@ -8,7 +8,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentNewsReviewResponse;
@@ -26,7 +28,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class InvestmentNewsReviewService {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
+	private static final int STOCK_COUNT = 10;
 	private final FamilyMemberRepository familyMemberRepository;
+	private final FamilyRepository familyRepository;
 	private final InvestmentNewsRepository newsRepository;
 	private final InvestmentNewsProductRepository newsProductRepository;
 	private final InvestmentPriceHistoryRepository priceRepository;
@@ -56,10 +61,16 @@ public class InvestmentNewsReviewService {
 			if (current.isEmpty() || current.get().getRecordedAt().isBefore(start)) {
 				return waiting(item);
 			}
+			// 이력이 없으면 가족별 시작가(주간 용돈 ÷ 종목 수 10) — 조회·주문 API 의 가격 규칙과 같다
 			int previous = priceRepository
 				.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(
 					familyId, product.getId(), start)
-				.map(row -> row.getPrice()).orElse(product.getCurrentPrice());
+				.map(row -> row.getPrice())
+				.orElseGet(() -> familyRepository.findByIdAndDeletedAtIsNull(familyId)
+					.map(Family::getWeeklyAllowance)
+					.filter(allowance -> allowance > 0)
+					.map(allowance -> Math.max(1, (allowance + STOCK_COUNT / 2) / STOCK_COUNT))
+					.orElse(product.getCurrentPrice()));
 			int price = current.get().getPrice();
 			return new Review(item.getId(), item.getTitle(), item.getContent(), true, product.getName(),
 				previous, price, explanation(product, item.getImpact(), price - previous));

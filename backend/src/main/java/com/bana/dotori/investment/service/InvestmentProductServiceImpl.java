@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
 import com.bana.dotori.family.repository.FamilyRepository;
@@ -48,6 +49,8 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 	// 거래 이력 조회에서 시작일을 안 줬을 때의 하한 — 서비스 오픈 이전이라 사실상 전체 조회다
 	private static final LocalDate EARLIEST_DATE = LocalDate.of(2000, 1, 1);
+	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
+	private static final int STOCK_COUNT = 10;
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
@@ -60,7 +63,8 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	/**
 	 * 상품·뉴스는 전역이지만 가격은 가족마다 다르다 — AI 가 가족별로
 	 * investment_price_history 를 쌓으므로, 현재가는 (가족, 상품)의 최신 행이고
-	 * 전일가는 오늘(KST) 자정 이전의 최신 행이다. 이력이 없으면 시작가(current_price)를 쓴다.
+	 * 전일가는 오늘(KST) 자정 이전의 최신 행이다. 이력이 없으면 가족별 시작가를 쓴다
+	 * ({@link #familyStartPrice}).
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -79,11 +83,12 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
 		Map<Integer, Integer> latestPrices = latestPriceByProductId(familyId, todayStart.plusDays(1));
 		Map<Integer, Integer> previousPrices = latestPriceByProductId(familyId, todayStart);
+		Integer familyStartPrice = familyStartPrice(familyId);
 
 		return new InvestmentProductListResponse(products.stream()
 			.map(product -> investmentProductMapper.toSummary(product,
-				latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()),
-				previousPrices.getOrDefault(product.getId(), product.getCurrentPrice())))
+				latestPrices.getOrDefault(product.getId(), startPrice(familyStartPrice, product)),
+				previousPrices.getOrDefault(product.getId(), startPrice(familyStartPrice, product))))
 			.toList());
 	}
 
@@ -103,10 +108,11 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
 		Optional<InvestmentPriceHistory> latest = latestPriceRow(familyId, productId, todayStart.plusDays(1));
 		Optional<InvestmentPriceHistory> previous = latestPriceRow(familyId, productId, todayStart);
+		Integer familyStartPrice = familyStartPrice(familyId);
 
 		return investmentProductMapper.toDetailResponse(product,
-			latest.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
-			previous.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice()),
+			latest.map(InvestmentPriceHistory::getPrice).orElseGet(() -> startPrice(familyStartPrice, product)),
+			previous.map(InvestmentPriceHistory::getPrice).orElseGet(() -> startPrice(familyStartPrice, product)),
 			latest.map(InvestmentPriceHistory::getRecordedAt).orElse(product.getUpdatedAt()));
 	}
 
@@ -134,13 +140,14 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			.collect(Collectors.toMap(InvestmentProduct::getId, product -> product));
 		OffsetDateTime todayStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime();
 		Map<Integer, Integer> latestPrices = latestPriceByProductId(familyId, todayStart.plusDays(1));
+		Integer familyStartPrice = familyStartPrice(familyId);
 
 		return new InvestmentHoldingsResponse(holdings.stream()
 			.map(holding -> {
 				InvestmentProduct product = products.get(holding.getInvestmentProductId());
 				return investmentProductMapper.toHoldingSummary(product, holding.getQuantity(),
 					holding.getBuyPrice(),
-					latestPrices.getOrDefault(product.getId(), product.getCurrentPrice()));
+					latestPrices.getOrDefault(product.getId(), startPrice(familyStartPrice, product)));
 			})
 			.toList());
 	}
@@ -179,9 +186,10 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			return new InvestmentPriceHistoryResponse(productId, List.of());
 		}
 
-		// 기간 이전 최신가를 이어 받는다. 이력이 전혀 없으면 상품 시작가가 실제 가격이다.
+		// 기간 이전 최신가를 이어 받는다. 이력이 전혀 없으면 가족별 시작가가 실제 가격이다.
+		Integer familyStartPrice = familyStartPrice(familyId);
 		int price = latestPriceRow(familyId, productId, start.atStartOfDay(KST).toOffsetDateTime())
-			.map(InvestmentPriceHistory::getPrice).orElse(product.getCurrentPrice());
+			.map(InvestmentPriceHistory::getPrice).orElseGet(() -> startPrice(familyStartPrice, product));
 		List<InvestmentPriceHistory> rows = investmentPriceHistoryRepository.findAllInRange(familyId,
 			product.getId(), start.atStartOfDay(KST).toOffsetDateTime(),
 			end.plusDays(1).atStartOfDay(KST).toOffsetDateTime());
@@ -279,6 +287,26 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			throw new BusinessException(ErrorCode.NOT_FAMILY_CHILD);
 		}
 		return childId;
+	}
+
+	/**
+	 * 이 가족의 시작가 — 가격 이력이 아직 없을 때 쓰는 가격. 시드 current_price(전 가족 공통
+	 * 자리표시자)가 아니라 <b>주간 기본 용돈(weekly_allowance, 포인트) ÷ 종목 수(10)</b>다.
+	 * 아이가 일주일 용돈으로 10개 종목을 전부 살 수 있는 가격이고, 그렇게 다 사서 일주일
+	 * (뉴스 21건 = 상승 14·하락 7) 들고 팔아도 최대 이익이 투자 배정액(한도의 40%)을 넘지
+	 * 않는다 — AI 의 하루 변동폭(한도×40%÷7)과 짝을 이루는 설계다.
+	 * 온보딩 전(용돈 없음·0)이면 null 을 돌려주고 상품 시드 값으로 폴백한다.
+	 */
+	private Integer familyStartPrice(Integer familyId) {
+		return familyRepository.findByIdAndDeletedAtIsNull(familyId)
+			.map(Family::getWeeklyAllowance)
+			.filter(allowance -> allowance > 0)
+			.map(allowance -> Math.max(1, (allowance + STOCK_COUNT / 2) / STOCK_COUNT))
+			.orElse(null);
+	}
+
+	private static int startPrice(Integer familyStartPrice, InvestmentProduct product) {
+		return familyStartPrice != null ? familyStartPrice : product.getCurrentPrice();
 	}
 
 	private Map<Integer, Integer> latestPriceByProductId(Integer familyId, OffsetDateTime before) {

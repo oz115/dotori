@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import {
+  deleteFamilyErrorMessage,
   useDeleteFamily,
   useFamily,
   useFamilyId,
@@ -73,7 +74,10 @@ export default function FamilyManageScreen() {
                 router.replace('/');
                 Alert.alert('삭제됐어요', '가족을 다시 만들 수 있어요.');
               },
-              onError: () => Alert.alert('삭제 실패', '잠시 후 다시 시도해주세요.'),
+              onError: (e) => {
+                const { title, message } = deleteFamilyErrorMessage(e);
+                Alert.alert(title, message);
+              },
             }),
         },
       ],

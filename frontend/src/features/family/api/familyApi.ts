@@ -42,6 +42,10 @@ export const familyApi = {
       .post<InvitationResponse>(`/api/v1/families/${familyId}/invitations`, undefined)
       .then((res) => res.data),
 
+  /** 발급된 초대 코드 폐기(만료) — 부모만, 성공 시 204. 발급된 코드가 없어도 204 */
+  revokeInvitation: (familyId: number) =>
+    httpClient.delete(`/api/v1/families/${familyId}/invitations`),
+
   /** 가족 삭제 — 생성자만, 성공 시 204 */
   remove: (familyId: number) => httpClient.delete(`/api/v1/families/${familyId}`),
 

@@ -144,30 +144,6 @@ export function ParentChoreDetail({
               </Text>
             </View>
           ) : null}
-
-          {chore.reason ? (
-            <View style={{ gap: theme.space.sm }}>
-              <View style={[styles.titleRow, { gap: theme.space.sm }]}>
-                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
-                <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-                  AI 산정 이유
-                </Text>
-              </View>
-              <Text
-                style={[
-                  theme.typography.bodySm,
-                  {
-                    backgroundColor: theme.color.background.surfaceSunken,
-                    borderRadius: theme.radius.md,
-                    padding: theme.space.lg,
-                    color: theme.color.text.default,
-                  },
-                ]}
-              >
-                {chore.reason}
-              </Text>
-            </View>
-          ) : null}
         </ScrollView>
       )}
 

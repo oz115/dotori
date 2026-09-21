@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
+  EMAIL_CODE_LENGTH,
   emailVerificationErrorMessage,
+  isCompleteEmailCode,
   isValidEmail,
+  normalizeEmailCode,
   SignupStepLayout,
   useConfirmEmailCode,
   useSendEmailCode,
@@ -67,10 +70,10 @@ export default function SignupEmailScreen() {
   };
 
   const next = () => {
-    if (confirm.isPending || !codeSent || code.trim().length === 0) return;
+    if (confirm.isPending || !codeSent || !isCompleteEmailCode(code)) return;
     setError('');
     confirm.mutate(
-      { email: email.trim(), code: code.trim() },
+      { email: email.trim(), code },
       {
         onSuccess: (res) => {
           patch({
@@ -85,7 +88,7 @@ export default function SignupEmailScreen() {
     );
   };
 
-  const canProceed = emailOk && codeSent && code.trim().length > 0 && !confirm.isPending;
+  const canProceed = emailOk && codeSent && isCompleteEmailCode(code) && !confirm.isPending;
 
   return (
     <SignupStepLayout
@@ -112,7 +115,6 @@ export default function SignupEmailScreen() {
           autoCorrect={false}
           value={email}
           onChangeText={onChangeEmail}
-          editable={!codeSent}
         />
         <Button
           label="인증코드 받기"
@@ -128,9 +130,12 @@ export default function SignupEmailScreen() {
             variant="box"
             label="인증코드"
             placeholder="메일로 받은 코드를 입력하세요"
-            keyboardType="number-pad"
+            // 서버 코드는 대문자·숫자 6자리라 숫자 키패드로는 입력할 수 없다
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={EMAIL_CODE_LENGTH}
             value={code}
-            onChangeText={setCode}
+            onChangeText={(v) => setCode(normalizeEmailCode(v))}
           />
           <View style={styles.metaRow}>
             <View style={styles.timer}>

@@ -53,6 +53,35 @@
 - 환율(10원=1포인트)의 원본은 `PointExchangePolicy` 하나다. 원↔포인트 환산(`toPoints`/`toWon`)을
   손으로 `* 10`, `/ 10` 하지 않는다 — 포인트 충전(지갑)과 가족 온보딩이 함께 쓴다.
 
+#### 자녀 잔여 자산 규칙 — 탈퇴·가족 해체·자녀 제외 (S15P21A505-292)
+
+자녀가 가족 소속을 잃으면 지갑·환전·예적금·투자에 닿을 길(가족 소속, 환전 승인하는 부모)이 끊긴다.
+자산이 남은 채로 그렇게 되면 자녀는 자산을 처분하지도 탈퇴하지도 못하는 교착에 빠지므로,
+**자산이 남은 자녀는 가족에서 빠질 수 없고 탈퇴할 수도 없다.** 세 경로가 같은 규칙을 쓴다.
+
+| 경로 | 막는 조건 | 에러 |
+| --- | --- | --- |
+| 자녀 회원 탈퇴 | 그 자녀에게 잔여 자산이 있음 | `HAS_ACTIVE_ASSETS` (409) |
+| 가족 해체 (`DELETE /families/{id}`) | 가족의 자녀 중 한 명이라도 잔여 자산이 있음 | `CHILD_HAS_ACTIVE_ASSETS` (409) |
+| 자녀 제외 (`DELETE /families/{id}/children/{childId}`) | 그 자녀에게 잔여 자산이 있음 | `CHILD_HAS_ACTIVE_ASSETS` (409) |
+| 부모 회원 탈퇴 | 가족에 자녀가 남아 있음 (기존 규칙) | `FAMILY_HAS_CHILDREN` (409) |
+
+"잔여 자산"은 아래 넷 중 하나라도 해당하면 남은 것으로 본다. 도메인마다 `RemainingAssetReader`
+구현체가 하나씩 있고, `RemainingAssetPolicy` 가 이를 모아 묻는다.
+새 자산 도메인이 생기면 구현체만 추가하면 세 경로에 모두 반영된다.
+
+- 포인트 잔액 > 0 (`wallet/PointRemainingAssetReader`)
+- 처리되지 않은 환전 요청 — `PENDING`·`PROGRESS` (`wallet/PendingCashoutRemainingAssetReader`).
+  요청 시점에 포인트를 이미 차감하므로 잔액이 0 이어도 그 포인트는 아직 자녀 몫이다.
+  가족이 해체되면 승인할 부모가 없어져 영구 보류되므로 정산(승인·거절·취소)이 끝나야 한다.
+- 진행 중(`ACTIVE`)이거나 수령 대기(`MATURED`)인 예적금 (`savings/SavingsRemainingAssetReader`)
+- 매도하지 않은 투자 보유 종목 (`investment/InvestmentRemainingAssetReader`)
+
+자녀가 환전 요청을 하지 않으면 부모는 가족을 지우지 못하고 기다린다 (팀 결정 — 부모가 자녀
+자산을 강제로 회수하는 기능은 두지 않는다). 부모가 가족을 지우려다 막히면 앱이 무엇을 정리해야
+하는지 안내한다. 검사와 해체 사이에 자녀가 다시 자산을 만드는 경합은 막지 않는다 (가족 행 잠금만 있고
+자녀 지갑은 잠그지 않는다).
+
 ### 스키마 관리 방식
 
 현재 `ddl-auto: update` 로 Hibernate 가 엔티티에서 스키마를 만든다.

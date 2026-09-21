@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 
 import { investmentApi } from '@/features/investment/api/investmentApi';
 import { changeColor } from '@/features/investment/lib/change';
-import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
+import { formatAcorns, formatNumber, signedAcorns } from '@/features/investment/lib/format';
 import { investmentKeys } from '@/features/investment/model/investmentKeys';
 import { useTheme } from '@/shared/theme';
 import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryError';
@@ -18,6 +18,14 @@ export function NewsReview() {
     refetchInterval: (query) => (query.state.data === null ? false : 60_000),
   });
   const body = [theme.typography.bodySm, { color: theme.color.text.sub }];
+  // 가격이 길어지면(다섯 자리 이상) 한 줄에 다 안 들어가므로 등락이 다음 줄로 내려가게 둔다
+  const priceRowStyle = {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.space.sm,
+  } as const;
   return (
     <View style={{ gap: theme.space.md }}>
       <Text style={body}>
@@ -45,34 +53,59 @@ export function NewsReview() {
             key={item.investmentNewsId}
             style={{
               padding: theme.space.lg,
-              gap: theme.space.sm,
+              gap: theme.space.md,
               borderRadius: theme.radius.lg,
               backgroundColor: theme.color.brand.subtle,
             }}
           >
-            <Text style={body}>{review.data?.newsDate} 뉴스</Text>
-            <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-              {item.title}
-            </Text>
-            <Text style={body}>{item.content}</Text>
+            <View style={{ gap: theme.space.xs }}>
+              <Text style={body}>{review.data?.newsDate} 뉴스</Text>
+              <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+                {item.title}
+              </Text>
+              <Text style={body}>{item.content}</Text>
+            </View>
+
             {item.ready && item.previousPrice != null && item.currentPrice != null ? (
               <>
-                <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-                  {item.productName}
-                </Text>
-                <Text
-                  style={[
-                    theme.typography.label,
-                    { color: changeColor(item.currentPrice - item.previousPrice, theme.color) },
-                  ]}
+                {/* 가격 변화는 흰 박스로 따로 — 숫자와 해설 글이 한 덩어리로 붙으면 안 읽힌다 */}
+                <View
+                  style={{
+                    backgroundColor: theme.color.background.surface,
+                    borderRadius: theme.radius.md,
+                    padding: theme.space.md,
+                    gap: theme.space.xs,
+                  }}
                 >
-                  {formatAcorns(item.previousPrice)} → {formatAcorns(item.currentPrice)}
-                  {'\n'}
-                  {item.currentPrice === item.previousPrice
-                    ? '변동 없음'
-                    : signedAcorns(item.currentPrice - item.previousPrice)}
-                </Text>
-                <Text style={body}>{item.explanation}</Text>
+                  <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
+                    {item.productName} 가격 변화
+                  </Text>
+                  <View style={priceRowStyle}>
+                    <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+                      {/* 단위는 뒤에 한 번만 — 양쪽에 다 붙이면 좁은 화면에서 박스를 넘친다 */}
+                      {formatNumber(item.previousPrice)} → {formatAcorns(item.currentPrice)}
+                    </Text>
+                    <Text
+                      style={[
+                        theme.typography.label,
+                        { color: changeColor(item.currentPrice - item.previousPrice, theme.color) },
+                      ]}
+                    >
+                      {item.currentPrice === item.previousPrice
+                        ? '변동 없음'
+                        : signedAcorns(item.currentPrice - item.previousPrice)}
+                    </Text>
+                  </View>
+                </View>
+
+                {item.explanation ? (
+                  <View style={{ gap: theme.space.xs }}>
+                    <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+                      왜 그랬을까요?
+                    </Text>
+                    <Text style={body}>{item.explanation}</Text>
+                  </View>
+                ) : null}
               </>
             ) : (
               <Text style={body}>오늘 가격에 반영되면 결과를 보여줄게요.</Text>

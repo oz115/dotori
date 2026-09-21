@@ -44,12 +44,14 @@ public class ChoreCompletionNotificationListener {
 	/**
 	 * 거절은 사유를 담지 않는다. 서버가 저장하지 않아 담을 값이 없다.
 	 *
-	 * <p>대신 끝이 아니라는 것이 드러나는 문구를 쓴다 — 거절돼도 같은 주기에 다시 요청할 수 있다.
+	 * <p>대신 끝이 아니라는 것과 무엇을 하면 되는지를 적는다 — 거절돼도 같은 주기에 다시
+	 * 요청할 수 있다. 전에 쓰던 "아직 통과하지 못했어요" 는 시험에 떨어졌다는 말처럼 읽히고,
+	 * 읽고 나서 무엇을 해야 하는지도 알 수 없었다 (QA). 아이 상세 화면의 안내와 같은 말을 쓴다.
 	 */
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onRejected(ChoreCompletionRejectedEvent event) {
 		pushNotificationService.notify(event.childId(), NotificationType.CHORE,
-			"다시 해볼까요?", event.choreTitle() + " 완료 요청이 아직 통과하지 못했어요",
+			"다시 해볼까요?", event.choreTitle() + " · 사진을 다시 찍어서 보내주세요",
 			event.choreId());
 	}
 

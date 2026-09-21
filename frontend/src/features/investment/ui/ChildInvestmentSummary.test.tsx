@@ -78,5 +78,5 @@ it('변동이 없으면 산 값과 같다고 알려준다', async () => {
       sales={{ status: 'ready', count: 0, total: 0, incomplete: false }}
     />,
   );
-  expect(screen.getByText('산 값과 같아요')).toBeTruthy();
+  expect(screen.getByText('산 값 대비 0 도토리')).toBeTruthy();
 });
