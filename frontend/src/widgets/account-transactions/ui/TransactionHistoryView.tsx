@@ -19,9 +19,9 @@ import {
   type TransactionPeriod,
   type TransactionRangeFilter,
 } from '@/features/account';
-import { useProfile } from '@/features/auth';
+import { useSignupDate } from '@/features/auth';
 import { apiErrorCode } from '@/shared/api';
-import { formatDateShort, fromDateParam, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
+import { formatDateShort, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
 import { formatWon } from '@/shared/lib/money';
 import { fontFamily, useTheme } from '@/shared/theme';
 import { Button, DateRangeCalendar, Header, Screen, usePullToRefresh } from '@/shared/ui';
@@ -59,11 +59,7 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
   const account = useMyAccount();
   // 직접설정 달력의 하한 = 도토리 가입일. 계좌 개설도 가입 후라 그 전 날짜는 볼 게 없다.
   // (서버 제약은 "최대 3개월 폭"뿐이라 가입일까지 거슬러 올라가는 조회는 허용된다)
-  const profile = useProfile();
-  const signupDate =
-    profile.data?.createdAt != null
-      ? fromDateParam(profile.data.createdAt.slice(0, 10))
-      : undefined;
+  const signupDate = useSignupDate();
   // TODO: 임시 디버그 로그 — bankName이 안 보이는 원인 확인되면 지운다
   if (__DEV__) {
     console.log('[debug] account.data.bankName =', JSON.stringify(account.data?.bankName));

@@ -65,6 +65,8 @@ const PRESET_OPTIONS: { key: PeriodPreset; label: string }[] = [
 type Props = {
   value: PeriodFilterValue;
   onChange: (next: PeriodFilterValue) => void;
+  /** 직접설정 달력의 하한 (보통 가입일). 가입 전 날짜는 보여줄 데이터가 없다 */
+  minPickableDate?: Date;
 };
 
 /**
@@ -73,7 +75,7 @@ type Props = {
  * 조회 방식을 그대로 가져와 투자 거래·구매 내역 같은 기간 조회 화면이 함께 쓴다.
  * 시트에서 고른 값은 "확인"을 눌러야 반영된다 (달력을 만지는 동안 재조회 방지).
  */
-export function PeriodFilterControl({ value, onChange }: Props) {
+export function PeriodFilterControl({ value, onChange, minPickableDate }: Props) {
   const theme = useTheme();
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -130,6 +132,7 @@ export function PeriodFilterControl({ value, onChange }: Props) {
             {sheetOpen ? (
               <PeriodSheetContent
                 value={value}
+                minPickableDate={minPickableDate}
                 onApply={(next) => {
                   onChange(next);
                   setSheetOpen(false);
@@ -145,9 +148,11 @@ export function PeriodFilterControl({ value, onChange }: Props) {
 
 function PeriodSheetContent({
   value,
+  minPickableDate,
   onApply,
 }: {
   value: PeriodFilterValue;
+  minPickableDate?: Date;
   onApply: (next: PeriodFilterValue) => void;
 }) {
   const theme = useTheme();
@@ -203,6 +208,7 @@ function PeriodSheetContent({
         <DateRangeCalendar
           start={draftStart}
           end={draftEnd}
+          minPickableDate={minPickableDate}
           onChange={(start, end) => {
             setDraftStart(start);
             setDraftEnd(end);

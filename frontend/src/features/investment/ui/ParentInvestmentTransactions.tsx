@@ -19,6 +19,8 @@ type Props = {
   /** 없으면 부모 본인 거래를 묻게 되므로 조회하지 않는다 */
   childId: number | undefined;
   childName: string | undefined;
+  /** 직접설정 달력의 하한 (가입일). 라우트가 프로필에서 꺼내 넘긴다 */
+  minPickableDate?: Date;
   onBack: () => void;
 };
 
@@ -27,7 +29,12 @@ type Props = {
  * 기간 조회는 실계좌 거래내역과 같은 달력 방식(PeriodFilterControl)이다 —
  * 앱의 모든 내역 화면이 같은 방법으로 기간을 고르게 통일했다.
  */
-export function ParentInvestmentTransactions({ childId, childName, onBack }: Props) {
+export function ParentInvestmentTransactions({
+  childId,
+  childName,
+  minPickableDate,
+  onBack,
+}: Props) {
   const theme = useTheme();
   const refreshControl = usePullToRefresh();
   const [period, setPeriod] = useState(defaultPeriodFilter());
@@ -67,7 +74,11 @@ export function ParentInvestmentTransactions({ childId, childName, onBack }: Pro
             gap: theme.space.md,
           }}
         >
-          <PeriodFilterControl value={period} onChange={setPeriod} />
+          <PeriodFilterControl
+            value={period}
+            onChange={setPeriod}
+            minPickableDate={minPickableDate}
+          />
 
           {visible == null ? (
             transactions.isError ? (

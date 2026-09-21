@@ -2,6 +2,7 @@ export { useAuthStore } from './model/authStore';
 export { signIn, signOut, restoreSession, withdrawAccount } from './model/session';
 export { useLogin } from './model/useLogin';
 export { useProfile } from './model/useProfile';
+export { useSignupDate } from './model/useSignupDate';
 export { useSignup } from './model/useSignup';
 export { useSignupStore } from './model/signupStore';
 export { useSendEmailCode, useConfirmEmailCode } from './model/useEmailVerification';

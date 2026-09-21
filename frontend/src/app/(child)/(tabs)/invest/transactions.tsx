@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useSignupDate } from '@/features/auth';
 import {
   RealizedProfitCard,
   InvestmentQueryError,
@@ -29,6 +30,7 @@ export default function InvestTransactionsScreen() {
   const refreshControl = usePullToRefresh();
   const transactions = useInvestmentTransactions();
   const [period, setPeriod] = useState(defaultPeriodFilter());
+  const signupDate = useSignupDate();
 
   const range = periodDateRange(period);
   const items = transactions.data ?? [];
@@ -70,7 +72,7 @@ export default function InvestTransactionsScreen() {
             gap: theme.space.md,
           }}
         >
-          <PeriodFilterControl value={period} onChange={setPeriod} />
+          <PeriodFilterControl value={period} onChange={setPeriod} minPickableDate={signupDate} />
 
           {visible.length === 0 ? (
             <View style={[styles.center, { paddingTop: theme.space['4xl'] }]}>
