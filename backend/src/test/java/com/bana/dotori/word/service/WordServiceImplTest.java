@@ -55,12 +55,12 @@ class WordServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("카테고리 없이 조회하면 전체 단어를 id 오름차순, 명세 형식으로 내려준다")
+	@DisplayName("카테고리 없이 조회하면 전체 단어를 가나다 오름차순, 명세 형식으로 내려준다")
 	void getWords_success() {
 		Page<Word> page = new PageImpl<>(
 			List.of(word(1, "적금", "매달 정해진 돈을 모아 목표를 이루는 저축이에요.", 1, WordCategory.SAVINGS)),
 			PageRequest.of(0, 20), 1);
-		BDDMockito.given(wordRepository.findAllByOrderByIdAsc(PageRequest.of(0, 20))).willReturn(page);
+		BDDMockito.given(wordRepository.findAllByOrderByWordAscIdAsc(PageRequest.of(0, 20))).willReturn(page);
 
 		WordListResponse response = wordService.getWords(null, 0, 20);
 
@@ -79,7 +79,7 @@ class WordServiceImplTest {
 		Page<Word> page = new PageImpl<>(
 			List.of(word(2, "복리", "이자에 다시 이자가 붙는 계산 방식이에요.", 3, WordCategory.BANKING)),
 			PageRequest.of(0, 20), 1);
-		BDDMockito.given(wordRepository.findAllByCategoryOrderByIdAsc(WordCategory.BANKING, PageRequest.of(0, 20)))
+		BDDMockito.given(wordRepository.findAllByCategoryOrderByWordAscIdAsc(WordCategory.BANKING, PageRequest.of(0, 20)))
 			.willReturn(page);
 
 		WordListResponse response = wordService.getWords(WordCategory.BANKING, 0, 20);
@@ -92,7 +92,7 @@ class WordServiceImplTest {
 	@DisplayName("단어가 하나도 없으면 빈 목록을 내려준다")
 	void getWords_empty() {
 		Page<Word> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
-		BDDMockito.given(wordRepository.findAllByOrderByIdAsc(PageRequest.of(0, 20))).willReturn(page);
+		BDDMockito.given(wordRepository.findAllByOrderByWordAscIdAsc(PageRequest.of(0, 20))).willReturn(page);
 
 		WordListResponse response = wordService.getWords(null, 0, 20);
 
@@ -128,7 +128,7 @@ class WordServiceImplTest {
 	@Test
 	@DisplayName("키워드로 단어를 검색하면 명세 형식(definition 필드)으로 내려준다")
 	void searchWords_success() {
-		BDDMockito.given(wordRepository.findByWordContainingIgnoreCaseOrderByIdAsc("이자"))
+		BDDMockito.given(wordRepository.findByWordContainingIgnoreCaseOrderByWordAscIdAsc("이자"))
 			.willReturn(List.of(word(1, "이자", "돈을 맡기거나 빌려줘서 받는 보상", 1, WordCategory.BANKING)));
 
 		WordSearchResponse response = wordService.searchWords("이자");
@@ -141,7 +141,7 @@ class WordServiceImplTest {
 	@Test
 	@DisplayName("검색 결과가 없으면 빈 목록을 내려준다")
 	void searchWords_empty() {
-		BDDMockito.given(wordRepository.findByWordContainingIgnoreCaseOrderByIdAsc("없는단어")).willReturn(List.of());
+		BDDMockito.given(wordRepository.findByWordContainingIgnoreCaseOrderByWordAscIdAsc("없는단어")).willReturn(List.of());
 
 		WordSearchResponse response = wordService.searchWords("없는단어");
 
