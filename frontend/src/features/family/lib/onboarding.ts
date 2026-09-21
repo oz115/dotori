@@ -16,7 +16,7 @@ export const AMOUNT_UNIT_WON = 1000;
 export const MAX_AMOUNT_WON = 1_000_000;
 
 /** 금액 입력 화면 공통 안내 문구 */
-export const AMOUNT_HINT = `${formatWon(AMOUNT_UNIT_WON)} 이상, ${formatWon(AMOUNT_UNIT_WON)} 단위로 입력해요. (최대 ${formatWon(MAX_AMOUNT_WON)})`;
+export const AMOUNT_HINT = `${formatWon(AMOUNT_UNIT_WON)} 이상, ${formatWon(AMOUNT_UNIT_WON)} 단위로 입력해요.\n(최대 ${formatWon(MAX_AMOUNT_WON)})`;
 
 /** 금액 빠른 추가 버튼(원). 누른 만큼 현재 금액에 더해진다. */
 export const AMOUNT_ADD_STEPS_WON = [1000, 5000, 10000] as const;

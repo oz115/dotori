@@ -31,14 +31,14 @@ export function ActivityBoard() {
         <Card
           icon={require('@/assets/images/icons/icon-quiz.png')}
           title="오늘의 경제 퀴즈"
-          subtitle="맞추고 도토리를 받아봐요"
+          subtitle={'맞추고 도토리를 \n받아봐요'}
           highlight
           onPress={() => router.push('/quiz')}
         />
         <Card
           icon={require('@/assets/images/icons/icon-word.png')}
           title="경제 단어장"
-          subtitle="검색해서 뜻을 찾아봐요"
+          subtitle={'검색해서 뜻을 \n찾아봐요'}
           onPress={() => router.push('/word')}
         />
       </View>
