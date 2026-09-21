@@ -300,38 +300,6 @@ function StoreProductDetailBody({
           </View>
         ) : null}
 
-        {role === 'PARENT' && product.reason ? (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.color.background.surface,
-                borderColor: theme.color.border.default,
-                borderRadius: theme.radius.lg,
-                padding: theme.space.lg,
-                gap: theme.space.sm,
-              },
-            ]}
-          >
-            <View style={styles.descHeader}>
-              <View
-                style={[
-                  styles.descIcon,
-                  { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.full },
-                ]}
-              >
-                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
-              </View>
-              <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-                AI 산정 이유
-              </Text>
-            </View>
-            <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
-              {product.reason}
-            </Text>
-          </View>
-        ) : null}
-
         <View
           style={[
             styles.infoCard,

@@ -19,8 +19,9 @@ import {
   type TransactionPeriod,
   type TransactionRangeFilter,
 } from '@/features/account';
+import { useProfile } from '@/features/auth';
 import { apiErrorCode } from '@/shared/api';
-import { formatDateShort, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
+import { formatDateShort, fromDateParam, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
 import { formatWon } from '@/shared/lib/money';
 import { fontFamily, useTheme } from '@/shared/theme';
 import { Button, DateRangeCalendar, Header, Screen, usePullToRefresh } from '@/shared/ui';
@@ -56,6 +57,13 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
   const theme = useTheme();
   const refreshControl = usePullToRefresh();
   const account = useMyAccount();
+  // 직접설정 달력의 하한 = 도토리 가입일. 계좌 개설도 가입 후라 그 전 날짜는 볼 게 없다.
+  // (서버 제약은 "최대 3개월 폭"뿐이라 가입일까지 거슬러 올라가는 조회는 허용된다)
+  const profile = useProfile();
+  const signupDate =
+    profile.data?.createdAt != null
+      ? fromDateParam(profile.data.createdAt.slice(0, 10))
+      : undefined;
   // TODO: 임시 디버그 로그 — bankName이 안 보이는 원인 확인되면 지운다
   if (__DEV__) {
     console.log('[debug] account.data.bankName =', JSON.stringify(account.data?.bankName));
@@ -190,6 +198,7 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
         type={type}
         customStart={customStart}
         customEnd={customEnd}
+        minPickableDate={signupDate}
         onCancel={() => setSheetOpen(false)}
         onApply={(next) => {
           setRangeFilter(next.rangeFilter);
@@ -280,6 +289,8 @@ type FilterSheetProps = {
   type: TypeFilterKey;
   customStart: Date;
   customEnd: Date;
+  /** 직접설정 달력의 하한 (가입일). 프로필 로딩 전엔 잠시 제한 없이 열린다 */
+  minPickableDate?: Date;
   onCancel: () => void;
   onApply: (next: {
     rangeFilter: RangeFilterKey;
@@ -304,6 +315,7 @@ function FilterSheet({
   type,
   customStart,
   customEnd,
+  minPickableDate,
   onCancel,
   onApply,
 }: FilterSheetProps) {
@@ -334,6 +346,7 @@ function FilterSheet({
               type={type}
               customStart={customStart}
               customEnd={customEnd}
+              minPickableDate={minPickableDate}
               onApply={onApply}
             />
           ) : null}
@@ -350,6 +363,7 @@ function FilterSheetContent({
   type,
   customStart,
   customEnd,
+  minPickableDate,
   onApply,
 }: FilterSheetContentProps) {
   const theme = useTheme();
@@ -380,9 +394,10 @@ function FilterSheetContent({
             setDraftStart(start);
             setDraftEnd(end);
           }}
-          // 서버 제약(최대 3개월 폭, 3개월 이전 조회 불가)을 달력에서 미리 막는다
+          // 서버 제약(시작~종료 최대 3개월 폭)을 달력에서 미리 막는다.
+          // 시작일 자체는 가입일까지 거슬러 올라갈 수 있다.
           maxRangeMonths={MAX_CUSTOM_RANGE_MONTHS}
-          minPickableDate={monthsAgo(MAX_CUSTOM_RANGE_MONTHS)}
+          minPickableDate={minPickableDate}
         />
       ) : null}
 
