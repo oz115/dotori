@@ -1,8 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { changeColor } from '@/features/investment/lib/change';
-import { formatAcorns } from '@/features/investment/lib/format';
-import { sellOutcomeMessage } from '@/features/investment/lib/orderMessages';
+import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { InvestmentTransactionItem } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -11,9 +10,9 @@ type Props = {
 };
 
 /**
- * 거래 내역의 한 줄 카드. 매수는 산 금액을, 매도는 "N 도토리를 벌었어요/잃었어요" 한 줄만
- * 보여준다 — 살 때/팔 때 가격까지 늘어놓으면 정보가 많아 못 읽는다는 피드백으로 줄였다
- * (매도 완료 알림과 같은 문구).
+ * 거래 내역의 한 줄 카드. 매수는 산 금액(-N 도토리)을, 매도는 차익을 같은 부호 숫자
+ * (+N/-N 도토리)로 보여준다 — 산 것과 판 것이 같은 모양이어야 목록이 한눈에 읽힌다.
+ * 살 때/팔 때 가격을 늘어놓지 않는 건 정보가 많아 못 읽는다는 피드백 때문이다.
  */
 export function TransactionCard({ item }: Props) {
   const theme = useTheme();
@@ -73,7 +72,7 @@ export function TransactionCard({ item }: Props) {
           <Text style={[theme.typography.label, { color: outcomeColor }]}>
             {item.realizedProfit == null
               ? `+${formatAcorns(item.totalAmount)}`
-              : sellOutcomeMessage(item.realizedProfit)}
+              : signedAcorns(item.realizedProfit)}
           </Text>
         )}
       </View>
