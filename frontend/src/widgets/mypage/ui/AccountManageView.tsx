@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useMyAccount, useUnlinkAccount } from '@/features/account';
+import { AccountCard, useMyAccount, useUnlinkAccount } from '@/features/account';
 import { useTheme } from '@/shared/theme';
 import { Header, Screen } from '@/shared/ui';
-import { AccountCard } from '@/widgets/parent-home';
 
 /**
  * 마이페이지 - 연동 계좌 관리 화면.
@@ -43,10 +42,7 @@ export function AccountManageView() {
   const isLinked = Boolean(account.data);
 
   return (
-    <Screen
-      scroll
-      header={<Header title="연동 계좌 관리" onBack={() => router.back()} />}
-    >
+    <Screen scroll header={<Header title="연동 계좌 관리" onBack={() => router.back()} />}>
       <View style={{ marginTop: theme.space.md, gap: theme.space['2xl'] }}>
         <AccountCard
           account={account.data}
