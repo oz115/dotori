@@ -40,7 +40,7 @@ public class UserServiceImpl implements UserService {
 	private final AuthService authService;
 	private final FamilyService familyService;
 	private final MyPageAccessPolicy accessPolicy;
-	private final RemainingAssetReader remainingAssetReader;
+	private final RemainingAssetPolicy remainingAssetPolicy;
 	private final EmailVerificationCodeManager emailVerificationCodeManager;
 
 	@Override
@@ -167,8 +167,8 @@ public class UserServiceImpl implements UserService {
 			throw new BusinessException(ErrorCode.FAMILY_HAS_CHILDREN,
 				"가족에 남은 자녀를 먼저 내보낸 뒤 탈퇴할 수 있습니다. userId=" + targetUserId);
 		}
-		// 자산을 남긴 채 탈퇴하면 그 포인트를 되찾을 방법이 없다.
-		if (remainingAssetReader.hasRemainingAsset(targetUserId)) {
+		// 자산(도토리·환전 대기·예적금·투자)을 남긴 채 탈퇴하면 그것을 되찾을 방법이 없다.
+		if (remainingAssetPolicy.hasRemainingAsset(targetUserId)) {
 			throw new BusinessException(ErrorCode.HAS_ACTIVE_ASSETS,
 				"잔여 자산을 정리한 뒤 탈퇴할 수 있습니다. userId=" + targetUserId);
 		}

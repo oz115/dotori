@@ -2,15 +2,13 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import {
+  AMOUNT_HINT,
   AmountStepInput,
   isValidOnboardingAmount,
   OnboardingStepLayout,
-  REWARD_LIMIT_PRESETS_WON,
   StepFooter,
   useOnboardingStore,
 } from '@/features/family';
-
-const HINT = '1,000원 이상, 1,000원 단위로 입력해요.';
 
 export default function OnboardingRewardLimitScreen() {
   const patch = useOnboardingStore((s) => s.patch);
@@ -22,7 +20,7 @@ export default function OnboardingRewardLimitScreen() {
 
   const next = () => {
     if (!isValidOnboardingAmount(rewardLimit)) {
-      setError(HINT);
+      setError(AMOUNT_HINT);
       return;
     }
     setError('');
@@ -56,8 +54,7 @@ export default function OnboardingRewardLimitScreen() {
           setRewardLimit(v);
           if (error) setError('');
         }}
-        presets={REWARD_LIMIT_PRESETS_WON}
-        hint={HINT}
+        hint={AMOUNT_HINT}
         error={error || undefined}
       />
     </OnboardingStepLayout>

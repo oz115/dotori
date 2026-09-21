@@ -3,6 +3,7 @@ package com.bana.dotori.family.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -48,6 +49,7 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
+import com.bana.dotori.user.service.RemainingAssetPolicy;
 
 @ExtendWith(MockitoExtension.class)
 class FamilyServiceImplTest {
@@ -69,6 +71,9 @@ class FamilyServiceImplTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private RemainingAssetPolicy remainingAssetPolicy;
 
 	@InjectMocks
 	private FamilyServiceImpl familyService;
@@ -425,6 +430,46 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 가족 해체 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 아무것도 삭제하지 않는다")
+	void deleteFamily_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1))
+			.willReturn(List.of(parentMember, childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(family.getDeletedAt()).isNull();
+		assertThat(parentMember.getDeletedAt()).isNull();
+		assertThat(childMember.getDeletedAt()).isNull();
+	}
+
+	@Test
+	@DisplayName("가족 해체 시 자산은 자녀에 대해서만 확인한다 (부모 구성원은 묻지 않는다)")
+	void deleteFamily_checksOnlyChildren() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User parent = parent();
+		ReflectionTestUtils.setField(parent, "id", 1);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1)).willReturn(List.of(parentMember));
+
+		familyService.deleteFamily(1, 1);
+
+		verify(remainingAssetPolicy, never()).hasRemainingAsset(anyInt());
+		assertThat(family.getDeletedAt()).isNotNull();
+	}
+
+	@Test
 	@DisplayName("부모 권한이 아니면 가족 해체 시 FORBIDDEN 예외가 발생한다")
 	void deleteFamily_notParent() {
 		given(userRepository.findById(2)).willReturn(Optional.of(child()));
@@ -473,6 +518,26 @@ class FamilyServiceImplTest {
 		familyService.removeChild(1, 1, 2);
 
 		assertThat(childMember.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 자녀 제외 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 삭제하지 않는다")
+	void removeChild_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(childMember.getDeletedAt()).isNull();
 	}
 
 	@Test
@@ -678,6 +743,46 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("초대 코드 폐기 성공 시 그 가족의 발급된 코드를 모두 삭제한다")
+	void revokeInvitationCode_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+
+		familyService.revokeInvitationCode(1, 1);
+
+		verify(familyCodeRepository).deleteAllByFamilyId(1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 폐기 시 FORBIDDEN 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 초대 코드를 폐기하려 하면 FAMILY_NOT_FOUND 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
 	}
 
 	@Test

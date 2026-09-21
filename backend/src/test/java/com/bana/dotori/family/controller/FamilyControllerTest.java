@@ -490,6 +490,44 @@ class FamilyControllerTest {
 	}
 
 	@Test
+	@DisplayName("초대 코드 폐기 성공 시 204를 반환한다")
+	void revokeInvitationCode_success() throws Exception {
+		givenParentAuthenticated(1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNoContent());
+
+		then(familyService).should().revokeInvitationCode(1, 1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 폐기 시 403과 FORBIDDEN 에러를 반환한다")
+	void revokeInvitationCode_notParent() throws Exception {
+		givenParentAuthenticated(2);
+		doThrow(new BusinessException(ErrorCode.FORBIDDEN))
+			.when(familyService).revokeInvitationCode(2, 1);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/1/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	@DisplayName("소속된 가족이 없으면 초대 코드 폐기 시 404와 FAMILY_NOT_FOUND 에러를 반환한다")
+	void revokeInvitationCode_familyNotFound() throws Exception {
+		givenParentAuthenticated(1);
+		doThrow(new BusinessException(ErrorCode.FAMILY_NOT_FOUND))
+			.when(familyService).revokeInvitationCode(1, 99);
+
+		mockMvc.perform(delete(FAMILIES_URL + "/99/invitations")
+				.header(HttpHeaders.AUTHORIZATION, BEARER_PARENT))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("FAMILY_NOT_FOUND"));
+	}
+
+	@Test
 	@DisplayName("가족 연결 성공 시 200과 가족 정보를 반환한다")
 	void connect_success() throws Exception {
 		givenChildAuthenticated(2);

@@ -39,8 +39,9 @@ export default function OnboardingFamilyNameScreen() {
           value={name}
           onChangeText={setName}
           maxLength={MAX_NAME}
+          // 키보드의 완료는 입력을 마치는 것일 뿐 다음 단계로 넘기지 않는다 ("다음" 버튼으로만 이동)
           returnKeyType="done"
-          onSubmitEditing={next}
+          blurOnSubmit
         />
         <Callout
           icon={

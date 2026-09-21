@@ -1,16 +1,10 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { withdrawErrorMessage } from '@/features/auth/lib/withdrawError';
 import { withdrawAccount } from '@/features/auth/model/session';
-import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
 import { Button, Input } from '@/shared/ui';
-
-function errorMessage(e: unknown): string {
-  if (isNetworkError(e)) return '서버에 연결할 수 없어요.';
-  if (apiErrorCode(e) === 'PASSWORD_MISMATCH') return '비밀번호가 일치하지 않아요.';
-  return '탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.';
-}
 
 type WithdrawButtonProps = {
   /** 'link' 는 마이페이지 하단처럼 밑줄 친 작은 글씨로 (기본은 버튼 모양) */
@@ -40,9 +34,14 @@ export function WithdrawButton({ variant = 'button' }: WithdrawButtonProps) {
     setError('');
     try {
       await withdrawAccount(password);
-      // 성공 시 세션이 비워지며 화면이 전환된다 — close 불필요
+      // 성공 시 세션이 비워지며 화면이 전환된다 — close 불필요.
+      // 이 컴포넌트는 곧 사라지므로 안내는 화면에 묶이지 않는 시스템 알림으로 띄운다.
+      Alert.alert(
+        '회원 탈퇴 완료',
+        '회원 탈퇴가 완료되었어요. 그동안 도토리를 이용해 주셔서 감사합니다.',
+      );
     } catch (e) {
-      setError(errorMessage(e));
+      setError(withdrawErrorMessage(e));
       setPending(false);
     }
   };

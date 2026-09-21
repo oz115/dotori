@@ -1,4 +1,9 @@
-import { isValidEmail, validateAccountStep } from './signupValidation';
+import {
+  isValidEmail,
+  LOGIN_ID_MAX,
+  validateAccountStep,
+  validateLoginId,
+} from './signupValidation';
 
 describe('isValidEmail', () => {
   it.each(['a@b.com', 'parent.01@dotori.town'])('accepts %s', (email) => {
@@ -26,6 +31,19 @@ describe('validateAccountStep', () => {
     expect(validateAccountStep({ ...valid, loginId: 'ab' }).loginId).toBeDefined();
   });
 
+  it('flags an id longer than the server limit with a clear message', () => {
+    const tooLong = 'a'.repeat(LOGIN_ID_MAX + 1);
+    expect(validateAccountStep({ ...valid, loginId: tooLong }).loginId).toBe(
+      '아이디는 50자 이하로 입력해주세요.',
+    );
+  });
+
+  it('accepts an id of exactly the limit', () => {
+    expect(
+      validateAccountStep({ ...valid, loginId: 'a'.repeat(LOGIN_ID_MAX) }).loginId,
+    ).toBeUndefined();
+  });
+
   it('flags a short password', () => {
     expect(
       validateAccountStep({ ...valid, password: 'short', passwordConfirm: 'short' }).password,
@@ -40,5 +58,15 @@ describe('validateAccountStep', () => {
 
   it('flags an empty name', () => {
     expect(validateAccountStep({ ...valid, name: '   ' }).name).toBeDefined();
+  });
+});
+
+describe('validateLoginId', () => {
+  it('길이가 범위(4~50자) 안이면 undefined', () => {
+    expect(validateLoginId('dotori')).toBeUndefined();
+  });
+
+  it('앞뒤 공백은 세지 않는다', () => {
+    expect(validateLoginId('  ab  ')).toBe('아이디는 4자 이상 입력해주세요.');
   });
 });

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { EmailVerification, findIdErrorMessage, useFindId } from '@/features/auth';
+import { EmailVerification, findIdErrorMessage, recoveryHandoff, useFindId } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { Button, Callout, Header, Input, Screen } from '@/shared/ui';
 
@@ -79,7 +79,11 @@ export default function FindIdScreen() {
             <Button
               label="비밀번호 재설정"
               variant="outline"
-              onPress={() => router.replace('/reset-password')}
+              onPress={() => {
+                // 서버가 같은 인증 토큰을 이어 쓰게 해 두므로, 이메일 인증을 또 받지 않게 넘긴다
+                if (verified) recoveryHandoff.put(verified);
+                router.replace('/reset-password');
+              }}
             />
           </View>
         </>
