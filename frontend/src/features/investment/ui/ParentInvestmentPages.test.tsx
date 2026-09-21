@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { investmentApi } from '@/features/investment/api/investmentApi';
-import { transactionPeriod } from '@/features/investment/lib/transactions';
 import { ParentInvestmentHoldings } from './ParentInvestmentHoldings';
 import { ParentInvestmentMarket } from './ParentInvestmentMarket';
 import { ParentInvestmentNews } from './ParentInvestmentNews';
@@ -29,10 +28,6 @@ async function show(ui: ReactElement) {
 beforeEach(() => jest.clearAllMocks());
 
 describe('ParentInvestmentTransactions', () => {
-  // 어제(오늘을 끝으로 하는 7일) · 10일 전(그 앞 7일) · 20일 전(그 앞의 앞 7일)
-  // 라벨은 오늘 날짜에 따라 달라지므로 화면과 같은 계산으로 만든다
-  const label = (offset: number) => transactionPeriod(7, offset).label;
-
   const sale = (id: number, name: string, ago: number, profit: number) => ({
     investmentTransactionId: id,
     productName: name,
@@ -48,13 +43,20 @@ describe('ParentInvestmentTransactions', () => {
   const show11 = () =>
     show(<ParentInvestmentTransactions childId={11} childName="민준" onBack={jest.fn()} />);
 
+  /** 기간 알약 → 시트에서 프리셋 칩 → 확인 */
+  const pickPreset = async (chipLabel: string) => {
+    await fireEvent.press(screen.getByLabelText('조회 기간 고르기'));
+    await fireEvent.press(await screen.findByText(chipLabel));
+    await fireEvent.press(screen.getByText('확인'));
+  };
+
   beforeEach(() => {
     jest
       .mocked(investmentApi.getTransactions)
       .mockResolvedValue([
         sale(3, '고소한빵', 1, 300),
-        sale(2, '튼튼건설', 10, -100),
-        sale(1, '하늘항공', 20, 50),
+        sale(2, '튼튼건설', 40, -100),
+        sale(1, '하늘항공', 100, 50),
       ]);
   });
 
@@ -65,78 +67,41 @@ describe('ParentInvestmentTransactions', () => {
     expect(screen.getByText('하늘항공')).toBeTruthy();
     expect(screen.getByText('전체 3건')).toBeTruthy();
     expect(screen.getByText('민준의 거래 내역')).toBeTruthy();
+    expect(screen.getByText('전체 기간')).toBeTruthy();
     expect(investmentApi.getTransactions).toHaveBeenCalledWith(11);
-    // 기간 이동 막대는 7일을 골랐을 때만 나온다
-    expect(screen.queryByLabelText('이전 기간')).toBeNull();
   });
 
-  it('7일을 누르면 오늘을 끝으로 하는 7일 범위 막대가 나오고 그 기간 거래만 보여준다', async () => {
+  it('1개월을 고르면 최근 1개월 거래만 보여준다', async () => {
     await show11();
     await screen.findByText('고소한빵');
-    await fireEvent.press(screen.getByText('7일'));
-    expect(await screen.findByText(label(0))).toBeTruthy();
+    await pickPreset('1개월');
+
+    expect(await screen.findByText('최근 1개월')).toBeTruthy();
     expect(screen.getByText('고소한빵')).toBeTruthy();
     expect(screen.queryByText('튼튼건설')).toBeNull();
     expect(screen.getByText('이 기간 1건')).toBeTruthy();
   });
 
-  it('이전·다음 화살표로 7일씩 넘긴다', async () => {
+  it('3개월을 고르면 그 안의 거래까지 보여준다', async () => {
     await show11();
     await screen.findByText('고소한빵');
-    await fireEvent.press(screen.getByText('7일'));
+    await pickPreset('3개월');
 
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    expect(await screen.findByText(label(1))).toBeTruthy();
+    expect(await screen.findByText('최근 3개월')).toBeTruthy();
     expect(screen.getByText('튼튼건설')).toBeTruthy();
-    expect(screen.queryByText('고소한빵')).toBeNull();
-
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    expect(await screen.findByText(label(2))).toBeTruthy();
-    expect(screen.getByText('하늘항공')).toBeTruthy();
-
-    await fireEvent.press(screen.getByLabelText('다음 기간'));
-    expect(await screen.findByText(label(1))).toBeTruthy();
+    expect(screen.queryByText('하늘항공')).toBeNull();
+    expect(screen.getByText('이 기간 2건')).toBeTruthy();
   });
 
-  it('최근 기간에서는 다음으로, 가장 이른 거래의 기간에서는 이전으로 더 갈 수 없다', async () => {
-    await show11();
-    await screen.findByText('고소한빵');
-    await fireEvent.press(screen.getByText('7일'));
-    // 최근 기간: 다음 기간 화살표는 눌러도 그대로다
-    await fireEvent.press(screen.getByLabelText('다음 기간'));
-    expect(screen.getByText(label(0))).toBeTruthy();
-
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    expect(await screen.findByText(label(2))).toBeTruthy();
-    // 20일 전 거래가 가장 이른 거래라 더 이전으로는 가지 않는다
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    expect(screen.getByText(label(2))).toBeTruthy();
-  });
-
-  it('최근 7일에 거래가 없어도 화살표로 이전 기간의 거래를 찾을 수 있고, 전체로 돌아오면 다 보인다', async () => {
-    jest.mocked(investmentApi.getTransactions).mockResolvedValue([sale(1, '튼튼건설', 10, -100)]);
+  it('고른 기간에 거래가 없으면 안내하고, 전체로 돌아오면 다 보인다', async () => {
+    jest.mocked(investmentApi.getTransactions).mockResolvedValue([sale(1, '튼튼건설', 40, -100)]);
     await show11();
     await screen.findByText('튼튼건설');
-    await fireEvent.press(screen.getByText('7일'));
+    await pickPreset('1개월');
     expect(await screen.findByText('이 기간에는 사고판 주식이 없어요.')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    expect(await screen.findByText('튼튼건설')).toBeTruthy();
 
-    await fireEvent.press(screen.getByText('전체'));
+    await pickPreset('전체');
     expect(await screen.findByText('전체 1건')).toBeTruthy();
-  });
-
-  it('전체로 갔다가 7일을 다시 누르면 다시 최근 기간부터 시작한다', async () => {
-    await show11();
-    await screen.findByText('고소한빵');
-    await fireEvent.press(screen.getByText('7일'));
-    await fireEvent.press(screen.getByLabelText('이전 기간'));
-    await screen.findByText(label(1));
-
-    await fireEvent.press(screen.getByText('전체'));
-    await fireEvent.press(screen.getByText('7일'));
-    expect(await screen.findByText(label(0))).toBeTruthy();
   });
 
   it('거래가 하나도 없으면 전체에서 기록이 없다고 알려준다', async () => {

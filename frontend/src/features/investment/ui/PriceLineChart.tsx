@@ -41,6 +41,9 @@ export function PriceLineChart({ history }: Props) {
   const domainMax = ticks[ticks.length - 1];
   const points = scalePoints(prices, domainMin, domainMax, chartWidth, CHART_HEIGHT, EDGE_INSET);
   const last = points[points.length - 1];
+  // 점이 하나(오늘 시작한 가족)면 오른쪽 끝에 점만 남아 그래프가 비어 보인다 —
+  // 같은 값으로 왼쪽 끝까지 수평선을 그려 "오늘 이 가격에서 시작했다"가 한눈에 보이게 한다.
+  const linePoints = points.length === 1 ? [{ x: 0, y: points[0].y }, points[0]] : points;
 
   const onLayout = (event: LayoutChangeEvent) => {
     setChartWidth(Math.round(event.nativeEvent.layout.width));
@@ -85,14 +88,14 @@ export function PriceLineChart({ history }: Props) {
                     />
                   );
                 })}
-                {points.length >= 2 ? (
+                {linePoints.length >= 2 ? (
                   <>
                     <Polygon
-                      points={`${toPolylinePoints(points)} ${last.x},${CHART_HEIGHT - EDGE_INSET} ${points[0].x},${CHART_HEIGHT - EDGE_INSET}`}
+                      points={`${toPolylinePoints(linePoints)} ${last.x},${CHART_HEIGHT - EDGE_INSET} ${linePoints[0].x},${CHART_HEIGHT - EDGE_INSET}`}
                       fill="url(#priceAreaFill)"
                     />
                     <Polyline
-                      points={toPolylinePoints(points)}
+                      points={toPolylinePoints(linePoints)}
                       fill="none"
                       stroke={lineColor}
                       strokeWidth={2.5}

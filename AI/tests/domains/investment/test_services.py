@@ -166,9 +166,16 @@ class TestPriceMath:
     def test_price_delta(self, weekly_reward_limit, expected):
         assert services._price_delta(weekly_reward_limit) == expected
 
-    @pytest.mark.parametrize(("seed_price", "expected"), [(1, 1), (9999, 1000), (10000, 1000)])
-    def test_price_floor(self, seed_price, expected):
-        assert services._price_floor(seed_price) == expected
+    @pytest.mark.parametrize(("start_price", "expected"), [(1, 1), (9999, 1000), (10000, 1000)])
+    def test_price_floor(self, start_price, expected):
+        assert services._price_floor(start_price) == expected
+
+    @pytest.mark.parametrize(
+        ("weekly_allowance", "expected"),
+        [(1, 1), (1000, 100), (7000, 700), (10005, 1001)],
+    )
+    def test_start_price(self, weekly_allowance, expected):
+        assert services._start_price(weekly_allowance) == expected
 
 
 class TestUpdatePricesForTodaysNews:
@@ -192,7 +199,7 @@ class TestUpdatePricesForTodaysNews:
         up_news, down_news = self._seed_one_up_one_down(db_session, product, now_kst_afternoon)
         db_session.add_all(
             [
-                Family(family_id=1, weekly_allowance=1000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"),
+                Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"),
                 Family(family_id=2, weekly_allowance=0, weekly_reward_limit=0, financial_knowledge_level="BEGINNER"),
             ]
         )
@@ -202,20 +209,23 @@ class TestUpdatePricesForTodaysNews:
 
         assert written == 2
         rows = db_session.query(InvestmentPriceHistory).all()
-        assert sorted(r.price for r in rows if r.family_id == 1) == [9800, 10200]
+        # 이력이 없으면 가족 시작가 = 주간 용돈(7000) ÷ 종목 수(10) = 700 에서 출발한다.
+        # 시드 current_price(10000)가 아니다 — 백엔드 조회/체결가의 폴백과 같은 값이어야
+        # 첫 가격 생성에서 화면가와 어긋나지 않는다. 변동폭은 한도(3500)×40%÷7 = 200.
+        assert sorted(r.price for r in rows if r.family_id == 1) == [500, 900]
         assert all(r.family_id != 2 for r in rows), "온보딩 전(A=0) 가족은 건너뛰어야 한다"
 
     def test_price_never_drops_below_floor(self, db_session, ten_companies, now_kst_afternoon):
         product = ten_companies[0]
         up_news, down_news = self._seed_one_up_one_down(db_session, product, now_kst_afternoon)
-        # 이미 하한(1000) 근처까지 내려와 있는 상태를 만든다
+        # 하한 = 가족 시작가(용돈 7000 ÷ 10 = 700)의 10% = 70. 그 근처까지 내려와 있는 상태.
         db_session.add(
             InvestmentPriceHistory(
-                family_id=1, investment_product_id=product.investment_product_id, price=1050,
+                family_id=1, investment_product_id=product.investment_product_id, price=200,
                 recorded_at=now_kst_afternoon - timedelta(days=1),
             )
         )
-        db_session.add(Family(family_id=1, weekly_allowance=0, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"))
+        db_session.add(Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"))
         db_session.commit()
 
         services.update_prices_for_todays_news(db_session, [up_news, down_news], now_kst_afternoon)
@@ -223,10 +233,10 @@ class TestUpdatePricesForTodaysNews:
         down_row = (
             db_session.query(InvestmentPriceHistory)
             .filter_by(family_id=1, recorded_at=now_kst_afternoon)
-            .filter(InvestmentPriceHistory.price < 1050)
+            .filter(InvestmentPriceHistory.price < 200)
             .one()
         )
-        assert down_row.price == 1000, "1050 - 200 = 850 이지만 하한 1000 아래로는 못 내려간다"
+        assert down_row.price == 70, "200 - 200 = 0 이지만 하한 70 아래로는 못 내려간다"
 
     def test_second_call_same_day_is_idempotent(self, db_session, ten_companies, now_kst_afternoon):
         product = ten_companies[0]

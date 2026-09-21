@@ -120,7 +120,7 @@ const PRODUCT_NAMES: Record<SavingsProductType, string> = {
   ORDINARY: '볼주머니 저금',
   SIMPLE_INTEREST: '도토리 항아리',
   COMPOUND_INTEREST: '도토리 나무',
-  SMALL_INSTALLMENT: '몸풀기 저금',
+  SMALL_INSTALLMENT: '몸풀기 적금',
   MID_TERM_INSTALLMENT: '도토리 곳간',
   LONG_TERM_INSTALLMENT: '겨울 대비 창고',
 };

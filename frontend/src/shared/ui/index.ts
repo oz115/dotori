@@ -7,6 +7,15 @@ export { Checkbox } from './Checkbox';
 export { CodeInput } from './CodeInput';
 export { ComingSoonScreen } from './ComingSoonScreen';
 export { ContentCard } from './ContentCard';
+export { DateRangeCalendar } from './DateRangeCalendar';
+export {
+  PeriodFilterControl,
+  defaultPeriodFilter,
+  periodDateRange,
+  periodLabel,
+  type PeriodFilterValue,
+  type PeriodPreset,
+} from './PeriodFilterControl';
 export { FilterChips, type FilterOption } from './FilterChips';
 export { Header } from './Header';
 export { HeaderChipButton } from './HeaderChipButton';
@@ -14,6 +23,7 @@ export { Input } from './Input';
 export { MockBadge } from './MockBadge';
 export { NumericKeypad } from './NumericKeypad';
 export { ProgressBar } from './ProgressBar';
+export { SegmentedProgressBar } from './SegmentedProgressBar';
 export { Screen } from './Screen';
 export { SelectableCard } from './SelectableCard';
 export { StepCard } from './StepCard';

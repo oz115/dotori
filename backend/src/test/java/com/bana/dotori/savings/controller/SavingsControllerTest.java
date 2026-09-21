@@ -69,7 +69,7 @@ class SavingsControllerTest {
 	private SavingsProductResponse productResponse() {
 		return new SavingsProductResponse(1, "보통예금", SavingsProductType.ORDINARY, "설명", 1,
 			BigDecimal.valueOf(0.1), ContributionStyle.FREE, PayoutTiming.WEEKLY_IMMEDIATE, null, null,
-			"교육목적", "안내문구", 40_000L);
+			"교육목적", "안내문구", 100L, 40_000L);
 	}
 
 	private SavingsSubscriptionResponse subscriptionResponse() {
