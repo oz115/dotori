@@ -1,6 +1,8 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useFamilyReady } from '@/features/family';
 import { useTheme } from '@/shared/theme';
 import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
 
@@ -10,10 +12,23 @@ import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
  */
 export const unstable_settings = { initialRouteName: 'index' };
 
-/** 부모 탭 레이아웃. 부모는 자녀와 달리 탭 진입에 별도 가드가 없다. */
+/**
+ * 부모 탭 레이아웃. 가족을 만들고 아이가 합류한 부모만 탭 화면들을 볼 수 있다.
+ * 그 전에는 하단 탭이 없는 온보딩 허브로 보낸다 — 자녀 탭 레이아웃이 (child)/setup 으로
+ * 보내는 것과 같은 방식이다.
+ */
 export default function ParentTabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const family = useFamilyReady();
+
+  if (family.isPending) {
+    return <View style={{ flex: 1, backgroundColor: theme.color.background.canvas }} />;
+  }
+
+  if (!family.ready) {
+    return <Redirect href="/onboarding" />;
+  }
 
   return (
     <Tabs

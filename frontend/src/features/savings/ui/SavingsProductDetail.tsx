@@ -35,7 +35,7 @@ import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
 import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
-import { Button, Header, Input, Screen, SegmentedProgressBar } from '@/shared/ui';
+import { Button, Header, Input, Screen, SegmentedProgressBar, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -57,6 +57,7 @@ const AMOUNT_LABELS: Record<ContributionStyle, string> = {
  */
 export function SavingsProductDetail({ familyId, childId, productId }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const product = useSavingsProduct(familyId, childId, productId);
   const subscriptions = useSavingsSubscriptions(familyId, childId);
 
@@ -110,6 +111,7 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
