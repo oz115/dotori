@@ -71,6 +71,12 @@ public enum SavingsProductType {
 	/** 모든 상품에 공통으로 적용되는 보상 배분 계수. rewardRatio 와 곱해 목표 총이자를 정한다 */
 	private static final double REWARD_COEFFICIENT = 0.4;
 
+	/**
+	 * 모든 상품 공통 최소 가입 금액(도토리). 의미 없이 작은 금액으로 가입하는 것을 막는 하한이다.
+	 * 상한(X)은 가족 설정(RL)에 따라 달라지지만, 하한은 카탈로그 공통값으로 고정한다.
+	 */
+	private static final long MIN_AMOUNT = 100L;
+
 	/** 연 단위가 아니라 이 상품의 정산 주기(1주 또는 전체 기간) 기준 이자율(%) */
 	private final int interestRate;
 
@@ -117,6 +123,11 @@ public enum SavingsProductType {
 	 */
 	public long calculateMaxAmount(FamilySettings familySettings) {
 		return maxAmountFormula.calculate(familySettings.weeklyRewardLimit());
+	}
+
+	/** 이 상품의 최소 가입 금액(도토리). 지금은 모든 상품이 같은 하한을 쓴다. */
+	public long getMinAmount() {
+		return MIN_AMOUNT;
 	}
 
 	/**
