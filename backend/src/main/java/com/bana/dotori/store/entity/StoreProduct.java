@@ -118,6 +118,19 @@ public class StoreProduct {
 	}
 
 	/**
+	 * 가치 산정 결과를 비워 "산정 중" 상태로 되돌린다 (SHOP-04 재평가).
+	 *
+	 * <p>이름·설명·카테고리가 바뀌면 이전 가격이 더는 맞지 않으므로, 서비스가 이 메서드로
+	 * value/price/reason 을 NULL 로 되돌린 뒤 재산정 이벤트를 발행한다. AI 컨슈머는
+	 * {@code value IS NULL} 일 때만 다시 산정하므로(멱등 가드), 이 리셋이 재산정의 전제다.
+	 */
+	public void resetValuation() {
+		this.value = null;
+		this.price = null;
+		this.reason = null;
+	}
+
+	/**
 	 * 상품 삭제 (SHOP-05). 구매 이력(purchases)이 이 상품을 참조하므로 hard delete 대신
 	 * soft delete 한다 — 이미 팔린 상품을 지워버리면 구매 이력에서 상품 정보를 잃는다.
 	 */

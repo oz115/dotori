@@ -58,7 +58,7 @@ export function StoreProductDetailScreen({
     <Screen
       header={
         <Header
-          title={product?.name ?? '상품 상세'}
+          title="상품 상세"
           onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
         />
       }
@@ -191,11 +191,18 @@ function StoreProductDetailBody({
             },
           ]}
         >
+          {/* 맨 위 배너는 이 상품의 상세로 — 상품명을 제목으로, 카테고리 문구는 부제로 내린다 */}
           <View style={{ flex: 1, gap: theme.space.xs }}>
-            <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-              {categoryTagline(product.category)}
+            <Text
+              style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+              numberOfLines={2}
+            >
+              {product.name}
             </Text>
             <View style={[styles.taglineUnderline, { backgroundColor: theme.color.brand.solid }]} />
+            <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
+              {categoryTagline(product.category)}
+            </Text>
           </View>
           <Image
             source={categoryImage(product.category)}
@@ -235,9 +242,6 @@ function StoreProductDetailBody({
               {categoryLabel(product.category)}
             </Text>
           </View>
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
-            {product.name}
-          </Text>
           <View style={styles.footerRow}>
             {priceReady ? (
               <View style={styles.priceRow}>

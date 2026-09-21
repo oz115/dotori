@@ -150,22 +150,27 @@ export function PurchaseConfirmModal({
                 </Text>
               ) : null}
 
-              <View style={[styles.actions, { gap: theme.space.sm }]}>
-                <Button
-                  label="취소"
-                  variant="outline"
-                  onPress={onCancel}
-                  disabled={loading}
-                  style={styles.flex}
-                />
-                <Button
-                  label="구매하기"
-                  variant="primary"
-                  onPress={onConfirm}
-                  loading={loading}
-                  style={styles.flex}
-                />
-              </View>
+              {/* 실패(예: 오늘 이미 구매)는 재시도해도 소용없으니 확인 버튼 하나만 둔다 */}
+              {error ? (
+                <Button label="확인" variant="primary" onPress={onCancel} />
+              ) : (
+                <View style={[styles.actions, { gap: theme.space.sm }]}>
+                  <Button
+                    label="취소"
+                    variant="outline"
+                    onPress={onCancel}
+                    disabled={loading}
+                    style={styles.flex}
+                  />
+                  <Button
+                    label="구매하기"
+                    variant="primary"
+                    onPress={onConfirm}
+                    loading={loading}
+                    style={styles.flex}
+                  />
+                </View>
+              )}
             </>
           )}
         </Pressable>
