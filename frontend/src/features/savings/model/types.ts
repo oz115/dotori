@@ -141,6 +141,7 @@ export type SavingsCard = {
   subscriptionId?: number;
   name: string;
   image: ImageSourcePropType;
+  productType: SavingsProductType;
   group: SavingsGroup;
   subscribed: boolean;
   /** 만기 도달로 수령 대기 중 (배지 표시용) */

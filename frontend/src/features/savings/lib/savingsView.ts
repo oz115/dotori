@@ -288,6 +288,7 @@ export function buildSavingsCards(
       // 화면 이름은 앱이 갖는다 (savingsAssets 의 PRODUCT_NAMES 주석 참고)
       name: savingsProductName(product.productType),
       image: savingsProductImage(product.productType),
+      productType: product.productType,
       group: savingsGroupOf(product.productType),
     };
     if (subscription == null) {

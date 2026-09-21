@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { savingsGroupLabel } from '@/features/savings/lib/savingsView';
 import type { SavingsCard } from '@/features/savings/model/types';
 import { useTheme } from '@/shared/theme';
 import { SegmentedProgressBar } from '@/shared/ui';
@@ -40,12 +41,30 @@ export function SavingsProductCard({ card, onPress }: Props) {
     >
       <View style={[styles.headRow, { gap: theme.space.sm }]}>
         <Image source={card.image} style={styles.icon} resizeMode="contain" />
-        <Text
-          numberOfLines={1}
-          style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
-        >
-          {card.name}
-        </Text>
+        <View style={[styles.nameGroup, { gap: theme.space.xs }]}>
+          <Text
+            numberOfLines={1}
+            style={[theme.typography.label, styles.name, { color: theme.color.text.strong }]}
+          >
+            {card.name}
+          </Text>
+          {/* 상품명 옆 카테고리 배지 — 종류별 색으로 목록에서 바로 구분하게 한다.
+              브랜드 그린(가입 강조 테두리)과 겹치지 않게 예금=파랑, 적금=앰버,
+              성격이 다른 보통예금(자유입출금)은 도토리 브라운으로 따로 뺀다 */}
+          {(() => {
+            const badge = savingsBadge(card, theme);
+            return (
+              <View
+                style={[
+                  styles.groupBadge,
+                  { backgroundColor: badge.bg, borderRadius: theme.radius.full },
+                ]}
+              >
+                <Text style={[theme.typography.caption, { color: badge.text }]}>{badge.label}</Text>
+              </View>
+            );
+          })()}
+        </View>
         {card.matured ? (
           <View
             style={[
@@ -88,6 +107,32 @@ export function SavingsProductCard({ card, onPress }: Props) {
   );
 }
 
+/**
+ * 카드 카테고리 배지의 라벨·색. 예금=파랑, 적금=앰버로 나누되, 자유입출금(보통예금)은
+ * 예금과 성격이 달라 도토리 브라운으로 따로 뺀다. 브랜드 그린(가입 강조)과는 겹치지 않는다.
+ */
+function savingsBadge(
+  card: SavingsCard,
+  theme: ReturnType<typeof useTheme>,
+): { label: string; bg: string; text: string } {
+  if (card.productType === 'ORDINARY') {
+    // green.50 40% 인 brand.tint 와 같은 방식 — 도토리 브라운을 옅게 깐다
+    return { label: '자유입출금', bg: 'rgba(130, 84, 48, 0.12)', text: theme.color.accent.acorn };
+  }
+  if (card.group === 'DEPOSIT') {
+    return {
+      label: savingsGroupLabel(card.group),
+      bg: theme.color.status.info.subtle,
+      text: theme.color.status.info.text,
+    };
+  }
+  return {
+    label: savingsGroupLabel(card.group),
+    bg: theme.color.status.warning.subtle,
+    text: theme.color.status.warning.text,
+  };
+}
+
 const styles = StyleSheet.create({
   // 상점 상품 카드와 같은 문법 — 뚜렷한 1px 테두리 + 옅은 그림자
   card: {
@@ -101,8 +146,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
-  name: {
+  nameGroup: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  name: {
+    flexShrink: 1,
+  },
+  groupBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   maturedBadge: {
     paddingHorizontal: 8,

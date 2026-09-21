@@ -15,10 +15,13 @@ type Props = {
 export function SavingsTransactionCard({ item }: Props) {
   const theme = useTheme();
 
+  // 지갑에서 나간 돈(넣었어요)은 빨강, 들어온 돈(돌려받았어요·이자·만기)은 파랑으로 구분한다.
+  // 방향은 sign 이 정한다 — 투자 색(rise=파랑/fall=빨강)과 같은 규칙이라 화면끼리 어긋나지 않는다.
   const out = item.sign === '-';
-  const amountColor = out ? theme.color.text.strong : theme.color.status.success.text;
-  const badgeBg = out ? theme.color.brand.subtle : theme.color.status.success.subtle;
-  const badgeText = out ? theme.color.brand.subtleText : theme.color.status.success.text;
+  const tone = out ? theme.color.status.danger : theme.color.status.info;
+  const amountColor = tone.text;
+  const badgeBg = tone.subtle;
+  const badgeText = tone.text;
 
   return (
     <View
