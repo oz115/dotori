@@ -58,6 +58,11 @@ export function ChildHome() {
           onCashoutHistory={() => router.push('/(child)/wallet/cashouts')}
           account={account.data}
           assets={assets}
+          // 자산 카드로 슬라이드하면 연동 계좌·예적금·투자를 다시 불러온다 — 환전 승인 반영 지연 방지
+          onViewAssets={() => {
+            void account.refetch();
+            assets.refetch();
+          }}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores

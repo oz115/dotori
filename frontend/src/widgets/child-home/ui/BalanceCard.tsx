@@ -33,6 +33,8 @@ type BalanceCardProps = {
   account: AccountInfo | null | undefined;
   /** "내 자산 현황"의 예적금·투자 줄 문구 (조회 상태까지 반영된 것) */
   assets: { savings: AssetRowText; investment: AssetRowText };
+  /** 자산 카드(2번째 장)로 넘어왔을 때 — 계좌·자산을 최신값으로 새로고침한다 */
+  onViewAssets?: () => void;
 };
 
 /**
@@ -50,6 +52,7 @@ export function BalanceCard({
   onCashoutHistory,
   account,
   assets,
+  onViewAssets,
 }: BalanceCardProps) {
   const theme = useTheme();
   const [page, setPage] = useState(0);
@@ -62,7 +65,11 @@ export function BalanceCard({
   const interval = pageWidth + PAGE_GAP;
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setPage(Math.round(e.nativeEvent.contentOffset.x / interval));
+    const next = Math.round(e.nativeEvent.contentOffset.x / interval);
+    if (next === page) return;
+    setPage(next);
+    // 자산 카드로 처음 넘어오는 순간에만 새로고침 — 승인된 환전이 실계좌 잔액에 바로 보이게 한다.
+    if (next === 1) onViewAssets?.();
   };
 
   return (
