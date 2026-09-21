@@ -2,7 +2,7 @@ export { familyApi } from './api/familyApi';
 export { familyKeys } from './model/familyKeys';
 export { useOnboardingStore } from './model/onboardingStore';
 export { useCreateFamily } from './model/useCreateFamily';
-export { useCreateInvitation } from './model/useInvitation';
+export { useCreateInvitation, useRevokeInvitation } from './model/useInvitation';
 export { useDeleteFamily } from './model/useDeleteFamily';
 export { useFamilyStatus } from './model/useFamilyStatus';
 export { useFamilyId } from './model/useFamilyId';
