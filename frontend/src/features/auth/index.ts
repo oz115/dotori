@@ -17,6 +17,7 @@ export { emailVerificationErrorMessage } from './lib/emailVerificationError';
 export { findIdErrorMessage, resetPasswordErrorMessage } from './lib/accountRecoveryError';
 export { updateProfileErrorMessage, changePasswordErrorMessage } from './lib/profileEditError';
 export { isValidEmail, validateAccountStep } from './lib/signupValidation';
+export { EMAIL_CODE_LENGTH, isCompleteEmailCode, normalizeEmailCode } from './lib/emailCode';
 export { BrandHero } from './ui/BrandHero';
 export { SignupStepLayout } from './ui/SignupStepLayout';
 export { EmailVerification } from './ui/EmailVerification';
