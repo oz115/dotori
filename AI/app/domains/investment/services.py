@@ -33,7 +33,7 @@ KST = ZoneInfo("Asia/Seoul")
 DAYS_PER_WEEK = Decimal(7)
 # `weekly_reward_limit` 중 투자에 배정되는 몫 (예적금 40%와 합쳐 80%, 나머지는 퀴즈).
 INVESTMENT_SHARE = Decimal("0.4")
-# 가격 하한 = 회사 시작가(seed `current_price`)의 몇 %.
+# 가격 하한 = 가족 시작가(`weekly_reward_limit`)의 몇 %.
 PRICE_FLOOR_RATIO = Decimal("0.1")
 
 _IMPACT_CONTEXT_KEYS = {
@@ -305,13 +305,14 @@ def _price_delta(weekly_reward_limit: int) -> int:
     return max(1, int(raw))
 
 
-def _price_floor(seed_price: int) -> int:
-    """이 회사의 가격 하한 = 시작가(seed `current_price`)의 10%.
+def _price_floor(start_price: int) -> int:
+    """가격 하한 = 이 가족 시작가(`weekly_reward_limit`)의 10%.
 
     가격이 리셋되지 않고 계속 이어지므로(설계 문서 "6. 가격 하한"), 여러 주에 걸쳐
     하락이 몰리면 이론상 0 이하로 갈 수 있다. 더 못 내려가게 여기서 막는다.
+    시작가·변동폭·하한이 모두 같은 축(온보딩 한도)이라 가족의 경제 규모에 비례한다.
     """
-    raw = (Decimal(seed_price) * PRICE_FLOOR_RATIO).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    raw = (Decimal(start_price) * PRICE_FLOOR_RATIO).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return max(1, int(raw))
 
 
@@ -351,7 +352,7 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     todays_moves = [(product_by_news_id[news.investment_news_id], news.impact) for news in news_items]
     target_product_ids = [product.investment_product_id for product, _ in todays_moves]
 
-    # 각 (가족, 회사)의 최신가. 이력이 없으면 아래에서 시작가(seed)로 대체한다.
+    # 각 (가족, 회사)의 최신가. 이력이 없으면 아래에서 가족 시작가(weekly_reward_limit)로 대체한다.
     history_rows = session.execute(
         select(
             InvestmentPriceHistory.family_id,
@@ -372,12 +373,16 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
         if family.weekly_reward_limit <= 0:
             continue
         delta = _price_delta(family.weekly_reward_limit)
+        # 이 가족의 시작가 = 온보딩 한도. 시드 current_price(전 가족 공통 10000)가 아니라
+        # 백엔드 조회·체결가의 "이력 없음" 폴백과 같은 값을 써야, 첫 가격 생성에서
+        # 화면에 보이던 가격과 어긋나지 않는다. 하한(10%)도 같은 기준이다.
+        start_price = family.weekly_reward_limit
         for product, impact in todays_moves:
-            current = latest_price.get((family.family_id, product.investment_product_id), product.current_price)
+            current = latest_price.get((family.family_id, product.investment_product_id), start_price)
             if impact == "POSITIVE":
                 new_price = current + delta
             else:
-                new_price = max(_price_floor(product.current_price), current - delta)
+                new_price = max(_price_floor(start_price), current - delta)
             session.add(
                 InvestmentPriceHistory(
                     family_id=family.family_id,
