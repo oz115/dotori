@@ -1,6 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { savingsProductName } from '@/features/savings/lib/savingsAssets';
 import {
@@ -90,32 +98,40 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
     );
   }
 
-  const groupLabel = savingsGroupOf(product.data.productType) === 'DEPOSIT' ? '예금' : '적금';
+  const headerTitle =
+    savingsGroupOf(product.data.productType) === 'DEPOSIT' ? '예금 상품 상세' : '적금 상품 상세';
 
   return (
-    <Shell title={groupLabel} onBack={goBack}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: theme.layout.screenX,
-          paddingVertical: theme.layout.screenY,
-          paddingBottom: theme.space.lg,
-          gap: theme.space.lg,
-        }}
+    <Shell title={headerTitle} onBack={goBack}>
+      {/* 금액 입력란이 키보드에 가리지 않도록 스크롤 영역을 키보드 높이만큼 밀어 올린다 */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <SavingsProductHero product={product.data} />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingVertical: theme.layout.screenY,
+            paddingBottom: theme.space.lg,
+            gap: theme.space.lg,
+          }}
+        >
+          <SavingsProductHero product={product.data} />
 
-        {subscription != null ? (
-          <SubscribedSection
-            familyId={familyId}
-            childId={childId}
-            product={product.data}
-            subscription={subscription}
-          />
-        ) : (
-          <SignupSection familyId={familyId} childId={childId} product={product.data} />
-        )}
-      </ScrollView>
+          {subscription != null ? (
+            <SubscribedSection
+              familyId={familyId}
+              childId={childId}
+              product={product.data}
+              subscription={subscription}
+            />
+          ) : (
+            <SignupSection familyId={familyId} childId={childId} product={product.data} />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Shell>
   );
 }
@@ -191,10 +207,21 @@ function SignupSection({
   const subscribe = useSubscribeSavings(familyId, childId);
   const [raw, setRaw] = useState('');
 
+  // 서버가 minAmount 를 아직 안 내려주는 배포(구버전 백엔드)에서는 하한 없음(0)으로 다룬다.
+  const minAmount = product.minAmount ?? 0;
+
   const amount = Number(raw.replace(/[^0-9]/g, '') || '0');
   const tooBig = amount > product.maxAmount;
-  const valid = amount > 0 && !tooBig;
+  // 입력이 시작된 뒤에만 최소금액 미달을 알린다 — 빈 칸부터 빨간 경고를 띄우지 않으려는 것.
+  const tooSmall = amount > 0 && amount < minAmount;
+  const valid = amount > 0 && !tooSmall && !tooBig;
   const preview = valid ? estimateReturn(product, amount) : null;
+
+  const amountError = tooBig
+    ? `최대 ${formatPoint(product.maxAmount)}까지 가입할 수 있어요`
+    : tooSmall
+      ? `최소 ${formatPoint(minAmount)}부터 가입할 수 있어요`
+      : undefined;
 
   // 최대로 넣었을 때 받는 도토리. 이자율(%)을 쓰지 않는 이유는 카드와 같다 - 초등학생에게
   // "15%" 는 도토리를 몇 개 받는지 알려 주지 못하고, 상품끼리 비교도 되지 않는다.
@@ -227,7 +254,11 @@ function SignupSection({
   }
   specs.push({
     label: AMOUNT_LABELS[product.contributionStyle],
-    value: `최대 ${formatPoint(product.maxAmount)}`,
+    value:
+      minAmount > 0
+        ? `${formatPoint(minAmount)} ~ ${formatPoint(product.maxAmount)}`
+        : `최대 ${formatPoint(product.maxAmount)}`,
+    sub: minAmount > 0 ? `최소 ${formatPoint(minAmount)}부터` : undefined,
   });
 
   const confirmSubscribe = () => {
@@ -269,8 +300,12 @@ function SignupSection({
           value={raw}
           onChangeText={(text) => setRaw(text.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
-          placeholder={`최대 ${formatPoint(product.maxAmount)}`}
-          error={tooBig ? `최대 ${formatPoint(product.maxAmount)}까지 가입할 수 있어요` : undefined}
+          placeholder={
+            minAmount > 0
+              ? `${formatPoint(minAmount)} ~ ${formatPoint(product.maxAmount)}`
+              : `최대 ${formatPoint(product.maxAmount)}`
+          }
+          error={amountError}
         />
         {preview ? (
           preview.weekly ? (
@@ -347,6 +382,11 @@ function SubscribedSection({
   const freeAmount = subscription.contributionStyle === 'FREE';
   const contributable = subscription.contributionStyle !== 'LUMP_SUM' && !matured;
   const amount = freeAmount ? Number(raw.replace(/[^0-9]/g, '') || '0') : subscription.principal;
+
+  // 보통예금은 maxAmount 가 "보유 잔액 상한"이라, 이미 넣은 만큼(currentAmount)을 뺀 값이
+  // 지금 추가로 넣을 수 있는 여력이다. 입력 전에도 이 숫자를 보여줘 얼마까지 되는지 알린다.
+  const remaining = Math.max(0, product.maxAmount - subscription.currentAmount);
+  const overRemaining = freeAmount && amount > remaining;
 
   const runContribute = () => {
     Alert.alert('납입하기', `${formatPoint(amount)}를 납입할까요?`, [
@@ -460,7 +500,15 @@ function SubscribedSection({
             value={raw}
             onChangeText={(text) => setRaw(text.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
-            placeholder="넣을 만큼 입력해요"
+            placeholder={`최대 ${formatPoint(remaining)}까지`}
+            error={
+              overRemaining ? `지금은 ${formatPoint(remaining)}까지 더 넣을 수 있어요` : undefined
+            }
+          />
+          <InfoRow
+            label="더 넣을 수 있어요"
+            value={formatPoint(remaining)}
+            sub={`지금 ${formatPoint(subscription.currentAmount)} / 최대 ${formatPoint(product.maxAmount)}`}
           />
         </InfoCard>
       ) : null}
@@ -479,7 +527,7 @@ function SubscribedSection({
             freeAmount ? '납입하기' : `이번 주 ${formatPoint(subscription.principal)} 납입하기`
           }
           variant="primary"
-          disabled={busy || (freeAmount && amount <= 0)}
+          disabled={busy || (freeAmount && (amount <= 0 || overRemaining))}
           loading={contribute.isPending}
           onPress={runContribute}
         />
@@ -508,6 +556,8 @@ function savingsErrorMessage(error: unknown): string {
       return '도토리가 부족해요. 할 일을 하고 도토리를 모아 보세요!';
     case 'SAVINGS_AMOUNT_EXCEEDS_LIMIT':
       return '가입할 수 있는 최대 금액을 넘었어요.';
+    case 'SAVINGS_AMOUNT_BELOW_MINIMUM':
+      return '가입할 수 있는 최소 금액보다 적어요.';
     case 'SAVINGS_CONTRIBUTION_NOT_ALLOWED':
       return '지금은 납입할 수 없어요. 이번 주 납입을 이미 마쳤는지 확인해 보세요.';
     case 'SAVINGS_INVALID_CONTRIBUTION_AMOUNT':
@@ -526,6 +576,7 @@ function savingsErrorMessage(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',

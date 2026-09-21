@@ -27,6 +27,7 @@ function product(overrides: Partial<SavingsProductResponse>): SavingsProductResp
     installmentCount: null,
     educationGoal: null,
     preSignupMessage: null,
+    minAmount: 100,
     maxAmount: 5000,
     ...overrides,
   };

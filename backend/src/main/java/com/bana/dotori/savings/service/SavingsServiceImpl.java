@@ -125,6 +125,12 @@ public class SavingsServiceImpl implements SavingsService {
 				"savingsProductId=" + product.getId());
 		}
 
+		long minAmount = product.getProductType().getMinAmount();
+		if (request.amount() < minAmount) {
+			throw new BusinessException(ErrorCode.SAVINGS_AMOUNT_BELOW_MINIMUM,
+				"요청 금액=" + request.amount() + ", 가입 가능 최소 금액=" + minAmount);
+		}
+
 		FamilySettings familySettings = familySettingsReader.read(familyId, childId);
 		long maxAmount = product.getProductType().calculateMaxAmount(familySettings);
 		if (request.amount() > maxAmount) {

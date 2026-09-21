@@ -23,6 +23,7 @@ public record SavingsProductResponse(
 	Integer installmentCount,
 	String educationGoal,
 	String preSignupMessage,
+	long minAmount,
 	long maxAmount
 ) {
 }

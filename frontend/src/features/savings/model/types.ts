@@ -57,6 +57,12 @@ export type SavingsProductResponse = {
   installmentCount: number | null;
   educationGoal: string | null;
   preSignupMessage: string | null;
+  /**
+   * 이 상품의 최소 가입 금액(상품 카탈로그 공통 하한).
+   * 서버 배포가 프론트보다 늦으면 이 필드가 아직 없을 수 있어 optional 로 둔다 —
+   * 없으면 화면은 하한 없음(0)으로 다룬다. (SavingsProductDetail 의 `minAmount ?? 0`)
+   */
+  minAmount?: number;
   maxAmount: number;
 };
 
