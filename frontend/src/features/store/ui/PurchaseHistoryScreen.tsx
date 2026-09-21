@@ -18,7 +18,7 @@ import { usePurchaseHistory } from '@/features/store/model/usePurchaseHistory';
 import { CategoryFilterBar, type CategoryFilterKey } from '@/features/store/ui/CategoryFilterBar';
 import { PurchaseDetailModal } from '@/features/store/ui/PurchaseDetailModal';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type PurchaseHistoryScreenProps = {
   familyId: number | undefined;
@@ -37,6 +37,7 @@ type SortOrder = 'LATEST' | 'OLDEST';
  */
 export function PurchaseHistoryScreen({ familyId, childId }: PurchaseHistoryScreenProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [yearMonth, setYearMonth] = useState<YearMonth>(currentYearMonth());
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
   const [sort, setSort] = useState<SortOrder>('LATEST');
@@ -56,6 +57,7 @@ export function PurchaseHistoryScreen({ familyId, childId }: PurchaseHistoryScre
   return (
     <Screen header={<Header title="구매 내역" onBack={() => router.back()} />} padded={false}>
       <FlatList
+        refreshControl={refreshControl}
         data={sortedItems}
         keyExtractor={(item) => String(item.purchaseId)}
         renderItem={({ item }) => <PurchaseRow item={item} onPress={() => setSelected(item)} />}

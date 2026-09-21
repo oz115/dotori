@@ -10,7 +10,7 @@ import { useChoreStatus } from '@/features/chore/model/useChoreStatus';
 import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
 import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { Button, ContentCard, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type ParentChoreDetailProps = {
   familyId: number | undefined;
@@ -56,6 +56,7 @@ export function ParentChoreDetail({
   onBack,
 }: ParentChoreDetailProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { data: chore, isPending, isError } = useChore(familyId, childId, choreId);
   const status = useChoreStatus(familyId, childId, chore);
   const [confirming, setConfirming] = useState(false);
@@ -90,6 +91,7 @@ export function ParentChoreDetail({
         <Centered message="미션을 찾을 수 없어요." />
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

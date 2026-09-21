@@ -4,7 +4,7 @@ import { useInvestmentHoldings } from '@/features/investment/model/useInvestment
 import { HoldingCard } from '@/features/investment/ui/HoldingCard';
 import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryError';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   /** 없으면 부모 본인 보유를 묻게 되므로 조회하지 않는다 */
@@ -17,6 +17,7 @@ type Props = {
 /** 자녀가 들고 있는 주식 전체 (부모). 메인 요약 띠에는 앞 몇 개만 나온다. */
 export function ParentInvestmentHoldings({ childId, childName, onBack, onPressStock }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const holdings = useInvestmentHoldings(childId, { enabled: childId != null });
   const muted = [theme.typography.body, { color: theme.color.text.muted }];
 
@@ -52,6 +53,7 @@ export function ParentInvestmentHoldings({ childId, childName, onBack, onPressSt
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

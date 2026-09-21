@@ -26,7 +26,7 @@ import '@/shared/lib/calendarLocale';
 import { formatWon } from '@/shared/lib/money';
 import { buildCalendarTheme } from '@/shared/lib/calendarTheme';
 import { fontFamily, useTheme, type Theme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type TransactionHistoryViewProps = {
   onBack: () => void;
@@ -58,6 +58,7 @@ const MAX_CUSTOM_RANGE_MONTHS = 3;
  */
 export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const account = useMyAccount();
   // TODO: 임시 디버그 로그 — bankName이 안 보이는 원인 확인되면 지운다
   if (__DEV__) {
@@ -103,6 +104,7 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
       padded={false}
     >
       <SectionList
+        refreshControl={refreshControl}
         sections={sections}
         keyExtractor={(item) => item.transactionUniqueNo}
         renderItem={({ item }) => <TransactionRow transaction={item} />}
