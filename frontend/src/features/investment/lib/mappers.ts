@@ -108,7 +108,6 @@ export function toTransactionItem(transaction: TransactionResponse): InvestmentT
 export function toInvestmentNews(news: NewsSummaryResponse): InvestmentNews {
   return {
     id: news.investmentNewsId,
-    tag: '경제 소식',
     title: news.title,
     impact: news.impact,
     relatedProductName: '',

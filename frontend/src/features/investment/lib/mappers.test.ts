@@ -130,7 +130,6 @@ describe('toInvestmentNews', () => {
     const view = toInvestmentNews(news);
 
     expect(view.id).toBe(3);
-    expect(view.tag).toBe('경제 소식');
     expect(view.emoji).toBe('📰');
     expect(view.relatedProductName).toBe('');
     expect(view.date).toBe('2026. 09. 16');
@@ -140,7 +139,6 @@ describe('toInvestmentNews', () => {
   it('관련 회사가 없어도 기본값으로 안전하게 표시한다', () => {
     const view = toInvestmentNews({ ...news, relatedProducts: [] });
 
-    expect(view.tag).toBe('경제 소식');
     expect(view.emoji).toBe('📰');
     expect(view.relatedProductName).toBe('');
   });

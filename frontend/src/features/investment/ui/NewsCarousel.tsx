@@ -80,20 +80,8 @@ export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
             ]}
           >
             <View style={styles.cardBody}>
+              {/* 카테고리 박스("경제 소식")는 뺐다 — 뉴스가 전부 같은 분류라 정보가 없다 */}
               <View style={[styles.texts, { gap: theme.space.sm }]}>
-                <View
-                  style={[
-                    styles.badge,
-                    {
-                      backgroundColor: theme.color.brand.solid,
-                      borderRadius: theme.radius.full,
-                    },
-                  ]}
-                >
-                  <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-                    {item.tag}
-                  </Text>
-                </View>
                 <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
                   {item.title}
                 </Text>
@@ -135,10 +123,6 @@ const styles = StyleSheet.create({
   texts: {
     flex: 1,
     alignItems: 'flex-start',
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
   },
   illustration: {
     fontSize: 64,
