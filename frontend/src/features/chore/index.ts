@@ -1,7 +1,7 @@
 export { choreApi } from './api/choreApi';
 export { choreKeys } from './model/choreKeys';
 export { useTodayChores } from './model/useTodayChores';
-export { mockTodayChores, mockPendingApprovals } from './model/mock';
+export { mockPendingApprovals } from './model/mock';
 export { usePendingApprovals } from './model/usePendingApprovals';
 export { usePendingCompletionRequest } from './model/usePendingCompletionRequest';
 export { useChildrenChores, type ChoreChild, type ParentChore } from './model/useChildrenChores';

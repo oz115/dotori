@@ -4,14 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   ChildChoreDetailModal,
   ChoreListRow,
-  mockTodayChores,
   todayDate,
   useChoreRefresh,
   useTodayChores,
   type TodayChore,
 } from '@/features/chore';
 import { useTheme } from '@/shared/theme';
-import { MockBadge } from '@/shared/ui';
 
 type TodayChoresProps = {
   familyId: number | undefined;
@@ -33,8 +31,8 @@ const PREVIEW_COUNT = 3;
  * 완료한 미션은 뺀다. 미션 탭이 감추는 것을 홈에서만 보여 주면 두 화면의 개수가 어긋나고,
  * 여기 행에는 "완료" 표시가 없어 안 한 것처럼 보인다.
  *
- * 아직 등록된 미션이 없으면(또는 조회에 실패하면) 예시 데이터로 자리를 채운다 —
- * 화면 배치를 확인하려는 것이라 "예시" 표시를 함께 달아 실제 데이터와 구분한다.
+ * 아직 등록된 미션이 없으면 예시로 채우지 않고 "없어요"라고 알린다. 가입 직후처럼 아무것도 없는
+ * 상태에서 가짜 미션이 보이면 실제로 등록된 것으로 오해하기 쉽다.
  */
 export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps) {
   const theme = useTheme();
@@ -48,13 +46,10 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   // (당겨서 새로고침은 홈에 없어 반환값은 쓰지 않는다)
   useChoreRefresh(familyId, childIds);
 
-  const usingMock = !isPending && items.length === 0;
-  const source = usingMock ? mockTodayChores : items;
-
-  const rows = useMemo(() => registeredToday(source), [source]);
+  const rows = useMemo(() => registeredToday(items), [items]);
 
   // 모달이 열린 사이에 목록이 갱신돼도(요청 보냄·취소함) 상태가 따라가야 한다.
-  const openChore = source.find((chore) => chore.choreId === openChoreId);
+  const openChore = items.find((chore) => chore.choreId === openChoreId);
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -63,7 +58,6 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
             오늘 등록된 미션
           </Text>
-          {usingMock ? <MockBadge /> : null}
         </View>
         <Pressable onPress={onMorePress} hitSlop={8} accessibilityRole="button">
           <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>전체보기 ›</Text>
@@ -78,7 +72,7 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
         <>
           {isError ? (
             <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              미션을 불러오지 못해 예시를 보여주고 있어요.
+              미션을 불러오지 못했어요. 잠시 후 다시 시도해주세요.
             </Text>
           ) : null}
           {rows.length === 0 ? (
@@ -94,8 +88,7 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
                   repeatType={chore.repeatType}
                   rewardPoints={chore.rewardPoints}
                   status={chore.status}
-                  // 예시 데이터는 서버에 없는 id 라 상세를 열 수 없다.
-                  onPress={usingMock ? undefined : () => setOpenChoreId(chore.choreId)}
+                  onPress={() => setOpenChoreId(chore.choreId)}
                 />
               ))}
             </View>
