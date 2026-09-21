@@ -13,6 +13,7 @@ export { useConnectFamily } from './model/useConnectFamily';
 export { createFamilyErrorMessage } from './lib/familyError';
 export { invitationErrorMessage } from './lib/invitationError';
 export { connectFamilyErrorMessage } from './lib/connectFamilyError';
+export { deleteFamilyErrorMessage } from './lib/deleteFamilyError';
 export {
   AMOUNT_HINT,
   AMOUNT_UNIT_WON,
