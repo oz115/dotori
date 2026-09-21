@@ -13,7 +13,7 @@ import {
 import { signOut, useAuthStore, useProfile, WithdrawButton } from '@/features/auth';
 import { PushNotificationToggle } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 export type MyPageMenuItem = {
   label: string;
@@ -33,6 +33,7 @@ type MyPageProps = {
  */
 export function MyPage({ menu, character }: MyPageProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   // 세션의 이름은 로그인 직후에만 있어서(자동 로그인은 JWT 에 이름이 없다) 서버 값을 우선한다
   const profile = useProfile();
   const sessionName = useAuthStore((s) => s.user?.name);
@@ -45,7 +46,11 @@ export function MyPage({ menu, character }: MyPageProps) {
       header={<Header title="마이페이지" onBack={() => router.back()} />}
       style={styles.screen}
     >
-      <ScrollView contentContainerStyle={styles.grow} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        refreshControl={refreshControl}
+        contentContainerStyle={styles.grow}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.profile, { paddingVertical: theme.space['3xl'] }]}>
           <Image source={character} style={styles.face} resizeMode="contain" />
           <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>

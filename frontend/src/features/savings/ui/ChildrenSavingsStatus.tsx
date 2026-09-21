@@ -12,7 +12,7 @@ import {
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { Button, FilterChips, Header, Screen } from '@/shared/ui';
+import { Button, FilterChips, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -50,6 +50,7 @@ export function ChildrenSavingsStatus({
   onBack,
 }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [selected, setSelected] = useState<string | null>(null);
 
   const products = useSavingsProducts(familyId, productChildId);
@@ -80,6 +81,7 @@ export function ChildrenSavingsStatus({
       padded={false}
     >
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,

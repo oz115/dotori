@@ -7,6 +7,7 @@ export { useDeleteFamily } from './model/useDeleteFamily';
 export { useFamilyStatus } from './model/useFamilyStatus';
 export { useFamilyId } from './model/useFamilyId';
 export { useFamilyMembers } from './model/useFamilyMembers';
+export { useFamilyReady } from './model/useFamilyReady';
 export { useFamily, useUpdateFamily } from './model/useFamily';
 export { useConnectFamily } from './model/useConnectFamily';
 export { createFamilyErrorMessage } from './lib/familyError';

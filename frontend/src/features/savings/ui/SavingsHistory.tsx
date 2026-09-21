@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSavingsTransactions } from '@/features/savings/model/useSavingsTransactions';
 import { SavingsTransactionCard } from '@/features/savings/ui/SavingsTransactionCard';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -31,6 +31,7 @@ type Props = {
  */
 export function SavingsHistory({ familyId, childId, title, onBack }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const transactions = useSavingsTransactions(familyId, childId);
 
   return (
@@ -62,6 +63,7 @@ export function SavingsHistory({ familyId, childId, title, onBack }: Props) {
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

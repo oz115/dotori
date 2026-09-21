@@ -11,7 +11,7 @@ import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryEr
 import { PeriodRangeBar } from '@/features/investment/ui/PeriodRangeBar';
 import { TransactionCard } from '@/features/investment/ui/TransactionCard';
 import { useTheme } from '@/shared/theme';
-import { FilterChips, Header, Screen } from '@/shared/ui';
+import { FilterChips, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /** 기간 필터가 한 번에 보여주는 일수. 투자 주기 기준이 정해지면 서버 값으로 바꾼다 */
 const PERIOD_DAYS = 7;
@@ -30,6 +30,7 @@ type Props = {
  */
 export function ParentInvestmentTransactions({ childId, childName, onBack }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [byPeriod, setByPeriod] = useState(false);
   const [offset, setOffset] = useState(0);
   const transactions = useInvestmentTransactions(childId, { enabled: childId != null });
@@ -56,6 +57,7 @@ export function ParentInvestmentTransactions({ childId, childName, onBack }: Pro
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

@@ -4,7 +4,7 @@ import { useInvestmentNews } from '@/features/investment/model/useInvestmentNews
 import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryError';
 import { NewsList } from '@/features/investment/ui/NewsList';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   onBack: () => void;
@@ -17,6 +17,7 @@ type Props = {
  */
 export function ParentInvestmentNews({ onBack, onPressNews }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const news = useInvestmentNews();
   const muted = [theme.typography.bodySm, { color: theme.color.text.sub }];
 
@@ -28,6 +29,7 @@ export function ParentInvestmentNews({ onBack, onPressNews }: Props) {
       padded={false}
     >
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,

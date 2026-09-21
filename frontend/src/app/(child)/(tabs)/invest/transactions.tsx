@@ -8,13 +8,14 @@ import {
   useInvestmentTransactions,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /**
  * 투자 거래 내역. 매수/매도한 기록을 최신순으로 보여준다 (INV-T-05).
  */
 export default function InvestTransactionsScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const transactions = useInvestmentTransactions();
 
   return (
@@ -50,6 +51,7 @@ export default function InvestTransactionsScreen() {
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

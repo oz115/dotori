@@ -4,7 +4,7 @@ import { useInvestmentProducts } from '@/features/investment/model/useInvestment
 import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryError';
 import { StockCard } from '@/features/investment/ui/StockCard';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   onBack: () => void;
@@ -14,6 +14,7 @@ type Props = {
 /** 주식 시세 (부모). 아이가 보는 종목 목록과 같은 가격이다. 가격은 하루에 한 번(자정 직후) 바뀐다. */
 export function ParentInvestmentMarket({ onBack, onPressStock }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const products = useInvestmentProducts();
   const muted = [theme.typography.bodySm, { color: theme.color.text.sub }];
 
@@ -25,6 +26,7 @@ export function ParentInvestmentMarket({ onBack, onPressStock }: Props) {
       padded={false}
     >
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
