@@ -3,6 +3,7 @@ package com.bana.dotori.family.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -678,6 +679,46 @@ class FamilyServiceImplTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("초대 코드 폐기 성공 시 그 가족의 발급된 코드를 모두 삭제한다")
+	void revokeInvitationCode_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+
+		familyService.revokeInvitationCode(1, 1);
+
+		verify(familyCodeRepository).deleteAllByFamilyId(1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 폐기 시 FORBIDDEN 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 초대 코드를 폐기하려 하면 FAMILY_NOT_FOUND 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
 	}
 
 	@Test

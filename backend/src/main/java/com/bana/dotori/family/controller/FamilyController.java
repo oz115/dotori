@@ -85,6 +85,13 @@ public class FamilyController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
+	@DeleteMapping("/{familyId}/invitations")
+	public ResponseEntity<Void> revokeInvitationCode(@AuthenticationPrincipal Integer userId,
+		@PathVariable Integer familyId) {
+		familyService.revokeInvitationCode(userId, familyId);
+		return ResponseEntity.noContent().build();
+	}
+
 	@DeleteMapping("/{familyId}/children/{childId}")
 	public ResponseEntity<Void> removeChild(@AuthenticationPrincipal Integer userId,
 		@PathVariable Integer familyId, @PathVariable Integer childId) {

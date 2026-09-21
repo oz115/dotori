@@ -183,16 +183,7 @@ public class FamilyServiceImpl implements FamilyService {
 	@Override
 	@Transactional
 	public InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId) {
-		User user = findUser(userId);
-		if (user.getRole() != UserRole.PARENT) {
-			throw new BusinessException(ErrorCode.FORBIDDEN);
-		}
-		// 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
-		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
-			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
-		}
+		Family family = lockFamilyOfParent(userId, familyId);
 
 		// 재발급 시 기존 코드는 무효화하고 가족당 유효 코드를 하나만 유지한다
 		familyCodeRepository.deleteAllByFamilyId(familyId);
@@ -202,6 +193,32 @@ public class FamilyServiceImpl implements FamilyService {
 			.expiredAt(OffsetDateTime.now().plus(CODE_TTL))
 			.build());
 		return familyMapper.toInvitationCodeResponse(familyCode);
+	}
+
+	@Override
+	@Transactional
+	public void revokeInvitationCode(Integer userId, Integer familyId) {
+		lockFamilyOfParent(userId, familyId);
+
+		// 발급된 코드가 없어도 성공으로 본다 — 목적("유효한 코드가 없는 상태")이 이미 달성돼 있다
+		familyCodeRepository.deleteAllByFamilyId(familyId);
+	}
+
+	/**
+	 * 부모 본인이 속한 가족 행을 잠가서 돌려준다 (초대 코드 발급·폐기 공용).
+	 * 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
+	 */
+	private Family lockFamilyOfParent(Integer userId, Integer familyId) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
+		}
+		return family;
 	}
 
 	@Override
