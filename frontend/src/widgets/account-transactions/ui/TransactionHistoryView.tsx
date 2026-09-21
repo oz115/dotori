@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Calendar, type DateData } from 'react-native-calendars';
 
 import {
   useAccountTransactions,
@@ -20,25 +19,23 @@ import {
   type TransactionPeriod,
   type TransactionRangeFilter,
 } from '@/features/account';
+import { useProfile } from '@/features/auth';
 import { apiErrorCode } from '@/shared/api';
-// 부작용 import — react-native-calendars에 한글 월/요일 이름을 등록한다
-import '@/shared/lib/calendarLocale';
+import { formatDateShort, fromDateParam, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
 import { formatWon } from '@/shared/lib/money';
-import { buildCalendarTheme } from '@/shared/lib/calendarTheme';
-import { fontFamily, useTheme, type Theme } from '@/shared/theme';
-import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
+import { fontFamily, useTheme } from '@/shared/theme';
+import { Button, DateRangeCalendar, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type TransactionHistoryViewProps = {
   onBack: () => void;
 };
 
-type RangeFilterKey = TransactionPeriod | 'CUSTOM' | 'LAST_MONTH';
+type RangeFilterKey = TransactionPeriod | 'CUSTOM';
 type TypeFilterKey = TransactionDirection | 'ALL';
 
 const RANGE_OPTIONS: { key: RangeFilterKey; label: string }[] = [
   { key: 'MONTH', label: '1개월' },
   { key: 'THREE_MONTHS', label: '3개월' },
-  { key: 'LAST_MONTH', label: '지난달' },
   { key: 'CUSTOM', label: '직접설정' },
 ];
 
@@ -60,6 +57,13 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
   const theme = useTheme();
   const refreshControl = usePullToRefresh();
   const account = useMyAccount();
+  // 직접설정 달력의 하한 = 도토리 가입일. 계좌 개설도 가입 후라 그 전 날짜는 볼 게 없다.
+  // (서버 제약은 "최대 3개월 폭"뿐이라 가입일까지 거슬러 올라가는 조회는 허용된다)
+  const profile = useProfile();
+  const signupDate =
+    profile.data?.createdAt != null
+      ? fromDateParam(profile.data.createdAt.slice(0, 10))
+      : undefined;
   // TODO: 임시 디버그 로그 — bankName이 안 보이는 원인 확인되면 지운다
   if (__DEV__) {
     console.log('[debug] account.data.bankName =', JSON.stringify(account.data?.bankName));
@@ -78,10 +82,6 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
         startDate: toDateParam(customStart),
         endDate: toDateParam(customEnd),
       };
-    }
-    if (rangeFilter === 'LAST_MONTH') {
-      const { start, end } = lastMonthRange();
-      return { mode: 'custom', startDate: toDateParam(start), endDate: toDateParam(end) };
     }
     return { mode: 'period', period: rangeFilter };
   }, [rangeFilter, customStart, customEnd]);
@@ -198,6 +198,7 @@ export function TransactionHistoryView({ onBack }: TransactionHistoryViewProps) 
         type={type}
         customStart={customStart}
         customEnd={customEnd}
+        minPickableDate={signupDate}
         onCancel={() => setSheetOpen(false)}
         onApply={(next) => {
           setRangeFilter(next.rangeFilter);
@@ -288,6 +289,8 @@ type FilterSheetProps = {
   type: TypeFilterKey;
   customStart: Date;
   customEnd: Date;
+  /** 직접설정 달력의 하한 (가입일). 프로필 로딩 전엔 잠시 제한 없이 열린다 */
+  minPickableDate?: Date;
   onCancel: () => void;
   onApply: (next: {
     rangeFilter: RangeFilterKey;
@@ -312,6 +315,7 @@ function FilterSheet({
   type,
   customStart,
   customEnd,
+  minPickableDate,
   onCancel,
   onApply,
 }: FilterSheetProps) {
@@ -342,6 +346,7 @@ function FilterSheet({
               type={type}
               customStart={customStart}
               customEnd={customEnd}
+              minPickableDate={minPickableDate}
               onApply={onApply}
             />
           ) : null}
@@ -358,6 +363,7 @@ function FilterSheetContent({
   type,
   customStart,
   customEnd,
+  minPickableDate,
   onApply,
 }: FilterSheetContentProps) {
   const theme = useTheme();
@@ -381,11 +387,17 @@ function FilterSheetContent({
       </View>
 
       {draftRange === 'CUSTOM' ? (
-        <CustomRangePicker
+        <DateRangeCalendar
           start={draftStart}
           end={draftEnd}
-          onChangeStart={setDraftStart}
-          onChangeEnd={setDraftEnd}
+          onChange={(start, end) => {
+            setDraftStart(start);
+            setDraftEnd(end);
+          }}
+          // 서버 제약(시작~종료 최대 3개월 폭)을 달력에서 미리 막는다.
+          // 시작일 자체는 가입일까지 거슬러 올라갈 수 있다.
+          maxRangeMonths={MAX_CUSTOM_RANGE_MONTHS}
+          minPickableDate={minPickableDate}
         />
       ) : null}
 
@@ -410,115 +422,6 @@ function FilterSheetContent({
       />
     </>
   );
-}
-
-type CustomRangePickerProps = {
-  start: Date;
-  end: Date;
-  onChangeStart: (date: Date) => void;
-  onChangeEnd: (date: Date) => void;
-};
-
-/**
- * 시작일·종료일 직접 선택. 두 번 탭하는 방식이다 — 처음 탭이 시작일(그 순간 종료일도
- * 같은 날로 맞춘다), 두 번째 탭이 종료일. 범위가 완성된 뒤 또 탭하면 새로 시작한다.
- * 서버 제약(시작 ≤ 종료, 최대 3개월)을 탭 처리에서 미리 막는다 — 잘못된 값을 보내고서야
- * 에러를 받는 것보다 낫다.
- */
-function CustomRangePicker({ start, end, onChangeStart, onChangeEnd }: CustomRangePickerProps) {
-  const theme = useTheme();
-  const [awaitingEnd, setAwaitingEnd] = useState(false);
-  const today = new Date();
-
-  const startStr = toDateParam(start);
-  const endStr = toDateParam(end);
-
-  const handleDayPress = (day: DateData) => {
-    if (!awaitingEnd || day.dateString < startStr) {
-      const picked = fromDateParam(day.dateString);
-      onChangeStart(picked);
-      onChangeEnd(picked);
-      setAwaitingEnd(true);
-      return;
-    }
-
-    const cap = minDate(addMonths(start, MAX_CUSTOM_RANGE_MONTHS), today);
-    const picked = fromDateParam(day.dateString);
-    onChangeEnd(picked > cap ? cap : picked);
-    setAwaitingEnd(false);
-  };
-
-  const markedDates = useMemo(
-    () => buildRangeMarking(startStr, endStr, theme),
-    [startStr, endStr, theme],
-  );
-
-  return (
-    <View style={{ gap: theme.space.sm }}>
-      <View style={[styles.dateRow, { gap: theme.space.sm }]}>
-        <DateField label="시작일" date={start} />
-        <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>~</Text>
-        <DateField label="종료일" date={end} />
-      </View>
-      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-        {awaitingEnd ? '종료일을 선택해주세요.' : '시작일을 선택해주세요.'}
-      </Text>
-
-      <Calendar
-        current={startStr}
-        minDate={toDateParam(addMonths(today, -MAX_CUSTOM_RANGE_MONTHS))}
-        maxDate={toDateParam(today)}
-        markingType="period"
-        markedDates={markedDates}
-        onDayPress={handleDayPress}
-        theme={buildCalendarTheme(theme)}
-        style={[styles.calendar, { borderColor: theme.color.border.default }]}
-      />
-    </View>
-  );
-}
-
-function DateField({ label, date }: { label: string; date: Date }) {
-  const theme = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.dateField,
-        {
-          borderColor: theme.color.border.default,
-          borderRadius: theme.radius.md,
-          padding: theme.space.sm,
-        },
-      ]}
-    >
-      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{label}</Text>
-      <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-        {formatDateShort(date)}
-      </Text>
-    </View>
-  );
-}
-
-/** 시작일 ~ 종료일 사이 모든 날짜를 브랜드 컬러로 칠한다 (양 끝은 둥글게). */
-function buildRangeMarking(startStr: string, endStr: string, theme: Theme) {
-  const marks: Record<
-    string,
-    { color: string; textColor: string; startingDay?: boolean; endingDay?: boolean }
-  > = {};
-  let cursor = fromDateParam(startStr);
-
-  // 'YYYY-MM-DD' 문자열은 사전순 비교가 곧 날짜순 비교라 Date 객체 없이 비교할 수 있다.
-  for (let key = toDateParam(cursor); key <= endStr; key = toDateParam(cursor)) {
-    marks[key] = {
-      color: theme.color.brand.solid,
-      textColor: theme.color.text.onBrand,
-      startingDay: key === startStr,
-      endingDay: key === endStr,
-    };
-    cursor = addDays(cursor, 1);
-  }
-  return marks;
 }
 
 function TransactionRow({ transaction }: { transaction: AccountTransaction }) {
@@ -599,8 +502,6 @@ function rangeLabel(key: RangeFilterKey, start: Date, end: Date): string {
       return '1개월';
     case 'THREE_MONTHS':
       return '3개월';
-    case 'LAST_MONTH':
-      return '지난달';
     case 'CUSTOM':
       return `${formatDateShort(start)} ~ ${formatDateShort(end)}`;
   }
@@ -610,61 +511,11 @@ function typeLabel(key: TypeFilterKey): string {
   return key === 'ALL' ? '전체' : key === 'DEPOSIT' ? '입금만' : '출금만';
 }
 
-/** 오늘 기준 지난달 1일 ~ 말일 */
-function lastMonthRange(): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const end = new Date(now.getFullYear(), now.getMonth(), 0);
-  return { start, end };
-}
-
-/** Date → "2025.09.07" (화면 표시용) */
-function formatDateShort(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
-}
-
-/** Date → "2025-09-07" (서버 startDate/endDate 파라미터용, ISO DATE) */
-function toDateParam(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/** "2025-09-07" → Date. `new Date('2025-09-07')`는 UTC 자정으로 해석돼 로컬 날짜가
- * 밀릴 수 있어 연·월·일을 직접 넣어 로컬 자정 기준으로 만든다. */
-function fromDateParam(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function monthsAgo(n: number, from = new Date()): Date {
-  return addMonths(from, -n);
-}
-
-function addMonths(date: Date, n: number): Date {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + n);
-  return d;
-}
-
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + n);
-  return d;
-}
-
-function minDate(a: Date, b: Date): Date {
-  return a < b ? a : b;
-}
-
 const styles = StyleSheet.create({
   content: { paddingBottom: 40, flexGrow: 1 },
   summaryBar: { flexDirection: 'row', alignItems: 'center', minHeight: 48 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: { paddingHorizontal: 16, paddingVertical: 8 },
-  dateRow: { flexDirection: 'row', alignItems: 'center' },
-  dateField: { flex: 1, borderWidth: 1 },
-  calendar: { borderWidth: 1, borderRadius: 12 },
   backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: { width: '100%' },
   grabber: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center' },

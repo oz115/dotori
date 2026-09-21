@@ -58,7 +58,7 @@ export function StoreProductDetailScreen({
     <Screen
       header={
         <Header
-          title={product?.name ?? '상품 상세'}
+          title="상품 상세"
           onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
         />
       }
@@ -191,11 +191,18 @@ function StoreProductDetailBody({
             },
           ]}
         >
+          {/* 맨 위 배너는 이 상품의 상세로 — 상품명을 제목으로, 카테고리 문구는 부제로 내린다 */}
           <View style={{ flex: 1, gap: theme.space.xs }}>
-            <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-              {categoryTagline(product.category)}
+            <Text
+              style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+              numberOfLines={2}
+            >
+              {product.name}
             </Text>
             <View style={[styles.taglineUnderline, { backgroundColor: theme.color.brand.solid }]} />
+            <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
+              {categoryTagline(product.category)}
+            </Text>
           </View>
           <Image
             source={categoryImage(product.category)}
@@ -235,9 +242,6 @@ function StoreProductDetailBody({
               {categoryLabel(product.category)}
             </Text>
           </View>
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
-            {product.name}
-          </Text>
           <View style={styles.footerRow}>
             {priceReady ? (
               <View style={styles.priceRow}>
@@ -292,38 +296,6 @@ function StoreProductDetailBody({
             </View>
             <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
               {product.description}
-            </Text>
-          </View>
-        ) : null}
-
-        {role === 'PARENT' && product.reason ? (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.color.background.surface,
-                borderColor: theme.color.border.default,
-                borderRadius: theme.radius.lg,
-                padding: theme.space.lg,
-                gap: theme.space.sm,
-              },
-            ]}
-          >
-            <View style={styles.descHeader}>
-              <View
-                style={[
-                  styles.descIcon,
-                  { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.full },
-                ]}
-              >
-                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
-              </View>
-              <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-                AI 산정 이유
-              </Text>
-            </View>
-            <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
-              {product.reason}
             </Text>
           </View>
         ) : null}

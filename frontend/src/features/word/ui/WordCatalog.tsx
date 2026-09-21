@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { groupByChosung, type WordCategoryFilter } from '@/features/word/lib/wordSearch';
 import { useWords } from '@/features/word/model/useWords';
 import { useWordSearch } from '@/features/word/model/useWordSearch';
-import type { WordListItem } from '@/features/word/model/types';
+import type { WordCategory, WordListItem } from '@/features/word/model/types';
 import { CategoryFilterBar } from '@/features/word/ui/CategoryFilterBar';
 import { ChosungIndexRail } from '@/features/word/ui/ChosungIndexRail';
 import { WordListRow } from '@/features/word/ui/WordListRow';
@@ -20,8 +20,10 @@ type WordCatalogProps = {
   /**
    * 단어를 눌렀을 때의 이동. 부모·아이 라우트 그룹에 같은 `/word/[wordId]` 경로가 있어서
    * 어느 그룹의 상세로 갈지는 화면(라우트)이 정한다 — 그룹을 안 적으면 아이 쪽으로 간다.
+   * category 는 지금 보고 있던 카테고리 필터 — 상세의 이전/다음이 이 범위 안에서 돌게
+   * 라우트 파라미터로 넘긴다 (전체·검색 중이면 undefined).
    */
-  onSelectWord: (wordId: number) => void;
+  onSelectWord: (wordId: number, category?: WordCategory) => void;
 };
 
 /**
@@ -54,11 +56,23 @@ export function WordCatalog({ onSelectWord }: WordCatalogProps) {
   const browse = useWords(category === 'ALL' ? undefined : category);
   const search = useWordSearch(debouncedQuery);
 
-  const words: WordListItem[] = useMemo(
-    () => (isSearching ? (search.data ?? []) : (browse.data?.pages.flatMap((p) => p.words) ?? [])),
-    [isSearching, search.data, browse.data],
+  const loadedBrowseWords = useMemo(
+    () => browse.data?.pages.flatMap((p) => p.words) ?? [],
+    [browse.data],
   );
-  const isPending = isSearching ? search.isPending : browse.isPending;
+  // 서버 검색 응답을 기다리는 동안엔 이미 불러온 목록에서 먼저 걸러 보여준다 — 방금까지
+  // 화면에 보이던 단어를 검색했는데 스피너부터 뜨면 느리게 느껴진다.
+  const interimMatches = useMemo(
+    () => loadedBrowseWords.filter((w) => w.word.includes(debouncedQuery)),
+    [loadedBrowseWords, debouncedQuery],
+  );
+  const words: WordListItem[] = useMemo(
+    () => (isSearching ? (search.data ?? interimMatches) : loadedBrowseWords),
+    [isSearching, search.data, interimMatches, loadedBrowseWords],
+  );
+  const isPending = isSearching
+    ? search.isPending && interimMatches.length === 0
+    : browse.isPending;
   const isError = isSearching ? search.isError : browse.isError;
 
   const sections = useMemo(
@@ -102,6 +116,22 @@ export function WordCatalog({ onSelectWord }: WordCatalogProps) {
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
+          rightSlot={
+            query.length > 0 ? (
+              <Pressable
+                // 디바운스를 기다리지 않고 바로 목록으로 돌아간다 — 지우기는 타이핑이 아니다
+                onPress={() => {
+                  setQuery('');
+                  setDebouncedQuery('');
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="검색어 지우기"
+              >
+                <Ionicons name="close-circle" size={20} color={theme.color.text.muted} />
+              </Pressable>
+            ) : undefined
+          }
         />
         <CategoryFilterBar selected={category} onSelect={setCategory} disabled={isSearching} />
       </View>
@@ -114,7 +144,12 @@ export function WordCatalog({ onSelectWord }: WordCatalogProps) {
           sections={sections}
           keyExtractor={(item) => String(item.wordId)}
           renderItem={({ item }) => (
-            <WordListRow word={item} onPress={() => onSelectWord(item.wordId)} />
+            <WordListRow
+              word={item}
+              onPress={() =>
+                onSelectWord(item.wordId, isSearching || category === 'ALL' ? undefined : category)
+              }
+            />
           )}
           renderSectionHeader={({ section }) => (
             <Text

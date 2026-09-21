@@ -182,7 +182,10 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
             </Text>
           </View>
 
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+          {/* 질문은 문장이 길어 h3(20px)면 줄이 자주 꺾여 읽기 어렵다 — 한 단계 작은 titleMd */}
+          <Text
+            style={[theme.typography.titleMd, styles.question, { color: theme.color.text.strong }]}
+          >
             Q. {quiz.question}
           </Text>
 
@@ -301,7 +304,10 @@ function ResultAnswerCard({ theme, answer, explanation }: Omit<QuizResultProps, 
           <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
             {answer}의 뜻
           </Text>
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.default }]}>
+          {/* 해설은 아이가 실제로 읽는 본문이라 작은 글씨(bodySm) 대신 본문 크기 + 넉넉한 줄간격 */}
+          <Text
+            style={[theme.typography.body, styles.explanation, { color: theme.color.text.default }]}
+          >
             {explanation}
           </Text>
         </ContentCard>
@@ -443,7 +449,11 @@ const styles = StyleSheet.create({
   alignStart: { alignSelf: 'flex-start' },
   dangerBanner: { gap: 4 },
   hintBox: { gap: 6 },
-  hintText: { letterSpacing: 2 },
+  // 질문·해설은 긴 문장이 오는 자리라 줄간격을 넉넉히 — 붙은 줄은 아이가 읽다 놓친다
+  question: { lineHeight: 28 },
+  explanation: { lineHeight: 28 },
+  // 초성은 글자 사이가 벌어져야 "ㅇㅈ" 같은 조합이 한 글자처럼 안 보인다
+  hintText: { letterSpacing: 6 },
   dangerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dangerSubtext: { marginLeft: 22 },
   resultBody: { alignItems: 'center' },

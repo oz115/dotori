@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { categoryImage } from '@/features/store/lib/categoryImage';
 import { categoryLabel } from '@/features/store/lib/categoryLabel';
@@ -162,9 +162,17 @@ type QuantityStepperProps = {
   error?: string;
 };
 
-/** 재고 수량 입력. 타이핑 대신 -/+ 로만 조절한다 (오타로 이상한 값이 들어가는 걸 막는다). */
+/**
+ * 재고 수량 입력. -/+ 로 조절하거나 가운데 칸에 직접 숫자를 입력할 수 있다.
+ * 직접 입력은 숫자만 허용하고, 비우면 0 으로 본다 (오타로 이상한 값이 들어가는 걸 막는다).
+ */
 function QuantityStepper({ value, onChange, error }: QuantityStepperProps) {
   const theme = useTheme();
+
+  const handleType = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '');
+    onChange(digits === '' ? 0 : Number(digits));
+  };
 
   return (
     <View style={{ gap: 6 }}>
@@ -189,7 +197,15 @@ function QuantityStepper({ value, onChange, error }: QuantityStepperProps) {
         >
           <Ionicons name="remove" size={20} color={theme.color.text.strong} />
         </Pressable>
-        <Text style={[theme.typography.body, { color: theme.color.text.strong }]}>{value}</Text>
+        <TextInput
+          value={value === 0 ? '' : String(value)}
+          onChangeText={handleType}
+          keyboardType="number-pad"
+          placeholder="0"
+          placeholderTextColor={theme.color.text.muted}
+          style={[theme.typography.body, styles.quantityInput, { color: theme.color.text.strong }]}
+          accessibilityLabel="수량 입력"
+        />
         <Pressable
           onPress={() => onChange(value + 1)}
           hitSlop={8}
@@ -214,6 +230,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1.5,
+  },
+  quantityInput: {
+    flex: 1,
+    textAlign: 'center',
+    paddingVertical: 0,
+    marginHorizontal: 8,
   },
   categoryGrid: {
     flexDirection: 'row',

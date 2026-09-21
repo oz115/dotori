@@ -57,6 +57,12 @@ export type SavingsProductResponse = {
   installmentCount: number | null;
   educationGoal: string | null;
   preSignupMessage: string | null;
+  /**
+   * 이 상품의 최소 가입 금액(상품 카탈로그 공통 하한).
+   * 서버 배포가 프론트보다 늦으면 이 필드가 아직 없을 수 있어 optional 로 둔다 —
+   * 없으면 화면은 하한 없음(0)으로 다룬다. (SavingsProductDetail 의 `minAmount ?? 0`)
+   */
+  minAmount?: number;
   maxAmount: number;
 };
 
@@ -135,11 +141,16 @@ export type SavingsCard = {
   subscriptionId?: number;
   name: string;
   image: ImageSourcePropType;
+  productType: SavingsProductType;
   group: SavingsGroup;
   subscribed: boolean;
   /** 만기 도달로 수령 대기 중 (배지 표시용) */
   matured: boolean;
   lines: SavingsCardLine[];
-  /** 0~1. undefined 면 진행바를 그리지 않는다 (보통예금·미가입) */
-  progress?: number;
+  /**
+   * 눈금형 진행 표시 — total 칸 중 filled 칸이 찬다.
+   * 예금(거치식)은 주차(1주=1칸), 적금은 납입 회차(=주차) 기준.
+   * undefined 면 눈금을 그리지 않는다 (보통예금·미가입).
+   */
+  segments?: { total: number; filled: number };
 };

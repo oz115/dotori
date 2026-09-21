@@ -6,6 +6,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.bana.dotori.store.config.StoreRabbitConfig;
+import com.bana.dotori.store.entity.StoreProductCategory;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,8 +23,22 @@ public class StoreProductValueEvaluationListener {
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onProductCreated(StoreProductCreatedEvent event) {
+		send(event.storeProductId(), event.familyId(), event.name(), event.description(), event.category());
+	}
+
+	/**
+	 * 정보 수정으로 재산정이 필요할 때도 같은 큐로 보낸다 (SHOP-04). 등록 알림 리스너는 이
+	 * 이벤트를 듣지 않으므로, 수정 때 "새 상품 등록" 알림이 나가지 않는다.
+	 */
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onReevaluationRequested(StoreProductReevaluationRequestedEvent event) {
+		send(event.storeProductId(), event.familyId(), event.name(), event.description(), event.category());
+	}
+
+	private void send(Integer storeProductId, Integer familyId, String name, String description,
+			StoreProductCategory category) {
 		StoreProductValueEvaluationMessage message = new StoreProductValueEvaluationMessage(
-			event.storeProductId(), event.familyId(), event.name(), event.description(), event.category());
+			storeProductId, familyId, name, description, category);
 		rabbitTemplate.convertAndSend(StoreRabbitConfig.VALUE_EVALUATION_EXCHANGE,
 			StoreRabbitConfig.VALUE_EVALUATION_ROUTING_KEY, message);
 	}

@@ -6,6 +6,7 @@ import { saveChoreErrorMessage } from '@/features/chore/lib/choreError';
 import {
   toUpdateBody,
   validateChoreForm,
+  validateReward,
   type ChoreFormErrors,
   type ChoreFormInput,
 } from '@/features/chore/lib/choreForm';
@@ -112,12 +113,9 @@ function EditBody({
 
   const handleSubmit = () => {
     const nextErrors = validateChoreForm(form, today);
-    // 서버 @Min(1) 과 맞춘다. 빈 칸은 "안 바꿈"이라 통과시킨다.
+    // 빈 칸은 "안 바꿈"이라 통과시킨다 (PATCH 라 생략과 같다)
     const parsedReward = reward.trim().length === 0 ? undefined : Number(reward.trim());
-    const nextRewardError =
-      parsedReward != null && (!Number.isInteger(parsedReward) || parsedReward < 1)
-        ? '1 이상의 숫자를 입력해주세요.'
-        : undefined;
+    const nextRewardError = validateReward(reward);
 
     setErrors(nextErrors);
     setRewardError(nextRewardError);

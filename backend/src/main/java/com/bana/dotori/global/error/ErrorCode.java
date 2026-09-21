@@ -119,6 +119,7 @@ public enum ErrorCode {
 	SAVINGS_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 상품을 찾을 수 없습니다"),
 	SAVINGS_PRODUCT_INACTIVE(HttpStatus.BAD_REQUEST, "가입할 수 없는 상품입니다"),
 	SAVINGS_AMOUNT_EXCEEDS_LIMIT(HttpStatus.BAD_REQUEST, "가입 가능한 최대 금액을 초과했습니다"),
+	SAVINGS_AMOUNT_BELOW_MINIMUM(HttpStatus.BAD_REQUEST, "가입 가능한 최소 금액보다 적습니다"),
 	SAVINGS_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 가입 내역을 찾을 수 없습니다"),
 	SAVINGS_SUBSCRIPTION_NOT_ACTIVE(HttpStatus.CONFLICT, "진행 중인 예적금이 아닙니다"),
 	SAVINGS_CONTRIBUTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "추가 납입할 수 없는 상품입니다"),

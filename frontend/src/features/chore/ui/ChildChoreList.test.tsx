@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { choreApi } from '@/features/chore/api/choreApi';
@@ -33,14 +33,18 @@ const FAMILY_ID = 1;
 const CHILD_ID = 7;
 const START = '2026-09-15';
 
-function chore(choreId: number, title: string): ChoreSummary {
+function chore(
+  choreId: number,
+  title: string,
+  repeatType: ChoreSummary['repeatType'] = 'ONCE',
+): ChoreSummary {
   return {
     choreId,
     childId: CHILD_ID,
     title,
     difficulty: 'NORMAL',
     rewardPoints: 500,
-    repeatType: 'ONCE',
+    repeatType,
     startDate: START,
     endDate: START,
     createdAt: `${START}T09:00:00+09:00`,
@@ -74,7 +78,8 @@ beforeEach(() => {
 });
 
 describe('ChildChoreList - 완료한 미션 처리', () => {
-  it('지급까지 끝난 미션은 목록에 보이지 않는다', async () => {
+  it('끝낸 한번 미션은 목록에서 빠진다', async () => {
+    // 다음 주기가 없어 다시 할 일이 아니다. 남겨 두면 "해야 할 미션" 자리에 영영 쌓인다.
     mocked.getChores.mockResolvedValue([chore(1, '수학 문제 20개 풀기'), chore(2, '방 정리하기')]);
     mocked.getCompletions.mockResolvedValue([paid(1, '수학 문제 20개 풀기')]);
 
@@ -182,5 +187,31 @@ describe('ChildChoreList - 알림에서 들어온 미션', () => {
     await waitFor(() => expect(onConsumed).toHaveBeenCalledTimes(1), WAIT);
     expect(await screen.findByText('방 정리하기', {}, WAIT)).toBeTruthy();
     expect(push).not.toHaveBeenCalledWith('/task/history');
+  });
+});
+
+describe('ChildChoreList - 끝낸 반복 미션', () => {
+  it('목록에 남는다', async () => {
+    // 사라지면 아이도 부모도 무엇을 걸어 놨는지 알 수 없다 (QA). 흐리게 남기고, 상세에서
+    // 완료 요청 버튼만 빠진다.
+    mocked.getChores.mockResolvedValue([chore(1, '이불 개기', 'DAY')]);
+    mocked.getCompletions.mockResolvedValue([paid(1, '이불 개기')]);
+
+    await withQuery(renderList());
+
+    await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
+  });
+
+  it('"미완료만" 을 켜면 빠진다', async () => {
+    mocked.getChores.mockResolvedValue([chore(1, '이불 개기', 'DAY'), chore(2, '방 정리하기')]);
+    mocked.getCompletions.mockResolvedValue([paid(1, '이불 개기')]);
+
+    await withQuery(renderList());
+    await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
+
+    fireEvent.press(screen.getByLabelText('미완료만'));
+
+    await waitFor(() => expect(screen.queryByText('이불 개기')).toBeNull(), WAIT);
+    expect(screen.getByText('방 정리하기')).toBeTruthy();
   });
 });

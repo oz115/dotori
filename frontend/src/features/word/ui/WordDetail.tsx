@@ -6,14 +6,18 @@ import { wordApi } from '@/features/word/api/wordApi';
 import { categoryLabel } from '@/features/word/lib/categoryLabel';
 import { categoryBadgeColors } from '@/features/word/lib/categoryTheme';
 import { difficultyBadgeColors, difficultyLabel } from '@/features/word/lib/difficultyTier';
+import { groupByChosung } from '@/features/word/lib/wordSearch';
 import { useWord } from '@/features/word/model/useWord';
 import { useWords } from '@/features/word/model/useWords';
+import type { WordCategory } from '@/features/word/model/types';
 import { wordKeys } from '@/features/word/model/wordKeys';
 import { useTheme } from '@/shared/theme';
 import { Button, Header } from '@/shared/ui';
 
 type WordDetailProps = {
   wordId: number;
+  /** 목록에서 보고 있던 카테고리 필터. 이전/다음이 이 범위 안에서만 돌게 한다. 없으면 전체. */
+  category?: WordCategory;
   /**
    * 뒤로가기. 부모·아이 라우트 그룹에 같은 `/word` 경로가 있어서 스택에 돌아갈 곳이 없을 때
    * 어느 그룹의 목록으로 갈지는 화면(라우트)이 정한다.
@@ -30,18 +34,20 @@ type WordDetailProps = {
  * 대신 지금 보고 있는 wordId를 로컬 state로 들고, 버튼을 누르면 그 state만 바꿔서
  * 같은 화면 안에서 내용(배지·단어·뜻)만 갈아 끼운다 — 헤더는 그대로 고정된다.
  */
-export function WordDetail({ wordId: initialWordId, onBack: goBack }: WordDetailProps) {
+export function WordDetail({ wordId: initialWordId, category, onBack: goBack }: WordDetailProps) {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [currentWordId, setCurrentWordId] = useState(initialWordId);
   const { data: word, isPending, isError } = useWord(currentWordId);
 
-  // 이전/다음 이동은 "전체" 카테고리로 지금까지 불러온 페이지 안에서만 가능하다 —
+  // 이전/다음 이동은 목록에서 보던 카테고리로 지금까지 불러온 페이지 안에서만 가능하다 —
   // 목록이 무한 스크롤이라 사전 전체 순서를 한 번에 갖고 있지 않다. 아직 안 불러온
   // 이웃이면(또는 검색 결과에서 바로 들어왔으면) 버튼이 비활성화된다.
-  const browse = useWords(undefined);
+  // 순서는 목록 화면과 똑같이 초성 그룹(가나다)으로 정렬해 계산한다 — 응답 순서를 그대로
+  // 쓰면 화면에 보이는 순서와 다음 버튼의 순서가 어긋난다.
+  const browse = useWords(category);
   const loadedWords = useMemo(
-    () => browse.data?.pages.flatMap((p) => p.words) ?? [],
+    () => groupByChosung(browse.data?.pages.flatMap((p) => p.words) ?? []).flatMap((g) => g.words),
     [browse.data],
   );
   const index = loadedWords.findIndex((w) => w.wordId === currentWordId);

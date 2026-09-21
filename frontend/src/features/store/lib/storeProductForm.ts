@@ -2,6 +2,11 @@ import type { StoreProductCategory } from '@/features/store/model/types';
 
 export const NAME_MAX = 100;
 export const DESCRIPTION_MAX = 255;
+/**
+ * 가격 상한(도토리). 백엔드 price 컬럼이 int 라 이보다 훨씬 큰 값은 서버에서 일반 오류로 튕겨,
+ * "수정 실패"만 뜨고 이유를 알 수 없다. 제출 전 여기서 막아 정확한 문구를 보여준다.
+ */
+export const PRICE_MAX = 1_000_000;
 
 export type StoreProductFormInput = {
   name: string;
@@ -54,8 +59,12 @@ export function parseQuantity(raw: string): number | null {
  * 0 이하는 안 되고, 1 이상의 정수만 허용한다.
  */
 export function validatePrice(raw: string): string | undefined {
-  if (!/^\d+$/.test(raw.trim()) || Number(raw.trim()) <= 0) {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed) || Number(trimmed) <= 0) {
     return '1 이상의 숫자를 입력해주세요.';
+  }
+  if (Number(trimmed) > PRICE_MAX) {
+    return `너무 많은 금액이에요. ${PRICE_MAX.toLocaleString('ko-KR')}P 이하로 입력해주세요.`;
   }
   return undefined;
 }

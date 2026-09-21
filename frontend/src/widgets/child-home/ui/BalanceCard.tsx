@@ -25,6 +25,11 @@ type BalanceCardProps = {
   onOpenInvestment: () => void;
   /** 계좌 관리(연동된 경우) 또는 계좌 연동(아직 안 한 경우) 화면으로 */
   onOpenAccount: () => void;
+  /**
+   * 지갑 첫 장에서 자산 장(예적금·투자·실계좌)으로 넘어왔을 때 — 계좌·자산을 최신값으로 새로고침한다.
+   * 승인된 환전이 실계좌 잔액에 바로 보이게 한다.
+   */
+  onViewAssets?: () => void;
 };
 
 /**
@@ -43,12 +48,16 @@ export function BalanceCard({
   onOpenSavings,
   onOpenInvestment,
   onOpenAccount,
+  onViewAssets,
 }: BalanceCardProps) {
   const theme = useTheme();
 
   return (
     <PagedCards
       testID="balance-card-pages"
+      onPageChange={(next, previous) => {
+        if (previous === 0 && next > 0) onViewAssets?.();
+      }}
       pages={[
         <WalletCard
           key="wallet"

@@ -16,6 +16,8 @@ type PagedCardsProps = {
   /** 옆으로 넘겨 보는 장들. 각 장은 `flex: 1` 로 높이를 채워야 카드 높이가 맞는다 */
   pages: ReactNode[];
   testID?: string;
+  /** 슬라이드가 멈춰 장이 바뀌었을 때 (새 장, 이전 장) */
+  onPageChange?: (next: number, previous: number) => void;
 };
 
 /**
@@ -25,7 +27,7 @@ type PagedCardsProps = {
  * 가로 ScrollView 는 자식을 가장 큰 높이에 맞춰 늘리므로, 각 장을 `flex: 1` 로 두어
  * 높이를 고정한다. 아래에는 몇 번째 장인지 알려주는 점이 붙는다.
  */
-export function PagedCards({ pages, testID }: PagedCardsProps) {
+export function PagedCards({ pages, testID, onPageChange }: PagedCardsProps) {
   const theme = useTheme();
   const [page, setPage] = useState(0);
 
@@ -37,7 +39,10 @@ export function PagedCards({ pages, testID }: PagedCardsProps) {
   const interval = pageWidth + PAGE_GAP;
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setPage(Math.round(e.nativeEvent.contentOffset.x / interval));
+    const next = Math.round(e.nativeEvent.contentOffset.x / interval);
+    if (next === page) return;
+    setPage(next);
+    onPageChange?.(next, page);
   };
 
   return (

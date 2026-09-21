@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { changeColor, changeLabel } from '@/features/investment/lib/change';
@@ -10,13 +11,19 @@ const ACORN = require('@/assets/images/acorn.png'); // 734 x 806
 type Props = {
   holding: Holding;
   onPress?: () => void;
+  /** 꾹 누르기 — 여러 종목을 골라 한 번에 파는 선택 모드로 들어간다 */
+  onLongPress?: () => void;
+  /** 선택 모드면 오른쪽에 체크 표시가 나온다 (탭 동작은 부모가 onPress 로 바꿔 끼운다) */
+  selectionMode?: boolean;
+  selected?: boolean;
 };
 
 /**
  * 보유 화면의 종목 한 줄 카드 — 아이콘·이름과 지금 가격, 산 가격 대비 수익.
  * 이 화면의 종목은 전부 보유중이라 배지는 두지 않는다 (이름 가독성이 우선).
+ * 카드를 꾹 누르면 선택 모드가 되어 여러 종목을 한 번에 팔 수 있다.
  */
-export function HoldingCard({ holding, onPress }: Props) {
+export function HoldingCard({ holding, onPress, onLongPress, selectionMode, selected }: Props) {
   const theme = useTheme();
 
   const earned = (holding.currentPrice - holding.buyPrice) * holding.quantity;
@@ -27,13 +34,15 @@ export function HoldingCard({ holding, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`${holding.name} 상세 보기`}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
       style={({ pressed }) => [
         styles.card,
         theme.shadow.card,
         {
           backgroundColor: theme.color.background.surface,
           borderRadius: theme.radius.xl,
-          borderColor: theme.color.border.card,
+          borderColor: selected ? theme.color.brand.solid : theme.color.border.card,
           padding: theme.space.lg,
           gap: theme.space.md,
           opacity: pressed ? 0.85 : 1,
@@ -65,6 +74,14 @@ export function HoldingCard({ holding, onPress }: Props) {
           </Text>
         </View>
       </View>
+
+      {selectionMode ? (
+        <Ionicons
+          name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+          size={24}
+          color={selected ? theme.color.brand.solid : theme.color.text.muted}
+        />
+      ) : null}
     </Pressable>
   );
 }
