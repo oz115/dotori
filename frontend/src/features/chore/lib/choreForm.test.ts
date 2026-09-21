@@ -1,8 +1,10 @@
 import {
+  REWARD_MAX,
   isRepeating,
   toCreateBody,
   toUpdateBody,
   validateChoreForm,
+  validateReward,
   type ChoreFormInput,
 } from './choreForm';
 
@@ -153,5 +155,29 @@ describe('toUpdateBody', () => {
         endDate: '2026-09-25',
       });
     });
+  });
+});
+
+describe('validateReward', () => {
+  it('빈 칸은 "안 바꿈" 이라 통과시킨다', () => {
+    // 수정은 PATCH 라 빈 칸이 곧 생략이다.
+    expect(validateReward('')).toBeUndefined();
+    expect(validateReward('   ')).toBeUndefined();
+  });
+
+  it('1 이상의 정수만 받는다', () => {
+    expect(validateReward('1')).toBeUndefined();
+    expect(validateReward('0')).toBe('1 이상의 숫자를 입력해주세요.');
+    expect(validateReward('-5')).toBe('1 이상의 숫자를 입력해주세요.');
+    expect(validateReward('1.5')).toBe('1 이상의 숫자를 입력해주세요.');
+    expect(validateReward('abc')).toBe('1 이상의 숫자를 입력해주세요.');
+  });
+
+  it('상한을 넘으면 얼마까지 되는지 말해 준다', () => {
+    // 전에는 서버가 400 을 주고 화면은 "입력한 내용을 다시 확인해주세요" 만 띄웠다.
+    // 무엇이 문제인지 알 수 없어서, 한도를 문구에 담는다.
+    expect(validateReward(String(REWARD_MAX))).toBeUndefined();
+    expect(validateReward(String(REWARD_MAX + 1))).toBe('도토리는 100,000개까지 넣을 수 있어요.');
+    expect(validateReward('999999999999')).toBe('도토리는 100,000개까지 넣을 수 있어요.');
   });
 });
