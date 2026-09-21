@@ -11,6 +11,7 @@ export { accountAuthRequestErrorMessage, accountVerifyErrorMessage } from './lib
 export { transferErrorMessage } from './lib/transferError';
 export { BANKS, findBank, type Bank } from './lib/banks';
 export { BankBadge } from './ui/BankBadge';
+export { AccountCard } from './ui/AccountCard';
 export type {
   AccountAuthBody,
   AccountAuthResponse,

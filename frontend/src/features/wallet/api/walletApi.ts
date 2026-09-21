@@ -4,6 +4,7 @@ import type {
   CashoutRequest,
   CashoutStatus,
   ChargeBody,
+  GrantBody,
   PointBalance,
   PointTransaction,
 } from '@/features/wallet/model/types';
@@ -21,6 +22,14 @@ export const walletApi = {
   charge: (familyId: number, childId: number, body: ChargeBody, idempotencyKey: string) =>
     httpClient
       .post<PointTransaction>(`${base(familyId, childId)}/charge`, body, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
+      .then((res) => res.data),
+
+  /** 도토리 지급 (부모). 실제 송금 없이 포인트가 발행된다. amount 는 포인트 */
+  grant: (familyId: number, childId: number, body: GrantBody, idempotencyKey: string) =>
+    httpClient
+      .post<PointTransaction>(`${base(familyId, childId)}/grant`, body, {
         headers: { 'Idempotency-Key': idempotencyKey },
       })
       .then((res) => res.data),

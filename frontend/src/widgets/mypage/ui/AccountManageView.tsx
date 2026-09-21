@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useMyAccount, useUnlinkAccount } from '@/features/account';
+import { AccountCard, useMyAccount, useUnlinkAccount } from '@/features/account';
 import { useTheme } from '@/shared/theme';
 import { Header, Screen } from '@/shared/ui';
-import { AccountCard } from '@/widgets/parent-home';
 
 type AccountManageViewProps = {
   /** 계좌 연동 화면으로 (아직 연동이 없을 때) */

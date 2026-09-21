@@ -3,14 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   ChoreListRow,
-  mockTodayChores,
   todayDate,
   useChoreRefresh,
   useTodayChores,
   type TodayChore,
 } from '@/features/chore';
 import { useTheme } from '@/shared/theme';
-import { MockBadge } from '@/shared/ui';
 
 type ChildTodayProgressProps = {
   familyId: number | undefined;
@@ -55,10 +53,7 @@ export function ChildTodayProgress({
   // 아이가 없으면 useTodayChores 가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다
   const loading = familyPending || (childId != null && isPending);
-  const usingMock = !loading && items.length === 0;
-  const source = usingMock ? mockTodayChores : items;
-
-  const rows = useMemo(() => registeredToday(source), [source]);
+  const rows = useMemo(() => registeredToday(items), [items]);
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -67,7 +62,6 @@ export function ChildTodayProgress({
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
             오늘의 미션
           </Text>
-          {usingMock ? <MockBadge /> : null}
         </View>
         <Pressable onPress={onMorePress} hitSlop={8} accessibilityRole="button">
           <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>전체보기 ›</Text>
@@ -82,7 +76,7 @@ export function ChildTodayProgress({
         <>
           {isError ? (
             <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              미션을 불러오지 못해 예시를 보여주고 있어요.
+              미션을 불러오지 못했어요. 잠시 후 다시 시도해주세요.
             </Text>
           ) : null}
           {rows.length === 0 ? (
@@ -98,7 +92,7 @@ export function ChildTodayProgress({
                   repeatType={chore.repeatType}
                   rewardPoints={chore.rewardPoints}
                   status={chore.status}
-                  onPress={usingMock ? undefined : () => onChorePress(chore)}
+                  onPress={() => onChorePress(chore)}
                 />
               ))}
             </View>
