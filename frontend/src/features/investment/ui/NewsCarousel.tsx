@@ -97,9 +97,6 @@ export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
                 <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
                   {item.title}
                 </Text>
-                <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-                  {item.body}
-                </Text>
               </View>
               {/* Figma 일러스트 자리 표시자 — 에셋 export 후 expo-image 로 교체 */}
               <Text style={styles.illustration}>{item.emoji}</Text>

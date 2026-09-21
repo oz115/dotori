@@ -94,6 +94,8 @@ export default function InvestScreen() {
 
         <View style={{ gap: theme.space.lg }}>
           <SectionTitle icon={MEGAPHONE} title="오늘의 뉴스" />
+          {/* 뉴스마다 반복하던 안내를 섹션에서 한 번만 말한다 */}
+          <Text style={muted}>어떤 회사에 영향을 줄지 생각해 보세요!</Text>
           {news.isPending ? (
             <Text style={muted}>오늘의 뉴스를 불러오는 중이에요.</Text>
           ) : news.isError ? (

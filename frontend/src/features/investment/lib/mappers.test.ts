@@ -132,7 +132,6 @@ describe('toInvestmentNews', () => {
     expect(view.id).toBe(3);
     expect(view.tag).toBe('경제 소식');
     expect(view.emoji).toBe('📰');
-    expect(view.body).toBe('어떤 회사에 영향을 줄지 생각해 보세요.');
     expect(view.relatedProductName).toBe('');
     expect(view.date).toBe('2026. 09. 16');
     expect(view.content).toBeUndefined();

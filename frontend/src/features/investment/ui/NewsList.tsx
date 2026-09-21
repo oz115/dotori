@@ -48,9 +48,6 @@ export function NewsList({
             <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
               {item.title}
             </Text>
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-              {item.body}
-            </Text>
           </View>
           <Text style={styles.illustration}>{item.emoji}</Text>
         </Pressable>

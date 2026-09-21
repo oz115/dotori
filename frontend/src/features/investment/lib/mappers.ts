@@ -110,7 +110,6 @@ export function toInvestmentNews(news: NewsSummaryResponse): InvestmentNews {
     id: news.investmentNewsId,
     tag: '경제 소식',
     title: news.title,
-    body: '어떤 회사에 영향을 줄지 생각해 보세요.',
     impact: news.impact,
     relatedProductName: '',
     date: formatNewsDate(news.publishedAt),

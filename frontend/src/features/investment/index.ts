@@ -5,7 +5,6 @@ export { NewsReview } from './ui/NewsReview';
 export { RealizedProfitCard } from './ui/RealizedProfitCard';
 export { InvestmentSummaryCards } from './ui/InvestmentSummaryCards';
 export { NewsCarousel } from './ui/NewsCarousel';
-export { NewsDetailModal } from './ui/NewsDetailModal';
 export { SectionTitle } from './ui/SectionTitle';
 export { StockCard } from './ui/StockCard';
 export { StockOverviewCard } from './ui/StockOverviewCard';
