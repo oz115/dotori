@@ -56,7 +56,8 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   // 미션 목록이 아니라 홈으로 돌아오게 한다 - 여기서 들어갔으니 여기로 나와야 한다.
   const openDetail = (choreId: number) =>
     router.push({
-      pathname: '/task/[choreId]',
+      // 그룹까지 적는다 - 짧게 쓰면 부모 화면의 같은 경로로 잡힌다 (ChildChoreList 참고)
+      pathname: '/(child)/(tabs)/task/[choreId]',
       params: { choreId: String(choreId), from: 'home' },
     });
 

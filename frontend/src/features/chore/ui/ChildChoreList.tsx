@@ -84,7 +84,10 @@ export function ChildChoreList({
       router.push('/task/history');
       return;
     }
-    router.push({ pathname: '/task/[choreId]', params: { choreId: String(goTo.choreId) } });
+    router.push({
+      pathname: '/(child)/(tabs)/task/[choreId]',
+      params: { choreId: String(goTo.choreId) },
+    });
   }, [goTo]);
 
   /**
@@ -118,8 +121,15 @@ export function ChildChoreList({
     [active],
   );
 
+  /**
+   * 미션 상세로. 그룹(child)까지 적는다 - "/task/[choreId]" 는 부모 화면에도 있어서
+   * 짧게 쓰면 부모 쪽 경로로 잡히고, 아이 계정에서는 아무 일도 일어나지 않는다.
+   */
   const openDetail = (choreId: number) =>
-    router.push({ pathname: '/task/[choreId]', params: { choreId: String(choreId) } });
+    router.push({
+      pathname: '/(child)/(tabs)/task/[choreId]',
+      params: { choreId: String(choreId) },
+    });
 
   const historyButton = (
     <HeaderChipButton label="완료 이력" onPress={() => router.push('/task/history')} />
