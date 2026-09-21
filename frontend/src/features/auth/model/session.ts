@@ -50,14 +50,26 @@ export async function withdrawAccount(password: string): Promise<void> {
 }
 
 /**
- * 비밀번호 변경 — 성공하면 서버가 기존 세션(현재 세션 포함)을 전부 폐기하므로
- * 로컬 세션도 함께 정리해 로그인 화면으로 돌려보낸다.
+ * 비밀번호 변경. 성공하면 서버가 기존 세션(현재 세션 포함)을 전부 폐기한다.
  * 현재 비밀번호가 틀리면(PASSWORD_MISMATCH) throw 하고 세션은 유지된다.
+ *
+ * <p>로컬 세션은 여기서 지우지 않는다. 지워 버리면 root 가드가 그 자리에서 로그인 화면으로
+ * 트리를 갈아치워, 화면이 띄우려던 "다시 로그인해주세요" 안내가 뜨자마자 같이 사라졌다
+ * (QA - 안내가 없다는 지적). 언제 정리할지는 안내를 보여 주는 쪽이 정한다.
  */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   const userId = useAuthStore.getState().user?.userId;
   if (userId == null) throw new Error('세션이 없습니다');
   await authApi.changePassword(userId, currentPassword, newPassword);
+}
+
+/**
+ * 비밀번호를 바꾼 뒤 로컬 세션만 정리한다 (서버 세션은 이미 폐기됐다).
+ *
+ * signOut 과 달리 서버 로그아웃을 부르지 않는다 - 이미 죽은 refresh token 으로 부르면
+ * 실패할 요청을 한 번 더 보내는 셈이다.
+ */
+export async function clearSessionAfterPasswordChange(): Promise<void> {
   await clearLocalSession();
 }
 

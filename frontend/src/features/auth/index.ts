@@ -1,5 +1,11 @@
 export { useAuthStore } from './model/authStore';
-export { signIn, signOut, restoreSession, withdrawAccount } from './model/session';
+export {
+  signIn,
+  signOut,
+  restoreSession,
+  withdrawAccount,
+  clearSessionAfterPasswordChange,
+} from './model/session';
 export { useLogin } from './model/useLogin';
 export { useProfile } from './model/useProfile';
 export { useSignup } from './model/useSignup';
