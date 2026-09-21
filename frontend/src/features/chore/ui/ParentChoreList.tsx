@@ -69,14 +69,25 @@ export function ParentChoreList({
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
 
-  // 지급까지 끝난 미션은 목록에서 뺀다. 아이 화면과 같은 기준이다 - 한쪽에만 남으면
-  // 부모와 아이가 서로 다른 목록을 보게 된다. 지난 건은 완료 이력에서 본다.
-  const active = useMemo(() => items.filter((chore) => !chore.done), [items]);
-
-  const visible = useMemo(
-    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
-    [active, repeatType],
+  /**
+   * 목록에 남길 미션. 아이 화면(ChildChoreList)과 같은 규칙이다 - 한쪽에만 남으면 부모와
+   * 아이가 서로 다른 목록을 보게 된다.
+   *
+   * 끝낸 반복 미션(매일·매주·매월)은 흐리게 남긴다. 부모는 자기가 무엇을 걸어 뒀는지
+   * 기억하지 못하는데, 끝나자마자 사라지면 그 미션이 있었다는 사실 자체가 안 보인다 (QA).
+   * 한번짜리는 다시 할 일이 아니라 뺀다.
+   */
+  const listed = useMemo(
+    () => items.filter((chore) => !chore.done || chore.repeatType !== 'ONCE'),
+    [items],
   );
+
+  const visible = useMemo(() => {
+    const byRepeat =
+      repeatType == null ? listed : listed.filter((chore) => chore.repeatType === repeatType);
+    // 아직 안 끝난 것이 위로. 섞여 있으면 무엇이 남았는지 훑어야 한다.
+    return [...byRepeat].sort((a, b) => Number(a.done) - Number(b.done));
+  }, [listed, repeatType]);
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
   const historyButton = onHistoryPress ? (
@@ -124,6 +135,10 @@ export function ParentChoreList({
             rewardPoints={item.rewardPoints}
             childName={item.childName}
             endDate={item.endDate}
+            // 부모 목록은 대기·거절을 행마다 보여 주지 않는다 (위의 "완료 요청" 카드가 맡는다).
+            // 끝난 것만 배지와 흐린 카드로 구분한다.
+            status={item.done ? 'DONE' : undefined}
+            dimmed={item.done}
             onPress={onChorePress ? () => onChorePress(item) : undefined}
           />
         )}
