@@ -5,19 +5,17 @@ import { FlatList, StyleSheet, Text, View, RefreshControl } from 'react-native';
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
 import type { ChoreRepeatType } from '@/features/chore/model/types';
-import { ChildChoreDetailModal } from '@/features/chore/ui/ChildChoreDetailModal';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
-import { TodayProgressCard } from '@/features/chore/ui/TodayProgressCard';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Checkbox, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type ChildChoreListProps = {
   familyId: number | undefined;
   childId: number | undefined;
   /**
-   * 바깥(알림)에서 넘긴 choreId. 아직 할 미션이면 상세 모달을, 이번 주기에 이미 받은
+   * 바깥(알림)에서 넘긴 choreId. 아직 할 미션이면 상세 화면을, 이번 주기에 이미 받은
    * 미션이면 완료 이력을 연다. 받자마자 onRequestedChoreConsumed 로 알려서 부르는 쪽이
    * 이 값을 비우게 한다 — 안 비우면 같은 알림을 다시 눌렀을 때 값이 그대로라 반응하지 않는다.
    */
@@ -43,13 +41,19 @@ export function ChildChoreList({
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
   const { refreshing, onRefresh, refresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
-  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
+  const [onlyActive, setOnlyActive] = useState(false);
   const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
   // 알림에서 넘어온 미션은 최신 목록을 받은 뒤에 갈 곳을 정한다. 캐시(최대 60초)로 판단하면
   // 방금 승인된 미션이 아직 TODO 로 보여서, 이미 받은 미션에 완료 요청 폼이 열린다.
   const [resolvingChoreId, setResolvingChoreId] = useState<number | null>(null);
-  const [historyRedirects, setHistoryRedirects] = useState(0);
+  /**
+   * 알림 처리가 끝나고 갈 곳. 이동은 effect 에서 한다 (렌더 중에 라우터를 건드리면 경고가 난다).
+   *
+   * 매번 새 객체를 넣어 둔다 - 같은 알림을 다시 눌러 같은 곳으로 가야 할 때도 effect 가
+   * 다시 돌아야 해서, 값이 같아도 바뀐 것으로 쳐야 한다.
+   */
+  const [goTo, setGoTo] = useState<{ choreId: number | null } | null>(null);
 
   useEffect(() => {
     if (requestedChoreId == null) return;
@@ -60,53 +64,59 @@ export function ChildChoreList({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 요청 값이 바뀔 때만 처리한다
   }, [requestedChoreId]);
 
-  // 새로고침이 끝나면 렌더 중에 상태를 맞춘다 (effect 에서 setState 하면 한 번 더 그린다).
+  // 새로고침이 끝나면 렌더 중에 갈 곳을 정한다 (effect 에서 setState 하면 한 번 더 그린다).
   // 이번 주기에 이미 받은 미션(승인 알림 등)은 다시 할 게 없으니 완료 이력으로 보내고,
-  // 아직 할 미션(새 미션·거절 알림)은 상세 모달을 연다.
+  // 아직 할 미션(새 미션·거절 알림)은 상세 화면을 연다.
   if (resolvingChoreId != null && !isPending) {
     setResolvingChoreId(null);
     const target = items.find((chore) => chore.choreId === resolvingChoreId);
     // 상태를 모르면(조회 실패) 아무 데도 안 간다 - 모르고 열면 완료 요청 폼이 뜰 수 있다.
     if (!isError) {
-      if (target != null && target.status !== 'DONE') {
-        setOpenChoreId(resolvingChoreId);
-      } else {
-        setHistoryRedirects((count) => count + 1);
-      }
+      setGoTo({
+        choreId: target != null && target.status !== 'DONE' ? resolvingChoreId : null,
+      });
     }
   }
 
   useEffect(() => {
-    if (historyRedirects === 0) return;
-    router.push('/task/history');
-  }, [historyRedirects]);
+    if (goTo == null) return;
+    if (goTo.choreId == null) {
+      router.push('/task/history');
+      return;
+    }
+    router.push({ pathname: '/task/[choreId]', params: { choreId: String(goTo.choreId) } });
+  }, [goTo]);
 
-  // 모달은 열려 있는 동안에도 목록이 갱신되면(요청 보냄·취소함) 같이 바뀌어야 한다.
-  // items 는 완료한 것까지 들고 있다 - 모달이 열린 사이에 부모가 승인해도 상태를 읽을 수
-  // 있어야 하므로, 걸러내는 일은 목록에만 적용한다.
-  const openChore = items.find((chore) => chore.choreId === openChoreId);
+  /**
+   * 목록에 남길 미션.
+   *
+   * 끝낸 반복 미션(매일·매주·매월)은 흐리게 남긴다. 사라지면 아이도 부모도 무엇을 걸어
+   * 놨는지 알 수 없어서, 이번 주기에 이미 했다는 사실 자체가 보이지 않는다 (QA).
+   *
+   * <p>한번짜리는 끝나면 뺀다. 다음 주기가 없어 다시 할 일이 아니고, 남겨 두면 "해야 할
+   * 미션" 자리에 영영 쌓인다. 기록은 완료 이력에 있다.
+   */
+  const listed = useMemo(
+    () => items.filter((chore) => chore.status !== 'DONE' || chore.repeatType !== 'ONCE'),
+    [items],
+  );
 
-  // 지급까지 끝난 미션은 목록에서 뺀다. 아이가 다시 할 것이 없는데 남겨 두면 "해야 할
-  // 미션"에 섞여 무엇이 남았는지 흐려지고, 눌러 봐야 아무것도 못 한다. 기록은 완료
-  // 이력에 있다. 반복 미션은 다음 주기가 시작되면 TODO 로 돌아와 다시 나타난다.
+  /** 도토리 합계·남은 개수는 아직 할 것 기준이다 - 끝낸 것을 세면 "남았어요" 가 거짓이 된다 */
   const active = useMemo(() => items.filter((chore) => chore.status !== 'DONE'), [items]);
 
-  const visible = useMemo(
-    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
-    [active, repeatType],
-  );
+  const visible = useMemo(() => {
+    const byRepeat =
+      repeatType == null ? listed : listed.filter((chore) => chore.repeatType === repeatType);
+    return onlyActive ? byRepeat.filter((chore) => chore.status !== 'DONE') : byRepeat;
+  }, [listed, repeatType, onlyActive]);
 
   const { total, pendingCount } = useMemo(
     () => sumRewards(active.map((chore) => chore.rewardPoints)),
     [active],
   );
 
-  // 진행률은 오늘 예정된 전체(items) 기준이다 - DONE도 포함해야 "몇 개 중 몇 개"가 맞다.
-  // active(=DONE 뺀 목록)로 세면 다 끝냈을 때 분모까지 0이 되어 진행률을 보여줄 수 없다.
-  const completedCount = useMemo(
-    () => items.filter((chore) => chore.status === 'DONE').length,
-    [items],
-  );
+  const openDetail = (choreId: number) =>
+    router.push({ pathname: '/task/[choreId]', params: { choreId: String(choreId) } });
 
   const historyButton = (
     <HeaderChipButton label="완료 이력" onPress={() => router.push('/task/history')} />
@@ -137,8 +147,13 @@ export function ChildChoreList({
               caption={rewardCaption(total, pendingCount) ?? '하나씩 완료하고 도토리를 모아봐요!'}
               mascot={require('@/assets/images/chore/squirrel-win.png')}
             />
-            <TodayProgressCard completed={completedCount} total={items.length} />
-            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (저축 화면과 같다) */}
+            <View style={[styles.filterRow, { gap: theme.space.md }]}>
+              <View style={styles.chips}>
+                <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+              </View>
+              <Checkbox checked={onlyActive} onChange={setOnlyActive} label="남은 것만" />
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -148,7 +163,9 @@ export function ChildChoreList({
             rewardPoints={item.rewardPoints}
             status={item.status}
             endDate={item.endDate}
-            onPress={() => setOpenChoreId(item.choreId)}
+            // 끝낸 미션은 흐리게. 눌러서 내용은 볼 수 있지만 요청 버튼은 상세에서 빠진다
+            dimmed={item.status === 'DONE'}
+            onPress={() => openDetail(item.choreId)}
           />
         )}
         ListEmptyComponent={
@@ -168,15 +185,6 @@ export function ChildChoreList({
             }
           />
         }
-      />
-
-      <ChildChoreDetailModal
-        key={openChoreId}
-        familyId={familyId}
-        childId={childId}
-        choreId={openChoreId}
-        status={openChore?.status}
-        onClose={() => setOpenChoreId(null)}
       />
     </Screen>
   );
@@ -202,6 +210,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
+  filterRow: { flexDirection: 'row', alignItems: 'center' },
+  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
+  chips: { flex: 1 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },

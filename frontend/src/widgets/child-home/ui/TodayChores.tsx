@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
-  ChildChoreDetailModal,
   ChoreListRow,
   mockTodayChores,
   todayDate,
@@ -39,7 +39,6 @@ const PREVIEW_COUNT = 3;
 export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps) {
   const theme = useTheme();
   const { items, isPending, isError } = useTodayChores(familyId, childId);
-  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
 
   // 홈으로 돌아올 때마다 미션 캐시를 턴다. 보상은 등록 직후가 아니라 AI 가 산정한 뒤에
@@ -53,8 +52,13 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
 
   const rows = useMemo(() => registeredToday(source), [source]);
 
-  // 모달이 열린 사이에 목록이 갱신돼도(요청 보냄·취소함) 상태가 따라가야 한다.
-  const openChore = source.find((chore) => chore.choreId === openChoreId);
+  // 상세는 미션 탭 안의 화면이다 (부모와 같은 구조). from=home 을 넘겨 그 화면의 뒤로가기가
+  // 미션 목록이 아니라 홈으로 돌아오게 한다 - 여기서 들어갔으니 여기로 나와야 한다.
+  const openDetail = (choreId: number) =>
+    router.push({
+      pathname: '/task/[choreId]',
+      params: { choreId: String(choreId), from: 'home' },
+    });
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -95,24 +99,13 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
                   rewardPoints={chore.rewardPoints}
                   status={chore.status}
                   // 예시 데이터는 서버에 없는 id 라 상세를 열 수 없다.
-                  onPress={usingMock ? undefined : () => setOpenChoreId(chore.choreId)}
+                  onPress={usingMock ? undefined : () => openDetail(chore.choreId)}
                 />
               ))}
             </View>
           )}
         </>
       )}
-
-      {/* 홈에서 바로 상세를 연다. 미션 탭으로 보내면 아이가 돌아올 길을 스스로 찾아야 하는데,
-          이 모달은 닫으면 그대로 홈이라 "눌렀다가 닫으면 제자리"가 성립한다. */}
-      <ChildChoreDetailModal
-        key={openChoreId}
-        familyId={familyId}
-        childId={childId}
-        choreId={openChoreId}
-        status={openChore?.status}
-        onClose={() => setOpenChoreId(null)}
-      />
     </View>
   );
 }

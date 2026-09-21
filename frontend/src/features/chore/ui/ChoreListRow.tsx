@@ -31,6 +31,13 @@ type ChoreListRowProps = {
    * 날짜가 마감을 뜻하지 않는다. 홈의 미리보기는 자리가 좁아 넘기지 않는다.
    */
   endDate?: string;
+  /**
+   * 이번 주기에 끝낸 미션. 목록에 남기되 흐리게 그린다 (QA).
+   *
+   * 지워 버리면 아이도 부모도 무엇을 걸어 놨는지 알 수 없다. 대신 할 일이 남은 미션과
+   * 같은 밝기면 무엇이 남았는지 흐려지므로 카드째 투명도를 낮춘다.
+   */
+  dimmed?: boolean;
   onPress?: () => void;
   /** 우측 끝 슬롯. 아이 화면은 chevron, 부모 화면은 더보기 버튼이 들어간다 */
   trailing?: ReactNode;
@@ -50,6 +57,7 @@ export function ChoreListRow({
   childName,
   status,
   endDate,
+  dimmed = false,
   onPress,
   trailing,
 }: ChoreListRowProps) {
@@ -57,7 +65,12 @@ export function ChoreListRow({
   const deadline = repeatType === 'ONCE' && endDate ? deadlineLabel(endDate) : null;
 
   return (
-    <Pressable onPress={onPress} disabled={onPress == null} accessibilityRole="button">
+    <Pressable
+      onPress={onPress}
+      disabled={onPress == null}
+      accessibilityRole="button"
+      style={dimmed ? styles.dimmed : undefined}
+    >
       <ContentCard
         style={{
           flexDirection: 'row',
@@ -101,6 +114,8 @@ export function ChoreListRow({
 }
 
 const styles = StyleSheet.create({
+  // 카드째 낮춘다 - 글자 색만 바꾸면 배지와 도토리 칩이 그대로 선명해 덜 끝난 것처럼 보인다
+  dimmed: { opacity: 0.45 },
   // 세 줄이라 줄 간격을 좁게 잡는다. 6 이면 카드가 불필요하게 길어진다.
   body: { flex: 1, gap: 4 },
   meta: { flexDirection: 'row', alignItems: 'center' },
