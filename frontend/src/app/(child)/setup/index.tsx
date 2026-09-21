@@ -1,16 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useMyAccount } from '@/features/account';
 import { signOut, useAuthStore, WithdrawButton } from '@/features/auth';
 import { useFamilyStatus } from '@/features/family';
 import { useTheme } from '@/shared/theme';
-import { Button, Screen } from '@/shared/ui';
+import { Button, Screen, StepCard } from '@/shared/ui';
 
 /**
- * 자녀 온보딩 허브. 자녀가 아직 앱을 쓸 준비가 안 됐을 때((child)/index 게이트) 진입한다.
+ * 자녀 온보딩 허브. 자녀가 아직 앱을 쓸 준비가 안 됐을 때((child)/(tabs) 게이트) 진입한다.
  * 1) 가족 연결(초대 코드) → 2) 본인 계좌 연동 순서로 안내한다.
  */
 export default function ChildOnboardingHomeScreen() {
@@ -79,49 +77,7 @@ export default function ChildOnboardingHomeScreen() {
   );
 }
 
-type StepCardProps = {
-  title: string;
-  description: string;
-  /** 이미 완료된 단계 */
-  done: boolean;
-  /** 지금 할 수 있는 단계 (강조) */
-  enabled: boolean;
-  action: ReactNode;
-};
-
-function StepCard({ title, description, done, enabled, action }: StepCardProps) {
-  const theme = useTheme();
-  const highlighted = enabled && !done;
-
-  return (
-    <View
-      style={[
-        styles.card,
-        {
-          borderColor: highlighted ? theme.color.brand.solid : theme.color.border.default,
-          backgroundColor: highlighted ? theme.color.brand.tint : theme.color.background.surface,
-          borderRadius: theme.radius.lg,
-          padding: theme.space.lg,
-          gap: theme.space.md,
-          opacity: done || enabled ? 1 : 0.6,
-        },
-      ]}
-    >
-      <View style={styles.cardHead}>
-        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>{title}</Text>
-        {done ? (
-          <Ionicons name="checkmark-circle" size={20} color={theme.color.brand.solid} />
-        ) : null}
-      </View>
-      <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>{description}</Text>
-      {done ? null : action}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   topSpacer: { flex: 0.4 },
-  card: { borderWidth: 1.5 },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   spacer: { flex: 1, minHeight: 24 },
 });

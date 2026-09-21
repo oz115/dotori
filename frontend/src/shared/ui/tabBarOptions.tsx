@@ -13,6 +13,8 @@ import { navIcons, type NavIconName } from '@/shared/ui/icons';
 export function tabScreenOptions(theme: Theme, bottomInset: number) {
   return {
     headerShown: false,
+    // 탭 안에서 여러 페이지를 타고 들어갔다가 다른 탭에 다녀오면 그 탭의 메인 화면부터 보이게 한다.
+    popToTopOnBlur: true,
     tabBarShowLabel: true,
     tabBarActiveTintColor: theme.color.brand.black,
     tabBarInactiveTintColor: theme.color.text.muted,

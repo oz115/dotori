@@ -10,7 +10,7 @@ import { CategoryFilterBar, type CategoryFilterKey } from '@/features/store/ui/C
 import { StoreBanner } from '@/features/store/ui/StoreBanner';
 import { StoreProductCard } from '@/features/store/ui/StoreProductCard';
 import { useTheme } from '@/shared/theme';
-import { Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Header, HeaderChipButton, Screen, usePullToRefresh } from '@/shared/ui';
 
 type StoreCatalogProps = {
   familyId: number | undefined;
@@ -41,6 +41,7 @@ export function StoreCatalog({
   onHistoryPress,
 }: StoreCatalogProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
   const { data, isPending, isError, refetch } = useStoreProducts(familyId);
 
@@ -68,6 +69,7 @@ export function StoreCatalog({
       style={{ paddingTop: theme.space.sm }}
     >
       <FlatList
+        refreshControl={refreshControl}
         data={products}
         keyExtractor={(item) => String(item.storeProductId)}
         numColumns={2}

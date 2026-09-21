@@ -10,7 +10,7 @@ import { useNotifications } from '@/features/notification/model/useNotifications
 import type { NotificationItem } from '@/features/notification/model/types';
 import { NotificationRow } from '@/features/notification/ui/NotificationRow';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type NotificationListScreenProps = {
   /**
@@ -24,6 +24,7 @@ type NotificationListScreenProps = {
 /** 알림함 (NOTI-01/03/04/11). 부모·자녀 공용. */
 export function NotificationListScreen({ onPressNotification }: NotificationListScreenProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotifications();
   const markAsRead = useMarkAsRead();
@@ -44,6 +45,7 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
   return (
     <Screen header={<Header title="알림" onBack={() => router.back()} />} padded={false}>
       <FlatList
+        refreshControl={refreshControl}
         data={items}
         keyExtractor={(item) => String(item.notificationId)}
         renderItem={({ item }) => (

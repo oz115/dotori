@@ -9,7 +9,7 @@ import {
   useInvestmentHoldings,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /**
  * 보유 투자 상품. 합계 요약·보유 종목 목록·교육 팁의 배치만 담당하고,
@@ -17,6 +17,7 @@ import { Header, Screen } from '@/shared/ui';
  */
 export default function InvestHoldingsScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const holdings = useInvestmentHoldings();
 
   return (
@@ -46,6 +47,7 @@ export default function InvestHoldingsScreen() {
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

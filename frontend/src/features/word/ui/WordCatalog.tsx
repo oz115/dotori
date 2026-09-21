@@ -11,7 +11,7 @@ import { CategoryFilterBar } from '@/features/word/ui/CategoryFilterBar';
 import { ChosungIndexRail } from '@/features/word/ui/ChosungIndexRail';
 import { WordListRow } from '@/features/word/ui/WordListRow';
 import { useTheme } from '@/shared/theme';
-import { Header, Input, Screen } from '@/shared/ui';
+import { Header, Input, Screen, usePullToRefresh } from '@/shared/ui';
 
 /** 입력이 멈추고 이 시간(ms)이 지나야 검색 API를 부른다. 타이핑마다 매번 부르면 낭비다. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -38,6 +38,7 @@ type WordCatalogProps = {
  */
 export function WordCatalog({ onSelectWord }: WordCatalogProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const listRef = useRef<SectionList<WordListItem>>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -107,6 +108,7 @@ export function WordCatalog({ onSelectWord }: WordCatalogProps) {
 
       <View style={styles.body}>
         <SectionList
+          refreshControl={refreshControl}
           ref={listRef}
           style={styles.flex}
           sections={sections}

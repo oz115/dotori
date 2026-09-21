@@ -17,7 +17,7 @@ import { useStoreProduct } from '@/features/store/model/useStoreProduct';
 import { DeleteProductModal } from '@/features/store/ui/DeleteProductModal';
 import { PurchaseConfirmModal } from '@/features/store/ui/PurchaseConfirmModal';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type StoreProductDetailProps = {
   familyId: number | undefined;
@@ -116,6 +116,7 @@ function StoreProductDetailBody({
   onNavigateToList,
 }: BodyProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const badge = categoryBadgeColors(theme, product.category);
   const soldOut = isSoldOut(product.quantity);
   const priceReady = isPriceReady(product.price);
@@ -172,6 +173,7 @@ function StoreProductDetailBody({
   return (
     <>
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
