@@ -23,6 +23,7 @@ export {
   validateLoginId,
 } from './lib/signupValidation';
 export { EMAIL_CODE_LENGTH, isCompleteEmailCode, normalizeEmailCode } from './lib/emailCode';
+export { recoveryHandoff } from './lib/recoveryHandoff';
 export { BrandHero } from './ui/BrandHero';
 export { SignupStepLayout } from './ui/SignupStepLayout';
 export { EmailVerification } from './ui/EmailVerification';
