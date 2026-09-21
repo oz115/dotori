@@ -14,9 +14,11 @@ export { createFamilyErrorMessage } from './lib/familyError';
 export { invitationErrorMessage } from './lib/invitationError';
 export { connectFamilyErrorMessage } from './lib/connectFamilyError';
 export {
+  AMOUNT_HINT,
   AMOUNT_UNIT_WON,
-  ALLOWANCE_PRESETS_WON,
-  REWARD_LIMIT_PRESETS_WON,
+  AMOUNT_ADD_STEPS_WON,
+  MAX_AMOUNT_WON,
+  addAmount,
   KNOWLEDGE_LEVELS,
   isValidOnboardingAmount,
   parseAmountInput,
