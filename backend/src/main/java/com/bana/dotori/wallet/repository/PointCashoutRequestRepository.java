@@ -1,5 +1,6 @@
 package com.bana.dotori.wallet.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +30,7 @@ public interface PointCashoutRequestRepository extends JpaRepository<PointCashou
 
 	List<PointCashoutRequest> findByFamilyIdAndChildIdAndStatusOrderByRequestedAtDesc(
 			Integer familyId, Integer childId, PointCashoutRequestStatus status);
+
+	/** 그 자녀에게 아직 처리되지 않은(승인 대기 등) 환전 요청이 있는지. 가족과 무관하게 본다. */
+	boolean existsByChildIdAndStatusIn(Integer childId, Collection<PointCashoutRequestStatus> statuses);
 }

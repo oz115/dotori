@@ -35,6 +35,7 @@ import com.bana.dotori.global.util.RandomCodeGenerator;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
+import com.bana.dotori.user.service.RemainingAssetPolicy;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +55,7 @@ public class FamilyServiceImpl implements FamilyService {
 	private final UserRepository userRepository;
 	private final FamilyMapper familyMapper;
 	private final ApplicationEventPublisher eventPublisher;
+	private final RemainingAssetPolicy remainingAssetPolicy;
 
 	@Override
 	@Transactional
@@ -158,8 +160,14 @@ public class FamilyServiceImpl implements FamilyService {
 		if (!family.getCreatedBy().equals(userId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId)
-			.forEach(FamilyMember::softDelete);
+		List<FamilyMember> members = familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId);
+		// 자녀에게 자산이 남은 채로 가족이 사라지면 자녀는 지갑·환전에 닿을 길(가족 소속·부모 승인)을 잃는다.
+		// 그러면 자산을 처분하지도 탈퇴하지도 못하므로, 자녀가 자산을 정리한 뒤에만 해체할 수 있다.
+		members.stream()
+			.map(FamilyMember::getUser)
+			.filter(member -> member.getRole() == UserRole.CHILD)
+			.forEach(this::requireNoRemainingAsset);
+		members.forEach(FamilyMember::softDelete);
 		family.softDelete();
 	}
 
@@ -177,7 +185,16 @@ public class FamilyServiceImpl implements FamilyService {
 		if (childMember.getUser().getRole() != UserRole.CHILD) {
 			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
 		}
+		// 가족 해체와 같은 이유 — 자산이 남은 자녀를 내보내면 그 자산을 처분할 길이 끊긴다
+		requireNoRemainingAsset(childMember.getUser());
 		childMember.softDelete();
+	}
+
+	private void requireNoRemainingAsset(User child) {
+		if (remainingAssetPolicy.hasRemainingAsset(child.getId())) {
+			throw new BusinessException(ErrorCode.CHILD_HAS_ACTIVE_ASSETS,
+				"자녀의 도토리·예적금·투자·환전 대기가 남아 있습니다. childId=" + child.getId());
+		}
 	}
 
 	@Override

@@ -49,6 +49,7 @@ import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
+import com.bana.dotori.user.service.RemainingAssetPolicy;
 
 @ExtendWith(MockitoExtension.class)
 class FamilyServiceImplTest {
@@ -70,6 +71,9 @@ class FamilyServiceImplTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private RemainingAssetPolicy remainingAssetPolicy;
 
 	@InjectMocks
 	private FamilyServiceImpl familyService;
@@ -426,6 +430,46 @@ class FamilyServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 가족 해체 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 아무것도 삭제하지 않는다")
+	void deleteFamily_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1))
+			.willReturn(List.of(parentMember, childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(family.getDeletedAt()).isNull();
+		assertThat(parentMember.getDeletedAt()).isNull();
+		assertThat(childMember.getDeletedAt()).isNull();
+	}
+
+	@Test
+	@DisplayName("가족 해체 시 자산은 자녀에 대해서만 확인한다 (부모 구성원은 묻지 않는다)")
+	void deleteFamily_checksOnlyChildren() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User parent = parent();
+		ReflectionTestUtils.setField(parent, "id", 1);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1)).willReturn(List.of(parentMember));
+
+		familyService.deleteFamily(1, 1);
+
+		verify(remainingAssetPolicy, never()).hasRemainingAsset(anyInt());
+		assertThat(family.getDeletedAt()).isNotNull();
+	}
+
+	@Test
 	@DisplayName("부모 권한이 아니면 가족 해체 시 FORBIDDEN 예외가 발생한다")
 	void deleteFamily_notParent() {
 		given(userRepository.findById(2)).willReturn(Optional.of(child()));
@@ -474,6 +518,26 @@ class FamilyServiceImplTest {
 		familyService.removeChild(1, 1, 2);
 
 		assertThat(childMember.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 자녀 제외 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 삭제하지 않는다")
+	void removeChild_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(childMember.getDeletedAt()).isNull();
 	}
 
 	@Test

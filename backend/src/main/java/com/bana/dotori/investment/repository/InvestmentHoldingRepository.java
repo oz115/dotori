@@ -28,6 +28,9 @@ public interface InvestmentHoldingRepository extends JpaRepository<InvestmentHol
 	/** 매수 전 "이미 보유 중" 검사 — 유니크 인덱스(child_id, product_id)와 같은 기준. */
 	boolean existsByChildIdAndInvestmentProductId(Integer childId, Integer investmentProductId);
 
+	/** 그 자녀가 보유한 종목이 하나라도 있는지. 가족과 무관하게 본다. */
+	boolean existsByChildId(Integer childId);
+
 	/**
 	 * 매도 = 보유 행 삭제. 지운 행 수를 반환해 동시 매도(연타)를 막는다 —
 	 * 두 요청이 같은 행을 지우려 하면 나중 트랜잭션은 0을 받아 지급 없이 실패한다.
