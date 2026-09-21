@@ -8,8 +8,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
 import com.bana.dotori.investment.dto.InvestmentOrderRequest;
@@ -52,6 +54,7 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 	private final InvestmentHoldingRepository investmentHoldingRepository;
 	private final InvestmentTransactionRepository investmentTransactionRepository;
 	private final FamilyMemberRepository familyMemberRepository;
+	private final FamilyRepository familyRepository;
 	private final InvestmentProductMapper investmentProductMapper;
 	private final PointDeductionService pointDeductionService;
 	private final PointWalletService pointWalletService;
@@ -141,14 +144,21 @@ public class InvestmentOrderServiceImpl implements InvestmentOrderService {
 		return familyId;
 	}
 
-	/** 체결가 = 그 가족의 오늘 현재가 (조회 API 들과 같은 규칙, 이력이 없으면 시작가). */
+	/**
+	 * 체결가 = 그 가족의 오늘 현재가 (조회 API 들과 같은 규칙). 이력이 없으면 가족별 시작가 —
+	 * 온보딩 한도(weekly_reward_limit)가 곧 시작가고, 온보딩 전이면 상품 시드 값으로 폴백한다.
+	 * InvestmentProductServiceImpl 의 가격 규칙과 항상 같아야 화면가와 체결가가 어긋나지 않는다.
+	 */
 	private int currentPrice(Integer familyId, InvestmentProduct product) {
 		OffsetDateTime tomorrowStart = LocalDate.now(KST).atStartOfDay(KST).toOffsetDateTime().plusDays(1);
 		return investmentPriceHistoryRepository
 			.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(
 				familyId, product.getId(), tomorrowStart)
 			.map(InvestmentPriceHistory::getPrice)
-			.orElse(product.getCurrentPrice());
+			.orElseGet(() -> familyRepository.findByIdAndDeletedAtIsNull(familyId)
+				.map(Family::getWeeklyRewardLimit)
+				.filter(limit -> limit > 0)
+				.orElse(product.getCurrentPrice()));
 	}
 
 	private InvestmentTransaction transaction(Integer familyId, Integer childId, Integer productId,

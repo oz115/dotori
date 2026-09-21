@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
@@ -138,6 +139,26 @@ class InvestmentProductServiceImplTest {
 		assertThat(summary.currentPrice()).isEqualTo(10000);
 		assertThat(summary.changeAmount()).isZero();
 		assertThat(summary.isActive()).isTrue();
+	}
+
+	@Test
+	@DisplayName("가격 이력이 없으면 온보딩 한도(weekly_reward_limit)가 가족별 시작가가 된다")
+	void getProducts_noHistoryUsesFamilyStartPrice() {
+		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
+		given(investmentProductRepository.findAllByOrderByIdAsc())
+			.willReturn(List.of(product(1, "시원아이스", 10000)));
+		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID),
+			eq(todayStart().plusDays(1)))).willReturn(List.of());
+		given(investmentPriceHistoryRepository.findLatestPerProductBefore(eq(FAMILY_ID), eq(todayStart())))
+			.willReturn(List.of());
+		given(familyRepository.findByIdAndDeletedAtIsNull(FAMILY_ID))
+			.willReturn(Optional.of(Family.builder().name("가족").weeklyRewardLimit(8000).build()));
+
+		InvestmentProductSummary summary = investmentProductService.getProducts(USER_ID, null)
+			.products().get(0);
+
+		assertThat(summary.currentPrice()).isEqualTo(8000);
+		assertThat(summary.changeAmount()).isZero();
 	}
 
 	@Test
