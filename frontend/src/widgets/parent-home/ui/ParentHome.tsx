@@ -35,6 +35,8 @@ export function ParentHome() {
   const openCashouts = () => router.push('/(parent)/wallet/cashouts');
   const openSaveTab = () => router.push('/(parent)/(tabs)/save');
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
+  // 리포트는 탭이 아니라 푸시 라우트다 — 부모 탭이 다섯 개로 차 있다
+  const openReport = () => router.push('/(parent)/report');
   // '/word' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 단어장으로 간다
   const openWords = () => router.push('/(parent)/word');
   // '/quiz' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 퀴즈 화면으로 간다
@@ -88,6 +90,7 @@ export function ParentHome() {
           familyPending={familyPending}
           onOpenSavings={openSaveTab}
           onOpenInvestment={openInvestmentTab}
+          onOpenReport={openReport}
         />
 
         <ChildTodayProgress
