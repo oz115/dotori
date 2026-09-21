@@ -105,6 +105,13 @@ export function toTransactionItem(transaction: TransactionResponse): InvestmentT
   };
 }
 
+/**
+ * 뉴스 카드 일러스트용 중립 이모지 풀. 회사 이모지(🍦✈️…)를 쓰면 어느 회사 뉴스인지
+ * 정답이 새므로(아이가 스스로 판단하게 하는 게 목적), 회사와 무관한 경제 그림을
+ * 뉴스 id 로 돌아가며 골라 카드마다 다른 그림이 나오게만 한다.
+ */
+const NEWS_EMOJIS = ['📰', '🗞️', '📈', '📊', '💹', '🏦'];
+
 export function toInvestmentNews(news: NewsSummaryResponse): InvestmentNews {
   return {
     id: news.investmentNewsId,
@@ -112,6 +119,6 @@ export function toInvestmentNews(news: NewsSummaryResponse): InvestmentNews {
     impact: news.impact,
     relatedProductName: '',
     date: formatNewsDate(news.publishedAt),
-    emoji: '📰',
+    emoji: NEWS_EMOJIS[news.investmentNewsId % NEWS_EMOJIS.length],
   };
 }

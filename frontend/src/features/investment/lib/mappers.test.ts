@@ -130,16 +130,23 @@ describe('toInvestmentNews', () => {
     const view = toInvestmentNews(news);
 
     expect(view.id).toBe(3);
-    expect(view.emoji).toBe('📰');
     expect(view.relatedProductName).toBe('');
     expect(view.date).toBe('2026. 09. 16');
     expect(view.content).toBeUndefined();
   });
 
+  it('일러스트는 회사를 드러내지 않는 중립 이모지에서 뉴스마다 다르게 고른다', () => {
+    const first = toInvestmentNews(news);
+    const second = toInvestmentNews({ ...news, investmentNewsId: 4 });
+
+    // 회사 이모지(🍦 등)가 아니어야 하고, id 가 다르면 그림도 달라진다
+    expect(first.emoji).not.toBe('🍦');
+    expect(first.emoji).not.toBe(second.emoji);
+  });
+
   it('관련 회사가 없어도 기본값으로 안전하게 표시한다', () => {
     const view = toInvestmentNews({ ...news, relatedProducts: [] });
 
-    expect(view.emoji).toBe('📰');
     expect(view.relatedProductName).toBe('');
   });
 });
