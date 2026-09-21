@@ -35,8 +35,8 @@ public class WordServiceImpl implements WordService {
 	public WordListResponse getWords(WordCategory category, int page, int size) {
 		Pageable pageable = PageRequest.of(page, size);
 		Page<Word> words = category == null
-			? wordRepository.findAllByOrderByIdAsc(pageable)
-			: wordRepository.findAllByCategoryOrderByIdAsc(category, pageable);
+			? wordRepository.findAllByOrderByWordAscIdAsc(pageable)
+			: wordRepository.findAllByCategoryOrderByWordAscIdAsc(category, pageable);
 		return wordMapper.toListResponse(words);
 	}
 
@@ -54,7 +54,7 @@ public class WordServiceImpl implements WordService {
 		if (keyword == null || keyword.isBlank()) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST);
 		}
-		List<Word> words = wordRepository.findByWordContainingIgnoreCaseOrderByIdAsc(keyword);
+		List<Word> words = wordRepository.findByWordContainingIgnoreCaseOrderByWordAscIdAsc(keyword);
 		return wordMapper.toSearchResponse(words);
 	}
 }

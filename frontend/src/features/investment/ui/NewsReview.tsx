@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 
 import { investmentApi } from '@/features/investment/api/investmentApi';
 import { changeColor } from '@/features/investment/lib/change';
-import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
+import { formatAcorns, formatNumber, signedAcorns } from '@/features/investment/lib/format';
 import { investmentKeys } from '@/features/investment/model/investmentKeys';
 import { useTheme } from '@/shared/theme';
 import { InvestmentQueryError } from '@/features/investment/ui/InvestmentQueryError';
@@ -18,8 +18,10 @@ export function NewsReview() {
     refetchInterval: (query) => (query.state.data === null ? false : 60_000),
   });
   const body = [theme.typography.bodySm, { color: theme.color.text.sub }];
+  // 가격이 길어지면(다섯 자리 이상) 한 줄에 다 안 들어가므로 등락이 다음 줄로 내려가게 둔다
   const priceRowStyle = {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.space.sm,
@@ -80,7 +82,8 @@ export function NewsReview() {
                   </Text>
                   <View style={priceRowStyle}>
                     <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-                      {formatAcorns(item.previousPrice)} → {formatAcorns(item.currentPrice)}
+                      {/* 단위는 뒤에 한 번만 — 양쪽에 다 붙이면 좁은 화면에서 박스를 넘친다 */}
+                      {formatNumber(item.previousPrice)} → {formatAcorns(item.currentPrice)}
                     </Text>
                     <Text
                       style={[
