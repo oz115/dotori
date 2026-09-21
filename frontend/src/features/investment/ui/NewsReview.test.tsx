@@ -60,7 +60,7 @@ it('반영 후 실제 가격과 이유를 표시한다', async () => {
   await show();
   // 가격 변화 박스와 해설 문단을 나눠 보여준다 (가독성 피드백)
   expect(await screen.findByText('고소한빵 가격 변화')).toBeTruthy();
-  expect(screen.getByText(/1,000 도토리 → 900 도토리/)).toBeTruthy();
+  expect(screen.getByText(/1,000 → 900 도토리/)).toBeTruthy();
   expect(screen.getByText('왜 그랬을까요?')).toBeTruthy();
   expect(screen.getByText('재료비가 늘어 가격이 내렸어요.')).toBeTruthy();
 });

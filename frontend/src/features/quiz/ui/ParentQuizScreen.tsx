@@ -128,13 +128,14 @@ function QuizBody({ quiz }: { quiz: QuizParentToday }) {
   return (
     <View style={{ gap: theme.space.xl }}>
       <Field label="문제">
-        <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+        {/* 질문은 문장이 길어 h3(20px)면 줄이 자주 꺾여 읽기 어렵다 — 한 단계 작은 titleMd */}
+        <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
           {quiz.question}
         </Text>
       </Field>
 
       <Field label="정답">
-        <Text style={[theme.typography.body, { color: theme.color.status.success.text }]}>
+        <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
           {quiz.correctAnswer}
         </Text>
       </Field>
@@ -187,7 +188,7 @@ function AttemptRow({ attempt }: { attempt: QuizParentAttempt }) {
       <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
         {attempt.attemptNumber}회
       </Text>
-      <Text style={[theme.typography.body, styles.answer, { color: theme.color.text.strong }]}>
+      <Text style={[theme.typography.label, styles.answer, { color: theme.color.text.strong }]}>
         {attempt.submittedAnswer}
       </Text>
       <Text style={[theme.typography.bodySm, { color: status.text }]}>
