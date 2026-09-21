@@ -1,18 +1,20 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   deleteFamilyErrorMessage,
+  removeChildErrorMessage,
   useDeleteFamily,
   useFamily,
   useFamilyId,
   useFamilyMembers,
+  useRemoveChild,
   useUpdateFamily,
 } from '@/features/family';
 import { isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Input, Screen } from '@/shared/ui';
+import { Button, ChildBadge, Header, Input, Screen } from '@/shared/ui';
 
 /**
  * 가족 관리 (부모 전용). 가족 이름을 고치고, 필요하면 가족을 지운다.
@@ -25,6 +27,9 @@ export default function FamilyManageScreen() {
   const members = useFamilyMembers(familyId);
   const updateFamily = useUpdateFamily(familyId);
   const deleteFamily = useDeleteFamily();
+  const removeChild = useRemoveChild(familyId);
+  /** 제외 요청 중인 아이. 그 줄만 비활성화한다 (여러 아이가 동시에 눌리지 않게) */
+  const [removingChildId, setRemovingChildId] = useState<number | null>(null);
 
   const [name, setName] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -84,7 +89,40 @@ export default function FamilyManageScreen() {
     );
   };
 
-  const childCount = members.data?.filter((m) => m.role === 'CHILD').length ?? 0;
+  const children = members.data?.filter((member) => member.role === 'CHILD') ?? [];
+
+  /**
+   * 아이를 가족에서 제외한다.
+   *
+   * 되돌릴 수 없다 - 다시 넣으려면 초대 코드를 새로 발급해 아이가 합류해야 한다. 그래서
+   * 이름을 문구에 넣어 누구를 내보내는지 한 번 더 확인시킨다.
+   */
+  const confirmRemoveChild = (childId: number, name: string) => {
+    if (familyId == null || removeChild.isPending) return;
+    Alert.alert(
+      `${name}을(를) 제외할까요?`,
+      '연결이 끊어져서 이 아이의 미션·상점·저축을 더 이상 관리할 수 없어요.\n' +
+        '다시 넣으려면 초대 코드를 새로 발급해야 해요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '제외',
+          style: 'destructive',
+          onPress: () => {
+            setRemovingChildId(childId);
+            removeChild.mutate(childId, {
+              onSuccess: () => Alert.alert('제외했어요', `${name}의 연결이 끊어졌어요.`),
+              onError: (e) => {
+                const { title, message } = removeChildErrorMessage(e);
+                Alert.alert(title, message);
+              },
+              onSettled: () => setRemovingChildId(null),
+            });
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Screen
@@ -128,12 +166,54 @@ export default function FamilyManageScreen() {
       >
         <View style={{ gap: theme.space.xs }}>
           <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-            연결된 아이 {childCount}명
+            연결된 아이 {children.length}명
           </Text>
           <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
             아이를 초대하려면 코드를 발급해 알려주세요. 코드는 10분간만 쓸 수 있어요.
           </Text>
         </View>
+
+        {/* 누가 연결돼 있는지 이름으로 보여 준다. 숫자만 있으면 초대가 잘못 들어갔을 때도
+            알아챌 수 없다. 제외는 줄마다 따로 둔다 - 가족 삭제와 달리 한 아이만 끊는 일이다. */}
+        {members.isPending ? (
+          <ActivityIndicator color={theme.color.brand.solid} />
+        ) : children.length === 0 ? (
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+            아직 연결된 아이가 없어요.
+          </Text>
+        ) : (
+          <View style={{ gap: theme.space.sm }}>
+            {children.map((child) => (
+              <View key={child.userId} style={styles.childRow}>
+                <ChildBadge name={child.name} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${child.name} 제외`}
+                  onPress={() => confirmRemoveChild(child.userId, child.name)}
+                  disabled={removeChild.isPending}
+                  hitSlop={8}
+                >
+                  {removingChildId === child.userId ? (
+                    <ActivityIndicator size="small" color={theme.color.status.danger.text} />
+                  ) : (
+                    <Text
+                      style={[
+                        theme.typography.bodySm,
+                        {
+                          color: removeChild.isPending
+                            ? theme.color.text.muted
+                            : theme.color.status.danger.text,
+                        },
+                      ]}
+                    >
+                      제외
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
         <Button
           label="초대 코드 발급"
           variant="gradient"
@@ -162,5 +242,6 @@ export default function FamilyManageScreen() {
 
 const styles = StyleSheet.create({
   infoBox: {},
+  childRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   spacer: { flex: 1, minHeight: 32 },
 });

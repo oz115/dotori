@@ -4,6 +4,8 @@ export { useOnboardingStore } from './model/onboardingStore';
 export { useCreateFamily } from './model/useCreateFamily';
 export { useCreateInvitation, useRevokeInvitation } from './model/useInvitation';
 export { useDeleteFamily } from './model/useDeleteFamily';
+export { useRemoveChild } from './model/useRemoveChild';
+export { removeChildErrorMessage } from './lib/removeChildError';
 export { useFamilyStatus } from './model/useFamilyStatus';
 export { useFamilyId } from './model/useFamilyId';
 export { useFamilyMembers } from './model/useFamilyMembers';
