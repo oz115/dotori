@@ -31,7 +31,7 @@ it('변동이 없으면 산 값과 같다고 알려주고, 가격이 하루 한 
   await render(
     <InvestmentSummaryCards summary={{ count: 1, investedPoints: 10000, earnedPoints: 0 }} />,
   );
-  expect(screen.getByText('산 값과 같아요')).toBeTruthy();
+  expect(screen.getByText('산 값 대비 0 도토리')).toBeTruthy();
   expect(screen.getByText('가격은 하루에 한 번, 자정 직후에 바뀌어요.')).toBeTruthy();
 });
 
