@@ -89,6 +89,14 @@ export default function FamilyManageScreen() {
     );
   };
 
+  /** 세 박스가 같은 모양이어야 안쪽 폭이 어긋나 보이지 않는다 (테마 값이라 StyleSheet 밖) */
+  const cardStyle = {
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.color.background.surfaceSunken,
+    padding: theme.space.lg,
+    gap: theme.space.md,
+  };
+
   const children = members.data?.filter((member) => member.role === 'CHILD') ?? [];
 
   /**
@@ -130,7 +138,9 @@ export default function FamilyManageScreen() {
       keyboardAvoiding
       header={<Header title="가족 관리" onBack={() => router.back()} />}
     >
-      <View style={{ marginTop: theme.space['2xl'], gap: theme.space.md }}>
+      {/* 가족 이름도 아래 두 박스와 같은 상자에 담는다. 박스 밖에 두면 입력칸·버튼이 화면
+          여백까지 꽉 차서, 박스 패딩만큼 안으로 들어간 아래쪽 버튼들과 폭이 어긋나 보였다 */}
+      <View style={[cardStyle, { marginTop: theme.space['2xl'] }]}>
         <Input
           variant="box"
           label="가족 이름"
@@ -154,18 +164,7 @@ export default function FamilyManageScreen() {
 
       {/* 초대 박스 — 버튼을 맨 위에 두고 설명을 아래에 붙인다. 이 박스가 하는 일은 하나(초대
           코드 발급)라, 제목을 따로 얹는 대신 버튼이 제목 노릇을 한다 */}
-      <View
-        style={[
-          styles.infoBox,
-          {
-            marginTop: theme.space['2xl'],
-            borderRadius: theme.radius.lg,
-            backgroundColor: theme.color.background.surfaceSunken,
-            padding: theme.space.lg,
-            gap: theme.space.md,
-          },
-        ]}
-      >
+      <View style={[cardStyle, { marginTop: theme.space.md }]}>
         <Button
           label="초대 코드 발급"
           variant="gradient"
@@ -179,18 +178,7 @@ export default function FamilyManageScreen() {
 
       {/* 연결된 아이 박스 — 초대와 다른 일(누가 있는지 보고 내보내기)이라 박스를 나눈다.
           아이 수만큼 줄이 늘어난다 */}
-      <View
-        style={[
-          styles.infoBox,
-          {
-            marginTop: theme.space.md,
-            borderRadius: theme.radius.lg,
-            backgroundColor: theme.color.background.surfaceSunken,
-            padding: theme.space.lg,
-            gap: theme.space.md,
-          },
-        ]}
-      >
+      <View style={[cardStyle, { marginTop: theme.space.md }]}>
         <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
           연결된 아이 {children.length}명
         </Text>
@@ -238,7 +226,9 @@ export default function FamilyManageScreen() {
 
       <View style={styles.spacer} />
 
-      <View style={{ gap: theme.space.sm }}>
+      {/* 되돌릴 수 없는 동작이라 설정들과 떼어 화면 맨 아래에 둔다. 다만 제스처바에 붙지
+          않게 아래 여백을 준다 - 붙어 있으면 화면 밖으로 흘러내린 것처럼 보인다 */}
+      <View style={{ gap: theme.space.sm, paddingBottom: theme.space['2xl'] }}>
         <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
           가족을 삭제하면 아이와의 연결과 설정이 모두 사라져요.
         </Text>
@@ -255,7 +245,6 @@ export default function FamilyManageScreen() {
 }
 
 const styles = StyleSheet.create({
-  infoBox: {},
   childRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   spacer: { flex: 1, minHeight: 32 },
 });
