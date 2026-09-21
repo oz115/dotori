@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.investment.entity.InvestmentNews;
 import com.bana.dotori.investment.entity.InvestmentNewsImpact;
@@ -32,6 +33,8 @@ import com.bana.dotori.investment.repository.InvestmentPriceHistoryRepository;
 class InvestmentNewsReviewServiceTest {
 	@Mock
 	private FamilyMemberRepository familyMemberRepository;
+	@Mock
+	private FamilyRepository familyRepository;
 	@Mock
 	private InvestmentNewsRepository newsRepository;
 	@Mock

@@ -1,10 +1,10 @@
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { formatAcorns, profitLabel } from '@/features/investment/lib/format';
+import { formatAcorns } from '@/features/investment/lib/format';
+import { orderErrorMessage, sellOutcomeMessage } from '@/features/investment/lib/orderMessages';
 import { useBuyStock } from '@/features/investment/model/useBuyStock';
 import { useSellStock } from '@/features/investment/model/useSellStock';
 import type { OrderResponse, StockDetail } from '@/features/investment/model/types';
-import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
 
@@ -67,14 +67,8 @@ export function TradeButtons({ detail, onTradeSuccess }: Props) {
                 const profit =
                   order.realizedProfit ??
                   (buyPrice == null ? undefined : (order.unitPrice - buyPrice) * order.quantity);
-                Alert.alert(
-                  '팔았어요!',
-                  `${detail.name} 1주를 ${formatAcorns(order.unitPrice)}에 팔았어요.\n` +
-                    (buyPrice != null && profit != null
-                      ? `살 때 ${formatAcorns(buyPrice)} → 팔 때 ${formatAcorns(order.unitPrice)}\n${profitLabel(profit)}\n`
-                      : '') +
-                    `지갑 잔액: ${formatAcorns(order.pointBalanceAfter)}`,
-                );
+                // 결과는 번/잃은 도토리 한 줄만 — 산 값·판 값·잔액까지 늘어놓으면 못 읽는다
+                Alert.alert('팔았어요!', sellOutcomeMessage(profit));
               },
               onError: (error: unknown) => {
                 Alert.alert('팔 수 없어요', orderErrorMessage(error));
@@ -105,25 +99,6 @@ export function TradeButtons({ detail, onTradeSuccess }: Props) {
       />
     </View>
   );
-}
-
-/** 주문 실패를 아이 눈높이 문구로 바꾼다. 네트워크 단절은 결과를 모르는 상태라 따로 안내. */
-function orderErrorMessage(error: unknown): string {
-  if (isNetworkError(error)) {
-    return '거래가 완료됐는지 확인하지 못했어요. 거래 내역과 잔액을 먼저 확인해 주세요.';
-  }
-  switch (apiErrorCode(error)) {
-    case 'INSUFFICIENT_POINT':
-      return '도토리가 부족해요. 미션을 해내고 도토리를 모아 보세요!';
-    case 'ALREADY_HOLDING':
-      return '이미 가지고 있는 주식이에요. 한 회사는 1주만 살 수 있어요.';
-    case 'PRODUCT_INACTIVE':
-      return '지금은 거래가 잠시 멈춘 회사예요.';
-    case 'INSUFFICIENT_QUANTITY':
-      return '가지고 있지 않은 주식이에요.';
-    default:
-      return '잠시 후 다시 시도해 주세요.';
-  }
 }
 
 const styles = StyleSheet.create({
