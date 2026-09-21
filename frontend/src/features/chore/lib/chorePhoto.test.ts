@@ -1,4 +1,10 @@
-import { normalizeMimeType, photoError, toPhotoFile } from './chorePhoto';
+import {
+  MAX_PHOTO_EDGE,
+  normalizeMimeType,
+  photoError,
+  resizeTarget,
+  toPhotoFile,
+} from './chorePhoto';
 
 describe('normalizeMimeType', () => {
   it('서버가 아는 표기로 맞춘다', () => {
@@ -48,5 +54,25 @@ describe('toPhotoFile', () => {
     expect(toPhotoFile({ uri: 'file:///a.jpg', fileName: 'IMG_0001.jpg' }).name).toBe(
       'IMG_0001.jpg',
     );
+  });
+});
+
+describe('resizeTarget', () => {
+  it('긴 변만 넘겨 비율을 지킨다', () => {
+    // 둘 다 넘기면 라이브러리가 그 크기로 늘려서 사진이 찌그러진다.
+    expect(resizeTarget(4000, 3000)).toEqual({ width: MAX_PHOTO_EDGE });
+    expect(resizeTarget(3000, 4000)).toEqual({ height: MAX_PHOTO_EDGE });
+  });
+
+  it('이미 작은 사진은 건드리지 않는다', () => {
+    expect(resizeTarget(1024, 768)).toBeNull();
+    expect(resizeTarget(MAX_PHOTO_EDGE, 800)).toBeNull();
+  });
+
+  it('크기를 모르면 줄이지 않는다', () => {
+    // 폭 기준으로 줄여 버리면 세로 사진이 필요 이상으로 작아진다.
+    expect(resizeTarget(undefined, undefined)).toBeNull();
+    expect(resizeTarget(4000, null)).toBeNull();
+    expect(resizeTarget(0, 0)).toBeNull();
   });
 });

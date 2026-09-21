@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -11,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import {
@@ -18,7 +21,12 @@ import {
   requestCompletionErrorMessage,
 } from '@/features/chore/lib/choreError';
 import { deadlineLabel, isRewardReady } from '@/features/chore/lib/choreLabels';
-import { photoError, photoErrorMessage, toPhotoFile } from '@/features/chore/lib/chorePhoto';
+import {
+  compressPhoto,
+  photoError,
+  photoErrorMessage,
+  toPhotoFile,
+} from '@/features/chore/lib/chorePhoto';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
 import type { ChorePhotoFile } from '@/features/chore/model/types';
 import { useCancelCompletion } from '@/features/chore/model/useCancelCompletion';
@@ -32,6 +40,35 @@ import { Button } from '@/shared/ui';
 
 /** 서버 제약은 255자지만 아이가 쓰는 칸이라 시안대로 200자에서 끊는다 */
 const DESCRIPTION_MAX = 200;
+
+/** 팝업과 화면(또는 키보드) 사이 여백 */
+const SHEET_MARGIN = 24;
+/** 키보드가 올라와도 이만큼은 남긴다 — 더 줄이면 제목과 버튼만 남아 입력칸이 안 보인다 */
+const MIN_SHEET_HEIGHT = 260;
+
+/**
+ * 키보드 윗변의 화면 좌표. 키보드가 없으면 null.
+ *
+ * 높이(endCoordinates.height) 대신 윗변(screenY)을 쓴다. 안드로이드가 adjustResize 로
+ * 창을 줄이면 화면 높이에서 키보드 높이를 또 빼게 되어 두 번 깎인다 - 윗변은 어느 쪽이든
+ * 같은 값이라 계산이 어긋나지 않는다.
+ */
+function useKeyboardTop(): number | null {
+  const [top, setTop] = useState<number | null>(null);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (event) =>
+      setTop(event.endCoordinates.screenY),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () => setTop(null));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return top;
+}
 
 type ChildChoreDetailModalProps = {
   familyId: number | undefined;
@@ -66,6 +103,16 @@ export function ChildChoreDetailModal({
   const theme = useTheme();
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<ChorePhotoFile | null>(null);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+  const keyboardTop = useKeyboardTop();
+
+  // 키보드가 올라오면 팝업을 위로 붙이고 남은 자리에 맞춰 줄인다. 가운데 정렬 그대로 두면
+  // 팝업 아랫부분이 키보드에 덮여 정작 쓰고 있는 입력칸이 보이지 않는다 (QA).
+  const sheetMaxHeight =
+    keyboardTop != null
+      ? Math.max(MIN_SHEET_HEIGHT, keyboardTop - SHEET_MARGIN * 2)
+      : windowHeight * 0.85;
 
   const { data: chore } = useChore(familyId, childId, choreId ?? undefined);
   const { data: request } = usePendingCompletionRequest(familyId, childId, choreId ?? undefined);
@@ -83,12 +130,17 @@ export function ChildChoreDetailModal({
     const asset = result.canceled ? undefined : result.assets[0];
     if (!asset) return;
 
-    const invalid = photoError(asset);
+    // 검사는 줄인 사진으로 한다. 원본이 10MB 를 넘어도 줄이면 통과하는 경우가 대부분이라,
+    // 원본으로 먼저 막으면 올릴 수 있는 사진을 돌려보내게 된다.
+    setPreparingPhoto(true);
+    const compressed = await compressPhoto(asset).finally(() => setPreparingPhoto(false));
+
+    const invalid = photoError(compressed);
     if (invalid) {
       Alert.alert('이 사진은 올릴 수 없어요', photoErrorMessage(invalid));
       return;
     }
-    setPhoto(toPhotoFile(asset));
+    setPhoto(toPhotoFile(compressed));
   };
 
   const submit = () => {
@@ -112,19 +164,73 @@ export function ChildChoreDetailModal({
     ]);
   };
 
-  const busy = requestCompletion.isPending || cancelCompletion.isPending;
+  const busy = requestCompletion.isPending || cancelCompletion.isPending || preparingPhoto;
+
+  /**
+   * 쓴 것이 있으면 한 번 물어보고 닫는다 (X 버튼).
+   *
+   * 뒤로가기가 팝업을 바로 닫아 버려서 쓰던 내용과 찍은 사진이 통째로 날아갔다 (QA).
+   * X 도 같은 사고가 나므로 같은 확인을 거친다.
+   */
+  const confirmClose = () => {
+    if (description.trim().length === 0 && photo == null) {
+      onClose();
+      return;
+    }
+    Keyboard.dismiss();
+    Alert.alert('작성 중인 내용이 사라져요', '그래도 닫을까요?', [
+      { text: '계속 쓸래요', style: 'cancel' },
+      { text: '닫기', style: 'destructive', onPress: onClose },
+    ]);
+  };
+
+  /**
+   * 안드로이드 뒤로가기. 키보드가 떠 있으면 키보드부터 내린다 - 글을 쓰다 키보드를
+   * 내리려고 누르는 것이 이 기기의 관례라, 그 한 번에 팝업까지 닫으면 안 된다.
+   *
+   * X 는 이 단계를 거치지 않는다. 닫겠다고 누른 버튼이 키보드만 내리고 끝나면 두 번
+   * 눌러야 한다.
+   */
+  const backRequested = () => {
+    if (keyboardTop != null) {
+      Keyboard.dismiss();
+      return;
+    }
+    confirmClose();
+  };
 
   // 서버는 보상이 산정되지 않은 할 일의 완료 요청을 400(REWARD_NOT_EVALUATED)으로 막는다.
   // 열어 두면 아이가 글을 쓰고 사진까지 찍은 뒤에야 실패를 알게 되므로 미리 막고 이유를 말한다.
   const rewardPending = chore != null && !isRewardReady(chore.rewardPoints);
 
   return (
-    <Modal visible={choreId != null} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={[styles.backdrop, { backgroundColor: theme.color.background.overlay }]}>
-        <View
+    <Modal
+      visible={choreId != null}
+      transparent
+      animationType="fade"
+      onRequestClose={backRequested}
+    >
+      {/* 바깥을 눌러도 팝업은 닫지 않는다. 키보드만 내린다 - 글을 쓰다 옆을 짚었다고
+          쓰던 내용과 찍은 사진이 날아가면 안 된다 (QA). 닫는 길은 X 와 뒤로가기뿐이고,
+          그 둘은 쓴 것이 있으면 한 번 물어본다. */}
+      <Pressable
+        onPress={() => Keyboard.dismiss()}
+        accessibilityRole="none"
+        style={[
+          styles.backdrop,
+          {
+            backgroundColor: theme.color.background.overlay,
+            justifyContent: keyboardTop != null ? 'flex-start' : 'center',
+            paddingVertical: SHEET_MARGIN,
+          },
+        ]}
+      >
+        {/* 팝업 안의 탭이 위로 새면 글을 쓰다 키보드가 닫힌다 */}
+        <Pressable
+          onPress={(event) => event.stopPropagation()}
           style={[
-            styles.sheet,
             {
+              maxHeight: sheetMaxHeight,
               backgroundColor: theme.color.background.surface,
               borderRadius: theme.radius['2xl'],
               padding: theme.space.xl,
@@ -136,7 +242,7 @@ export function ChildChoreDetailModal({
               미션 상세
             </Text>
             <Pressable
-              onPress={onClose}
+              onPress={confirmClose}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="닫기"
@@ -228,6 +334,7 @@ export function ChildChoreDetailModal({
                     description={description}
                     onDescriptionChange={setDescription}
                     photo={photo}
+                    preparingPhoto={preparingPhoto}
                     onPickPhoto={pickPhoto}
                   />
                 </>
@@ -277,8 +384,8 @@ export function ChildChoreDetailModal({
               />
             </>
           )}
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -288,11 +395,14 @@ function TodoBody({
   description,
   onDescriptionChange,
   photo,
+  preparingPhoto,
   onPickPhoto,
 }: {
   description: string;
   onDescriptionChange: (value: string) => void;
   photo: ChorePhotoFile | null;
+  /** 찍은 사진을 줄이는 중. 몇 초 걸려서 아무 말이 없으면 안 찍힌 줄 안다 */
+  preparingPhoto: boolean;
   onPickPhoto: () => void;
 }) {
   const theme = useTheme();
@@ -341,7 +451,14 @@ function TodoBody({
             },
           ]}
         >
-          {photo ? (
+          {preparingPhoto ? (
+            <View style={styles.photoPlaceholder}>
+              <ActivityIndicator color={theme.color.brand.solid} />
+              <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+                사진을 준비하고 있어요…
+              </Text>
+            </View>
+          ) : photo ? (
             <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="cover" />
           ) : (
             <View style={styles.photoPlaceholder}>
@@ -410,8 +527,7 @@ function PendingBody({ description, photoUrl }: { description: string | null; ph
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  sheet: { maxHeight: '85%' },
+  backdrop: { flex: 1, paddingHorizontal: SHEET_MARGIN },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

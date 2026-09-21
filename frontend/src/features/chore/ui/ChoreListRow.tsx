@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { deadlineLabel } from '@/features/chore/lib/choreLabels';
+import { ChoreStatusBadge } from '@/features/chore/ui/ChoreStatusBadge';
 import { RepeatBadge } from '@/features/chore/ui/RepeatBadge';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
 import type { TodayChoreStatus } from '@/features/chore/lib/choreStatus';
@@ -38,11 +39,9 @@ type ChoreListRowProps = {
 /**
  * 할 일 목록의 한 줄. 아이·부모 화면이 같은 카드를 쓰고 우측 슬롯과 이름 배지만 다르다.
  *
- * "확인 중"은 아이가 이미 완료 요청을 보낸 상태다. 이 표시가 없으면 아이가 같은 할 일을
- * 다시 눌러 PENDING_REQUEST_EXISTS 오류를 보게 된다.
- *
- * "다시 해볼까요"는 부모가 거절한 상태다. 거절하면 그 할 일은 아무 흔적 없이 목록으로
- * 돌아오는데, 아이는 알림을 받고 들어오므로 화면에 표시가 없으면 알림과 앞뒤가 맞지 않는다.
+ * 상태는 배지로 보여 준다 (ChoreStatusBadge). "승인 대기중"이 없으면 아이가 같은 미션을
+ * 다시 눌러 PENDING_REQUEST_EXISTS 오류를 보게 되고, "다시 해볼까요"가 없으면 거절이
+ * 아무 흔적 없이 목록으로 돌아와 알림과 앞뒤가 맞지 않는다.
  */
 export function ChoreListRow({
   title,
@@ -56,12 +55,6 @@ export function ChoreListRow({
 }: ChoreListRowProps) {
   const theme = useTheme();
   const deadline = repeatType === 'ONCE' && endDate ? deadlineLabel(endDate) : null;
-  const note =
-    status === 'PENDING'
-      ? { text: '확인 중', color: theme.color.text.muted }
-      : status === 'REJECTED'
-        ? { text: '다시 해볼까요', color: theme.color.status.danger.text }
-        : null;
 
   return (
     <Pressable onPress={onPress} disabled={onPress == null} accessibilityRole="button">
@@ -80,6 +73,9 @@ export function ChoreListRow({
           <View style={[styles.meta, { gap: theme.space.xs }]}>
             {childName ? <ChildBadge name={childName} /> : null}
             <RepeatBadge repeatType={repeatType} />
+            {/* 상태는 주기 배지 옆이다. 아랫줄 캡션으로 두면 날짜와 같은 크기·색이라
+                요청을 보냈는지조차 알아보기 어려웠다 (QA) */}
+            {status ? <ChoreStatusBadge status={status} /> : null}
           </View>
 
           <Text
@@ -89,17 +85,10 @@ export function ChoreListRow({
             {title}
           </Text>
 
-          {deadline || note ? (
-            <View style={[styles.meta, { gap: theme.space.sm }]}>
-              {deadline ? (
-                <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                  {deadline}
-                </Text>
-              ) : null}
-              {note ? (
-                <Text style={[theme.typography.caption, { color: note.color }]}>{note.text}</Text>
-              ) : null}
-            </View>
+          {deadline ? (
+            <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+              {deadline}
+            </Text>
           ) : null}
         </View>
 

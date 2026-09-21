@@ -31,6 +31,7 @@ export { ChoreFormFields } from './ui/ChoreFormFields';
 export { ParentChoreList } from './ui/ParentChoreList';
 export { ChildChoreHistory } from './ui/ChildChoreHistory';
 export { ChildChoreDetailModal } from './ui/ChildChoreDetailModal';
+export { ChoreStatusBadge } from './ui/ChoreStatusBadge';
 export { ChildChoreList } from './ui/ChildChoreList';
 export { ChoreHeroBanner } from './ui/ChoreHeroBanner';
 export { ChoreListRow } from './ui/ChoreListRow';
