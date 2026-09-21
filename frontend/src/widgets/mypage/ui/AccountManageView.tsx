@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -43,10 +42,7 @@ export function AccountManageView() {
   const isLinked = Boolean(account.data);
 
   return (
-    <Screen
-      scroll
-      header={<Header title="연동 계좌 관리" onBack={() => router.back()} />}
-    >
+    <Screen scroll header={<Header title="연동 계좌 관리" onBack={() => router.back()} />}>
       <View style={{ marginTop: theme.space.md, gap: theme.space['2xl'] }}>
         <AccountCard
           account={account.data}
@@ -64,7 +60,6 @@ export function AccountManageView() {
             <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
               연동 계좌 변경
             </Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
           </Pressable>
 
           {isLinked ? (
@@ -77,7 +72,6 @@ export function AccountManageView() {
               <Text style={[theme.typography.titleMd, { color: theme.color.status.danger.text }]}>
                 연동 계좌 해제
               </Text>
-              <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
             </Pressable>
           ) : null}
         </View>
