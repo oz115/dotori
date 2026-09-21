@@ -6,11 +6,24 @@ import { useTheme } from '@/shared/theme';
 import { Header, Screen } from '@/shared/ui';
 import { AccountCard } from '@/widgets/parent-home';
 
+type AccountManageViewProps = {
+  /** 계좌 연동 화면으로 (아직 연동이 없을 때) */
+  onLinkAccount: () => void;
+  /**
+   * 연동 계좌 변경 화면으로.
+   *
+   * 경로를 이 화면이 알지 않는다 - 부모는 /(parent)/account/link, 자녀는
+   * /(child)/setup/account/link 로 서로 다르고, 짧게 "/account/link" 로 밀면 자녀 화면에서도
+   * 부모 경로로 잡혀 아무 일도 일어나지 않았다 (QA - 자녀의 계좌 변경이 안 먹던 원인).
+   */
+  onChangeAccount: () => void;
+};
+
 /**
  * 마이페이지 - 연동 계좌 관리 화면.
  * 상단에 계좌 정보 카드를 보여주고, 하단에는 '연동 계좌 변경' 및 '연동 계좌 해제' 설정 옵션을 제공한다.
  */
-export function AccountManageView() {
+export function AccountManageView({ onLinkAccount, onChangeAccount }: AccountManageViewProps) {
   const theme = useTheme();
   const account = useMyAccount();
   const unlinkAccount = useUnlinkAccount();
@@ -47,13 +60,13 @@ export function AccountManageView() {
         <AccountCard
           account={account.data}
           isPending={account.isPending}
-          onLinkAccount={() => router.push('/account/link')}
+          onLinkAccount={onLinkAccount}
           showActions={false}
         />
 
         <View style={{ gap: theme.space.xs }}>
           <Pressable
-            onPress={() => router.push({ pathname: '/account/link', params: { mode: 'change' } })}
+            onPress={onChangeAccount}
             accessibilityRole="button"
             style={[styles.menuRow, { paddingVertical: theme.space.lg }]}
           >
