@@ -146,6 +146,10 @@ export type SavingsCard = {
   /** 만기 도달로 수령 대기 중 (배지 표시용) */
   matured: boolean;
   lines: SavingsCardLine[];
-  /** 0~1. undefined 면 진행바를 그리지 않는다 (보통예금·미가입) */
-  progress?: number;
+  /**
+   * 눈금형 진행 표시 — total 칸 중 filled 칸이 찬다.
+   * 예금(거치식)은 주차(1주=1칸), 적금은 납입 회차(=주차) 기준.
+   * undefined 면 눈금을 그리지 않는다 (보통예금·미가입).
+   */
+  segments?: { total: number; filled: number };
 };

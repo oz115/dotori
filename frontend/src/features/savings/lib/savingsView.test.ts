@@ -103,7 +103,7 @@ describe('buildSavingsCards', () => {
     const [card] = buildSavingsCards([product({})], [], NOW);
 
     expect(card.subscribed).toBe(false);
-    expect(card.progress).toBeUndefined();
+    expect(card.segments).toBeUndefined();
     // 252 는 주 단위 반올림의 결과다 - 5,000×5%÷4주 = 62.5 → 63, ×4주. 서버 정산이
     // 주마다 반올림하므로 62.5×4=250 이 아니라 252 가 실제로 지급되는 값이다.
     expect(card.lines).toEqual([
@@ -151,7 +151,7 @@ describe('buildSavingsCards', () => {
     expect(card.lines[0].label).toBe('매주 최대');
   });
 
-  it('거치식 가입은 예치 금액·쌓인 이자·만기까지와 기간 진행률을 싣는다', () => {
+  it('거치식 가입은 예치 금액·쌓인 이자·만기까지와 주차 눈금을 싣는다', () => {
     const [card] = buildSavingsCards([product({})], [subscription({})], NOW);
 
     expect(card.subscribed).toBe(true);
@@ -160,10 +160,11 @@ describe('buildSavingsCards', () => {
       { label: '쌓인 이자', value: '150P' },
       { label: '만기까지', value: '21일' },
     ]);
-    expect(card.progress).toBeCloseTo(0.268, 2); // 28일 중 7.5일 경과
+    // 09/10 가입 ~ 10/08 만기 = 4주. 가입일이 1주차라 경과 1주 + 1 = 2주차 → 4칸 중 2칸
+    expect(card.segments).toEqual({ total: 4, filled: 2 });
   });
 
-  it('정액 적립식은 납입 회차 기준으로 진행률을 계산한다', () => {
+  it('정액 적립식은 납입 회차 기준으로 눈금을 채운다', () => {
     const [card] = buildSavingsCards(
       [product({ productType: 'SMALL_INSTALLMENT', contributionStyle: 'FIXED_INSTALLMENT' })],
       [
@@ -181,7 +182,7 @@ describe('buildSavingsCards', () => {
 
     expect(card.lines[0]).toEqual({ label: '매주', value: '500P' });
     expect(card.lines[2]).toEqual({ label: '납입', value: '1회 / 4회' });
-    expect(card.progress).toBe(0.25);
+    expect(card.segments).toEqual({ total: 4, filled: 1 });
   });
 
   it('해지·수령 완료된 가입은 보유로 치지 않는다', () => {

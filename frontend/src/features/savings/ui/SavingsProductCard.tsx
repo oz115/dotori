@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { SavingsCard } from '@/features/savings/model/types';
 import { useTheme } from '@/shared/theme';
-import { ProgressBar } from '@/shared/ui';
+import { SegmentedProgressBar } from '@/shared/ui';
 
 type Props = {
   card: SavingsCard;
@@ -29,7 +29,9 @@ export function SavingsProductCard({ card, onPress }: Props) {
         {
           backgroundColor: theme.color.background.surface,
           borderRadius: theme.radius.xl,
-          borderColor: theme.color.border.card,
+          // 가입 중인 상품은 초록 테두리로 강조해 목록에서 '내 저축'을 바로 찾게 한다
+          borderColor: card.subscribed ? theme.color.brand.solid : theme.color.border.card,
+          borderWidth: card.subscribed ? 1.5 : 1,
           padding: theme.space.lg,
           gap: theme.space.md,
           opacity: pressed ? 0.85 : 1,
@@ -79,7 +81,9 @@ export function SavingsProductCard({ card, onPress }: Props) {
         ))}
       </View>
 
-      {card.progress != null ? <ProgressBar value={card.progress} /> : null}
+      {card.segments != null ? (
+        <SegmentedProgressBar total={card.segments.total} filled={card.segments.filled} />
+      ) : null}
     </Pressable>
   );
 }

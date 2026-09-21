@@ -15,6 +15,7 @@ import {
   buildSavingsCards,
   estimateReturn,
   savingsGroupOf,
+  weeksSince,
 } from '@/features/savings/lib/savingsView';
 import { useSavingsExpectedReturn } from '@/features/savings/model/useSavingsExpectedReturn';
 import { useSavingsProduct } from '@/features/savings/model/useSavingsProduct';
@@ -34,7 +35,7 @@ import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
 import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
-import { Button, Header, Input, ProgressBar, Screen } from '@/shared/ui';
+import { Button, Header, Input, Screen, SegmentedProgressBar } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -388,6 +389,13 @@ function SubscribedSection({
   const remaining = Math.max(0, product.maxAmount - subscription.currentAmount);
   const overRemaining = freeAmount && amount > remaining;
 
+  // 정액 적립식(적금)은 1주 1회만 납입할 수 있다. 서버 규칙(SavingsServiceImpl.validateContribution:
+  // contributionCount > 경과주수)과 같은 식으로 "이번 주 납입 완료"를 계산해 버튼을 미리 막는다.
+  // 서버가 최종 판단자라, 타임존 미세차로 넘어가도 서버가 걸러 친절 메시지를 띄운다.
+  const installment = subscription.contributionStyle === 'FIXED_INSTALLMENT';
+  const thisWeekDone =
+    installment && subscription.contributionCount > weeksSince(subscription.startedAt, new Date());
+
   const runContribute = () => {
     Alert.alert('납입하기', `${formatPoint(amount)}를 납입할까요?`, [
       { text: '아니요', style: 'cancel' },
@@ -491,7 +499,20 @@ function SubscribedSection({
             />
           ) : null}
         </View>
-        {card.progress != null ? <ProgressBar value={card.progress} /> : null}
+        {/* 예금(거치식)·적금 모두 1주 = 1칸 눈금으로 그린다. 보통예금은 만기가 없어 눈금 없음 */}
+        {card.segments != null ? (
+          <View style={{ gap: theme.space.xs }}>
+            <SegmentedProgressBar total={card.segments.total} filled={card.segments.filled} />
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.color.text.muted, textAlign: 'right' },
+              ]}
+            >
+              {card.segments.filled}주 / {card.segments.total}주
+            </Text>
+          </View>
+        ) : null}
       </InfoCard>
 
       {contributable && freeAmount ? (
@@ -522,15 +543,31 @@ function SubscribedSection({
           onPress={runReceive}
         />
       ) : contributable ? (
-        <Button
-          label={
-            freeAmount ? '납입하기' : `이번 주 ${formatPoint(subscription.principal)} 납입하기`
-          }
-          variant="primary"
-          disabled={busy || (freeAmount && (amount <= 0 || overRemaining))}
-          loading={contribute.isPending}
-          onPress={runContribute}
-        />
+        <>
+          <Button
+            label={
+              thisWeekDone
+                ? '이번 주 납입 완료'
+                : freeAmount
+                  ? '납입하기'
+                  : `이번 주 ${formatPoint(subscription.principal)} 납입하기`
+            }
+            variant="primary"
+            disabled={busy || thisWeekDone || (freeAmount && (amount <= 0 || overRemaining))}
+            loading={contribute.isPending}
+            onPress={runContribute}
+          />
+          {thisWeekDone ? (
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.color.text.muted, textAlign: 'center' },
+              ]}
+            >
+              이번 주 납입을 마쳤어요. 다음 주에 이어서 넣어요.
+            </Text>
+          ) : null}
+        </>
       ) : null}
 
       {!matured ? (

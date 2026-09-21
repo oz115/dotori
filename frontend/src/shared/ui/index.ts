@@ -14,6 +14,7 @@ export { Input } from './Input';
 export { MockBadge } from './MockBadge';
 export { NumericKeypad } from './NumericKeypad';
 export { ProgressBar } from './ProgressBar';
+export { SegmentedProgressBar } from './SegmentedProgressBar';
 export { Screen } from './Screen';
 export { SelectableCard } from './SelectableCard';
 export { ProgressIndicator, Steps } from './Stepper';
