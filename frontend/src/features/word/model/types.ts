@@ -43,4 +43,6 @@ export type WordSearchSummary = {
 export type WordListItem = {
   wordId: number;
   word: string;
+  /** 난이도 필터가 목록·검색 결과 양쪽에서 돌아야 해서 최소 필드에 포함한다 */
+  difficultyLevel: number;
 };

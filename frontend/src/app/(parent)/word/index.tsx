@@ -6,10 +6,14 @@ import { WordCatalog } from '@/features/word';
 export default function ParentWordScreen() {
   return (
     <WordCatalog
-      onSelectWord={(wordId, category) =>
+      onSelectWord={(wordId, category, difficulty) =>
         router.push({
           pathname: '/(parent)/word/[wordId]',
-          params: { wordId: String(wordId), ...(category ? { category } : {}) },
+          params: {
+            wordId: String(wordId),
+            ...(category ? { category } : {}),
+            ...(difficulty ? { difficulty } : {}),
+          },
         })
       }
     />
