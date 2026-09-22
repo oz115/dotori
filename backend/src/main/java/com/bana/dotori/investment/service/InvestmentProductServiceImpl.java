@@ -177,11 +177,10 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
 		}
 
-		// 상품 생성 전과 미래 가격은 만들지 않는다. 가입일·첫 기록일로는 자르지 않는다 —
-		// 기록이 없는 과거 날짜는 아래 채우기 로직이 시작가로 채워, 새 가족도 항상
-		// 일주일 폭의 차트를 본다.
-		LocalDate productCreated = product.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
-		start = start.isBefore(productCreated) ? productCreated : start;
+		// 미래 가격은 만들지 않는다. 가입일·첫 기록일·상품 시드 생성일로는 자르지 않는다 —
+		// 회사 10개는 게임용 고정 카탈로그라 시드가 다시 깔린 날짜(인프라 사정)로 차트가
+		// 잘리면 안 되고, 기록이 없는 과거 날짜는 아래 채우기 로직이 시작가로 채워
+		// 어느 가족이든 항상 같은 폭(일주일)의 차트를 본다.
 		LocalDate today = LocalDate.now(KST);
 		end = end.isAfter(today) ? today : end;
 		if (start.isAfter(end)) {

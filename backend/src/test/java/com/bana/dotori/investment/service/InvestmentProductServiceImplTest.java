@@ -554,18 +554,18 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	void getPriceHistory_startsAtLaterCreationAndStopsToday() {
-		// 이 가족의 첫 기록이 아직 없으면(온보딩 직후 백필 전) 오늘 한 점(시작가)만 만든다
+	void getPriceHistory_futureStopsTodayAndSeedDateDoesNotClamp() {
+		// 미래는 오늘에서 멈추고, 상품 시드가 늦게 깔렸어도(created_at 이 최근) 과거가 잘리지 않는다
 		givenFamilyCreated(todayStart().minusDays(1));
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		InvestmentProduct product = product(1, "새 회사", 100);
 		ReflectionTestUtils.setField(product, "createdAt", todayStart());
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product));
 		var response = investmentProductService.getPriceHistory(USER_ID, 1,
-			LocalDate.now(KST).minusDays(30), LocalDate.now(KST).plusDays(30));
-		assertThat(response.history()).hasSize(1);
-		assertThat(response.history().get(0).price()).isEqualTo(100);
-		assertThat(response.history().get(0).recordedAt()).isEqualTo(todayStart());
+			LocalDate.now(KST).minusDays(2), LocalDate.now(KST).plusDays(30));
+		assertThat(response.history()).hasSize(3);
+		assertThat(response.history()).allSatisfy(point -> assertThat(point.price()).isEqualTo(100));
+		assertThat(response.history().get(2).recordedAt()).isEqualTo(todayStart());
 	}
 
 	@Test
