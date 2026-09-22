@@ -236,6 +236,52 @@ class TestUpdatePricesForTodaysNews:
         assert jitter_prices == [707] * 8
         assert all(r.family_id != 2 for r in rows), "온보딩 전(A=0) 가족은 건너뛰어야 한다"
 
+    def test_backfills_past_week_for_families_without_history(
+        self, db_session, ten_companies, now_kst_afternoon
+    ):
+        """막 온보딩한 가족은 지난 날짜 이력을 만들어 줘서, 어제 가입해도 차트에 흐름이 보인다."""
+        product0, product1 = ten_companies[0], ten_companies[1]
+        # 그제 뉴스(product0 상승) — 어제 가격을 움직였어야 할 뉴스라 백필 재료가 된다
+        old_news = InvestmentNews(
+            investment_news_id=1, title="o", content="o", impact="POSITIVE",
+            published_at=now_kst_afternoon - timedelta(days=2),
+        )
+        # 어제 뉴스(product1 하락) — 오늘 가격을 움직인다
+        yesterday_news = InvestmentNews(
+            investment_news_id=2, title="y", content="y", impact="NEGATIVE",
+            published_at=now_kst_afternoon - timedelta(days=1),
+        )
+        db_session.add_all([old_news, yesterday_news])
+        db_session.add_all(
+            [
+                InvestmentNewsProduct(investment_news_id=1, investment_product_id=product0.investment_product_id),
+                InvestmentNewsProduct(investment_news_id=2, investment_product_id=product1.investment_product_id),
+            ]
+        )
+        db_session.add(
+            Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER")
+        )
+        db_session.commit()
+
+        with (
+            patch.object(services.random, "uniform", side_effect=lambda a, b: a),
+            patch.object(services.random, "random", return_value=0.0),
+        ):
+            written = services.update_prices_for_todays_news(db_session, [yesterday_news], now_kst_afternoon)
+
+        # 어제(그제 뉴스가 움직인 날) 10건 + 오늘 10건. 더 과거는 뉴스가 없어 만들지 않는다.
+        assert written == 20
+        rows = db_session.query(InvestmentPriceHistory).order_by(InvestmentPriceHistory.recorded_at).all()
+        assert len({r.recorded_at for r in rows}) == 2
+
+        def series(product_id):
+            return [r.price for r in rows if r.investment_product_id == product_id]
+
+        # 시작가 700. 어제: product0 뉴스 상승 10% → 770, 나머지 잔물결 +1% → 707.
+        # 오늘: product0 잔물결 770+8 → 778, product1 뉴스 하락 707-71 → 636 (가격이 날마다 이어진다).
+        assert series(product0.investment_product_id) == [770, 778]
+        assert series(product1.investment_product_id) == [707, 636]
+
     def test_price_never_drops_below_floor(self, db_session, ten_companies, now_kst_afternoon):
         up_product, down_product = ten_companies[0], ten_companies[1]
         up_news, down_news = self._seed_one_up_one_down(db_session, up_product, down_product, now_kst_afternoon)
@@ -281,6 +327,95 @@ class TestUpdatePricesForTodaysNews:
 
         assert first == 10
         assert second == 0
+
+
+class TestBackfillFamilyPrices:
+    """온보딩 직후 백엔드가 부르는 단일 가족 백필."""
+
+    def _seed_news(self, db_session, product, days_ago, now, news_id, impact="POSITIVE"):
+        news = InvestmentNews(
+            investment_news_id=news_id, title="t", content="c", impact=impact,
+            published_at=now - timedelta(days=days_ago),
+        )
+        db_session.add(news)
+        db_session.add(
+            InvestmentNewsProduct(investment_news_id=news_id, investment_product_id=product.investment_product_id)
+        )
+
+    def test_creates_past_week_and_today_for_fresh_family(self, db_session, ten_companies, now_kst_afternoon):
+        # 그제 뉴스(어제 가격 재료) + 어제 뉴스(오늘 가격 재료)
+        self._seed_news(db_session, ten_companies[0], 2, now_kst_afternoon, news_id=1)
+        self._seed_news(db_session, ten_companies[1], 1, now_kst_afternoon, news_id=2, impact="NEGATIVE")
+        db_session.add(
+            Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER")
+        )
+        db_session.commit()
+
+        with (
+            patch.object(services.random, "uniform", side_effect=lambda a, b: a),
+            patch.object(services.random, "random", return_value=0.0),
+        ):
+            written = services.backfill_family_prices(db_session, 1, now_kst_afternoon)
+
+        # 어제 10건 + 오늘 10건 — 가입 당일에도 차트에 흐름이 보인다
+        assert written == 20
+        days = {r.recorded_at for r in db_session.query(InvestmentPriceHistory).all()}
+        assert len(days) == 2
+        # SQLite 가 tz 를 떨궈 naive 로 돌려주므로 naive 로 맞춰 비교한다
+        assert now_kst_afternoon.replace(tzinfo=None) in days, "오늘 몫은 지금 시각으로 기록한다"
+
+    def test_noop_when_family_already_has_history(self, db_session, ten_companies, now_kst_afternoon):
+        self._seed_news(db_session, ten_companies[0], 1, now_kst_afternoon, news_id=1)
+        db_session.add(
+            Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER")
+        )
+        db_session.add(
+            InvestmentPriceHistory(
+                family_id=1, investment_product_id=ten_companies[0].investment_product_id, price=700,
+                recorded_at=now_kst_afternoon - timedelta(days=1),
+            )
+        )
+        db_session.commit()
+
+        assert services.backfill_family_prices(db_session, 1, now_kst_afternoon) == 0
+        assert db_session.query(InvestmentPriceHistory).count() == 1
+
+    def test_noop_for_unknown_or_not_onboarded_family(self, db_session, ten_companies, now_kst_afternoon):
+        db_session.add(
+            Family(family_id=2, weekly_allowance=0, weekly_reward_limit=0, financial_knowledge_level="BEGINNER")
+        )
+        db_session.commit()
+
+        assert services.backfill_family_prices(db_session, 99, now_kst_afternoon) == 0
+        assert services.backfill_family_prices(db_session, 2, now_kst_afternoon) == 0
+
+    def test_daily_update_skips_backfilled_family_but_moves_others(
+        self, db_session, ten_companies, now_kst_afternoon
+    ):
+        """가드가 가족 단위라, 당일 온보딩 백필을 받은 가족 때문에 다른 가족이 안 멈춘다."""
+        self._seed_news(db_session, ten_companies[0], 1, now_kst_afternoon, news_id=1)
+        db_session.add_all(
+            [
+                Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"),
+                Family(family_id=2, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"),
+            ]
+        )
+        db_session.commit()
+        # 가족 1은 오늘 온보딩해 이미 백필을 받았다
+        written_backfill = services.backfill_family_prices(db_session, 1, now_kst_afternoon)
+        assert written_backfill > 0
+
+        news = services.yesterdays_news(db_session, now_kst_afternoon)
+        written_daily = services.update_prices_for_todays_news(db_session, news, now_kst_afternoon)
+
+        # 가족 2 몫(10건)만 새로 쓰고, 가족 1은 오늘 이미 움직였으니 건너뛴다
+        assert written_daily == 10
+        family1_today = (
+            db_session.query(InvestmentPriceHistory)
+            .filter_by(family_id=1, recorded_at=now_kst_afternoon)
+            .count()
+        )
+        assert family1_today == 10, "백필분 외에 더 쌓이면 하루 두 번 움직인 것이다"
 
 
 class TestYesterdaysNews:
