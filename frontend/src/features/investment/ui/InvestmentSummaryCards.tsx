@@ -66,7 +66,7 @@ export function InvestmentSummaryCards({ summary, mascot = FOX }: Props) {
         </View>
       )}
 
-      <Text style={sub}>가격은 하루에 한 번, 자정 직후에 바뀌어요.</Text>
+      <Text style={sub}>⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.</Text>
     </View>
   );
 }

@@ -42,7 +42,7 @@ it('변동이 없으면 수익 0으로 두고, 가격이 하루 한 번 바뀐�
     <InvestmentSummaryCards summary={{ count: 1, investedPoints: 10000, earnedPoints: 0 }} />,
   );
   expect(screen.getByText('0 도토리')).toBeTruthy();
-  expect(screen.getByText('가격은 하루에 한 번, 자정 직후에 바뀌어요.')).toBeTruthy();
+  expect(screen.getByText('⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.')).toBeTruthy();
 });
 
 it('지갑 잔액(포인트)은 투자 화면 요약에 보여주지 않는다', async () => {
