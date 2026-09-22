@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { useAuthStore } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
+import { useBackToNotifications } from '@/features/notification';
 import { StoreProductDetailScreen, useStoreProduct } from '@/features/store';
 
 /**
@@ -15,6 +16,8 @@ export default function ParentStoreProductDetailScreen() {
     viaDeepLink?: string;
   }>();
   const numericProductId = Number(productId);
+  // 알림함에서 왔으면 뒤로가기가 알림함으로 가야 한다 — 기본 동작은 이 탭의 상점 목록으로 간다
+  const { onBack } = useBackToNotifications('/(parent)/notifications');
 
   // store 탭 밖(알림/홈)에서 곧장 이 화면으로 push되면, 이 탭의 내부 스택에 상세 하나만
   // 쌓여서 뒤로가기·탭 전환이 깨진다. 목록 화면에 "이 상품을 다시 열어달라"는 파라미터를
@@ -44,6 +47,7 @@ export default function ParentStoreProductDetailScreen() {
       role={role}
       registrantName={registrantName}
       balance={undefined}
+      onBack={onBack}
       onNavigateToList={() => router.replace('/(parent)/(tabs)/store')}
     />
   );

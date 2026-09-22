@@ -19,6 +19,11 @@ type ParentCompletionRequestListProps = {
   childList: ChoreChild[];
   /** 승인으로 도토리가 지급되면 알린다. 지갑은 다른 슬라이스라 라우트가 갱신한다 */
   onApproved?: (childId: number, rewardPoints: number) => void;
+  /**
+   * 뒤로가기를 기본 동작(스택 되돌리기) 대신 다른 곳으로 보낼 때 넘긴다. 알림함에서
+   * 들어온 경우가 그렇다 — 알림함으로 돌아가야 한다 (useBackToNotifications).
+   */
+  onBack?: () => void;
 };
 
 /**
@@ -33,6 +38,7 @@ export function ParentCompletionRequestList({
   familyId,
   childList,
   onApproved,
+  onBack,
 }: ParentCompletionRequestListProps) {
   const theme = useTheme();
   const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
@@ -58,7 +64,7 @@ export function ParentCompletionRequestList({
       header={
         <Header
           title="완료 요청"
-          onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
+          onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/task')))}
         />
       }
       // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.

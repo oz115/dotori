@@ -67,6 +67,21 @@ class StoreProductRegisteredNotificationListenerTest {
 	}
 
 	@Test
+	@DisplayName("긴 상품명은 줄여서 담는다 — 무엇이 등록됐는지 뒤 문구가 밀려나지 않게")
+	void onProductCreated_shortensLongName() {
+		given(familyMemberRepository.findAllByFamilyIdAndRole(FAMILY_ID, UserRole.CHILD))
+			.willReturn(List.of(childMember(2)));
+		StoreProductCreatedEvent event = new StoreProductCreatedEvent(5, FAMILY_ID, "가".repeat(40), "설명",
+			StoreProductCategory.TOY);
+
+		listener.onProductCreated(event);
+
+		then(pushNotificationService).should()
+			.notify(eq(2), eq(NotificationType.PURCHASE), any(),
+				eq("가".repeat(15) + "...이(가) 상점에 새로 등록됐어요"), eq(5));
+	}
+
+	@Test
 	@DisplayName("가족에 자녀가 없으면 알림을 보내지 않는다")
 	void onProductCreated_noChildren_doesNothing() {
 		given(familyMemberRepository.findAllByFamilyIdAndRole(FAMILY_ID, UserRole.CHILD)).willReturn(List.of());

@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.bana.dotori.global.util.NotificationText;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.PushNotificationService;
 import com.bana.dotori.user.repository.UserRepository;
@@ -33,11 +34,18 @@ public class ChoreCompletionNotificationListener {
 			"완료 요청이 왔어요", childName(event.childId()) + " · " + event.choreTitle(), event.choreId());
 	}
 
-	/** 승인은 지급이 끝난 뒤다. 실제로 들어간 금액을 그대로 알린다 */
+	/**
+	 * 승인은 지급이 끝난 뒤다. 실제로 들어간 금액을 그대로 알린다.
+	 *
+	 * <p>아이가 읽는 알림이라 화면과 같은 말("미션")을 쓰고, 기호(`· +`) 대신 문장으로 적는다 —
+	 * 초등학생에게 "제목 · +100 도토리" 는 무엇이 일어났는지 말해 주지 않는다 (QA).
+	 */
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onApproved(ChoreCompletionApprovedEvent event) {
 		pushNotificationService.notify(event.childId(), NotificationType.CHORE,
-			"완료 승인됐어요", event.choreTitle() + " · +" + event.rewardPoints() + " 도토리",
+			"완료 승인이 되었어요.",
+			NotificationText.shortName(event.choreTitle()) + "라는 미션을 완료했어요. "
+				+ event.rewardPoints() + " 도토리를 얻었어요.",
 			event.choreId());
 	}
 

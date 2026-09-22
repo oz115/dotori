@@ -41,6 +41,14 @@ type Props = {
   familyId: number | undefined;
   childId: number | undefined;
   productId: number;
+  /**
+   * 가입·납입·수령·해지로 지갑 잔액이 움직였을 때 알린다.
+   *
+   * 이 feature 는 wallet 슬라이스를 모르므로(features 끼리 직접 import 하지 않는다) 잔액
+   * 캐시는 라우트가 턴다 — 상점 구매(onPurchased)와 같은 방식이다. 이게 없으면 해지해서
+   * 돌려받은 도토리가 홈·상점에 한동안 안 보인다 (QA).
+   */
+  onWalletChanged?: () => void;
 };
 
 /** 가입 금액 입력란의 라벨 — amount 의 의미가 상품마다 다르다 */
@@ -55,7 +63,7 @@ const AMOUNT_LABELS: Record<ContributionStyle, string> = {
  * 미가입이면 스펙·금액 입력·만기 수령 미리보기와 가입하기 버튼을,
  * 가입 중이면 진행 정보·만기 예상과 납입/수령/해지 버튼을 보여준다.
  */
-export function SavingsProductDetail({ familyId, childId, productId }: Props) {
+export function SavingsProductDetail({ familyId, childId, productId, onWalletChanged }: Props) {
   const theme = useTheme();
   const refreshControl = usePullToRefresh();
   const product = useSavingsProduct(familyId, childId, productId);
@@ -129,9 +137,15 @@ export function SavingsProductDetail({ familyId, childId, productId }: Props) {
               childId={childId}
               product={product.data}
               subscription={subscription}
+              onWalletChanged={onWalletChanged}
             />
           ) : (
-            <SignupSection familyId={familyId} childId={childId} product={product.data} />
+            <SignupSection
+              familyId={familyId}
+              childId={childId}
+              product={product.data}
+              onWalletChanged={onWalletChanged}
+            />
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -201,10 +215,12 @@ function SignupSection({
   familyId,
   childId,
   product,
+  onWalletChanged,
 }: {
   familyId: number | undefined;
   childId: number | undefined;
   product: SavingsProductResponse;
+  onWalletChanged?: () => void;
 }) {
   const theme = useTheme();
   const subscribe = useSubscribeSavings(familyId, childId);
@@ -278,6 +294,7 @@ function SignupSection({
             {
               onSuccess: () => {
                 setRaw('');
+                onWalletChanged?.();
                 Alert.alert('가입했어요! 🎉', '약속한 날까지 차곡차곡 모아 보세요.');
               },
               onError: (error: unknown) =>
@@ -362,11 +379,13 @@ function SubscribedSection({
   childId,
   product,
   subscription,
+  onWalletChanged,
 }: {
   familyId: number | undefined;
   childId: number | undefined;
   product: SavingsProductResponse;
   subscription: SavingsSubscription;
+  onWalletChanged?: () => void;
 }) {
   const theme = useTheme();
   const expected = useSavingsExpectedReturn(familyId, childId, subscription.savingsSubscriptionId);
@@ -409,6 +428,7 @@ function SubscribedSection({
             {
               onSuccess: (updated) => {
                 setRaw('');
+                onWalletChanged?.();
                 if (updated.status === 'COMPLETED') {
                   Alert.alert(
                     '목표 달성! 🎉',
@@ -436,7 +456,10 @@ function SubscribedSection({
         text: '받을래요',
         onPress: () =>
           receive.mutate(subscription.savingsSubscriptionId, {
-            onSuccess: () => Alert.alert('받았어요! 🎉', '원금과 이자가 지갑으로 들어왔어요.'),
+            onSuccess: () => {
+              onWalletChanged?.();
+              Alert.alert('받았어요! 🎉', '원금과 이자가 지갑으로 들어왔어요.');
+            },
             onError: (error: unknown) => Alert.alert('받을 수 없어요', savingsErrorMessage(error)),
           }),
       },
@@ -458,11 +481,13 @@ function SubscribedSection({
           style: 'destructive',
           onPress: () =>
             terminate.mutate(subscription.savingsSubscriptionId, {
-              onSuccess: (updated) =>
+              onSuccess: (updated) => {
+                onWalletChanged?.();
                 Alert.alert(
                   '해지했어요',
                   `원금 ${formatPoint(updated.currentAmount)}가 지갑으로 돌아왔어요.`,
-                ),
+                );
+              },
               onError: (error: unknown) =>
                 Alert.alert('해지할 수 없어요', savingsErrorMessage(error)),
             }),

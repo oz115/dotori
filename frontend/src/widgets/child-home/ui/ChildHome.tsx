@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -29,6 +30,17 @@ export function ChildHome() {
   const account = useMyAccount();
   const assets = useChildAssets(familyId, childId);
   const unreadCount = useUnreadNotificationCount();
+
+  // 탭 화면은 전환해도 언마운트되지 않아서, 다른 탭에서 저축을 해지하거나 상품을 사도 이
+  // 화면은 그 변화를 모른다 (QA: 해지해서 받은 도토리가 홈에 바로 안 보인다). 홈으로
+  // 돌아올 때마다 잔액·자산을 다시 받아온다 — 상점 목록(StoreCatalog)과 같은 방식.
+  useFocusEffect(
+    useCallback(() => {
+      void balance.refetch();
+      assets.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch 는 매 렌더 새 함수라 넣으면 매번 재실행된다
+    }, []),
+  );
 
   return (
     <SafeAreaView

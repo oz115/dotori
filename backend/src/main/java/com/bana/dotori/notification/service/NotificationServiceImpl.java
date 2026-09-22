@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -75,6 +76,12 @@ public class NotificationServiceImpl implements NotificationService {
 	@Transactional
 	public void deleteNotification(Integer userId, Integer notificationId) {
 		notificationRepository.delete(findOwnedOrThrow(userId, notificationId));
+	}
+
+	@Override
+	@Transactional
+	public NotificationDeleteAllResponse deleteAllNotifications(Integer userId) {
+		return new NotificationDeleteAllResponse(notificationRepository.deleteAllByUserId(userId));
 	}
 
 	@Override

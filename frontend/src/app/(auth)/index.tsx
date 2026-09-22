@@ -97,34 +97,41 @@ export default function LoginScreen() {
         </View>
       </View>
 
+      {/* 로그인 버튼은 폼에 딸린 것이라 폼 바로 아래 고정 간격에 둔다.
+          전에는 회원가입 안내와 한 덩어리로 묶여 화면 맨 아래에 있었는데, 그 사이 여백이
+          flex 라 화면 여유를 다 먹었다 — 키보드가 올라오면 0으로 줄어 비밀번호 칸에
+          버튼이 달라붙고, 내리면 다시 멀어져서 간격이 계속 달라졌다 (QA). */}
+      <View style={{ marginTop: theme.space['3xl'] }}>
+        <Button label="로그인" variant="gradient" onPress={submit} loading={login.isPending} />
+      </View>
+
       <View style={styles.spacer} />
 
-      <View style={{ gap: theme.space.md }}>
-        <Button label="로그인" variant="gradient" onPress={submit} loading={login.isPending} />
-        <Callout
-          icon={<Image source={ACORN} style={styles.acorn} resizeMode="contain" />}
-          title="도토리가 처음이신가요?"
-          description="회원가입하고 우리만의 경제 습관을 시작해보세요!"
-          action={
-            <Button
-              label="회원가입"
-              variant="outline"
-              size="sm"
-              onPress={() => router.push('/agreement')}
-              trailingIcon={
-                <Ionicons name="chevron-forward" size={14} color={theme.color.brand.solid} />
-              }
-            />
-          }
-        />
-      </View>
+      <Callout
+        icon={<Image source={ACORN} style={styles.acorn} resizeMode="contain" />}
+        title="도토리가 처음이신가요?"
+        description="회원가입하고 우리만의 경제 습관을 시작해보세요!"
+        action={
+          <Button
+            label="회원가입"
+            variant="outline"
+            size="sm"
+            onPress={() => router.push('/agreement')}
+            trailingIcon={
+              <Ionicons name="chevron-forward" size={14} color={theme.color.brand.solid} />
+            }
+          />
+        }
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   topSpacer: { flex: 0.5 },
-  spacer: { flex: 1 },
+  // 남는 높이를 먹어 회원가입 안내를 맨 아래로 내린다. 키보드가 올라와 여유가 없어져도
+  // 로그인 버튼과 12(= space.md)는 떨어뜨린다 — 붙으면 두 버튼이 한 덩어리로 보인다.
+  spacer: { flex: 1, minHeight: 12 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

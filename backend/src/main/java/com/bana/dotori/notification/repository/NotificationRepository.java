@@ -18,4 +18,16 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("update Notification n set n.read = true where n.user.id = :userId and n.read = false")
 	int markAllAsRead(@Param("userId") Integer userId);
+
+	/**
+	 * 본인의 알림 전부를 한 번의 DELETE 로 지운다 (알림함 "모두 삭제").
+	 *
+	 * <p>markAllAsRead 와 같은 이유로 벌크 쿼리다 — 알림은 쌓이기만 해서 수백 건이 될 수
+	 * 있고, 엔티티를 다 불러와 하나씩 지우면 그만큼 DELETE 가 나간다.
+	 *
+	 * <p>notifications 에는 deleted_at 이 없어 hard delete 다 (deleteNotification 과 동일).
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("delete from Notification n where n.user.id = :userId")
+	int deleteAllByUserId(@Param("userId") Integer userId);
 }

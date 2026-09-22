@@ -25,6 +25,7 @@ export { findIdErrorMessage, resetPasswordErrorMessage } from './lib/accountReco
 export { updateProfileErrorMessage, changePasswordErrorMessage } from './lib/profileEditError';
 export {
   isValidEmail,
+  LOGIN_ID_BLANK_ERROR,
   LOGIN_ID_MAX,
   validateAccountStep,
   validateLoginId,

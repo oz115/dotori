@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 
 import { ParentCompletionRequestList } from '@/features/chore';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
+import { useBackToNotifications } from '@/features/notification';
 import { walletKeys } from '@/features/wallet';
 
 /**
@@ -14,6 +15,8 @@ import { walletKeys } from '@/features/wallet';
  */
 export default function ParentCompletionRequestsScreen() {
   const { viaDeepLink } = useLocalSearchParams<{ viaDeepLink?: string }>();
+  // 알림함에서 왔으면 뒤로가기가 알림함으로 가야 한다 — 기본 동작은 이 탭의 할 일 목록으로 간다
+  const { onBack } = useBackToNotifications('/(parent)/notifications');
 
   // task 탭 밖(알림)에서 곧장 이 화면으로 열리면, 이 탭의 내부 스택에 요청 목록 하나만
   // 쌓여서 뒤로가기·탭 전환이 깨진다. 상점 상세와 같은 방식으로, 할 일 목록에 "요청 목록을
@@ -41,6 +44,7 @@ export default function ParentCompletionRequestsScreen() {
     <ParentCompletionRequestList
       familyId={familyId ?? undefined}
       childList={children}
+      onBack={onBack}
       onApproved={(childId) => {
         if (familyId == null) return;
         queryClient.invalidateQueries({ queryKey: walletKeys.balance(familyId, childId) });

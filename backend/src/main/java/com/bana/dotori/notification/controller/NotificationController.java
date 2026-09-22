@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -58,6 +59,12 @@ public class NotificationController {
 			@PathVariable Integer notificationId) {
 		notificationService.deleteNotification(userId, notificationId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@DeleteMapping
+	public ResponseEntity<NotificationDeleteAllResponse> deleteAllNotifications(
+			@AuthenticationPrincipal Integer userId) {
+		return ResponseEntity.ok(notificationService.deleteAllNotifications(userId));
 	}
 
 	@GetMapping("/unread-count")
