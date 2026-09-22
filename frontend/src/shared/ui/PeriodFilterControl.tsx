@@ -158,7 +158,11 @@ function PeriodSheetContent({
 }) {
   const theme = useTheme();
   const [draftPreset, setDraftPreset] = useState(value.preset);
-  const [draftStart, setDraftStart] = useState(value.start);
+  // 기본 시작일(한 달 전)이 하한(가입일)보다 이르면 하한으로 끌어올린다 — 고를 수 없는
+  // 날짜가 시작일로 미리 선택돼 있으면 안 된다
+  const [draftStart, setDraftStart] = useState(
+    minPickableDate != null && value.start < minPickableDate ? minPickableDate : value.start,
+  );
   const [draftEnd, setDraftEnd] = useState(value.end);
 
   return (

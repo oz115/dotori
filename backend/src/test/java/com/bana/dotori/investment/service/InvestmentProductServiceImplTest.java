@@ -410,7 +410,7 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("날짜를 안 주면 최근 30일 범위(KST 하루 경계)로 조회한다")
+	@DisplayName("날짜를 안 주면 가입일과 무관하게 최근 일주일 롤링 윈도우로 조회한다")
 	void getPriceHistory_defaultRange() {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
@@ -422,10 +422,11 @@ class InvestmentProductServiceImplTest {
 			null);
 
 		assertThat(response.investmentProductId()).isEqualTo(1);
-		assertThat(response.history()).isNotEmpty().allSatisfy(point -> assertThat(point.price()).isEqualTo(10000));
+		// [7일 전, 오늘] 여덟 점. 기록이 없으니 전부 시작가(시드)로 채워진다.
+		assertThat(response.history()).hasSize(8)
+			.allSatisfy(point -> assertThat(point.price()).isEqualTo(10000));
 		then(investmentPriceHistoryRepository).should().findAllInRange(FAMILY_ID, 1,
-			todayStart().minusDays(30).isAfter(SEED_AT) ? todayStart().minusDays(30) : SEED_AT,
-			todayStart().plusDays(1));
+			todayStart().minusDays(7), todayStart().plusDays(1));
 	}
 
 	@Test
@@ -553,28 +554,30 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	void getPriceHistory_startsAtLaterCreationAndStopsToday() {
+	void getPriceHistory_futureStopsTodayAndSeedDateDoesNotClamp() {
+		// 미래는 오늘에서 멈추고, 상품 시드가 늦게 깔렸어도(created_at 이 최근) 과거가 잘리지 않는다
 		givenFamilyCreated(todayStart().minusDays(1));
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		InvestmentProduct product = product(1, "새 회사", 100);
 		ReflectionTestUtils.setField(product, "createdAt", todayStart());
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product));
 		var response = investmentProductService.getPriceHistory(USER_ID, 1,
-			LocalDate.now(KST).minusDays(30), LocalDate.now(KST).plusDays(30));
-		assertThat(response.history()).hasSize(1);
-		assertThat(response.history().get(0).price()).isEqualTo(100);
-		assertThat(response.history().get(0).recordedAt()).isEqualTo(todayStart());
+			LocalDate.now(KST).minusDays(2), LocalDate.now(KST).plusDays(30));
+		assertThat(response.history()).hasSize(3);
+		assertThat(response.history()).allSatisfy(point -> assertThat(point.price()).isEqualTo(100));
+		assertThat(response.history().get(2).recordedAt()).isEqualTo(todayStart());
 	}
 
 	@Test
-	void getPriceHistory_beforeCreationIsEmpty() {
-		givenFamilyCreated(todayStart());
+	void getPriceHistory_pastRangeIsPaddedWithStartPrice() {
+		// 기록이 없는 과거 기간도 빈 목록이 아니라 시작가로 채운다 — 새 가족도 늘 같은
+		// 폭의 차트를 본다 (가입일·첫 기록일로 왼쪽을 자르지 않는다)
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 100)));
 		var response = investmentProductService.getPriceHistory(USER_ID, 1,
 			LocalDate.now(KST).minusDays(3), LocalDate.now(KST).minusDays(1));
-		assertThat(response.history()).isEmpty();
-		then(investmentPriceHistoryRepository).shouldHaveNoInteractions();
+		assertThat(response.history()).hasSize(3)
+			.allSatisfy(point -> assertThat(point.price()).isEqualTo(100));
 	}
 
 	@Test

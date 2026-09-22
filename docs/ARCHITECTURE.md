@@ -84,8 +84,17 @@
 
 ### 스키마 관리 방식
 
-현재 `ddl-auto: update` 로 Hibernate 가 엔티티에서 스키마를 만든다.
-따라서 제약조건도 SQL 스크립트가 아니라 **엔티티에 선언해야** 생성된다.
+현재 `ddl-auto: none` 이고 스키마 원본은 `backend/docker/initdb/01-schema.sql` 이다.
+Hibernate 는 스키마를 만들지도 고치지도 않으므로, 컬럼·제약을 더할 때는 이 파일을 고친다.
+
+`initdb` 스크립트는 **데이터 볼륨이 비어 있을 때만 한 번** 돈다. 그래서 이미 만들어진 DB
+(내 로컬, 공유 QA DB, 배포 환경)에는 자동으로 반영되지 않는다 — 로컬은 `docker compose
+down -v` 로 볼륨을 지우고 다시 띄우거나, 아래처럼 `ALTER TABLE` 을 손으로 한 번 실행한다.
+`backend/docker/migration/` 에 날짜별 SQL 을 남겨 두면 남들도 같은 것을 돌릴 수 있다.
+
+> 아래 "주의할 점" 두 항목과 `src/test/resources/schema.sql` 언급은 `ddl-auto: update` 를
+> 쓰던 시절의 서술이라 지금과 맞지 않는다 (그 파일은 이제 없다). 남은 서술은 담당자가
+> 정리할 때까지 그대로 둔다.
 
 주의할 점이 두 가지 있다.
 
@@ -233,6 +242,15 @@ CREATE INDEX IF NOT EXISTS ix_point_transactions_wallet_created_at
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_allowance          INTEGER     NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_reward_limit       INTEGER     NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS financial_knowledge_level VARCHAR(20) NULL;
+```
+
+단어장의 쉬운 설명(2026-09-22)도 같다. 컬럼 추가와 단어 100개의 값 채우기를
+`backend/docker/migration/2026-09-22-words-easy-description.sql` 한 파일에 담아 뒀다 —
+여러 번 돌려도 안전하고, 파일 끝의 주석 처리된 SELECT 로 아직 못 채운 단어를 확인한다.
+
+```sql
+ALTER TABLE "words" ADD COLUMN IF NOT EXISTS "easy_description" VARCHAR(255) NULL;
+-- 이어서 UPDATE words SET easy_description = ... WHERE word = ... 100줄
 ```
 
 이미 서로 다른 지갑에 같은 멱등키가 들어가 있으면 두 번째 문장이 실패한다.

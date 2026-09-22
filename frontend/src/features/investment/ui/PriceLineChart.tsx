@@ -190,10 +190,11 @@ export function PriceLineChart({ history }: Props) {
       <View style={styles.xLabels}>
         {history
           .map((point, index) => ({ ...point, index }))
+          // 오늘(마지막)을 기준으로 같은 간격씩 거슬러 라벨을 찍는다 — 앞에서부터 찍고
+          // 마지막을 억지로 끼우면 끝의 두 라벨만 날짜 간격이 달라져 이상해 보인다
           .filter(
             (_, index) =>
-              index % Math.max(1, Math.ceil((history.length - 1) / 4)) === 0 ||
-              index === history.length - 1,
+              (history.length - 1 - index) % Math.max(1, Math.ceil((history.length - 1) / 4)) === 0,
           )
           .map((point) => (
             <Text

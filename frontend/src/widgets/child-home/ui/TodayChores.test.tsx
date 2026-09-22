@@ -1,12 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react-native';
 
-import { choreApi } from '@/features/chore/api/choreApi';
-import { todayDate } from '@/features/chore';
-import type { ChoreCompletionHistoryItem, ChoreSummary } from '@/features/chore/model/types';
+import {
+  choreApi,
+  todayDate,
+  type ChoreCompletionHistoryItem,
+  type ChoreSummary,
+} from '@/features/chore';
 
 import { TodayChores } from './TodayChores';
 
+// 모킹 대상은 실제 모듈 경로여야 한다 (배럴을 막으면 같은 슬라이스의 다른 export 까지 사라진다).
+// import 는 공개 API(@/features/chore)로 하고, 배럴이 이 모듈을 그대로 재수출하므로 목이 그대로 먹는다.
 jest.mock('@/features/chore/api/choreApi', () => ({
   choreApi: {
     getChores: jest.fn(),
@@ -86,4 +91,20 @@ it('오늘 등록된 미션이 아예 없으면 없다고 알린다', async () =
   await show();
 
   await waitFor(() => expect(screen.getByText('오늘 등록된 미션이 없어요.')).toBeTruthy(), WAIT);
+});
+
+it('어제 등록됐어도 반복 주기가 오늘로 밀렸으면 보여 준다', async () => {
+  // 크론이 매일 자정 반복 미션의 기간을 오늘로 밀어 준다 — createdAt 은 최초 등록일 그대로다.
+  mocked.getChores.mockResolvedValue([
+    {
+      ...chore(1, '설거지하기'),
+      repeatType: 'DAY',
+      createdAt: '2026-01-01T09:00:00+09:00',
+    },
+  ]);
+
+  await show();
+
+  await waitFor(() => expect(screen.getByText('설거지하기')).toBeTruthy(), WAIT);
+  expect(screen.queryByText('오늘 등록된 미션이 없어요.')).toBeNull();
 });

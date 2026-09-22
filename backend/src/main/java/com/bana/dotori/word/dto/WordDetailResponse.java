@@ -10,6 +10,8 @@ public record WordDetailResponse(
 	Integer wordId,
 	String word,
 	String definition,
+	/** 아이 눈높이로 풀어 쓴 설명. 아직 채우지 못한 단어가 있어 null 일 수 있다 */
+	String easyDefinition,
 	Integer difficultyLevel,
 	WordCategory category
 ) {

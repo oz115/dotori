@@ -2,6 +2,7 @@ package com.bana.dotori.word.controller;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -99,16 +100,33 @@ class WordControllerTest {
 	@DisplayName("단어 상세 조회 성공 시 200과 명세 형식(definition 필드)의 상세를 반환한다")
 	void getWord_success() throws Exception {
 		givenAuthenticated();
-		given(wordService.getWord(1)).willReturn(
-			new WordDetailResponse(1, "복리", "이자에 다시 이자가 붙는 계산 방식이에요.", 3, WordCategory.BANKING));
+		given(wordService.getWord(1)).willReturn(new WordDetailResponse(1, "복리",
+			"이자에 다시 이자가 붙는 계산 방식이에요.", "이자에 또 이자가 붙어서 돈이 점점 빨리 불어나는 거예요.",
+			3, WordCategory.BANKING));
 
 		mockMvc.perform(get(WORDS_URL + "/1").header(HttpHeaders.AUTHORIZATION, BEARER))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.wordId").value(1))
 			.andExpect(jsonPath("$.word").value("복리"))
 			.andExpect(jsonPath("$.definition").value("이자에 다시 이자가 붙는 계산 방식이에요."))
+			.andExpect(jsonPath("$.easyDefinition").value("이자에 또 이자가 붙어서 돈이 점점 빨리 불어나는 거예요."))
 			.andExpect(jsonPath("$.difficultyLevel").value(3))
 			.andExpect(jsonPath("$.category").value("BANKING"));
+	}
+
+	@Test
+	@DisplayName("쉬운 설명이 아직 없는 단어는 easyDefinition 이 null 로 나간다")
+	void getWord_withoutEasyDefinition() throws Exception {
+		// 용어사전을 나중에 받아 채운 컬럼이라, 사전에 없던 단어는 비어 있다.
+		givenAuthenticated();
+		given(wordService.getWord(1)).willReturn(new WordDetailResponse(1, "복리",
+			"이자에 다시 이자가 붙는 계산 방식이에요.", null, 3, WordCategory.BANKING));
+
+		mockMvc.perform(get(WORDS_URL + "/1").header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			// 필드를 빼는 게 아니라 null 로 내려간다 (Jackson 기본 설정). 프론트 타입도 그 계약이다.
+			.andExpect(jsonPath("$.easyDefinition").value(nullValue()))
+			.andExpect(jsonPath("$.definition").value("이자에 다시 이자가 붙는 계산 방식이에요."));
 	}
 
 	@Test
