@@ -15,6 +15,9 @@ import { useTheme } from '@/shared/theme';
 
 const CHART_HEIGHT = 180;
 const EDGE_INSET = 6;
+// x축 날짜 라벨 최대 개수. 일주일 윈도우(8점)가 전부 찍히는 크기다 —
+// 그보다 긴 이력은 오늘부터 같은 간격으로 솎아낸다.
+const MAX_X_LABELS = 8;
 
 type Props = {
   history: PricePoint[];
@@ -194,10 +197,13 @@ export function PriceLineChart({ history }: Props) {
         {history
           .map((point, index) => ({ ...point, index }))
           // 오늘(마지막)을 기준으로 같은 간격씩 거슬러 라벨을 찍는다 — 앞에서부터 찍고
-          // 마지막을 억지로 끼우면 끝의 두 라벨만 날짜 간격이 달라져 이상해 보인다
+          // 마지막을 억지로 끼우면 끝의 두 라벨만 날짜 간격이 달라져 이상해 보인다.
+          // 일주일(8점) 차트는 간격이 1이 되어 모든 날짜가 찍힌다.
           .filter(
             (_, index) =>
-              (history.length - 1 - index) % Math.max(1, Math.ceil((history.length - 1) / 4)) === 0,
+              (history.length - 1 - index) %
+                Math.max(1, Math.ceil((history.length - 1) / (MAX_X_LABELS - 1))) ===
+              0,
           )
           .map((point) => (
             <Text

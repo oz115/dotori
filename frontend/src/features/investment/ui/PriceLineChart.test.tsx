@@ -26,31 +26,27 @@ it('기본엔 안내만 보이고, 그래프를 누르면 그 지점의 날짜·
   expect(screen.getByText('9/2 · 200 도토리')).toBeTruthy();
 });
 
-it('날짜 눈금은 마지막 날을 보존하고 같은 간격으로 거슬러 찍는다', async () => {
+it('긴 이력의 날짜 눈금은 마지막 날을 보존하고 같은 간격으로 거슬러 솎아낸다', async () => {
   await render(
     <PriceLineChart
       history={Array.from({ length: 31 }, (_, index) => ({ label: `8/${index + 1}`, price: 100 }))}
     />,
   );
-  // 31일: 간격 8일 — 8/31, 8/23, 8/15, 8/7. 앞쪽 자투리(8/1)는 버린다.
+  // 31일: 간격 5일 — 8/31, 8/26, ..., 8/1. 끝의 두 라벨만 간격이 다른 일이 없다.
   expect(screen.getByText('8/31')).toBeTruthy();
-  expect(screen.getByText('8/23')).toBeTruthy();
-  expect(screen.getByText('8/7')).toBeTruthy();
-  expect(screen.queryByText('8/1')).toBeNull();
-  expect(screen.getAllByText(/^8\//).length).toBeLessThanOrEqual(5);
+  expect(screen.getByText('8/26')).toBeTruthy();
+  expect(screen.getByText('8/1')).toBeTruthy();
+  expect(screen.queryByText('8/30')).toBeNull();
+  expect(screen.getAllByText(/^8\//).length).toBeLessThanOrEqual(8);
 });
 
-it('일주일(8점) 이력은 오늘부터 이틀 간격으로 고르게 찍는다', async () => {
+it('일주일(8점) 이력은 모든 날짜가 찍힌다', async () => {
   await render(
     <PriceLineChart
       history={Array.from({ length: 8 }, (_, index) => ({ label: `9/${index + 15}`, price: 100 }))}
     />,
   );
-  // 9/15~9/22: 라벨은 9/16, 9/18, 9/20, 9/22 — 끝의 두 라벨만 간격이 다른 일이 없다
-  expect(screen.getByText('9/22')).toBeTruthy();
-  expect(screen.getByText('9/20')).toBeTruthy();
-  expect(screen.getByText('9/18')).toBeTruthy();
-  expect(screen.getByText('9/16')).toBeTruthy();
-  expect(screen.queryByText('9/15')).toBeNull();
-  expect(screen.queryByText('9/21')).toBeNull();
+  for (let day = 15; day <= 22; day += 1) {
+    expect(screen.getByText(`9/${day}`)).toBeTruthy();
+  }
 });
