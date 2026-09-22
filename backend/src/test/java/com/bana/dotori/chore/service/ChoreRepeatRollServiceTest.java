@@ -16,12 +16,17 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
+import com.bana.dotori.chore.event.ChoreCompletionExpiredEvent;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
@@ -41,6 +46,9 @@ class ChoreRepeatRollServiceTest {
 
 	@Mock
 	private ChoreCompletionRequestRepository completionRequestRepository;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@InjectMocks
 	private ChoreRepeatRollService choreRepeatRollService;
@@ -108,6 +116,25 @@ class ChoreRepeatRollServiceTest {
 	}
 
 	@Test
+	@DisplayName("자동 거절한 요청은 아이에게 알릴 수 있도록 미션 제목과 함께 이벤트로 알린다")
+	void 자동_거절은_이벤트로_알린다() {
+		// 아이는 자기가 올린 사진이 왜 사라졌는지 알 길이 없다. 제목이 있어야 어느 미션인지 안다.
+		LocalDate today = LocalDate.of(2026, 9, 8);
+		given(completionRequestRepository.findStalePending(ChoreRepeatType.DAY, today))
+			.willReturn(List.of(pendingRequest()));
+		given(choreRepository.findAllById(List.of(1))).willReturn(List.of(chore(1, "설거지 도와주기")));
+
+		choreRepeatRollService.roll(ChoreRepeatType.DAY, today);
+
+		ArgumentCaptor<ChoreCompletionExpiredEvent> captor =
+			ArgumentCaptor.forClass(ChoreCompletionExpiredEvent.class);
+		verify(eventPublisher).publishEvent(captor.capture());
+		assertThat(captor.getValue().choreId()).isEqualTo(1);
+		assertThat(captor.getValue().childId()).isEqualTo(2);
+		assertThat(captor.getValue().choreTitle()).isEqualTo("설거지 도와주기");
+	}
+
+	@Test
 	@DisplayName("자동 거절은 기간을 밀기 전에 한다 — 새 기간으로 민 뒤면 대상이 사라진다")
 	void 거절이_기간_갱신보다_먼저() {
 		LocalDate today = LocalDate.of(2026, 9, 8);
@@ -149,5 +176,11 @@ class ChoreRepeatRollServiceTest {
 			.childId(2)
 			.description("다 했어요")
 			.build();
+	}
+
+	private Chore chore(Integer id, String title) {
+		Chore chore = Chore.builder().title(title).rewardPoints(500).build();
+		ReflectionTestUtils.setField(chore, "id", id);
+		return chore;
 	}
 }

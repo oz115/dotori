@@ -64,6 +64,23 @@ public class ChoreCompletionNotificationListener {
 	}
 
 	/**
+	 * 주기가 지나 자동 거절된 요청을 아이에게 알린다.
+	 *
+	 * <p>푸시 없이 알림함에만 남긴다 — 이 처리는 크론이 자정에 하는데, 그때 푸시를 보내면
+	 * 자는 아이 폰이 새벽에 울린다. 아이가 한 행동에 대한 응답도 아니라 급히 알릴 이유가 없다.
+	 *
+	 * <p>부모의 거절과 문구를 나눈다. 아이가 잘못한 것이 없고 기간이 지났을 뿐이라,
+	 * 사진을 다시 찍으라는 안내는 여기서 틀린 말이 된다.
+	 */
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onExpired(ChoreCompletionExpiredEvent event) {
+		pushNotificationService.record(event.childId(), NotificationType.CHORE,
+			"미션 기간이 지났어요",
+			NotificationText.shortName(event.choreTitle()) + "라는 미션을 다시 할 수 있어요.",
+			event.choreId());
+	}
+
+	/**
 	 * 알림 문구에 쓸 아이 이름. 못 찾으면 "아이" 로 둔다.
 	 *
 	 * 이름은 거래의 일부가 아니라 문구의 일부다 - 여기서 예외를 던지면 이미 끝난 요청이

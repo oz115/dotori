@@ -3,11 +3,17 @@ package com.bana.dotori.chore.service;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bana.dotori.chore.entity.Chore;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
+import com.bana.dotori.chore.event.ChoreCompletionExpiredEvent;
 import com.bana.dotori.chore.entity.ChoreRepeatType;
 import com.bana.dotori.chore.repository.ChoreCompletionRequestRepository;
 import com.bana.dotori.chore.repository.ChoreRepository;
@@ -32,6 +38,7 @@ public class ChoreRepeatRollService {
 
 	private final ChoreRepository choreRepository;
 	private final ChoreCompletionRequestRepository completionRequestRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
 	/**
 	 * 그 주기의 할 일 중 기간이 끝난 것을 오늘 기준 새 주기로 민다.
@@ -77,6 +84,17 @@ public class ChoreRepeatRollService {
 		for (ChoreCompletionRequest request : stale) {
 			request.reject(now);
 		}
+
+		// 아이는 자기가 올린 사진이 왜 사라졌는지 알 길이 없다. 제목을 담아 알리려고 한 번에 읽는다.
+		Map<Integer, String> titles = choreRepository
+			.findAllById(stale.stream().map(ChoreCompletionRequest::getChoreId).toList())
+			.stream()
+			.collect(Collectors.toMap(Chore::getId, Chore::getTitle, (first, second) -> first));
+		for (ChoreCompletionRequest request : stale) {
+			eventPublisher.publishEvent(new ChoreCompletionExpiredEvent(request.getChoreId(),
+				request.getChildId(), titles.get(request.getChoreId())));
+		}
+
 		log.info("기간이 지난 완료 요청 자동 거절: repeatType={}, count={}", repeatType, stale.size());
 		return stale.size();
 	}

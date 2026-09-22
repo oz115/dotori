@@ -48,14 +48,7 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 	@Override
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void notify(Integer userId, NotificationType type, String title, String body, Integer refId) {
-		User user = userRepository.getReferenceById(userId);
-		notificationRepository.save(Notification.builder()
-			.user(user)
-			.type(type)
-			.title(title)
-			.body(body)
-			.refId(refId)
-			.build());
+		save(userId, type, title, body, refId);
 
 		FirebaseMessaging messaging = firebaseMessaging.getIfAvailable();
 		if (messaging == null) {
@@ -70,6 +63,23 @@ public class PushNotificationServiceImpl implements PushNotificationService {
 		}
 
 		sendPush(messaging, deviceTokens, type, title, body, refId);
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void record(Integer userId, NotificationType type, String title, String body, Integer refId) {
+		save(userId, type, title, body, refId);
+	}
+
+	private void save(Integer userId, NotificationType type, String title, String body, Integer refId) {
+		User user = userRepository.getReferenceById(userId);
+		notificationRepository.save(Notification.builder()
+			.user(user)
+			.type(type)
+			.title(title)
+			.body(body)
+			.refId(refId)
+			.build());
 	}
 
 	/**
