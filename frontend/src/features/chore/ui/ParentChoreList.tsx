@@ -19,6 +19,7 @@ import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import {
   ChildBadge,
+  Checkbox,
   ContentCard,
   FilterChips,
   Header,
@@ -65,6 +66,7 @@ export function ParentChoreList({
   const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
   const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
+  const [onlyActive, setOnlyActive] = useState(false);
 
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
@@ -85,9 +87,10 @@ export function ParentChoreList({
   const visible = useMemo(() => {
     const byRepeat =
       repeatType == null ? listed : listed.filter((chore) => chore.repeatType === repeatType);
+    const filtered = onlyActive ? byRepeat.filter((chore) => !chore.done) : byRepeat;
     // 아직 안 끝난 것이 위로. 섞여 있으면 무엇이 남았는지 훑어야 한다.
-    return [...byRepeat].sort((a, b) => Number(a.done) - Number(b.done));
-  }, [listed, repeatType]);
+    return [...filtered].sort((a, b) => Number(a.done) - Number(b.done));
+  }, [listed, repeatType, onlyActive]);
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
   const historyButton = onHistoryPress ? (
@@ -135,7 +138,8 @@ export function ParentChoreList({
           ) : null}
         </View>
 
-        {/* 붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다 */}
+        {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (아이 화면과 같다).
+            붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다. */}
         <View
           style={{
             paddingHorizontal: theme.layout.screenX,
@@ -143,7 +147,12 @@ export function ParentChoreList({
             backgroundColor: theme.color.background.canvas,
           }}
         >
-          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+          <View style={[styles.filterRow, { gap: theme.space.sm }]}>
+            <View style={styles.chips}>
+              <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            </View>
+            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
+          </View>
         </View>
 
         {visible.length === 0 ? (
@@ -296,6 +305,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
+  filterRow: { flexDirection: 'row', alignItems: 'center' },
+  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
+  chips: { flex: 1 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
