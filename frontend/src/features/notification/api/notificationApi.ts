@@ -49,4 +49,8 @@ export const notificationApi = {
 
   deleteNotification: (notificationId: number) =>
     httpClient.delete<void>(`/api/v1/notifications/${notificationId}`).then(() => undefined),
+
+  /** 본인 알림 전부 삭제. 지울 것이 없어도 0 건으로 성공한다. */
+  deleteAllNotifications: () =>
+    httpClient.delete<{ deletedCount: number }>('/api/v1/notifications').then((res) => res.data),
 };

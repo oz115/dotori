@@ -1,5 +1,7 @@
 import type { Href } from 'expo-router';
 
+import { FROM_NOTIFICATION } from '@/features/notification/model/useBackToNotifications';
+
 type Role = 'PARENT' | 'CHILD' | undefined;
 
 /**
@@ -16,6 +18,14 @@ type Role = 'PARENT' | 'CHILD' | undefined;
 export function resolveNotificationRoute(
   data: Record<string, unknown> | undefined,
   role: Role,
+  /**
+   * 앱 안의 알림함에서 탭한 경우 true, 푸시 알림을 탭해서 앱이 열린 경우 false.
+   *
+   * 같은 화면으로 가더라도 뒤로가기가 달라야 한다 — 알림함에서 왔으면 알림함으로,
+   * 푸시에서 왔으면 그 탭의 목록으로 가는 게 맞다. 그래서 탭 안쪽 화면에만 서로 다른
+   * 파라미터를 실어 보낸다 (from / viaDeepLink).
+   */
+  fromNotificationList = false,
 ): Href | null {
   const type = data?.type;
   const refId = typeof data?.refId === 'string' ? data.refId : undefined;
@@ -23,24 +33,37 @@ export function resolveNotificationRoute(
     return null;
   }
 
-  return role === 'PARENT' ? resolveParentRoute(type, refId) : resolveChildRoute(type, refId);
+  return role === 'PARENT'
+    ? resolveParentRoute(type, refId, fromNotificationList)
+    : resolveChildRoute(type, refId, fromNotificationList);
 }
 
-function resolveParentRoute(type: string, refId: string | undefined): Href | null {
+function resolveParentRoute(
+  type: string,
+  refId: string | undefined,
+  fromList: boolean,
+): Href | null {
   switch (type) {
     // 아이가 상품을 샀다 — 그 상품 상세
     case 'PURCHASE':
       if (!refId) return null;
       return {
         pathname: '/(parent)/(tabs)/store/[productId]',
-        // viaDeepLink: 이 화면이 store 탭 밖(알림)에서 곧장 열렸다는 표시. 상세 화면이
-        // 이걸 보고 목록을 먼저 깔아준다 — 안 그러면 그 탭 내부 스택에 상세 하나만
-        // 남아서 뒤로가기·탭 전환이 깨진다.
-        params: { productId: refId, viaDeepLink: '1' },
+        // 알림함에서 왔으면 뒤로가기를 알림함으로 돌리게 표시만 한다 (from) — 알림함에서
+        // 탭 안쪽으로 이동하면 그 탭의 목록은 이미 아래에 깔려 있다.
+        //
+        // 푸시에서 곧장 열린 경우(viaDeepLink)는 다르다. 그 탭 내부 스택에 상세 하나만
+        // 남아서 뒤로가기·탭 전환이 깨지므로, 상세 화면이 목록을 먼저 깔아준다.
+        params: fromList
+          ? { productId: refId, from: FROM_NOTIFICATION }
+          : { productId: refId, viaDeepLink: '1' },
       };
-    // 아이가 완료를 인증했다 — 승인·거절하는 완료 요청 목록 (store 상세와 같은 이유로 viaDeepLink)
+    // 아이가 완료를 인증했다 — 승인·거절하는 완료 요청 목록 (파라미터 구분은 store 상세와 같다)
     case 'CHORE':
-      return { pathname: '/(parent)/(tabs)/task/requests', params: { viaDeepLink: '1' } };
+      return {
+        pathname: '/(parent)/(tabs)/task/requests',
+        params: fromList ? { from: FROM_NOTIFICATION } : { viaDeepLink: '1' },
+      };
     // 아이가 환전을 요청했다 — 승인해야 송금되는 환전 요청 목록
     case 'CASHOUT':
       return '/(parent)/wallet/cashouts';
@@ -57,14 +80,21 @@ function resolveParentRoute(type: string, refId: string | undefined): Href | nul
   }
 }
 
-function resolveChildRoute(type: string, refId: string | undefined): Href | null {
+function resolveChildRoute(
+  type: string,
+  refId: string | undefined,
+  fromList: boolean,
+): Href | null {
   switch (type) {
     // 부모가 새 상품을 올렸다 — 그 상품 상세
     case 'PURCHASE':
       if (!refId) return null;
       return {
         pathname: '/(child)/(tabs)/store/[productId]',
-        params: { productId: refId, viaDeepLink: '1' },
+        // 부모 쪽과 같은 구분 (from = 알림함에서, viaDeepLink = 푸시에서 곧장)
+        params: fromList
+          ? { productId: refId, from: FROM_NOTIFICATION }
+          : { productId: refId, viaDeepLink: '1' },
       };
     // 새 할 일 / 완료 승인 / 거절 — 할 일 탭에서 그 미션의 상세 모달을 연다
     case 'CHORE':
