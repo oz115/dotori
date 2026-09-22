@@ -199,7 +199,11 @@ export function ChildChoreDetail({ familyId, childId, choreId, onBack }: ChildCh
               }
             />
           ) : status === 'PENDING' ? (
-            <PendingBody description={request?.description ?? null} photoUrl={request?.photoUrl} />
+            <PendingBody
+              description={request?.description ?? null}
+              photoUrl={request?.photoUrl}
+              requestId={request?.choreCompletionRequestId}
+            />
           ) : (
             <>
               {/* 거절은 부모가 "아직 안 본" 것이 아니라 보고 나서 돌려보낸 것이다. 이유는
@@ -381,7 +385,15 @@ function TodoBody({
 }
 
 /** 요청을 보내 놓고 부모 확인을 기다리는 중 */
-function PendingBody({ description, photoUrl }: { description: string | null; photoUrl?: string }) {
+function PendingBody({
+  description,
+  photoUrl,
+  requestId,
+}: {
+  description: string | null;
+  photoUrl?: string;
+  requestId?: number;
+}) {
   const theme = useTheme();
 
   return (
@@ -414,8 +426,14 @@ function PendingBody({ description, photoUrl }: { description: string | null; ph
           <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
             내가 올린 사진
           </Text>
+          {/* 사진 URL 은 presigned 라 응답을 다시 받을 때마다 서명이 바뀐다. URL 을 캐시
+              키로 쓰면 같은 사진을 매번 다시 받아 화면이 깜빡인다 (QA) - 부모 목록·모달과
+              같은 요청 id 키를 써서 두 번째부터는 캐시에서 바로 그린다. */}
           <Image
-            source={{ uri: photoUrl }}
+            source={{
+              uri: photoUrl,
+              cacheKey: requestId != null ? `chore-request-${requestId}` : undefined,
+            }}
             style={[styles.preview, { borderRadius: theme.radius.md }]}
             contentFit="cover"
             transition={120}
