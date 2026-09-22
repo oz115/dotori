@@ -415,6 +415,7 @@ class InvestmentProductServiceImplTest {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		givenFirstRecordedAt(SEED_AT);
 		given(investmentPriceHistoryRepository.findAllInRange(eq(FAMILY_ID), eq(1), any(OffsetDateTime.class),
 			any(OffsetDateTime.class))).willReturn(List.of());
 
@@ -434,6 +435,7 @@ class InvestmentProductServiceImplTest {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		givenFirstRecordedAt(SEED_AT);
 		OffsetDateTime start = LocalDate.of(2026, 9, 1).atStartOfDay(KST).toOffsetDateTime();
 		OffsetDateTime end = LocalDate.of(2026, 9, 16).atStartOfDay(KST).toOffsetDateTime();
 		given(investmentPriceHistoryRepository.findAllInRange(FAMILY_ID, 1, start, end)).willReturn(List.of(
@@ -541,6 +543,7 @@ class InvestmentProductServiceImplTest {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
+		givenFirstRecordedAt(SEED_AT);
 		OffsetDateTime start = SEED_AT.plusDays(2);
 		given(investmentPriceHistoryRepository
 			.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(FAMILY_ID, 1, start))
@@ -554,6 +557,7 @@ class InvestmentProductServiceImplTest {
 
 	@Test
 	void getPriceHistory_startsAtLaterCreationAndStopsToday() {
+		// 이 가족의 첫 기록이 아직 없으면(온보딩 직후 백필 전) 오늘 한 점(시작가)만 만든다
 		givenFamilyCreated(todayStart().minusDays(1));
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		InvestmentProduct product = product(1, "새 회사", 100);
@@ -567,14 +571,15 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	void getPriceHistory_beforeCreationIsEmpty() {
-		givenFamilyCreated(todayStart());
+	void getPriceHistory_beforeFirstRecordIsEmpty() {
+		// 첫 기록(여기선 기록 없음 = 오늘) 이전 기간만 조회하면 빈 목록이다
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 100)));
 		var response = investmentProductService.getPriceHistory(USER_ID, 1,
 			LocalDate.now(KST).minusDays(3), LocalDate.now(KST).minusDays(1));
 		assertThat(response.history()).isEmpty();
-		then(investmentPriceHistoryRepository).shouldHaveNoInteractions();
+		then(investmentPriceHistoryRepository).should(never())
+			.findAllInRange(any(), any(), any(OffsetDateTime.class), any(OffsetDateTime.class));
 	}
 
 	@Test
@@ -596,6 +601,13 @@ class InvestmentProductServiceImplTest {
 			SEED_AT.plusDays(4).toLocalDate(), InvestmentTransactionType.SELL);
 		assertThat(response.transactions().get(0).buyPrice()).isEqualTo(1500);
 		assertThat(response.transactions().get(0).realizedProfit()).isEqualTo(-200);
+	}
+
+	/** 차트 시작일 하한이 되는 "이 가족의 첫 가격 기록" 시각을 흉내낸다. */
+	private void givenFirstRecordedAt(OffsetDateTime recordedAt) {
+		given(investmentPriceHistoryRepository
+			.findFirstByFamilyIdAndInvestmentProductIdOrderByRecordedAtAscIdAsc(FAMILY_ID, 1))
+			.willReturn(Optional.of(history(1, 10000, recordedAt)));
 	}
 
 	private void givenFamilyCreated(OffsetDateTime createdAt) {

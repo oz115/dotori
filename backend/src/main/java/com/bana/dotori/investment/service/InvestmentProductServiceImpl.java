@@ -173,12 +173,15 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
 		}
 
-		// 아직 존재하지 않은 날짜와 미래 가격은 만들지 않는다.
-		LocalDate familyCreated = familyRepository.findByIdAndDeletedAtIsNull(familyId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND))
-			.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
+		// 아직 존재하지 않은 날짜와 미래 가격은 만들지 않는다. 왼쪽 끝은 가입일이 아니라
+		// "이 가족의 첫 가격 기록"이다 — 온보딩 때 지난 일주일치를 백필해 주므로(AI),
+		// 어제 가입한 아이도 일주일 흐름을 본다. 기록이 아직 없으면 오늘 한 점(시작가)만 만든다.
+		LocalDate firstRecorded = investmentPriceHistoryRepository
+			.findFirstByFamilyIdAndInvestmentProductIdOrderByRecordedAtAscIdAsc(familyId, product.getId())
+			.map(row -> row.getRecordedAt().atZoneSameInstant(KST).toLocalDate())
+			.orElseGet(() -> LocalDate.now(KST));
 		LocalDate productCreated = product.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
-		start = start.isBefore(familyCreated) ? familyCreated : start;
+		start = start.isBefore(firstRecorded) ? firstRecorded : start;
 		start = start.isBefore(productCreated) ? productCreated : start;
 		LocalDate today = LocalDate.now(KST);
 		end = end.isAfter(today) ? today : end;
