@@ -10,7 +10,7 @@ import {
   TradeSelectionBar,
   useInvestmentHoldings,
 } from '@/features/investment';
-import { useTheme } from '@/shared/theme';
+import { fontFamily, useTheme } from '@/shared/theme';
 import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /**
@@ -74,7 +74,13 @@ export default function InvestHoldingsScreen() {
             <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
               보유한 투자 상품
             </Text>
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+            {/* 주식 리스트의 사기 안내와 같은 강조 — 조작 안내는 굵게 */}
+            <Text
+              style={[
+                theme.typography.bodySm,
+                { color: theme.color.text.sub, fontFamily: fontFamily.bold },
+              ]}
+            >
               카드를 꾹 누르면 여러 개를 골라 한 번에 팔 수 있어요.
             </Text>
             {holdings.data.length === 0 ? (

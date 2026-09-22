@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { useSignupDate } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
 import { ParentInvestmentTransactions } from '@/features/investment';
 
@@ -11,11 +12,13 @@ export default function ParentInvestmentTransactionsScreen() {
   const { data: familyId } = useFamilyId();
   const { data: members } = useFamilyMembers(familyId ?? undefined);
   const childName = members?.find((member) => member.userId === childId)?.name;
+  const signupDate = useSignupDate();
 
   return (
     <ParentInvestmentTransactions
       childId={childId}
       childName={childName}
+      minPickableDate={signupDate}
       onBack={() =>
         router.canGoBack() ? router.back() : router.replace('/(parent)/(tabs)/investment')
       }

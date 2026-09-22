@@ -44,6 +44,13 @@ describe('scalePoints', () => {
       { x: 90, y: 0 },
     ]);
   });
+
+  it('inset 은 좌우에도 적용돼 양끝 점이 잘리지 않는다', () => {
+    const points = scalePoints([0, 100], 0, 100, 100, 50, 5);
+    expect(points[0].x).toBe(5);
+    expect(points[points.length - 1].x).toBe(95);
+    expect(scalePoints([50], 0, 100, 100, 50, 5)[0].x).toBe(95);
+  });
 });
 
 describe('toPolylinePoints', () => {

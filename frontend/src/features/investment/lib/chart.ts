@@ -34,7 +34,8 @@ export function axisTicks(min: number, max: number, targetCount = 4): number[] {
 
 /**
  * 값 배열을 차트 영역 좌표로 정규화한다. domain 은 축 눈금의 양 끝을 넘기면 된다.
- * inset 은 선 두께·마지막 점이 위아래에서 잘리지 않게 하는 여백.
+ * inset 은 선 두께·양끝 점이 상하좌우에서 잘리지 않게 하는 여백 — 세로만 주면
+ * 마지막 점(x = 폭 끝)의 원이 SVG 밖으로 나가 오른쪽이 잘려 보인다.
  */
 export function scalePoints(
   values: number[],
@@ -51,11 +52,13 @@ export function scalePoints(
     // 점이 하나뿐이면 선을 그릴 기준(step)이 없다 — 마지막 값이 늘 오른쪽 끝에 오는
     // 다중 포인트 배치와 맞춰, 오른쪽 끝에 점 하나만 찍는다 (호출 쪽이 점 하나일 땐
     // 선·영역 없이 점만 그린다).
-    return [{ x: round1(width), y: scaleY(values[0], domainMin, domainMax, height, inset) }];
+    return [
+      { x: round1(width - inset), y: scaleY(values[0], domainMin, domainMax, height, inset) },
+    ];
   }
-  const stepX = width / (values.length - 1);
+  const stepX = (width - inset * 2) / (values.length - 1);
   return values.map((value, index) => ({
-    x: round1(index * stepX),
+    x: round1(inset + index * stepX),
     y: scaleY(value, domainMin, domainMax, height, inset),
   }));
 }

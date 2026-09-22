@@ -1,3 +1,4 @@
+import { useSignupDate } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
 import { PurchaseHistoryScreen } from '@/features/store';
 
@@ -9,6 +10,13 @@ export default function ParentPurchaseHistoryScreen() {
   const { data: familyId } = useFamilyId();
   const members = useFamilyMembers(familyId ?? undefined);
   const childId = members.data?.find((m) => m.role === 'CHILD')?.userId;
+  const signupDate = useSignupDate();
 
-  return <PurchaseHistoryScreen familyId={familyId ?? undefined} childId={childId} />;
+  return (
+    <PurchaseHistoryScreen
+      familyId={familyId ?? undefined}
+      childId={childId}
+      minPickableDate={signupDate}
+    />
+  );
 }

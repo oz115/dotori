@@ -24,6 +24,8 @@ import {
 type PurchaseHistoryScreenProps = {
   familyId: number | undefined;
   childId: number | undefined;
+  /** 직접설정 달력의 하한 (가입일). 라우트가 프로필에서 꺼내 넘긴다 */
+  minPickableDate?: Date;
 };
 
 type SortOrder = 'LATEST' | 'OLDEST';
@@ -36,7 +38,11 @@ type SortOrder = 'LATEST' | 'OLDEST';
  * 전체 기간 누적이라 이렇게 해야 기간 필터와 무관하게 따로 계산할 수 있고, API 호출도 한 번으로
  * 끝난다. 기간 조회는 실계좌 거래내역과 같은 달력 방식(PeriodFilterControl)이다.
  */
-export function PurchaseHistoryScreen({ familyId, childId }: PurchaseHistoryScreenProps) {
+export function PurchaseHistoryScreen({
+  familyId,
+  childId,
+  minPickableDate,
+}: PurchaseHistoryScreenProps) {
   const theme = useTheme();
   const refreshControl = usePullToRefresh();
   const [period, setPeriod] = useState(defaultPeriodFilter());
@@ -70,7 +76,11 @@ export function PurchaseHistoryScreen({ familyId, childId }: PurchaseHistoryScre
           <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
             <CategoryFilterBar selected={category} onSelect={setCategory} />
 
-            <PeriodFilterControl value={period} onChange={setPeriod} />
+            <PeriodFilterControl
+              value={period}
+              onChange={setPeriod}
+              minPickableDate={minPickableDate}
+            />
 
             <View
               style={[
