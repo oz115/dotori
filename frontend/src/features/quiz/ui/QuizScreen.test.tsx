@@ -95,7 +95,7 @@ it('정답이 공개된 상태에서는 힌트 대신 결과 화면을 보여 �
   expect(screen.queryByText('초성 힌트')).toBeNull();
 });
 
-it('정답을 맞히면 포인트 받기가 아니라 완료 문구를 보여 준다', async () => {
+it('정답을 맞혀도 결과 화면 버튼은 포인트 받기가 아니라 확인이다', async () => {
   jest.mocked(quizApi.getTodayQuiz).mockResolvedValue(quiz());
   jest.mocked(quizApi.submitQuiz).mockResolvedValue(
     submitResult({
@@ -111,7 +111,7 @@ it('정답을 맞히면 포인트 받기가 아니라 완료 문구를 보여 �
   await fireEvent.press(screen.getByText('정답 확인'));
 
   // 포인트는 제출 시점에 이미 들어왔으니 버튼이 받을 게 남은 것처럼 보이면 안 된다
-  expect(await screen.findByText('오늘의 퀴즈를 완료했습니다')).toBeTruthy();
+  expect(await screen.findByText('확인')).toBeTruthy();
   expect(screen.queryByText('포인트 받기')).toBeNull();
   expect(screen.getByText('+60P를 받았어요')).toBeTruthy();
 });

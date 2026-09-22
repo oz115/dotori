@@ -387,7 +387,7 @@ function QuizResultSuccess({
           </View>
         ) : null}
 
-        <Button label="오늘의 퀴즈를 완료했습니다" onPress={onClose} style={styles.fullWidth} />
+        <Button label="확인" onPress={onClose} style={styles.fullWidth} />
       </View>
     </Screen>
   );
