@@ -13,6 +13,8 @@ import { useTheme, type Theme } from '@/shared/theme';
 import { Button, Callout, ContentCard, Header, Input, Screen } from '@/shared/ui';
 
 const MAX_ATTEMPTS = 3;
+/** 서버 quiz_attempt.submitted_answer 컬럼이 255자라 그 이상은 저장되면서 500이 난다 — 입력 단계에서 막는다. */
+const MAX_ANSWER_LENGTH = 255;
 /** 퀴즈 화면 전용 배경색(연크림). 카드는 흰색으로 그 위에 뜬다 — 다른 화면의 기본 배경과는 다르다. */
 const QUIZ_BACKGROUND = '#FBFAF6';
 /** 정답 결과 화면 전용 배경색(연초록). 축하하는 화면이라 다른 퀴즈 화면보다 살짝 더 그린빛을 준다. */
@@ -253,6 +255,7 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
             placeholder="정답을 입력해보세요"
             value={answer}
             onChangeText={setAnswer}
+            maxLength={MAX_ANSWER_LENGTH}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
           />
@@ -384,7 +387,7 @@ function QuizResultSuccess({
           </View>
         ) : null}
 
-        <Button label="포인트 받기" onPress={onClose} style={styles.fullWidth} />
+        <Button label="오늘의 퀴즈를 완료했습니다" onPress={onClose} style={styles.fullWidth} />
       </View>
     </Screen>
   );
