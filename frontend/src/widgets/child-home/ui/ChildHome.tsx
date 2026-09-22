@@ -66,8 +66,8 @@ export function ChildHome() {
           isPending={balance.isPending}
           onCharge={() => router.push('/wallet/charge')}
           onCashout={() => router.push('/wallet/cashout')}
-          // '/wallet/cashouts' 는 부모 그룹에도 있는 경로라 그룹까지 적어야 아이 화면으로 간다
-          onCashoutHistory={() => router.push('/(child)/wallet/cashouts')}
+          // 포인트 입출금·환전을 한 화면에서 보는 거래 내역으로 간다
+          onCashoutHistory={() => router.push('/(child)/wallet/transactions')}
           account={account.data}
           assets={assets}
           // 예적금·투자·계좌는 그룹 접두사를 적어야 아이 화면으로 간다 (부모 그룹에도 같은 경로가 있다)

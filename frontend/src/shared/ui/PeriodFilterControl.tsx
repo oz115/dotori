@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui/Button';
 import { DateRangeCalendar } from '@/shared/ui/DateRangeCalendar';
 
-export type PeriodPreset = 'ALL' | 'MONTH' | 'THREE_MONTHS' | 'SIX_MONTHS' | 'CUSTOM';
+export type PeriodPreset = 'ALL' | 'MONTH' | 'THREE_MONTHS' | 'CUSTOM';
 
 export type PeriodFilterValue = {
   preset: PeriodPreset;
@@ -32,8 +32,6 @@ export function periodDateRange(
       return { startDate: toDateParam(monthsAgo(1)), endDate: toDateParam(today) };
     case 'THREE_MONTHS':
       return { startDate: toDateParam(monthsAgo(3)), endDate: toDateParam(today) };
-    case 'SIX_MONTHS':
-      return { startDate: toDateParam(monthsAgo(6)), endDate: toDateParam(today) };
     case 'CUSTOM':
       return { startDate: toDateParam(value.start), endDate: toDateParam(value.end) };
   }
@@ -47,8 +45,6 @@ export function periodLabel(value: PeriodFilterValue): string {
       return '최근 1개월';
     case 'THREE_MONTHS':
       return '최근 3개월';
-    case 'SIX_MONTHS':
-      return '최근 6개월';
     case 'CUSTOM':
       return `${formatDateShort(value.start)} ~ ${formatDateShort(value.end)}`;
   }
@@ -58,7 +54,7 @@ const PRESET_OPTIONS: { key: PeriodPreset; label: string }[] = [
   { key: 'ALL', label: '전체' },
   { key: 'MONTH', label: '1개월' },
   { key: 'THREE_MONTHS', label: '3개월' },
-  { key: 'SIX_MONTHS', label: '6개월' },
+  // 6개월 칩도 넣어 봤지만 한 줄에 안 들어가 직접설정이 다음 줄로 밀렸다 — 네 개 유지
   { key: 'CUSTOM', label: '직접설정' },
 ];
 

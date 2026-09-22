@@ -26,9 +26,12 @@ export {
   splitCashoutRequests,
   type CashoutStatusTone,
 } from './lib/cashoutStatus';
+export { usePointTransactions } from './model/usePointTransactions';
+export { pointTransactionReasonLabel } from './lib/pointTransactionLabels';
 export { GrantPointsScreen } from './ui/GrantPointsScreen';
 export { ParentCashoutRequestList } from './ui/ParentCashoutRequestList';
 export { ChildCashoutRequestList } from './ui/ChildCashoutRequestList';
+export { ChildWalletHistory } from './ui/ChildWalletHistory';
 export { CashoutRequestRow } from './ui/CashoutRequestRow';
 export { CashoutStatusBadge } from './ui/CashoutStatusBadge';
 export { CashoutStatusIcon } from './ui/CashoutStatusIcon';
@@ -38,6 +41,8 @@ export type {
   ChargeBody,
   GrantBody,
   PointTransaction,
+  PointTransactionItem,
+  PointTransactionReason,
   CashoutBody,
   CashoutStatus,
   CashoutRequest,

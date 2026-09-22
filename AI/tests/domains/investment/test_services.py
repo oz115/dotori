@@ -159,12 +159,15 @@ class TestGenerateTodaysNews:
 
 
 class TestPriceMath:
-    @pytest.mark.parametrize(
-        ("weekly_reward_limit", "expected"),
-        [(0, 1), (7, 1), (100, 6), (3500, 200), (10000, 571)],
-    )
-    def test_price_delta(self, weekly_reward_limit, expected):
-        assert services._price_delta(weekly_reward_limit) == expected
+    def test_percent_move_uses_ratio_of_current_price(self):
+        with patch.object(services.random, "uniform", side_effect=lambda a, b: a):
+            assert services._percent_move(700, services.NEWS_MOVE_MIN, services.NEWS_MOVE_MAX) == 70
+            assert services._percent_move(700, services.JITTER_MOVE_MIN, services.JITTER_MOVE_MAX) == 7
+
+    def test_percent_move_moves_at_least_one_point(self):
+        """반올림하면 0이 되는 작은 가격도 최소 1은 움직인다 — 변동 없음을 없애는 게 목적이다."""
+        with patch.object(services.random, "uniform", side_effect=lambda a, b: a):
+            assert services._percent_move(1, services.JITTER_MOVE_MIN, services.JITTER_MOVE_MAX) == 1
 
     @pytest.mark.parametrize(("start_price", "expected"), [(1, 1), (9999, 1000), (10000, 1000)])
     def test_price_floor(self, start_price, expected):
@@ -179,7 +182,7 @@ class TestPriceMath:
 
 
 class TestUpdatePricesForTodaysNews:
-    def _seed_one_up_one_down(self, db_session, product, now):
+    def _seed_one_up_one_down(self, db_session, up_product, down_product, now):
         up_news = InvestmentNews(investment_news_id=1, title="up", content="up", impact="POSITIVE", published_at=now)
         down_news = InvestmentNews(
             investment_news_id=2, title="down", content="down", impact="NEGATIVE", published_at=now
@@ -187,16 +190,18 @@ class TestUpdatePricesForTodaysNews:
         db_session.add_all([up_news, down_news])
         db_session.add_all(
             [
-                InvestmentNewsProduct(investment_news_id=1, investment_product_id=product.investment_product_id),
-                InvestmentNewsProduct(investment_news_id=2, investment_product_id=product.investment_product_id),
+                InvestmentNewsProduct(investment_news_id=1, investment_product_id=up_product.investment_product_id),
+                InvestmentNewsProduct(investment_news_id=2, investment_product_id=down_product.investment_product_id),
             ]
         )
         db_session.commit()
         return up_news, down_news
 
-    def test_writes_price_only_for_onboarded_families(self, db_session, ten_companies, now_kst_afternoon):
-        product = ten_companies[0]
-        up_news, down_news = self._seed_one_up_one_down(db_session, product, now_kst_afternoon)
+    def test_moves_all_products_and_skips_families_before_onboarding(
+        self, db_session, ten_companies, now_kst_afternoon
+    ):
+        up_product, down_product = ten_companies[0], ten_companies[1]
+        up_news, down_news = self._seed_one_up_one_down(db_session, up_product, down_product, now_kst_afternoon)
         db_session.add_all(
             [
                 Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"),
@@ -205,38 +210,63 @@ class TestUpdatePricesForTodaysNews:
         )
         db_session.commit()
 
-        written = services.update_prices_for_todays_news(db_session, [up_news, down_news], now_kst_afternoon)
+        # 비율은 구간 하한으로, 잔물결 방향은 상승으로 고정해 결정적으로 만든다
+        with (
+            patch.object(services.random, "uniform", side_effect=lambda a, b: a),
+            patch.object(services.random, "random", return_value=0.0),
+        ):
+            written = services.update_prices_for_todays_news(
+                db_session, [up_news, down_news], now_kst_afternoon
+            )
 
-        assert written == 2
+        # 뉴스에 걸린 2개만이 아니라 활성 회사 10개가 전부 움직인다
+        assert written == 10
         rows = db_session.query(InvestmentPriceHistory).all()
+        price_by_product = {r.investment_product_id: r.price for r in rows if r.family_id == 1}
         # 이력이 없으면 가족 시작가 = 주간 용돈(7000) ÷ 종목 수(10) = 700 에서 출발한다.
-        # 시드 current_price(10000)가 아니다 — 백엔드 조회/체결가의 폴백과 같은 값이어야
-        # 첫 가격 생성에서 화면가와 어긋나지 않는다. 변동폭은 한도(3500)×40%÷7 = 200.
-        assert sorted(r.price for r in rows if r.family_id == 1) == [500, 900]
+        # 뉴스 종목은 현재가의 10%(하한 고정), 나머지는 1% 잔물결이다.
+        assert price_by_product[up_product.investment_product_id] == 770
+        assert price_by_product[down_product.investment_product_id] == 630
+        jitter_prices = [
+            price
+            for product_id, price in price_by_product.items()
+            if product_id
+            not in {up_product.investment_product_id, down_product.investment_product_id}
+        ]
+        assert jitter_prices == [707] * 8
         assert all(r.family_id != 2 for r in rows), "온보딩 전(A=0) 가족은 건너뛰어야 한다"
 
     def test_price_never_drops_below_floor(self, db_session, ten_companies, now_kst_afternoon):
-        product = ten_companies[0]
-        up_news, down_news = self._seed_one_up_one_down(db_session, product, now_kst_afternoon)
+        up_product, down_product = ten_companies[0], ten_companies[1]
+        up_news, down_news = self._seed_one_up_one_down(db_session, up_product, down_product, now_kst_afternoon)
         # 하한 = 가족 시작가(용돈 7000 ÷ 10 = 700)의 10% = 70. 그 근처까지 내려와 있는 상태.
         db_session.add(
             InvestmentPriceHistory(
-                family_id=1, investment_product_id=product.investment_product_id, price=200,
+                family_id=1, investment_product_id=down_product.investment_product_id, price=75,
                 recorded_at=now_kst_afternoon - timedelta(days=1),
             )
         )
         db_session.add(Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER"))
         db_session.commit()
 
-        services.update_prices_for_todays_news(db_session, [up_news, down_news], now_kst_afternoon)
+        # 비율을 구간 상한(20%)으로 고정: 75 - 15 = 60 이지만 하한 70 에서 멈춰야 한다.
+        # 잔물결 방향은 상승으로 고정해 하한 검증 대상이 하락 뉴스 종목 하나가 되게 한다.
+        with (
+            patch.object(services.random, "uniform", side_effect=lambda a, b: b),
+            patch.object(services.random, "random", return_value=0.0),
+        ):
+            services.update_prices_for_todays_news(db_session, [up_news, down_news], now_kst_afternoon)
 
         down_row = (
             db_session.query(InvestmentPriceHistory)
-            .filter_by(family_id=1, recorded_at=now_kst_afternoon)
-            .filter(InvestmentPriceHistory.price < 200)
+            .filter_by(
+                family_id=1,
+                investment_product_id=down_product.investment_product_id,
+                recorded_at=now_kst_afternoon,
+            )
             .one()
         )
-        assert down_row.price == 70, "200 - 200 = 0 이지만 하한 70 아래로는 못 내려간다"
+        assert down_row.price == 70, "75 - 15 = 60 이지만 하한 70 아래로는 못 내려간다"
 
     def test_second_call_same_day_is_idempotent(self, db_session, ten_companies, now_kst_afternoon):
         product = ten_companies[0]
@@ -249,7 +279,7 @@ class TestUpdatePricesForTodaysNews:
         first = services.update_prices_for_todays_news(db_session, [news], now_kst_afternoon)
         second = services.update_prices_for_todays_news(db_session, [news], now_kst_afternoon)
 
-        assert first == 1
+        assert first == 10
         assert second == 0
 
 
@@ -297,5 +327,5 @@ class TestPriceLagAcrossDays:
                 db_session, services.yesterdays_news(db_session, tomorrow), tomorrow
             )
 
-        assert written_tomorrow == 3  # 뉴스 3건 * 가족 1개
-        assert db_session.query(InvestmentPriceHistory).count() == 3
+        assert written_tomorrow == 10  # 활성 회사 10개 전부 * 가족 1개 (뉴스 3 + 잔물결 7)
+        assert db_session.query(InvestmentPriceHistory).count() == 10
