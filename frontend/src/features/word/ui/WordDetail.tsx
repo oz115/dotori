@@ -6,6 +6,7 @@ import { wordApi } from '@/features/word/api/wordApi';
 import { categoryLabel } from '@/features/word/lib/categoryLabel';
 import { categoryBadgeColors } from '@/features/word/lib/categoryTheme';
 import { difficultyBadgeColors, difficultyLabel } from '@/features/word/lib/difficultyTier';
+import { EasyDefinitionBubble } from '@/features/word/ui/EasyDefinitionBubble';
 import { groupByChosung } from '@/features/word/lib/wordSearch';
 import { useWord } from '@/features/word/model/useWord';
 import { useWords } from '@/features/word/model/useWords';
@@ -32,6 +33,10 @@ type WordDetailProps = {
  * 쉬운 설명은 정석 뜻을 대체하지 않고 아래에 덧붙인다 — 어려운 말도 눈에 익혀야 하는
  * 단어장이라 원래 뜻을 감추면 안 되고, 아이는 아래 문단만 읽어도 이해할 수 있다.
  * 아직 채우지 못한 단어가 있어서 없으면 블록째로 뺀다.
+ *
+ * 그 블록은 다람쥐가 건네는 말풍선으로 그린다. 같은 화면에 글이 두 덩이 있으면 어느 쪽을
+ * 읽어야 할지 아이가 헷갈리는데, 화자를 세워 두면 "사전이 적은 뜻"과 "누가 풀어 준 말"로
+ * 역할이 갈린다. 마스코트는 미션·퀴즈에서 쓰던 다람쥐 그대로다.
  *
  * 이전/다음 단어는 라우터로 새 화면을 띄우지 않는다 — `router.replace`를 쓰면 스택
  * 네비게이션 전환이 일어나서 헤더까지 포함해 화면 전체가 다시 뜨는 것처럼 보인다.
@@ -147,29 +152,7 @@ export function WordDetail({ wordId: initialWordId, category, onBack: goBack }: 
           </Text>
         </View>
 
-        {word.easyDefinition ? (
-          <View
-            style={[
-              styles.easyBox,
-              {
-                backgroundColor: theme.color.background.surfaceSunken,
-                borderRadius: theme.radius.md,
-                padding: theme.space.lg,
-                gap: theme.space.xs,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
-              쉽게 말하면
-            </Text>
-            {/* 아이가 실제로 읽는 본문이라 줄간격을 넉넉히 준다 (퀴즈 해설과 같은 값) */}
-            <Text
-              style={[theme.typography.body, styles.easyText, { color: theme.color.text.default }]}
-            >
-              {word.easyDefinition}
-            </Text>
-          </View>
-        ) : null}
+        <EasyDefinitionBubble easyDefinition={word.easyDefinition} />
 
         <View style={[styles.navRow, { gap: theme.space.sm }]}>
           <Button
@@ -200,7 +183,5 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   badgeRow: { flexDirection: 'row' },
   badge: { paddingHorizontal: 10, paddingVertical: 4 },
-  easyBox: { width: '100%' },
-  easyText: { lineHeight: 28 },
   navRow: { flexDirection: 'row', marginTop: 8 },
 });
