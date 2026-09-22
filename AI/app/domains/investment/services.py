@@ -5,9 +5,12 @@
 - **1 경제요인 : 1 회사.** 회사 10개에 대표 요인이 하나씩 붙고 요인은 겹치지 않는다
   (기온 -> 시원아이스, 밀 가격 -> 고소한빵, 리튬/니켈 가격 -> 파워배터리 ...).
   그래서 뉴스 한 건이 움직이는 회사도 하나다 (`models.InvestmentNewsProduct` 주석 참고).
-- **하루 뉴스 3건.** 상승 2건 + 하락 1건이라 하루 순증이 1건, 일주일에 7회 오른다.
-- **주가 변동폭** = 투자에 배정된 금액 / 7. 배정 금액은 `weekly_reward_limit` 의 40% 다.
-  상승·하락 폭이 같은 값이라, 위 3건 구성이 곧 주간 수익 한도를 만든다.
+- **하루 뉴스 3건.** 상승 2건 + 하락 1건이라 방향의 기대값이 상승 쪽으로 기운다.
+- **주가 변동폭은 현재가 기준 퍼센트다** (2026-09-22 변경). 뉴스가 가리킨 회사는
+  현재가의 10~20%, 나머지 회사는 1~3%(방향 무작위) 움직인다. 이전 규칙(배정액/7,
+  절대값)은 가족별 시작가 차이 때문에 등락률이 ±25%~±90%로 벌어졌고, 뉴스에 안 걸린
+  회사 7개는 매일 "변동 없음"이었다. 퍼센트 기반이라 주간 수익이 배정액을 넘지 않는다는
+  이전 보장은 사라진다 — 대신 등락 체감이 가족마다 같아진다.
 - **주말 청산.** 한 주가 끝나면 안 팔린 것도 전부 청산한다.
 
 `weekly_reward_limit` 배분은 예적금 40%(노션 「예/적금 상품 표」), 투자 40% 다.
@@ -30,9 +33,13 @@ from app.domains.investment.models import InvestmentNews, InvestmentNewsProduct,
 from app.llm.client import get_client
 
 KST = ZoneInfo("Asia/Seoul")
-DAYS_PER_WEEK = Decimal(7)
-# `weekly_reward_limit` 중 투자에 배정되는 몫 (예적금 40%와 합쳐 80%, 나머지는 퀴즈).
-INVESTMENT_SHARE = Decimal("0.4")
+# 뉴스가 가리킨 회사의 하루 변동 비율 (현재가 기준, 이 사이에서 무작위).
+NEWS_MOVE_MIN = Decimal("0.10")
+NEWS_MOVE_MAX = Decimal("0.20")
+# 뉴스가 없는 회사의 잔물결 비율. 방향도 무작위다 — 매일 "변동 없음"으로 두면
+# 아이 화면에서 시장이 멈춘 것처럼 보인다.
+JITTER_MOVE_MIN = Decimal("0.01")
+JITTER_MOVE_MAX = Decimal("0.03")
 # 가격 하한 = 가족 시작가(주간 용돈 ÷ 종목 수)의 몇 %.
 PRICE_FLOOR_RATIO = Decimal("0.1")
 # 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈 ÷ 종목 수) 계산에 쓴다.
@@ -294,16 +301,14 @@ def todays_news_with_companies(
     return [(news, product_by_news_id[news.investment_news_id]) for news in news_items]
 
 
-def _price_delta(weekly_reward_limit: int) -> int:
-    """주가 변동폭 = `weekly_reward_limit` 의 40% / 7. 상승·하락 폭이 같은 값이다.
+def _percent_move(price: int, min_ratio: Decimal, max_ratio: Decimal) -> int:
+    """현재가의 min~max 비율 사이 무작위 변동량(포인트).
 
-    `core/points.py` 와 같은 반올림 규칙(`ROUND_HALF_UP`, 최소 1)을 따르되, 계산식
-    자체가 "가중치 * 기준금액"이 아니라 "한도 * 비율 / 7"이라 `to_points()`를
-    재사용하지 않고 여기 따로 둔다.
+    가격이 작아 반올림하면 0이 되는 경우에도 최소 1은 움직인다 — "변동 없음"을
+    없애는 것이 잔물결의 목적이라 0 변동을 허용하지 않는다.
     """
-    raw = (Decimal(weekly_reward_limit) * INVESTMENT_SHARE / DAYS_PER_WEEK).quantize(
-        Decimal("1"), rounding=ROUND_HALF_UP
-    )
+    ratio = Decimal(str(random.uniform(float(min_ratio), float(max_ratio))))
+    raw = (Decimal(price) * ratio).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return max(1, int(raw))
 
 
@@ -336,22 +341,27 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     받은 뉴스가 어제 것인지 오늘 것인지 모른다. 라우터가 순서를 지킨다:
     어제 뉴스로 오늘 가격을 갱신 -> 오늘 뉴스를 새로 생성(내일 가격에 쓸 것).
     같은 날 만든 뉴스로 그날 가격을 바로 움직이면 원인과 결과가 하루 안에서 동시에
-    일어나는 셀프 루프가 된다.
+    일어나는 셀프 루프가 된다. 어제 뉴스가 아예 없는 날(서비스 첫날)은 잔물결도 없이
+    가격이 움직이지 않는다 — "가격은 뉴스 다음 날부터 움직인다"는 규칙을 지킨다.
 
-    `investment_products`/`investment_news`는 전역이지만 가격 변동폭은 가족마다 다른
-    `weekly_reward_limit`에서 나온다. 그래서 뉴스 하나당 가족 수만큼
-    `investment_price_history` 행을 쓴다.
+    **하루에 활성 회사 전부가 움직인다.** 뉴스가 가리킨 회사는 현재가의 10~20%를
+    뉴스 방향으로, 나머지 회사는 1~3%를 무작위 방향으로 움직인다. 변동이 현재가의
+    비율이라 시작가(용돈)가 다른 가족끼리도 등락 체감이 같다. 그래서 하루에
+    가족 수 × 활성 회사 수만큼 `investment_price_history` 행을 쓴다.
 
     `generate_todays_news`가 뉴스는 멱등으로 만들어 줘도, 이 함수를 또 부르면 가족마다
     가격이 두 번 움직여 버린다. 그래서 오늘 이미 가격을 갱신한 적이 있으면 다시 안 하고
     0을 반환한다.
 
-    온보딩 전이라 `weekly_reward_limit` 이 0인 가족은 건너뛴다. 변동폭에 최소 1을
+    온보딩 전이라 `weekly_reward_limit` 이 0인 가족은 건너뛴다. 변동량에 최소 1을
     강제하는데, 그걸 그대로 적용하면 온보딩 안 한 가족에게 억지로 최소 변동을 주게 된다
     (`app.domains.shopping.services.has_income` 과 같은 이유).
 
     반환값은 새로 쓴 `investment_price_history` 행 수.
     """
+    if not news_items:
+        return 0
+
     day_start = _day_start_kst(now)
     already_updated = session.execute(
         select(InvestmentPriceHistory.investment_price_history_id)
@@ -362,8 +372,10 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
         return 0
 
     product_by_news_id = _products_by_news_id(session, news_items)
-    todays_moves = [(product_by_news_id[news.investment_news_id], news.impact) for news in news_items]
-    target_product_ids = [product.investment_product_id for product, _ in todays_moves]
+    impact_by_product_id = {
+        product_by_news_id[news.investment_news_id].investment_product_id: news.impact for news in news_items
+    }
+    products = list(session.execute(select(InvestmentProduct).where(InvestmentProduct.is_active)).scalars())
 
     # 각 (가족, 회사)의 최신가. 이력이 없으면 아래에서 가족 시작가(용돈 ÷ 종목 수)로 대체한다.
     history_rows = session.execute(
@@ -371,9 +383,7 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
             InvestmentPriceHistory.family_id,
             InvestmentPriceHistory.investment_product_id,
             InvestmentPriceHistory.price,
-        )
-        .where(InvestmentPriceHistory.investment_product_id.in_(target_product_ids))
-        .order_by(InvestmentPriceHistory.recorded_at.desc())
+        ).order_by(InvestmentPriceHistory.recorded_at.desc())
     ).all()
     latest_price: dict[tuple[int, int], int] = {}
     for family_id, product_id, price in history_rows:
@@ -385,7 +395,6 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     for family in families:
         if family.weekly_reward_limit <= 0:
             continue
-        delta = _price_delta(family.weekly_reward_limit)
         # 이 가족의 시작가 = 주간 용돈 ÷ 종목 수(10). 시드 current_price(전 가족 공통 10000)가
         # 아니라 백엔드 조회·체결가의 "이력 없음" 폴백과 같은 값을 써야, 첫 가격 생성에서
         # 화면에 보이던 가격과 어긋나지 않는다. 하한(10%)도 같은 기준이다.
@@ -393,13 +402,20 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
         start_price = (
             _start_price(family.weekly_allowance) if family.weekly_allowance > 0 else None
         )
-        for product, impact in todays_moves:
+        for product in products:
             base = start_price if start_price is not None else product.current_price
             current = latest_price.get((family.family_id, product.investment_product_id), base)
-            if impact == "POSITIVE":
-                new_price = current + delta
+            impact = impact_by_product_id.get(product.investment_product_id)
+            if impact is not None:
+                move = _percent_move(current, NEWS_MOVE_MIN, NEWS_MOVE_MAX)
+                going_up = impact == "POSITIVE"
             else:
-                new_price = max(_price_floor(base), current - delta)
+                move = _percent_move(current, JITTER_MOVE_MIN, JITTER_MOVE_MAX)
+                going_up = random.random() < 0.5
+            if going_up:
+                new_price = current + move
+            else:
+                new_price = max(_price_floor(base), current - move)
             session.add(
                 InvestmentPriceHistory(
                     family_id=family.family_id,
