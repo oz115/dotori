@@ -30,7 +30,7 @@ type Tab = 'POINT' | 'CASHOUT';
 type DirectionFilter = 'ALL' | 'IN' | 'OUT';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'POINT', label: '도토리 내역' },
+  { key: 'POINT', label: '포인트 내역' },
   { key: 'CASHOUT', label: '환전 내역' },
 ];
 
@@ -48,8 +48,8 @@ type ChildWalletHistoryProps = {
 };
 
 /**
- * 아이 거래 내역 화면 (홈 도토리 카드의 "거래 내역"). 도토리 내역 탭은 포인트
- * 입출금 원장(WLT-06)을 실계좌 거래내역처럼 기간·입출금 조건으로 조회하고,
+ * 아이 거래 내역 화면 (홈 도토리 카드 우상단의 "거래 내역" 링크). 포인트 내역 탭은
+ * 포인트 입출금 원장(WLT-06)을 실계좌 거래내역처럼 기간·입출금 조건으로 조회하고,
  * 환전 내역 탭은 기존 환전 요청 목록을 그대로 보여준다.
  *
  * 입금/출금 필터는 서버 파라미터가 사유(type) 단위라 서버로 보내지 않고 받은

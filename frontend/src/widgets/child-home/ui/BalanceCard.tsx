@@ -125,35 +125,53 @@ function WalletPage({
       />
       <View style={[styles.walletInner, { padding: theme.space['2xl'] }]}>
         <View style={{ gap: theme.space.sm }}>
-          <View style={[styles.labelRow, { gap: theme.space.xs }]}>
-            <Image
-              source={require('@/assets/images/icons/icon-dotori.png')}
-              style={styles.acornIcon}
-              resizeMode="contain"
-            />
-            <Text
-              style={[theme.typography.caption, { color: theme.color.text.onBrand, opacity: 0.85 }]}
+          <View style={styles.topRow}>
+            <View style={[styles.labelRow, { gap: theme.space.xs }]}>
+              <Image
+                source={require('@/assets/images/icons/icon-dotori.png')}
+                style={styles.acornIcon}
+                resizeMode="contain"
+              />
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.color.text.onBrand, opacity: 0.85 },
+                ]}
+              >
+                현재 사용 가능 도토리
+              </Text>
+            </View>
+            {/* 내역은 "하러 가는" 두 버튼과 성격이 달라 버튼이 아니라 우상단 링크로 둔다 */}
+            <Pressable
+              onPress={onCashoutHistory}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="거래 내역 보기"
+              style={styles.historyLink}
             >
-              현재 사용 가능 도토리
-            </Text>
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.color.text.onBrand, opacity: 0.9 },
+                ]}
+              >
+                거래 내역
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.color.text.onBrand} />
+            </Pressable>
           </View>
           <Text style={[theme.typography.display, { color: theme.color.text.onBrand }]}>
             {isPending ? '—' : formatPoint(balance ?? 0)}
           </Text>
         </View>
 
-        <View style={{ gap: theme.space.sm }}>
-          {/* 내역은 "하러 가는" 두 버튼과 성격이 달라 위에 따로 둔다 */}
-          <WalletPill label="거래 내역" onPress={onCashoutHistory} variant="cream" />
-
-          {/* 두 버튼이 카드 폭을 반씩 나눠 갖는다 */}
-          <View style={[styles.actionRow, { gap: theme.space.sm }]}>
-            <View style={styles.action}>
-              <WalletPill label="도토리 충전" onPress={onCharge} />
-            </View>
-            <View style={styles.action}>
-              <WalletPill label="환전하기" onPress={onCashout} variant="tinted" />
-            </View>
+        {/* 두 버튼이 카드 폭을 반씩 나눠 갖는다 */}
+        <View style={[styles.actionRow, { gap: theme.space.sm }]}>
+          <View style={styles.action}>
+            <WalletPill label="도토리 충전" onPress={onCharge} />
+          </View>
+          <View style={styles.action}>
+            <WalletPill label="환전하기" onPress={onCashout} variant="tinted" />
           </View>
         </View>
       </View>
@@ -230,12 +248,8 @@ function PageDots({ count, active }: { count: number; active: number }) {
 type WalletPillProps = {
   label: string;
   onPress: () => void;
-  /**
-   * light: 흰 배경 (도토리 충전) · tinted: 연한 연두 배경 (환전하기) ·
-   * cream: 크림 배경 + 도토리 브라운 글씨 (거래 내역). 배경만 보면 light 와 거의 같은 색이라
-   * 글씨색으로 가른다
-   */
-  variant?: 'light' | 'tinted' | 'cream';
+  /** light: 흰 배경 (도토리 충전) · tinted: 연한 연두 배경 (환전하기) */
+  variant?: 'light' | 'tinted';
 };
 
 /**
@@ -246,12 +260,11 @@ type WalletPillProps = {
 function WalletPill({ label, onPress, variant = 'light' }: WalletPillProps) {
   const theme = useTheme();
 
-  // 테두리는 셋 다 브랜드 그린으로 같다 — 한 카드 안에 나란히 놓이는 버튼이라 테두리까지
+  // 테두리는 둘 다 브랜드 그린으로 같다 — 한 카드 안에 나란히 놓이는 버튼이라 테두리까지
   // 갈라지면 서로 다른 종류의 버튼처럼 보인다. 구분은 배경과 글씨색이 맡는다.
   const { background, label: labelColor } = {
     light: { background: theme.color.background.surface, label: theme.color.brand.solid },
     tinted: { background: theme.color.brand.subtle, label: theme.color.brand.solid },
-    cream: { background: theme.color.accent.cream, label: theme.color.accent.acorn },
   }[variant];
 
   return (
@@ -339,7 +352,9 @@ const styles = StyleSheet.create({
   walletCard: { flex: 1, overflow: 'hidden' },
   walletInner: { flex: 1, justifyContent: 'space-between' },
   assetsCard: { flex: 1 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelRow: { flexDirection: 'row', alignItems: 'center' },
+  historyLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   acornIcon: { width: 18, height: 18 },
   actionRow: { flexDirection: 'row' },
   action: { flex: 1 },
