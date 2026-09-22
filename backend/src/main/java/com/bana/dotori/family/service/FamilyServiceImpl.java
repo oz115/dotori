@@ -24,6 +24,7 @@ import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.event.FamilyChildConnectedEvent;
+import com.bana.dotori.family.event.FamilyOnboardedEvent;
 import com.bana.dotori.family.mapper.FamilyMapper;
 import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
@@ -78,6 +79,8 @@ public class FamilyServiceImpl implements FamilyService {
 			.family(family)
 			.user(user)
 			.build());
+		// 커밋 후 투자 도메인이 받아 가격 이력을 백필한다 — 가입 당일에도 차트가 보이게
+		eventPublisher.publishEvent(new FamilyOnboardedEvent(family.getId()));
 
 		return familyMapper.toCreateResponse(family);
 	}

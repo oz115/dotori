@@ -17,3 +17,8 @@ class DailyInvestmentResponse(BaseModel):
     news: list[InvestmentNewsItem]
     # 오늘 새로 쓴 investment_price_history 행 수. 재시도로 이미 처리된 날이면 0이다.
     price_updates_written: int
+
+
+class PriceBackfillResponse(BaseModel):
+    # 새로 쓴 investment_price_history 행 수. 이미 이력이 있는 가족이면 0이다.
+    price_updates_written: int

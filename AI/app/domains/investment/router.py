@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_session
 from app.core.security import require_internal_token
-from app.domains.investment.schemas import DailyInvestmentResponse, InvestmentNewsItem
+from app.domains.investment.schemas import DailyInvestmentResponse, InvestmentNewsItem, PriceBackfillResponse
 from app.domains.investment.services import (
+    backfill_family_prices,
     generate_todays_news,
     todays_news_with_companies,
     update_prices_for_todays_news,
@@ -41,7 +42,28 @@ def run_daily_update(session: Session = Depends(get_session)) -> DailyInvestment
     written = update_prices_for_todays_news(session, yesterdays_news(session, now), now)
     news = generate_todays_news(session, now)
 
-    items = [
+    items = _news_items(session, news)
+    return DailyInvestmentResponse(news=items, price_updates_written=written)
+
+
+@router.post(
+    "/families/{family_id}/price-backfill",
+    summary="막 온보딩한 가족의 가격 이력을 즉시 생성",
+)
+def backfill_family(family_id: int, session: Session = Depends(get_session)) -> PriceBackfillResponse:
+    """온보딩(가족 생성) 직후 Spring 이 호출한다.
+
+    다음 크론(00:05)을 기다리지 않고 지난 일주일 + 오늘 가격을 그 자리에서 만들어,
+    가입 당일에도 차트에 흐름이 보이게 한다. 멱등이라(이미 이력이 있으면 0) 재시도해도
+    안전하고, 이 호출이 실패해도 다음 크론이 같은 백필을 해 준다.
+    """
+    written = backfill_family_prices(session, family_id, datetime.now(timezone.utc))
+    return PriceBackfillResponse(price_updates_written=written)
+
+
+def _news_items(session: Session, news) -> list[InvestmentNewsItem]:
+    """뉴스 ORM 행을 응답 아이템으로 바꾼다 (뉴스마다 가리키는 회사를 붙인다)."""
+    return [
         InvestmentNewsItem(
             investment_news_id=news_row.investment_news_id,
             investment_product_id=product.investment_product_id,
@@ -52,4 +74,3 @@ def run_daily_update(session: Session = Depends(get_session)) -> DailyInvestment
         )
         for news_row, product in todays_news_with_companies(session, news)
     ]
-    return DailyInvestmentResponse(news=items, price_updates_written=written)

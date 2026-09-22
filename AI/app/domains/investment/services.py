@@ -411,8 +411,9 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     가족 수 × 활성 회사 수만큼 `investment_price_history` 행을 쓴다.
 
     `generate_todays_news`가 뉴스는 멱등으로 만들어 줘도, 이 함수를 또 부르면 가족마다
-    가격이 두 번 움직여 버린다. 그래서 오늘 이미 가격을 갱신한 적이 있으면 다시 안 하고
-    0을 반환한다.
+    가격이 두 번 움직여 버린다. 그래서 **오늘 이미 이력이 쓰인 가족은 가족 단위로**
+    건너뛴다 — 전체 한 번에 판정하면, 온보딩 훅(`backfill_family_prices`)이 오늘 행을
+    먼저 쓴 가족 하나 때문에 크론 재시도가 나머지 가족 전부를 건너뛰게 된다.
 
     온보딩 전이라 `weekly_reward_limit` 이 0인 가족은 건너뛴다. 변동량에 최소 1을
     강제하는데, 그걸 그대로 적용하면 온보딩 안 한 가족에게 억지로 최소 변동을 주게 된다
@@ -429,13 +430,13 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
         return 0
 
     day_start = _day_start_kst(now)
-    already_updated = session.execute(
-        select(InvestmentPriceHistory.investment_price_history_id)
-        .where(InvestmentPriceHistory.recorded_at >= day_start)
-        .limit(1)
-    ).first()
-    if already_updated:
-        return 0
+    updated_family_ids = set(
+        session.execute(
+            select(InvestmentPriceHistory.family_id)
+            .where(InvestmentPriceHistory.recorded_at >= day_start)
+            .distinct()
+        ).scalars()
+    )
 
     todays_impacts = _impacts_of(session, news_items)
     products = list(session.execute(select(InvestmentProduct).where(InvestmentProduct.is_active)).scalars())
@@ -464,7 +465,7 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
 
     written = 0
     for family in families:
-        if family.weekly_reward_limit <= 0:
+        if family.weekly_reward_limit <= 0 or family.family_id in updated_family_ids:
             continue
         # 이 가족의 시작가 = 주간 용돈 ÷ 종목 수(10). 시드 current_price(전 가족 공통 10000)가
         # 아니라 백엔드 조회·체결가의 "이력 없음" 폴백과 같은 값을 써야, 첫 가격 생성에서
@@ -483,6 +484,50 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
                 )
         written += _apply_daily_moves(
             session, family.family_id, products, todays_impacts, start_price, latest_price, now
+        )
+
+    session.commit()
+    return written
+
+
+def backfill_family_prices(session: Session, family_id: int, now: datetime) -> int:
+    """가족 하나의 가격 이력을 그 자리에서 만들어 준다 — 온보딩 직후 백엔드가 부른다.
+
+    일일 갱신의 신규 가족 백필은 다음 크론(00:05)까지 기다려야 해서, 가입 당일에는
+    차트가 시작가 점 하나뿐이다. 이 함수는 지난 `BACKFILL_DAYS` 일 + 오늘까지를
+    일일 갱신과 같은 규칙으로 즉시 굴려서, 가입한 그 순간부터 일주일치 흐름이 보이게
+    한다. 전날 뉴스가 없는 날짜(서비스 개시 전)는 건너뛴다.
+
+    멱등: 이미 이력이 있는 가족이면 아무것도 쓰지 않고 0을 반환한다. 온보딩 전
+    (weekly_reward_limit 0)이거나 없는 가족도 0이다 — 호출 순서가 꼬여도 조용히 넘어가고,
+    어차피 다음 크론이 같은 백필을 해 준다.
+    """
+    family = session.get(Family, family_id)
+    if family is None or family.weekly_reward_limit <= 0:
+        return 0
+    has_history = session.execute(
+        select(InvestmentPriceHistory.investment_price_history_id)
+        .where(InvestmentPriceHistory.family_id == family_id)
+        .limit(1)
+    ).first()
+    if has_history:
+        return 0
+
+    products = list(session.execute(select(InvestmentProduct).where(InvestmentProduct.is_active)).scalars())
+    start_price = _start_price(family.weekly_allowance) if family.weekly_allowance > 0 else None
+    latest_price: dict[tuple[int, int], int] = {}
+    day_start = _day_start_kst(now)
+
+    written = 0
+    for offset in range(BACKFILL_DAYS, -1, -1):
+        target_day_start = day_start - timedelta(days=offset)
+        prior_news = _news_in_window(session, target_day_start - timedelta(days=1), target_day_start)
+        if not prior_news:
+            continue
+        # 오늘(offset 0)은 지금 시각으로 기록한다 — 크론(00:05)보다 앞서 기록하는 일이 없게
+        recorded_at = now if offset == 0 else target_day_start + _CRON_DELAY
+        written += _apply_daily_moves(
+            session, family_id, products, _impacts_of(session, prior_news), start_price, latest_price, recorded_at
         )
 
     session.commit()

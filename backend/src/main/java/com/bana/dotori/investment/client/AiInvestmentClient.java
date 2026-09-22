@@ -22,4 +22,16 @@ public class AiInvestmentClient {
 			.retrieve()
 			.body(AiDailyInvestmentResponse.class);
 	}
+
+	/**
+	 * 막 온보딩한 가족의 가격 이력 즉시 생성 — 다음 크론을 기다리지 않고 가입 당일에
+	 * 차트에 일주일치 흐름이 보이게 한다. AI 쪽에서 멱등이라(이미 이력이 있으면 0)
+	 * 재호출해도 안전하다.
+	 */
+	public AiPriceBackfillResponse backfillFamilyPrices(Integer familyId) {
+		return aiRestClient.post()
+			.uri("/internal/investment/families/{familyId}/price-backfill", familyId)
+			.retrieve()
+			.body(AiPriceBackfillResponse.class);
+	}
 }
