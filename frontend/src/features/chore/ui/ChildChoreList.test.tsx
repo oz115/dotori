@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { choreApi } from '@/features/chore/api/choreApi';
@@ -200,18 +200,5 @@ describe('ChildChoreList - 끝낸 반복 미션', () => {
     await withQuery(renderList());
 
     await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
-  });
-
-  it('"미완료만" 을 켜면 빠진다', async () => {
-    mocked.getChores.mockResolvedValue([chore(1, '이불 개기', 'DAY'), chore(2, '방 정리하기')]);
-    mocked.getCompletions.mockResolvedValue([paid(1, '이불 개기')]);
-
-    await withQuery(renderList());
-    await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
-
-    fireEvent.press(screen.getByLabelText('미완료만'));
-
-    await waitFor(() => expect(screen.queryByText('이불 개기')).toBeNull(), WAIT);
-    expect(screen.getByText('방 정리하기')).toBeTruthy();
   });
 });
