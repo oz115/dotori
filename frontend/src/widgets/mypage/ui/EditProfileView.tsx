@@ -135,14 +135,14 @@ export function EditProfileView() {
           <Input
             variant="box"
             label="아이디"
-            labelStyle={styles.fieldLabel}
+            labelStyle={[styles.fieldLabel, { fontSize: 17 * theme.textScale }]}
             value={profile.data?.loginId ?? ''}
             editable={false}
           />
           <Input
             variant="box"
             label="이메일"
-            labelStyle={styles.fieldLabel}
+            labelStyle={[styles.fieldLabel, { fontSize: 17 * theme.textScale }]}
             value={profile.data?.email ?? ''}
             editable={false}
           />
@@ -154,7 +154,7 @@ export function EditProfileView() {
         <Input
           variant="box"
           label="이름"
-          labelStyle={styles.fieldLabel}
+          labelStyle={[styles.fieldLabel, { fontSize: 17 * theme.textScale }]}
           placeholder="이름을 입력하세요"
           value={name}
           onChangeText={(v) => {
@@ -231,5 +231,6 @@ const styles = StyleSheet.create({
   mascotRow: { alignItems: 'center' },
   mascot: { width: 96, height: 96 },
   // 아이디·이메일·이름 라벨을 기본 Input label(medium 16)보다 조금 크고 굵게
-  fieldLabel: { fontFamily: fontFamily.semibold, fontSize: 17 },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  fieldLabel: { fontFamily: fontFamily.semibold },
 });

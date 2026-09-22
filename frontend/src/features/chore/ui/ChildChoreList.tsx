@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel, sumRewards } from '@/features/chore/lib/choreLabels';
 import { useTodayChores } from '@/features/chore/model/useTodayChores';
@@ -9,7 +9,7 @@ import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Checkbox, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 type ChildChoreListProps = {
   familyId: number | undefined;
@@ -41,6 +41,7 @@ export function ChildChoreList({
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
   const { refreshing, onRefresh, refresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
+  const [onlyActive, setOnlyActive] = useState(false);
   const { items, remainingCount, isPending, isError } = useTodayChores(familyId, childId);
 
   // 알림에서 넘어온 미션은 최신 목록을 받은 뒤에 갈 곳을 정한다. 캐시(최대 60초)로 판단하면
@@ -109,10 +110,11 @@ export function ChildChoreList({
   const visible = useMemo(() => {
     const byRepeat =
       repeatType == null ? listed : listed.filter((chore) => chore.repeatType === repeatType);
+    const filtered = onlyActive ? byRepeat.filter((chore) => chore.status !== 'DONE') : byRepeat;
     // 아직 할 미션이 위, 끝낸 것은 아래. 섞여 있으면 할 일을 찾으려고 목록을 훑어야 한다.
     // 같은 무리 안의 순서는 서버가 준 대로 둔다 (최근 등록 순).
-    return [...byRepeat].sort((a, b) => Number(a.status === 'DONE') - Number(b.status === 'DONE'));
-  }, [listed, repeatType]);
+    return [...filtered].sort((a, b) => Number(a.status === 'DONE') - Number(b.status === 'DONE'));
+  }, [listed, repeatType, onlyActive]);
 
   const { total, pendingCount } = useMemo(
     () => sumRewards(active.map((chore) => chore.rewardPoints)),
@@ -141,41 +143,47 @@ export function ChildChoreList({
       padded={false}
       style={{ paddingTop: theme.space.sm }}
     >
-      <FlatList
-        data={visible}
-        keyExtractor={(item) => String(item.choreId)}
+      {/* 칩이 스크롤해도 상단에 붙어 있어야 해서 ScrollView + stickyHeaderIndices 다.
+          FlatList 는 헤더 전체(배너+칩)를 한 덩어리로만 붙일 수 있어 배너까지 따라 붙는다.
+          한 아이의 미션은 많아야 수십 개라 가상화를 포기해도 괜찮다 (상점 목록과 같은 이유). */}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={[
-          styles.content,
-          { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
-        ]}
-        ListHeaderComponent={
-          <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <ChoreHeroBanner
-              eyebrow="오늘 해야 할 미션이"
-              title={`${remainingCount}개 남았어요!`}
-              caption={rewardCaption(total, pendingCount) ?? '하나씩 완료하고 도토리를 모아봐요!'}
-              mascot={require('@/assets/images/chore/squirrel-win.png')}
-            />
-            {/* 칩은 상점(CategoryFilterBar)과 같은 자리·같은 크기이고, 다섯 칸이라 좁은
-                기기에서는 가로로 밀어서 "매월" 을 본다. */}
-            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-          </View>
-        }
-        renderItem={({ item }) => (
-          <ChoreListRow
-            title={item.title}
-            repeatType={item.repeatType}
-            rewardPoints={item.rewardPoints}
-            status={item.status}
-            endDate={item.endDate}
-            // 끝낸 미션은 흐리게. 눌러서 내용은 볼 수 있지만 요청 버튼은 상세에서 빠진다
-            dimmed={item.status === 'DONE'}
-            onPress={() => openDetail(item.choreId)}
+        // 1 = 필터 칩. 배너(0)는 그대로 밀려 올라가고 칩만 상단에 붙는다.
+        stickyHeaderIndices={[1]}
+        // 좌우 여백은 각 자식이 갖는다 — contentContainer 에 주면 붙어 있는 칩 줄의 배경이
+        // 화면 끝까지 닿지 않아, 그 여백 틈으로 지나가는 카드가 보인다.
+        contentContainerStyle={styles.content}
+      >
+        <View style={{ paddingHorizontal: theme.layout.screenX, marginBottom: theme.space.lg }}>
+          <ChoreHeroBanner
+            eyebrow="오늘 해야 할 미션이"
+            title={`${remainingCount}개 남았어요!`}
+            caption={rewardCaption(total, pendingCount) ?? '하나씩 완료하고 도토리를 모아봐요!'}
+            mascot={require('@/assets/images/chore/squirrel-win.png')}
           />
-        )}
-        ListEmptyComponent={
+        </View>
+
+        {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (저축 화면과 같다).
+            칩은 상점(CategoryFilterBar)과 같은 자리·같은 크기이고, 다섯 칸이라 좁은
+            기기에서는 가로로 밀어서 "매월" 을 본다. 붙어 있는 동안 카드가 뒤로 지나가므로
+            배경을 불투명하게 깔아 준다. */}
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingBottom: theme.space.lg,
+            backgroundColor: theme.color.background.canvas,
+          }}
+        >
+          <View style={[styles.filterRow, { gap: theme.space.sm }]}>
+            <View style={styles.chips}>
+              <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+            </View>
+            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
+          </View>
+        </View>
+
+        {visible.length === 0 ? (
           <EmptyState
             message={
               isPending
@@ -191,8 +199,24 @@ export function ChildChoreList({
                       : '아직 미션이 없어요.\n부모님이 등록해 주실 거예요!'
             }
           />
-        }
-      />
+        ) : (
+          <View style={{ paddingHorizontal: theme.layout.screenX, gap: theme.space.md }}>
+            {visible.map((item) => (
+              <ChoreListRow
+                key={item.choreId}
+                title={item.title}
+                repeatType={item.repeatType}
+                rewardPoints={item.rewardPoints}
+                status={item.status}
+                endDate={item.endDate}
+                // 끝낸 미션은 흐리게. 눌러서 내용은 볼 수 있지만 요청 버튼은 상세에서 빠진다
+                dimmed={item.status === 'DONE'}
+                onPress={() => openDetail(item.choreId)}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
@@ -217,6 +241,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
+  filterRow: { flexDirection: 'row', alignItems: 'center' },
+  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
+  chips: { flex: 1 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },

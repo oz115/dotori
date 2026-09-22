@@ -42,9 +42,8 @@ export function RealizedProfitCard({
           </Text>
         </View>
       </View>
-      <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-        이미 판 주식만 계산해요. 판매금액 − 구매금액 = 판매 수익.
-      </Text>
+      {/* "판매금액 − 구매금액 = 판매 수익" 수식 안내는 뺐다 — 초등학생이 읽을 말이 아니고,
+          제목("판매 수익")과 부호만으로 이미 무엇인지 읽힌다 (QA) */}
     </View>
   );
 }

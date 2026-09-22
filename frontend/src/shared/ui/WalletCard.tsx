@@ -130,7 +130,15 @@ export function WalletCard({
                 {subtitle ? (
                   <Text
                     numberOfLines={1}
-                    style={[styles.sub, { color: softColor, opacity: inverted ? 0.8 : 1 }]}
+                    style={[
+                      styles.sub,
+                      {
+                        color: softColor,
+                        opacity: inverted ? 0.8 : 1,
+                        fontSize: 13 * theme.textScale,
+                        lineHeight: 18 * theme.textScale,
+                      },
+                    ]}
                   >
                     {subtitle}
                   </Text>
@@ -235,7 +243,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
   },
-  sub: { fontSize: 13, lineHeight: 18 },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  sub: {},
   actionRow: { flexDirection: 'row' },
   button: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
 });

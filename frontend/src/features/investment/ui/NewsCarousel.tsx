@@ -107,12 +107,20 @@ export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
             <View style={styles.cardBody}>
               {/* 카테고리 박스("경제 소식")는 뺐다 — 뉴스가 전부 같은 분류라 정보가 없다 */}
               <View style={[styles.texts, { gap: theme.space.sm }]}>
-                <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+                <Text
+                  style={[
+                    theme.typography.titleMd,
+                    styles.title,
+                    { color: theme.color.text.strong },
+                  ]}
+                >
                   {item.title}
                 </Text>
               </View>
               {/* Figma 일러스트 자리 표시자 — 에셋 export 후 expo-image 로 교체 */}
-              <Text style={styles.illustration}>{item.emoji}</Text>
+              <Text style={[styles.illustration, { fontSize: 64 * theme.textScale }]}>
+                {item.emoji}
+              </Text>
             </View>
             <Text
               style={[theme.typography.caption, styles.date, { color: theme.color.text.muted }]}
@@ -147,10 +155,14 @@ const styles = StyleSheet.create({
   },
   texts: {
     flex: 1,
-    alignItems: 'flex-start',
   },
+  // 제목은 줄 수가 뉴스마다 달라서 왼쪽 정렬이면 카드마다 글이 다른 자리에서 시작한 것처럼
+  // 보였다 — 캐러셀로 넘길 때 제목이 들쭉날쭉했다 (QA). 가운데로 모아 기준선을 하나로 둔다.
+  title: {
+    textAlign: 'center',
+  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
   illustration: {
-    fontSize: 64,
     marginLeft: 8,
   },
   date: {

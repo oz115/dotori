@@ -13,6 +13,13 @@ type Props = {
   historyError?: boolean;
   historyFetching?: boolean;
   onRetryHistory?: () => void;
+  /**
+   * "내가 산 값 … 차익 …" 줄을 보여줄지. 자녀 화면은 기본값(true).
+   *
+   * 부모 화면에서는 끈다 — 그 매수가는 부모 것이 아니라 아이 것이라 "내가 산 값" 이
+   * 틀린 말이고, 부모는 사고팔 수 없어 차익을 여기서 볼 이유도 없다 (QA).
+   */
+  showMyPosition?: boolean;
 };
 
 /**
@@ -24,6 +31,7 @@ export function StockOverviewCard({
   historyError,
   historyFetching,
   onRetryHistory,
+  showMyPosition = true,
 }: Props) {
   const theme = useTheme();
 
@@ -104,7 +112,7 @@ export function StockOverviewCard({
           </Text>
         </Text>
         {/* 보유 중이면 산 값 대비 차익을 수치로 — "같아요" 같은 말 대신 숫자를 보여준다 */}
-        {detail.holding && detail.buyPrice != null ? (
+        {showMyPosition && detail.holding && detail.buyPrice != null ? (
           <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
             내가 산 값 {formatNumber(detail.buyPrice)} 도토리 · 차익{' '}
             <Text

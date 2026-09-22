@@ -143,8 +143,8 @@ function CharCounter({ current, max }: { current: number; max: number }) {
         styles.charCounter,
         {
           color: theme.color.text.muted,
-          fontSize: 12,
-          lineHeight: 14,
+          fontSize: 12 * theme.textScale,
+          lineHeight: 14 * theme.textScale,
           // Input(box)의 둥근 테두리 곡선 때문에 화면 여백 기준 우측 정렬만으로는
           // 박스 오른쪽 끝보다 살짝 바깥으로 밀려 보인다 — 안쪽으로 살짝 당긴다.
           paddingRight: theme.space.xs,

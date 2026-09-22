@@ -67,7 +67,14 @@ export function AppTopBar({ onProfilePress, onNotificationsPress, unreadCount }:
                 },
               ]}
             >
-              <Text style={[theme.typography.caption, styles.badgeText]} numberOfLines={1}>
+              <Text
+                style={[
+                  theme.typography.caption,
+                  styles.badgeText,
+                  { fontSize: 10 * theme.textScale, lineHeight: 12 * theme.textScale },
+                ]}
+                numberOfLines={1}
+              >
                 {unreadCount && unreadCount > 99 ? '99+' : unreadCount}
               </Text>
             </View>
@@ -107,5 +114,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: '#FFFFFF', fontSize: 10, lineHeight: 12 },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  badgeText: { color: '#FFFFFF' },
 });

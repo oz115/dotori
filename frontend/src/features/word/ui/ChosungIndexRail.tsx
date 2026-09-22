@@ -30,7 +30,7 @@ export function ChosungIndexRail({ present, onJump }: ChosungIndexRailProps) {
               style={[
                 theme.typography.caption,
                 {
-                  fontSize: 11,
+                  fontSize: 11 * theme.textScale,
                   color: active ? theme.color.brand.solidActive : theme.color.text.muted,
                   opacity: active ? 1 : 0.4,
                 },

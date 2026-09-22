@@ -79,9 +79,16 @@ export function AmountStepInput({ value, onChange, hint, error }: Props) {
             placeholder="0"
             placeholderTextColor={theme.color.text.muted}
             keyboardType="number-pad"
-            style={[styles.amount, { color: theme.color.text.strong }]}
+            style={[
+              styles.amount,
+              { color: theme.color.text.strong, fontSize: 28 * theme.textScale },
+            ]}
           />
-          <Text style={[styles.won, { color: theme.color.text.sub }]}>원</Text>
+          <Text
+            style={[styles.won, { color: theme.color.text.sub, fontSize: 18 * theme.textScale }]}
+          >
+            원
+          </Text>
         </View>
       </Pressable>
 
@@ -151,13 +158,12 @@ const styles = StyleSheet.create({
   amount: {
     flex: 1,
     textAlign: 'right',
+    // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
     fontFamily: fontFamily.bold,
-    fontSize: 28,
     paddingVertical: 0,
   },
   won: {
     fontFamily: fontFamily.medium,
-    fontSize: 18,
   },
   // 버튼은 한 줄에 균등하게 나눠 담는다 (줄바꿈 없음)
   chips: { flexDirection: 'row', gap: 8 },

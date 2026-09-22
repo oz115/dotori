@@ -85,7 +85,7 @@ it('요약 띠에 지금 가치·산 값 대비 수익·최근 7일 판매 수�
   await show();
   expect(await screen.findByText('들고 있는 주식 1개의 지금 가치')).toBeTruthy();
   expect(screen.getByText('산 값보다 200 도토리 올랐어요')).toBeTruthy();
-  expect(await screen.findByText('수익 300 도토리')).toBeTruthy();
+  expect(await screen.findByText('+300 도토리')).toBeTruthy();
   expect(screen.queryByText('사기')).toBeNull();
   expect(screen.queryByText('팔기')).toBeNull();
 });

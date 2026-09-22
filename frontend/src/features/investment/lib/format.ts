@@ -43,11 +43,13 @@ export function signedAcorns(change: number): string {
   return '0 도토리';
 }
 
-/** 실현 손익은 매도 대금과 구분해서 안내한다. */
+/**
+ * 실현 손익 표기 — 부호와 색으로만 말한다.
+ *
+ * 전에는 `수익 300 도토리` 처럼 단어를 앞에 붙였는데, 카드 제목이 이미 "판매 수익" 이라
+ * `판매 수익 / 수익 300 도토리` 로 같은 말이 두 번 나왔다 (QA). 등락·거래 내역이 모두
+ * 같은 형식(signedAcorns)을 쓰므로 여기서도 맞춘다.
+ */
 export function profitLabel(profit: number): string {
-  return profit > 0
-    ? '수익 ' + formatAcorns(profit)
-    : profit < 0
-      ? '손해 ' + formatAcorns(-profit)
-      : '수익 0 도토리';
+  return signedAcorns(profit);
 }

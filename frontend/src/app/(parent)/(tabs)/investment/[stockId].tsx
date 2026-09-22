@@ -67,6 +67,8 @@ export default function ParentInvestmentDetailScreen() {
           }}
         >
           <StockOverviewCard
+            // 아이의 매수가라 부모에게 "내가 산 값" 은 틀린 말이다 (QA)
+            showMyPosition={false}
             detail={detail}
             historyPending={historyPending}
             historyFetching={historyFetching}
