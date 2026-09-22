@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useMyAccount, useTransferStore } from '@/features/account';
 import { formatWonNumber } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, NumericKeypad, Screen } from '@/shared/ui';
+import { AmountPresetRow, Button, Header, NumericKeypad, Screen } from '@/shared/ui';
 
 const PRESETS_WON = [1_000, 10_000, 100_000];
 const MAX_DIGITS = 9; // 억 단위까지
@@ -81,31 +81,16 @@ export default function TransferAmountScreen() {
           </Text>
         </View>
 
-        <View style={[styles.presetRow, { gap: theme.space.sm }]}>
-          {PRESETS_WON.map((won) => (
-            <Pressable
-              key={won}
-              onPress={() => addPreset(won)}
-              style={[
-                styles.presetChip,
-                { borderColor: theme.color.border.default, borderRadius: theme.radius.sm },
-              ]}
-            >
-              <Text style={[theme.typography.label, { color: theme.color.text.default }]}>
-                +{formatWonNumber(won)}원
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={useFullBalance}
-            style={[
-              styles.presetChip,
-              { borderColor: theme.color.border.default, borderRadius: theme.radius.sm },
-            ]}
-          >
-            <Text style={[theme.typography.label, { color: theme.color.text.default }]}>전액</Text>
-          </Pressable>
-        </View>
+        <AmountPresetRow
+          presets={[
+            ...PRESETS_WON.map((won) => ({
+              key: String(won),
+              label: `+${formatWonNumber(won)}원`,
+              onPress: () => addPreset(won),
+            })),
+            { key: 'full', label: '전액', onPress: useFullBalance },
+          ]}
+        />
 
         <NumericKeypad onDigit={appendDigit} onBackspace={backspace} />
 
@@ -118,7 +103,5 @@ export default function TransferAmountScreen() {
 const styles = StyleSheet.create({
   amountBlock: { alignItems: 'center', gap: 8, paddingTop: 48 },
   balancePill: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 6, marginBottom: 12 },
-  presetRow: { flexDirection: 'row', justifyContent: 'center' },
-  presetChip: { borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8 },
   spacer: { flex: 1, minHeight: 24 },
 });
