@@ -236,6 +236,52 @@ class TestUpdatePricesForTodaysNews:
         assert jitter_prices == [707] * 8
         assert all(r.family_id != 2 for r in rows), "온보딩 전(A=0) 가족은 건너뛰어야 한다"
 
+    def test_backfills_past_week_for_families_without_history(
+        self, db_session, ten_companies, now_kst_afternoon
+    ):
+        """막 온보딩한 가족은 지난 날짜 이력을 만들어 줘서, 어제 가입해도 차트에 흐름이 보인다."""
+        product0, product1 = ten_companies[0], ten_companies[1]
+        # 그제 뉴스(product0 상승) — 어제 가격을 움직였어야 할 뉴스라 백필 재료가 된다
+        old_news = InvestmentNews(
+            investment_news_id=1, title="o", content="o", impact="POSITIVE",
+            published_at=now_kst_afternoon - timedelta(days=2),
+        )
+        # 어제 뉴스(product1 하락) — 오늘 가격을 움직인다
+        yesterday_news = InvestmentNews(
+            investment_news_id=2, title="y", content="y", impact="NEGATIVE",
+            published_at=now_kst_afternoon - timedelta(days=1),
+        )
+        db_session.add_all([old_news, yesterday_news])
+        db_session.add_all(
+            [
+                InvestmentNewsProduct(investment_news_id=1, investment_product_id=product0.investment_product_id),
+                InvestmentNewsProduct(investment_news_id=2, investment_product_id=product1.investment_product_id),
+            ]
+        )
+        db_session.add(
+            Family(family_id=1, weekly_allowance=7000, weekly_reward_limit=3500, financial_knowledge_level="BEGINNER")
+        )
+        db_session.commit()
+
+        with (
+            patch.object(services.random, "uniform", side_effect=lambda a, b: a),
+            patch.object(services.random, "random", return_value=0.0),
+        ):
+            written = services.update_prices_for_todays_news(db_session, [yesterday_news], now_kst_afternoon)
+
+        # 어제(그제 뉴스가 움직인 날) 10건 + 오늘 10건. 더 과거는 뉴스가 없어 만들지 않는다.
+        assert written == 20
+        rows = db_session.query(InvestmentPriceHistory).order_by(InvestmentPriceHistory.recorded_at).all()
+        assert len({r.recorded_at for r in rows}) == 2
+
+        def series(product_id):
+            return [r.price for r in rows if r.investment_product_id == product_id]
+
+        # 시작가 700. 어제: product0 뉴스 상승 10% → 770, 나머지 잔물결 +1% → 707.
+        # 오늘: product0 잔물결 770+8 → 778, product1 뉴스 하락 707-71 → 636 (가격이 날마다 이어진다).
+        assert series(product0.investment_product_id) == [770, 778]
+        assert series(product1.investment_product_id) == [707, 636]
+
     def test_price_never_drops_below_floor(self, db_session, ten_companies, now_kst_afternoon):
         up_product, down_product = ten_companies[0], ten_companies[1]
         up_news, down_news = self._seed_one_up_one_down(db_session, up_product, down_product, now_kst_afternoon)

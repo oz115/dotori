@@ -42,6 +42,12 @@ JITTER_MOVE_MIN = Decimal("0.01")
 JITTER_MOVE_MAX = Decimal("0.03")
 # 가격 하한 = 가족 시작가(주간 용돈 ÷ 종목 수)의 몇 %.
 PRICE_FLOOR_RATIO = Decimal("0.1")
+# 이력이 하나도 없는(막 온보딩한) 가족에게 만들어 주는 과거 이력 길이. 어제 가입한
+# 아이도 차트에서 일주일치 흐름을 볼 수 있어야 한다 — 뉴스는 전역으로 저장돼 있으므로
+# 그 가족의 시작가에서 지난 뉴스 방향대로 다시 굴리기만 하면 된다.
+BACKFILL_DAYS = 7
+# 백필 행의 기록 시각. 실제 크론(00:05 KST)과 맞춰 하루 경계 계산이 운영과 같게 한다.
+_CRON_DELAY = timedelta(minutes=5)
 # 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈 ÷ 종목 수) 계산에 쓴다.
 STOCK_COUNT = Decimal(10)
 
@@ -187,6 +193,18 @@ def _day_start_kst(now: datetime) -> datetime:
     return datetime.combine(kst_now.date(), time.min, tzinfo=KST)
 
 
+def _news_in_window(session: Session, start: datetime, end: datetime) -> list[InvestmentNews]:
+    """[start, end) 사이에 발행된 뉴스. 어제 뉴스 조회와 신규 가족 백필이 같이 쓴다."""
+    return list(
+        session.execute(
+            select(InvestmentNews).where(
+                InvestmentNews.published_at >= start,
+                InvestmentNews.published_at < end,
+            )
+        ).scalars()
+    )
+
+
 def yesterdays_news(session: Session, now: datetime) -> list[InvestmentNews]:
     """전날(어제, KST) 발행된 뉴스.
 
@@ -199,15 +217,7 @@ def yesterdays_news(session: Session, now: datetime) -> list[InvestmentNews]:
     아직 하루도 안 지난 첫날은 빈 리스트를 돌려준다 — 그날은 가격이 안 움직인다.
     """
     day_start = _day_start_kst(now)
-    yesterday_start = day_start - timedelta(days=1)
-    return list(
-        session.execute(
-            select(InvestmentNews).where(
-                InvestmentNews.published_at >= yesterday_start,
-                InvestmentNews.published_at < day_start,
-            )
-        ).scalars()
-    )
+    return _news_in_window(session, day_start - timedelta(days=1), day_start)
 
 
 def _generate_news_text(product: InvestmentProduct, impact: str) -> tuple[str, str]:
@@ -301,6 +311,57 @@ def todays_news_with_companies(
     return [(news, product_by_news_id[news.investment_news_id]) for news in news_items]
 
 
+def _impacts_of(session: Session, news_items: list[InvestmentNews]) -> dict[int, str]:
+    """뉴스 목록을 {회사 id: 상승/하락} 으로 접는다. 하루 3건이 회사 3개를 가리킨다."""
+    product_by_news_id = _products_by_news_id(session, news_items)
+    return {
+        product_by_news_id[news.investment_news_id].investment_product_id: news.impact for news in news_items
+    }
+
+
+def _apply_daily_moves(
+    session: Session,
+    family_id: int,
+    products: list[InvestmentProduct],
+    impacts: dict[int, str],
+    start_price: int | None,
+    latest_price: dict[tuple[int, int], int],
+    recorded_at: datetime,
+) -> int:
+    """한 가족의 하루치 가격을 굴려 이력에 쓴다. 오늘 갱신과 신규 가족 백필이 같이 쓴다.
+
+    뉴스가 가리킨 회사는 현재가의 10~20%를 뉴스 방향으로, 나머지는 1~3%를 무작위
+    방향으로 움직인다. `latest_price` 를 갱신하므로 여러 날을 연달아 부르면 가격이
+    날마다 이어진다(복리처럼). 반환값은 쓴 행 수.
+    """
+    written = 0
+    for product in products:
+        base = start_price if start_price is not None else product.current_price
+        current = latest_price.get((family_id, product.investment_product_id), base)
+        impact = impacts.get(product.investment_product_id)
+        if impact is not None:
+            move = _percent_move(current, NEWS_MOVE_MIN, NEWS_MOVE_MAX)
+            going_up = impact == "POSITIVE"
+        else:
+            move = _percent_move(current, JITTER_MOVE_MIN, JITTER_MOVE_MAX)
+            going_up = random.random() < 0.5
+        if going_up:
+            new_price = current + move
+        else:
+            new_price = max(_price_floor(base), current - move)
+        session.add(
+            InvestmentPriceHistory(
+                family_id=family_id,
+                investment_product_id=product.investment_product_id,
+                price=new_price,
+                recorded_at=recorded_at,
+            )
+        )
+        latest_price[(family_id, product.investment_product_id)] = new_price
+        written += 1
+    return written
+
+
 def _percent_move(price: int, min_ratio: Decimal, max_ratio: Decimal) -> int:
     """현재가의 min~max 비율 사이 무작위 변동량(포인트).
 
@@ -357,6 +418,11 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     강제하는데, 그걸 그대로 적용하면 온보딩 안 한 가족에게 억지로 최소 변동을 주게 된다
     (`app.domains.shopping.services.has_income` 과 같은 이유).
 
+    **이력이 하나도 없는(막 온보딩한) 가족은 지난 `BACKFILL_DAYS` 일치를 먼저 만들어
+    준다.** 어제 가입한 아이도 차트에서 일주일치 흐름을 볼 수 있어야 한다 — 뉴스는
+    전역으로 저장돼 있으니, 그 가족의 시작가에서 각 날짜의 전날 뉴스 방향대로 하루씩
+    다시 굴린다 (전날 뉴스가 없는 날짜는 건너뛴다).
+
     반환값은 새로 쓴 `investment_price_history` 행 수.
     """
     if not news_items:
@@ -371,10 +437,7 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     if already_updated:
         return 0
 
-    product_by_news_id = _products_by_news_id(session, news_items)
-    impact_by_product_id = {
-        product_by_news_id[news.investment_news_id].investment_product_id: news.impact for news in news_items
-    }
+    todays_impacts = _impacts_of(session, news_items)
     products = list(session.execute(select(InvestmentProduct).where(InvestmentProduct.is_active)).scalars())
 
     # 각 (가족, 회사)의 최신가. 이력이 없으면 아래에서 가족 시작가(용돈 ÷ 종목 수)로 대체한다.
@@ -389,6 +452,14 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
     for family_id, product_id, price in history_rows:
         latest_price.setdefault((family_id, product_id), price)
 
+    # 신규 가족 백필에 쓸 지난 날짜별 뉴스 방향. 날짜 D 의 가격은 D-1 뉴스가 움직인다.
+    backfill_days: list[tuple[datetime, dict[int, str]]] = []
+    for offset in range(BACKFILL_DAYS, 0, -1):
+        target_day_start = day_start - timedelta(days=offset)
+        prior_news = _news_in_window(session, target_day_start - timedelta(days=1), target_day_start)
+        if prior_news:
+            backfill_days.append((target_day_start + _CRON_DELAY, _impacts_of(session, prior_news)))
+
     families = list(session.execute(select(Family)).scalars())
 
     written = 0
@@ -402,29 +473,17 @@ def update_prices_for_todays_news(session: Session, news_items: list[InvestmentN
         start_price = (
             _start_price(family.weekly_allowance) if family.weekly_allowance > 0 else None
         )
-        for product in products:
-            base = start_price if start_price is not None else product.current_price
-            current = latest_price.get((family.family_id, product.investment_product_id), base)
-            impact = impact_by_product_id.get(product.investment_product_id)
-            if impact is not None:
-                move = _percent_move(current, NEWS_MOVE_MIN, NEWS_MOVE_MAX)
-                going_up = impact == "POSITIVE"
-            else:
-                move = _percent_move(current, JITTER_MOVE_MIN, JITTER_MOVE_MAX)
-                going_up = random.random() < 0.5
-            if going_up:
-                new_price = current + move
-            else:
-                new_price = max(_price_floor(base), current - move)
-            session.add(
-                InvestmentPriceHistory(
-                    family_id=family.family_id,
-                    investment_product_id=product.investment_product_id,
-                    price=new_price,
-                    recorded_at=now,
+        has_history = any(
+            (family.family_id, product.investment_product_id) in latest_price for product in products
+        )
+        if not has_history:
+            for recorded_at, impacts in backfill_days:
+                written += _apply_daily_moves(
+                    session, family.family_id, products, impacts, start_price, latest_price, recorded_at
                 )
-            )
-            written += 1
+        written += _apply_daily_moves(
+            session, family.family_id, products, todays_impacts, start_price, latest_price, now
+        )
 
     session.commit()
     return written
