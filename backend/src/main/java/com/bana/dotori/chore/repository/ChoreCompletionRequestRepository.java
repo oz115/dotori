@@ -1,5 +1,6 @@
 package com.bana.dotori.chore.repository;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,7 @@ import org.springframework.data.repository.query.Param;
 import com.bana.dotori.chore.dto.ChoreCompletionRow;
 import com.bana.dotori.chore.entity.ChoreCompletionRequest;
 import com.bana.dotori.chore.entity.ChoreCompletionStatus;
+import com.bana.dotori.chore.entity.ChoreRepeatType;
 
 public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCompletionRequest, Integer> {
 
@@ -49,6 +51,29 @@ public interface ChoreCompletionRequestRepository extends JpaRepository<ChoreCom
 	 * 같은 항목이 여러 줄로 뜨고, 하나를 승인한 뒤 남은 것들의 처리가 애매해진다.
 	 */
 	boolean existsByChoreIdAndStatus(Integer choreId, ChoreCompletionStatus status);
+
+	/**
+	 * 주기가 끝났는데 아직 대기 중인 요청들 (크론이 자동 거절할 대상).
+	 *
+	 * <p>대기 중인 요청이 하나라도 있으면 같은 할 일에 새 요청을 만들 수 없다
+	 * ({@code PENDING_REQUEST_EXISTS}). 그래서 부모가 끝내 처리하지 않으면 그 반복 할 일은
+	 * 다음 주기가 와도 아이가 다시 할 수 없는 상태로 잠긴다 (QA).
+	 *
+	 * <p>대상 조건은 {@link ChoreRepository#rollPeriod} 와 같다 — 기간을 미는 바로 그
+	 * 할 일들의 대기 요청을 함께 정리해야 둘이 어긋나지 않는다.
+	 *
+	 * <p>건수가 적어(부모가 방치한 것만) 엔티티로 읽는다. 상태 전이 규칙을 엔티티가 갖고
+	 * 있어서, 벌크 UPDATE 로 우회하면 그 규칙 밖에서 상태가 바뀐다.
+	 *
+	 * <p>요청은 chore_id 를 연관관계가 아니라 값으로 갖고 있어 조인 대신 서브쿼리로 묶는다.
+	 * 대상 id 를 먼저 읽어 IN 으로 넘기는 방법도 있지만, 가족이 늘면 그 목록이 수천 건이 된다.
+	 */
+	@Query("select r from ChoreCompletionRequest r "
+		+ "where r.status = com.bana.dotori.chore.entity.ChoreCompletionStatus.PENDING "
+		+ "and r.choreId in (select c.id from Chore c "
+		+ "  where c.repeatType = :repeatType and c.deletedAt is null and c.endDate < :today)")
+	List<ChoreCompletionRequest> findStalePending(@Param("repeatType") ChoreRepeatType repeatType,
+		@Param("today") LocalDate today);
 
 	/**
 	 * 승인·거절할 요청을 집는다 (CHORE-09·10).
