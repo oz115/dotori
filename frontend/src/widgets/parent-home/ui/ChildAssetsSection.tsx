@@ -55,7 +55,7 @@ export function ChildAssetsSection({
           자녀 자산
         </Text>
         <Pressable onPress={onOpenReport} hitSlop={8} accessibilityRole="button">
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>리포트 ›</Text>
+          <Text style={[theme.typography.label, { color: theme.color.text.sub }]}>리포트 ›</Text>
         </Pressable>
       </View>
 

@@ -92,3 +92,19 @@ it('오늘 등록된 미션이 아예 없으면 없다고 알린다', async () =
 
   await waitFor(() => expect(screen.getByText('오늘 등록된 미션이 없어요.')).toBeTruthy(), WAIT);
 });
+
+it('어제 등록됐어도 반복 주기가 오늘로 밀렸으면 보여 준다', async () => {
+  // 크론이 매일 자정 반복 미션의 기간을 오늘로 밀어 준다 — createdAt 은 최초 등록일 그대로다.
+  mocked.getChores.mockResolvedValue([
+    {
+      ...chore(1, '설거지하기'),
+      repeatType: 'DAY',
+      createdAt: '2026-01-01T09:00:00+09:00',
+    },
+  ]);
+
+  await show();
+
+  await waitFor(() => expect(screen.getByText('설거지하기')).toBeTruthy(), WAIT);
+  expect(screen.queryByText('오늘 등록된 미션이 없어요.')).toBeNull();
+});
