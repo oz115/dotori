@@ -7,6 +7,7 @@ import type {
   GrantBody,
   PointBalance,
   PointTransaction,
+  PointTransactionHistory,
 } from '@/features/wallet/model/types';
 
 const base = (familyId: number, childId: number) =>
@@ -32,6 +33,19 @@ export const walletApi = {
       .post<PointTransaction>(`${base(familyId, childId)}/grant`, body, {
         headers: { 'Idempotency-Key': idempotencyKey },
       })
+      .then((res) => res.data),
+
+  /**
+   * 포인트 거래내역 (WLT-06). 기간은 서버가 거르고, 무한 스크롤은 커서로 잇는다 —
+   * 첫 요청은 cursor 없이, 다음부터는 응답의 page.nextCursor 를 그대로 싣는다.
+   */
+  getTransactions: (
+    familyId: number,
+    childId: number,
+    params: { startDate?: string; endDate?: string; cursor?: string; size?: number },
+  ) =>
+    httpClient
+      .get<PointTransactionHistory>(`${base(familyId, childId)}/transactions`, { params })
       .then((res) => res.data),
 
   /** 환전 요청. amount 는 포인트 — 요청 즉시 차감되고, 부모 승인 후 실제 송금된다 */

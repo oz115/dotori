@@ -56,12 +56,12 @@ describe('BalanceCard - 자녀 지갑 슬라이드', () => {
     }
   });
 
-  it('첫 장은 잔액과 충전·환전 버튼이 있고, 환전 내역은 작은 링크로 들어간다', async () => {
+  it('첫 장은 잔액과 충전·환전 버튼이 있고, 거래 내역은 작은 링크로 들어간다', async () => {
     const handlers = await setup();
 
     expect(screen.getByText('1,200P')).toBeTruthy();
-    // 환전 내역은 큰 버튼이 아니라 오른쪽 위의 링크다
-    await fireEvent.press(screen.getByLabelText('환전 내역 보기'));
+    // 거래 내역(포인트 입출금·환전)은 큰 버튼이 아니라 오른쪽 위의 링크다
+    await fireEvent.press(screen.getByLabelText('거래 내역 보기'));
     await fireEvent.press(screen.getByText('도토리 충전'));
     await fireEvent.press(screen.getByText('환전하기'));
 

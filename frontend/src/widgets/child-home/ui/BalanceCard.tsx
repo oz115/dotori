@@ -13,7 +13,7 @@ type BalanceCardProps = {
   isPending: boolean;
   onCharge: () => void;
   onCashout: () => void;
-  /** 내가 보낸 환전 요청 내역으로 */
+  /** 거래 내역(포인트 입출금·환전)으로 */
   onCashoutHistory: () => void;
   /** 넷째 장 "실계좌"에 쓸 실제 계좌 정보 (없으면 연동 전) */
   account: AccountInfo | null | undefined;
@@ -75,7 +75,7 @@ export function BalanceCard({
           }
           title="내 도토리"
           subtitle="현재 사용 가능"
-          headerRight={<HistoryLink label="환전 내역" onPress={onCashoutHistory} />}
+          headerRight={<HistoryLink label="거래 내역" onPress={onCashoutHistory} />}
           amount={isPending ? '—' : formatPoint(balance ?? 0)}
         >
           <WalletButton label="도토리 충전" onPress={onCharge} />
@@ -125,7 +125,7 @@ export function BalanceCard({
   );
 }
 
-/** 카드 오른쪽 위의 작은 이동 링크 ("환전 내역 ›"). 버튼처럼 보이지 않게 글씨와 화살표만 둔다. */
+/** 카드 오른쪽 위의 작은 이동 링크 ("거래 내역 ›"). 버튼처럼 보이지 않게 글씨와 화살표만 둔다. */
 function HistoryLink({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
 
