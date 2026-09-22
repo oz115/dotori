@@ -193,7 +193,9 @@ export function PriceLineChart({ history }: Props) {
         </View>
       </View>
 
-      <View style={[styles.xLabels, { marginLeft: yAxisWidth + AXIS_GAP }]}>
+      {/* 라벨 줄은 전체 폭을 쓰고 좌표에 y축 폭을 더해 맞춘다 — 왼쪽 끝 라벨을 컨테이너
+          밖(-x)으로 밀지 않아야 안드로이드에서 잘리지 않는다 */}
+      <View style={styles.xLabels}>
         {history
           .map((point, index) => ({ ...point, index }))
           // 오늘(마지막)을 기준으로 같은 간격씩 거슬러 라벨을 찍는다 — 앞에서부터 찍고
@@ -212,14 +214,12 @@ export function PriceLineChart({ history }: Props) {
                 styles.axisLabel,
                 styles.xLabel,
                 { color: theme.color.text.muted },
+                // 마지막(오늘)은 오른쪽 끝에 붙이고, 나머지는 각자 점 아래에 오도록
+                // 점 x좌표에서 라벨 절반 폭만큼 왼쪽으로 당긴다 — 첫 라벨만 왼쪽 끝에
+                // 붙이면 둘째 라벨과 몰려 보인다
                 point.index === history.length - 1
                   ? { right: 0 }
-                  : point.index === 0
-                    ? { left: 0 }
-                    : {
-                        left: points[point.index]?.x ?? 0,
-                        transform: [{ translateX: -16 }],
-                      },
+                  : { left: yAxisWidth + AXIS_GAP + (points[point.index]?.x ?? 0) - 16 },
               ]}
             >
               {point.label}
