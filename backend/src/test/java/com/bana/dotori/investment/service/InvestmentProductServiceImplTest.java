@@ -410,12 +410,11 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("날짜를 안 주면 최근 30일 범위(KST 하루 경계)로 조회한다")
+	@DisplayName("날짜를 안 주면 가입일과 무관하게 최근 일주일 롤링 윈도우로 조회한다")
 	void getPriceHistory_defaultRange() {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
-		givenFirstRecordedAt(SEED_AT);
 		given(investmentPriceHistoryRepository.findAllInRange(eq(FAMILY_ID), eq(1), any(OffsetDateTime.class),
 			any(OffsetDateTime.class))).willReturn(List.of());
 
@@ -423,10 +422,11 @@ class InvestmentProductServiceImplTest {
 			null);
 
 		assertThat(response.investmentProductId()).isEqualTo(1);
-		assertThat(response.history()).isNotEmpty().allSatisfy(point -> assertThat(point.price()).isEqualTo(10000));
+		// [7일 전, 오늘] 여덟 점. 기록이 없으니 전부 시작가(시드)로 채워진다.
+		assertThat(response.history()).hasSize(8)
+			.allSatisfy(point -> assertThat(point.price()).isEqualTo(10000));
 		then(investmentPriceHistoryRepository).should().findAllInRange(FAMILY_ID, 1,
-			todayStart().minusDays(30).isAfter(SEED_AT) ? todayStart().minusDays(30) : SEED_AT,
-			todayStart().plusDays(1));
+			todayStart().minusDays(7), todayStart().plusDays(1));
 	}
 
 	@Test
@@ -435,7 +435,6 @@ class InvestmentProductServiceImplTest {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
-		givenFirstRecordedAt(SEED_AT);
 		OffsetDateTime start = LocalDate.of(2026, 9, 1).atStartOfDay(KST).toOffsetDateTime();
 		OffsetDateTime end = LocalDate.of(2026, 9, 16).atStartOfDay(KST).toOffsetDateTime();
 		given(investmentPriceHistoryRepository.findAllInRange(FAMILY_ID, 1, start, end)).willReturn(List.of(
@@ -543,7 +542,6 @@ class InvestmentProductServiceImplTest {
 		givenFamilyCreated(SEED_AT);
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 10000)));
-		givenFirstRecordedAt(SEED_AT);
 		OffsetDateTime start = SEED_AT.plusDays(2);
 		given(investmentPriceHistoryRepository
 			.findFirstByFamilyIdAndInvestmentProductIdAndRecordedAtLessThanOrderByRecordedAtDescIdDesc(FAMILY_ID, 1, start))
@@ -571,15 +569,15 @@ class InvestmentProductServiceImplTest {
 	}
 
 	@Test
-	void getPriceHistory_beforeFirstRecordIsEmpty() {
-		// 첫 기록(여기선 기록 없음 = 오늘) 이전 기간만 조회하면 빈 목록이다
+	void getPriceHistory_pastRangeIsPaddedWithStartPrice() {
+		// 기록이 없는 과거 기간도 빈 목록이 아니라 시작가로 채운다 — 새 가족도 늘 같은
+		// 폭의 차트를 본다 (가입일·첫 기록일로 왼쪽을 자르지 않는다)
 		given(familyMemberRepository.findActiveFamilyId(USER_ID)).willReturn(Optional.of(FAMILY_ID));
 		given(investmentProductRepository.findById(1)).willReturn(Optional.of(product(1, "시원아이스", 100)));
 		var response = investmentProductService.getPriceHistory(USER_ID, 1,
 			LocalDate.now(KST).minusDays(3), LocalDate.now(KST).minusDays(1));
-		assertThat(response.history()).isEmpty();
-		then(investmentPriceHistoryRepository).should(never())
-			.findAllInRange(any(), any(), any(OffsetDateTime.class), any(OffsetDateTime.class));
+		assertThat(response.history()).hasSize(3)
+			.allSatisfy(point -> assertThat(point.price()).isEqualTo(100));
 	}
 
 	@Test
@@ -601,13 +599,6 @@ class InvestmentProductServiceImplTest {
 			SEED_AT.plusDays(4).toLocalDate(), InvestmentTransactionType.SELL);
 		assertThat(response.transactions().get(0).buyPrice()).isEqualTo(1500);
 		assertThat(response.transactions().get(0).realizedProfit()).isEqualTo(-200);
-	}
-
-	/** 차트 시작일 하한이 되는 "이 가족의 첫 가격 기록" 시각을 흉내낸다. */
-	private void givenFirstRecordedAt(OffsetDateTime recordedAt) {
-		given(investmentPriceHistoryRepository
-			.findFirstByFamilyIdAndInvestmentProductIdOrderByRecordedAtAscIdAsc(FAMILY_ID, 1))
-			.willReturn(Optional.of(history(1, 10000, recordedAt)));
 	}
 
 	private void givenFamilyCreated(OffsetDateTime createdAt) {

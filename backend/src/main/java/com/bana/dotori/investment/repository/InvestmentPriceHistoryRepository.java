@@ -33,13 +33,6 @@ public interface InvestmentPriceHistoryRepository extends JpaRepository<Investme
 		@Param("before") OffsetDateTime before);
 
 	/**
-	 * 한 상품의 가장 오래된 가격 행 — 차트 시작일 하한(이 가족의 기록이 시작된 날)에 쓴다.
-	 * 온보딩 백필이 지난 일주일치를 만들어 주므로, 가입일이 아니라 이 값이 차트의 왼쪽 끝이다.
-	 */
-	Optional<InvestmentPriceHistory> findFirstByFamilyIdAndInvestmentProductIdOrderByRecordedAtAscIdAsc(
-		Integer familyId, Integer investmentProductId);
-
-	/**
 	 * 한 상품의 기간 내 가격 이력, 시간 오름차순 (INV-T-06 차트 데이터).
 	 * 날짜 필터는 서비스가 한국 시간 기준 [시작일 00:00, 종료일 다음날 00:00) 범위로 바꿔 넘긴다.
 	 */
