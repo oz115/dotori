@@ -15,6 +15,7 @@ const DETAILS: Record<number, WordDetailInfo> = {
     wordId: 1,
     word: '적금',
     definition: '돈을 모으는 방법',
+    easyDefinition: '적금은 매달 조금씩 돈을 모으는 거예요.',
     difficultyLevel: 1,
     category: 'SAVINGS',
   },
@@ -22,6 +23,8 @@ const DETAILS: Record<number, WordDetailInfo> = {
     wordId: 2,
     word: '가계부',
     definition: '수입·지출 기록장',
+    // 용어사전에 없던 단어 — 아직 쉬운 설명이 비어 있다
+    easyDefinition: null,
     difficultyLevel: 1,
     category: 'SAVINGS',
   },
@@ -40,7 +43,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(wordApi.getWord).mockImplementation((wordId) => Promise.resolve(DETAILS[wordId]));
   jest.mocked(wordApi.getWords).mockResolvedValue({
-    words: Object.values(DETAILS).map(({ definition: _, ...summary }) => summary),
+    words: Object.values(DETAILS).map(
+      ({ definition: _d, easyDefinition: _e, ...summary }) => summary,
+    ),
     page: 0,
     totalPages: 1,
   });
@@ -59,4 +64,20 @@ it('카테고리를 넘겨받으면 그 카테고리 목록을 기준으로 이�
   await screen.findByText('가계부');
 
   expect(wordApi.getWords).toHaveBeenCalledWith(expect.objectContaining({ category: 'SAVINGS' }));
+});
+
+it('쉬운 설명이 있으면 정석 뜻과 함께 보여준다', async () => {
+  await show({ wordId: 1 });
+
+  // 정석 뜻을 대체하지 않고 덧붙인다 — 어려운 말도 눈에 익혀야 하는 단어장이다
+  expect(await screen.findByText('돈을 모으는 방법')).toBeTruthy();
+  expect(screen.getByText('쉽게 말하면')).toBeTruthy();
+  expect(screen.getByText('적금은 매달 조금씩 돈을 모으는 거예요.')).toBeTruthy();
+});
+
+it('쉬운 설명이 아직 없는 단어는 그 블록을 빼고 뜻만 보여준다', async () => {
+  await show({ wordId: 2 });
+
+  expect(await screen.findByText('수입·지출 기록장')).toBeTruthy();
+  expect(screen.queryByText('쉽게 말하면')).toBeNull();
 });

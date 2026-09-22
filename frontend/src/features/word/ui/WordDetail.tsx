@@ -26,8 +26,12 @@ type WordDetailProps = {
 };
 
 /**
- * 경제 단어장 상세. `words` 테이블엔 예문 컬럼이 없어 뜻(definition)만 보여준다.
+ * 경제 단어장 상세. `words` 테이블엔 예문 컬럼이 없어 뜻(definition)과 쉬운 설명을 보여준다.
  * 카테고리 배지는 검정+흰 글씨, 난이도 배지는 초급/중급/고급 시맨틱 톤온톤(D안).
+ *
+ * 쉬운 설명은 정석 뜻을 대체하지 않고 아래에 덧붙인다 — 어려운 말도 눈에 익혀야 하는
+ * 단어장이라 원래 뜻을 감추면 안 되고, 아이는 아래 문단만 읽어도 이해할 수 있다.
+ * 아직 채우지 못한 단어가 있어서 없으면 블록째로 뺀다.
  *
  * 이전/다음 단어는 라우터로 새 화면을 띄우지 않는다 — `router.replace`를 쓰면 스택
  * 네비게이션 전환이 일어나서 헤더까지 포함해 화면 전체가 다시 뜨는 것처럼 보인다.
@@ -135,9 +139,37 @@ export function WordDetail({ wordId: initialWordId, category, onBack: goBack }: 
         </View>
 
         <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>{word.word}</Text>
-        <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
-          {word.definition}
-        </Text>
+
+        <View style={{ gap: theme.space.xs }}>
+          <Text style={[theme.typography.label, { color: theme.color.text.label }]}>뜻</Text>
+          <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
+            {word.definition}
+          </Text>
+        </View>
+
+        {word.easyDefinition ? (
+          <View
+            style={[
+              styles.easyBox,
+              {
+                backgroundColor: theme.color.background.surfaceSunken,
+                borderRadius: theme.radius.md,
+                padding: theme.space.lg,
+                gap: theme.space.xs,
+              },
+            ]}
+          >
+            <Text style={[theme.typography.label, { color: theme.color.text.label }]}>
+              쉽게 말하면
+            </Text>
+            {/* 아이가 실제로 읽는 본문이라 줄간격을 넉넉히 준다 (퀴즈 해설과 같은 값) */}
+            <Text
+              style={[theme.typography.body, styles.easyText, { color: theme.color.text.default }]}
+            >
+              {word.easyDefinition}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={[styles.navRow, { gap: theme.space.sm }]}>
           <Button
@@ -168,5 +200,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   badgeRow: { flexDirection: 'row' },
   badge: { paddingHorizontal: 10, paddingVertical: 4 },
+  easyBox: { width: '100%' },
+  easyText: { lineHeight: 28 },
   navRow: { flexDirection: 'row', marginTop: 8 },
 });

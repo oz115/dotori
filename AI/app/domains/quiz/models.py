@@ -49,6 +49,9 @@ class Word(Base):
     word_id: Mapped[int] = mapped_column(primary_key=True)
     word: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(255))
+    # 아이 눈높이로 풀어 쓴 설명. 용어사전을 나중에 받아 채운 컬럼이라 비어 있는 단어가 있다.
+    # 퀴즈 프롬프트는 아직 description 만 쓴다 — 이 컬럼을 재료로 넣을지는 별도 판단이다.
+    easy_description: Mapped[str | None] = mapped_column(String(255))
     difficulty_level: Mapped[int] = mapped_column()
     category: Mapped[str | None] = mapped_column(String)
 

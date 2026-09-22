@@ -17,7 +17,7 @@
 | `store_products` | 읽기 + `value`, `price`, `reason` 쓰기 | 물품 가치를 평가해 채운다 |
 | `chores` | 읽기 + `value`, `reward_points`, `reason` 쓰기 | 할 일 보상 포인트 책정 |
 | `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
-| `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료 |
+| `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료. `easy_description`(아이 눈높이 설명, 2026-09-22 추가)은 단어장 화면용이라 퀴즈는 아직 안 쓴다 |
 | `investment_products` | **읽기만** | 회사 10개 고정. 가격 생성의 시작가는 이 테이블이 아니라 `families.weekly_allowance ÷ 10`(주간 용돈으로 10개 종목을 전부 살 수 있는 가격, 2026-09-21 확정)이다 — `current_price` 는 온보딩 전 가족을 위한 폴백으로만 남는다. `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
 | `investment_news` | INSERT | 매일 뉴스 3건 생성 |
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
