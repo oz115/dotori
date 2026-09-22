@@ -144,7 +144,7 @@ function WalletPage({
 
         <View style={{ gap: theme.space.sm }}>
           {/* 내역은 "하러 가는" 두 버튼과 성격이 달라 위에 따로 둔다 */}
-          <WalletPill label="환전 내역" onPress={onCashoutHistory} variant="cream" />
+          <WalletPill label="거래 내역" onPress={onCashoutHistory} variant="cream" />
 
           {/* 두 버튼이 카드 폭을 반씩 나눠 갖는다 */}
           <View style={[styles.actionRow, { gap: theme.space.sm }]}>
@@ -232,7 +232,7 @@ type WalletPillProps = {
   onPress: () => void;
   /**
    * light: 흰 배경 (도토리 충전) · tinted: 연한 연두 배경 (환전하기) ·
-   * cream: 크림 배경 + 도토리 브라운 글씨 (환전 내역). 배경만 보면 light 와 거의 같은 색이라
+   * cream: 크림 배경 + 도토리 브라운 글씨 (거래 내역). 배경만 보면 light 와 거의 같은 색이라
    * 글씨색으로 가른다
    */
   variant?: 'light' | 'tinted' | 'cream';
