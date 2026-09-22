@@ -1,5 +1,6 @@
 import {
   isValidEmail,
+  LOGIN_ID_BLANK_ERROR,
   LOGIN_ID_MAX,
   validateAccountStep,
   validateLoginId,
@@ -38,6 +39,12 @@ describe('validateAccountStep', () => {
     );
   });
 
+  it('공백이 섞인 아이디를 막는다', () => {
+    expect(validateAccountStep({ ...valid, loginId: 'hong gil dong' }).loginId).toBe(
+      LOGIN_ID_BLANK_ERROR,
+    );
+  });
+
   it('accepts an id of exactly the limit', () => {
     expect(
       validateAccountStep({ ...valid, loginId: 'a'.repeat(LOGIN_ID_MAX) }).loginId,
@@ -66,7 +73,20 @@ describe('validateLoginId', () => {
     expect(validateLoginId('dotori')).toBeUndefined();
   });
 
-  it('앞뒤 공백은 세지 않는다', () => {
-    expect(validateLoginId('  ab  ')).toBe('아이디는 4자 이상 입력해주세요.');
+  it.each(['hong gil dong', ' dotori', 'dotori ', 'do\ttori'])(
+    '공백이 섞인 %p 는 막는다',
+    (loginId) => {
+      // 길이만 보던 때는 이런 아이디가 그대로 가입됐다. 서버 제약도 길이뿐이라
+      // 아무도 막지 않았고, 로그인할 때 보이지 않는 한 칸 때문에 아이디가 틀렸다 (QA).
+      expect(validateLoginId(loginId)).toBe(LOGIN_ID_BLANK_ERROR);
+    },
+  );
+
+  it('공백은 길이보다 먼저 알린다 — 더 입력해도 해결되지 않는 문제라서', () => {
+    expect(validateLoginId('  ab  ')).toBe(LOGIN_ID_BLANK_ERROR);
+  });
+
+  it('공백이 없으면 길이 검증으로 넘어간다', () => {
+    expect(validateLoginId('ab')).toBe('아이디는 4자 이상 입력해주세요.');
   });
 });
