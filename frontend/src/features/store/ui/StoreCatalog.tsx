@@ -163,7 +163,9 @@ function filterByCategory(
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 40, flexGrow: 1, paddingTop: 16 },
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
+  // 간격을 이미 줬으니, 여기서 또 주면 배너가 미션·저축·투자보다 내려가 시작 위치가 어긋난다.
+  content: { paddingBottom: 40, flexGrow: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   cell: { width: '48%' },
   // 할 일 화면(ParentChoreList/ChildChoreList)의 빈 상태와 같은 위치에 오도록
