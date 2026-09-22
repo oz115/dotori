@@ -6,6 +6,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.global.util.NotificationText;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.PushNotificationService;
 import com.bana.dotori.user.entity.UserRole;
@@ -29,7 +30,8 @@ public class StoreProductRegisteredNotificationListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onProductCreated(StoreProductCreatedEvent event) {
 		String title = "새 상품이 등록됐어요";
-		String body = event.name() + "이(가) 상점에 새로 등록됐어요";
+		// 긴 상품명이 두 줄을 다 먹으면 "새로 등록됐어요"가 안 보인다 (QA) — 이름만 줄인다.
+		String body = NotificationText.shortName(event.name()) + "이(가) 상점에 새로 등록됐어요";
 
 		for (FamilyMember child : familyMemberRepository.findAllByFamilyIdAndRole(event.familyId(), UserRole.CHILD)) {
 			pushNotificationService.notify(child.getUser().getId(), NotificationType.PURCHASE, title, body,
