@@ -42,8 +42,9 @@ export const colorLight = {
     cream: palette.cream,
   },
   investment: {
-    rise: palette.blue[700],
-    fall: palette.red[700],
+    // 국내 증권 앱 관례: 상승 = 빨강, 하락 = 파랑
+    rise: palette.red[700],
+    fall: palette.blue[700],
     flat: palette.neutral[500],
   },
   status: {

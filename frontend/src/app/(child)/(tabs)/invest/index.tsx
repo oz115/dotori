@@ -15,7 +15,7 @@ import {
   useInvestmentProducts,
   type StockSummary,
 } from '@/features/investment';
-import { useTheme } from '@/shared/theme';
+import { fontFamily, useTheme } from '@/shared/theme';
 import { Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 // Figma 아이콘 시트에서 추출한 섹션 아이콘
@@ -149,10 +149,13 @@ export default function InvestScreen() {
               onPress: () => router.push('/invest/holdings'),
             }}
           />
-          <Text style={muted}>
-            현재 가격과 어제보다 오른 만큼(내린 만큼)을 함께 보여줘요. 카드를 꾹 누르면 여러 개를
-            골라 한 번에 살 수 있어요.
-          </Text>
+          {/* 문장을 한 덩어리로 붙이면 안 읽힌다 — 줄을 나누고 조작 안내는 굵게 강조 */}
+          <View style={{ gap: theme.space.xs }}>
+            <Text style={muted}>현재 가격과 어제보다 오른 만큼(내린 만큼)을 함께 보여줘요.</Text>
+            <Text style={[...muted, { fontFamily: fontFamily.bold }]}>
+              카드를 꾹 누르면 여러 개를 골라 한 번에 살 수 있어요.
+            </Text>
+          </View>
           {products.isPending ? (
             <Text style={muted}>주식을 불러오는 중이에요.</Text>
           ) : products.isError ? (

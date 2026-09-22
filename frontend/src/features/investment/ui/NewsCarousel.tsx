@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -25,20 +25,45 @@ type Props = {
   onTouchingChange?: (touching: boolean) => void;
 };
 
+/** 자동 넘김 간격. 아이가 제목을 읽을 시간은 주되, 안 넘어간다고 느껴질 만큼 길지 않게. */
+const AUTO_ADVANCE_MS = 5000;
+
 /**
  * 오늘의 뉴스 가로 캐러셀. 뉴스 카드 한 장이 화면 폭을 꽉 채우고 스냅으로 넘기며,
  * 아래 점 인디케이터가 현재 위치를 보여준다. 카드를 탭하면 onPressItem 으로 알린다.
+ * 가만히 두면 일정 시간마다 다음 카드로 자동으로 넘어가고(끝에서는 처음으로),
+ * 손이 닿아 있는 동안은 멈춘다.
  */
 export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
+  const [touching, setTouching] = useState(false);
   const listRef = useRef<FlatList<InvestmentNews>>(null);
 
   // Screen 좌우 여백을 뺀 카드 폭. 카드 사이 간격만큼 더해 스냅 간격을 잡는다.
   const cardWidth = width - theme.layout.screenX * 2;
   const gap = theme.space.md;
   const interval = cardWidth + gap;
+
+  // index 가 바뀔 때마다(자동이든 손이든) 타이머를 새로 잰다 — 어느 카드에서든
+  // 머문 시간 기준으로 일정하게 넘어간다.
+  useEffect(() => {
+    if (touching || items.length < 2) {
+      return;
+    }
+    const id = setTimeout(() => {
+      const next = (index + 1) % items.length;
+      listRef.current?.scrollToOffset({ offset: next * interval, animated: true });
+      setIndex(next);
+    }, AUTO_ADVANCE_MS);
+    return () => clearTimeout(id);
+  }, [index, touching, items.length, interval]);
+
+  const setTouchingState = (next: boolean) => {
+    setTouching(next);
+    onTouchingChange?.(next);
+  };
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = Math.round(e.nativeEvent.contentOffset.x / interval);
@@ -59,9 +84,9 @@ export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
         decelerationRate="fast"
         onScroll={onScroll}
         scrollEventThrottle={16}
-        onTouchStart={() => onTouchingChange?.(true)}
-        onTouchEnd={() => onTouchingChange?.(false)}
-        onTouchCancel={() => onTouchingChange?.(false)}
+        onTouchStart={() => setTouchingState(true)}
+        onTouchEnd={() => setTouchingState(false)}
+        onTouchCancel={() => setTouchingState(false)}
         ItemSeparatorComponent={() => <View style={{ width: gap }} />}
         renderItem={({ item }) => (
           <Pressable
