@@ -3,6 +3,7 @@ import type {
   ChoreCompletionSummary,
   ChoreSummary,
 } from '@/features/chore/model/types';
+import { todayDateKst } from '@/shared/lib/dateRange';
 
 /**
  * 할 일에 진행 상태를 얹는다.
@@ -49,11 +50,10 @@ export function earliestStartDate(chores: ChoreSummary[]): string | undefined {
  * 빠진다. 그러면 이미 받은 할 일이 TODO 로 되살아나 다시 완료 요청을 보낼 수 있게 된다.
  */
 export function todayDate(now: number = Date.now()): string {
-  // KST 는 서머타임이 없어 +9시간을 더한 UTC 날짜가 곧 KST 날짜다.
-  return new Date(now + KST_OFFSET_MS).toISOString().slice(0, 10);
+  // 상점의 하루 1회 제한도 같은 기준이 필요해 shared 로 옮겼다. 이 이름은 chore 쪽에서
+  // 널리 쓰여(widgets 까지) 그대로 두고 위임만 한다.
+  return todayDateKst(now);
 }
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /**
  * 이번 주기에 이미 보상을 받았는지. 지난 주기의 지급은 세지 않는다.
