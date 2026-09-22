@@ -2,7 +2,17 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '@/shared/theme';
 
-export type FilterOption<T extends string> = { key: T; label: string };
+export type FilterOption<T extends string> = {
+  key: T;
+  label: string;
+  /**
+   * 선택됐을 때 배경색 (미지정 시 기본 브랜드 그린). 저축 목록의 예금/적금처럼 칩이
+   * 같은 종류를 가리키는 다른 곳(상품 카드 뱃지)과 색으로 이어져야 할 때만 넘긴다.
+   */
+  activeColor?: string;
+  /** activeColor 를 넘길 때 그 위에 올라갈 글자색. 기본은 onBrand(흰색)와 같다. */
+  activeTextColor?: string;
+};
 
 type FilterChipsProps<T extends string> = {
   options: FilterOption<T>[];
@@ -34,9 +44,8 @@ export function FilterChips<T extends string>({
   showAll = true,
 }: FilterChipsProps<T>) {
   const theme = useTheme();
-  const items: { key: T | null; label: string }[] = showAll
-    ? [{ key: null, label: allLabel }, ...options]
-    : options;
+  const items: { key: T | null; label: string; activeColor?: string; activeTextColor?: string }[] =
+    showAll ? [{ key: null, label: allLabel }, ...options] : options;
 
   return (
     <ScrollView
@@ -57,7 +66,7 @@ export function FilterChips<T extends string>({
               {
                 borderRadius: theme.radius.full,
                 backgroundColor: active
-                  ? theme.color.brand.solid
+                  ? (item.activeColor ?? theme.color.brand.solid)
                   : theme.color.background.surfaceSunken,
               },
             ]}
@@ -65,7 +74,11 @@ export function FilterChips<T extends string>({
             <Text
               style={[
                 theme.typography.label,
-                { color: active ? theme.color.text.onBrand : theme.color.text.default },
+                {
+                  color: active
+                    ? (item.activeTextColor ?? theme.color.text.onBrand)
+                    : theme.color.text.default,
+                },
               ]}
             >
               {item.label}

@@ -81,8 +81,16 @@ export function WalletCard({
             : undefined,
         ]}
       >
-        {/* 안쪽을 따로 둥글게 잘라야 띠가 카드 모서리를 넘지 않는다 (바깥은 그림자 때문에 자르지 않는다) */}
-        <View style={[styles.clip, { borderRadius: theme.radius.lg }]}>
+        {/* 안쪽을 따로 둥글게 잘라야 띠가 카드 모서리를 넘지 않는다 (바깥은 그림자 때문에 자르지 않는다)
+            최소 높이는 슬라이드(fill)에서 장마다 카드 높이를 맞추기 위한 것 — 단독으로 쓰이는
+            자리(연동 계좌 관리 등)까지 억지로 늘리지 않게 fill일 때만 적용한다 */}
+        <View
+          style={[
+            styles.clip,
+            { borderRadius: theme.radius.lg },
+            fill ? styles.fillMinHeight : undefined,
+          ]}
+        >
           {inverted && gradient ? (
             <LinearGradient
               colors={gradient}
@@ -231,7 +239,8 @@ export function WalletButton({ label, onPress, tone = 'primary', disabled }: Wal
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  clip: { flex: 1, overflow: 'hidden', minHeight: CARD_MIN_HEIGHT },
+  clip: { flex: 1, overflow: 'hidden' },
+  fillMinHeight: { minHeight: CARD_MIN_HEIGHT },
   accentBar: { height: 5 },
   body: { flex: 1, justifyContent: 'space-between' },
   headRow: { flexDirection: 'row', alignItems: 'center' },

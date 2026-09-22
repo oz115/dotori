@@ -59,10 +59,13 @@ it('반영 후 실제 가격과 이유를 표시한다', async () => {
   });
   await show();
   // 가격 변화 박스와 해설 문단을 나눠 보여준다 (가독성 피드백)
-  expect(await screen.findByText('고소한빵 가격 변화')).toBeTruthy();
+  // 회사는 글자 캡션 대신 주식 목록 카드처럼 이미지+이름으로 왼쪽에 표시한다
+  expect(await screen.findByText('고소한빵')).toBeTruthy();
   expect(screen.getByText(/1,000 → 900 도토리/)).toBeTruthy();
-  expect(screen.getByText('왜 그랬을까요?')).toBeTruthy();
+  expect(screen.getByText(/왜 그랬을까요\?/)).toBeTruthy();
   expect(screen.getByText('재료비가 늘어 가격이 내렸어요.')).toBeTruthy();
+  // 날짜는 카드마다가 아니라 "어제 뉴스의 가격 변화" 제목 옆에 한 번만
+  expect(screen.getByText('2026. 09. 18')).toBeTruthy();
 });
 
 it('조회 실패 후 다시 불러올 수 있다', async () => {

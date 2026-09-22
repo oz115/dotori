@@ -54,7 +54,9 @@ export function WeeklyFlowChart({ flow }: Props) {
 
   return (
     <View style={{ gap: theme.space.xs }}>
-      <View style={[styles.legend, { gap: theme.space.md }]}>
+      {/* 바깥 컨테이너의 gap(xs)은 차트↔x축 라벨처럼 붙어야 하는 사이에 맞춘 값이라
+          범례만 따로 더 띄운다 — 안 그러면 범례가 차트 막대에 달라붙어 보인다 */}
+      <View style={[styles.legend, { gap: theme.space.md, marginBottom: theme.space.sm }]}>
         <LegendItem color={INCOME_CHART_COLOR} label="수입" />
         <LegendItem color={SPENDING_CHART_COLOR} label="소비" />
       </View>

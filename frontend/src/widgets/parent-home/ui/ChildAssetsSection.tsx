@@ -109,7 +109,7 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
           <View style={[styles.cardHeadRow, { gap: theme.space.xs }]}>
             <SectionIcon source={require('@/assets/images/invest/deposit.png')} />
             <Text style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}>
-              예적금
+              저축
             </Text>
           </View>
 

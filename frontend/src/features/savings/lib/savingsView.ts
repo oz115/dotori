@@ -12,6 +12,7 @@ import type {
 } from '@/features/savings/model/types';
 import { parseServerDate } from '@/shared/lib/datetime';
 import { formatPoint } from '@/shared/lib/money';
+import { theme } from '@/shared/theme';
 
 /**
  * 상품 + 내 가입 목록 → 저축 메인 카드 뷰모델.
@@ -32,10 +33,30 @@ export function savingsGroupLabel(group: SavingsGroup): string {
 /**
  * 저축 메인 상단 분류 칩 (상점·미션과 같은 FilterChips). '전체' 는 칩 쪽이 붙이므로
  * 여기 넣지 않는다. 아이 화면과 부모 화면이 같은 순서·같은 문구를 써야 해서 여기 둔다.
+ *
+ * 선택됐을 때 배경·글자색은 상품 카드의 분류 뱃지(SavingsProductCard.savingsBadge)와
+ * 그대로 맞춘다 — 예금=파랑, 적금=앰버, 옅은 배경 위 진한 글자. 칩과 카드가 서로 다른
+ * 색이면 같은 분류를 가리킨다는 게 안 읽히고, 진한 색을 채우면(solid) 앰버는 흰 글자와
+ * 대비가 약해 뱃지 쪽 톤(subtle 배경 + text)을 그대로 가져오는 편이 낫다.
  */
-export const SAVINGS_GROUP_FILTERS: { key: SavingsGroup; label: string }[] = [
-  { key: 'DEPOSIT', label: savingsGroupLabel('DEPOSIT') },
-  { key: 'INSTALLMENT', label: savingsGroupLabel('INSTALLMENT') },
+export const SAVINGS_GROUP_FILTERS: {
+  key: SavingsGroup;
+  label: string;
+  activeColor: string;
+  activeTextColor: string;
+}[] = [
+  {
+    key: 'DEPOSIT',
+    label: savingsGroupLabel('DEPOSIT'),
+    activeColor: theme.color.status.info.subtle,
+    activeTextColor: theme.color.status.info.text,
+  },
+  {
+    key: 'INSTALLMENT',
+    label: savingsGroupLabel('INSTALLMENT'),
+    activeColor: theme.color.status.warning.subtle,
+    activeTextColor: theme.color.status.warning.text,
+  },
 ];
 
 /**
