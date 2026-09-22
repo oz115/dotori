@@ -157,6 +157,8 @@ export function PriceLineChart({ history }: Props) {
                   />
                 </>
               ) : null}
+              {/* 점은 사용자가 고른 지점에만 찍는다 — 오늘(마지막) 점을 기본으로 찍어두면
+                  아무것도 안 골랐는데 뭔가 선택된 것처럼 보인다 */}
               {selected != null ? (
                 <>
                   <Line
@@ -178,14 +180,6 @@ export function PriceLineChart({ history }: Props) {
                   />
                 </>
               ) : null}
-              <Circle
-                cx={last.x}
-                cy={last.y}
-                r={4.5}
-                fill={lineColor}
-                stroke={theme.color.background.surface}
-                strokeWidth={2}
-              />
             </Svg>
           ) : null}
         </View>
