@@ -1,5 +1,6 @@
 export { NewsList } from './ui/NewsList';
 export { NewsArticle } from './ui/NewsArticle';
+export { NewsPager } from './ui/NewsPager';
 export { InvestmentQueryError } from './ui/InvestmentQueryError';
 export { NewsReview } from './ui/NewsReview';
 export { RealizedProfitCard } from './ui/RealizedProfitCard';
@@ -9,7 +10,6 @@ export { SectionTitle } from './ui/SectionTitle';
 export { StockCard } from './ui/StockCard';
 export { StockOverviewCard } from './ui/StockOverviewCard';
 export { StockInfoCard } from './ui/StockInfoCard';
-export { HoldingsSummaryCard } from './ui/HoldingsSummaryCard';
 export { HoldingCard } from './ui/HoldingCard';
 export { TipBanner } from './ui/TipBanner';
 export { TradeButtons } from './ui/TradeButtons';

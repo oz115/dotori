@@ -16,7 +16,7 @@ import {
   type StockSummary,
 } from '@/features/investment';
 import { fontFamily, useTheme } from '@/shared/theme';
-import { Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Checkbox, Header, HeaderChipButton, Screen } from '@/shared/ui';
 
 // Figma 아이콘 시트에서 추출한 섹션 아이콘
 const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
@@ -38,6 +38,9 @@ export default function InvestScreen() {
   const [newsTouching, setNewsTouching] = useState(false);
 
   // 카드를 꾹 누르면 여러 종목을 골라 한 번에 사는 선택 모드. 하나라도 골라져 있으면 켜진 상태다.
+  // "보유한 것만" 을 켜면 목록이 내 주식만 남고, 꾹 눌러 고르는 동작도 사기 → 팔기로 바뀐다.
+  // 한 목록에서 사기와 팔기가 섞이면 무엇을 누르는 중인지 알 수 없어, 체크박스로 갈라 둔다.
+  const [onlyHeld, setOnlyHeld] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const selectionMode = selectedIds.length > 0;
   const heldIds = useMemo(
@@ -45,8 +48,8 @@ export default function InvestScreen() {
     [holdings.data],
   );
   const toggleSelect = (stock: StockSummary) => {
-    // 종목당 1주 규칙 — 이미 보유한 종목은 살 수 없으니 선택 대상에서 뺀다
-    if (heldIds.has(stock.id)) {
+    // 종목당 1주 규칙 — 사는 중이라면 이미 보유한 종목은 고를 수 없다
+    if (!onlyHeld && heldIds.has(stock.id)) {
       Alert.alert('이미 가지고 있는 주식이에요', '한 회사는 1주만 살 수 있어요.');
       return;
     }
@@ -64,6 +67,16 @@ export default function InvestScreen() {
     });
     return () => subscription.remove();
   }, [selectionMode]);
+
+  // 보유 여부로 정렬하지는 않는다 — 목록 순서가 바뀌면 "어디 있던 그 카드" 를 다시 찾아야 한다.
+  // 초록 테두리로만 구분하고, 내 주식만 보고 싶으면 체크박스로 걸러 낸다.
+  const visibleStocks = useMemo(
+    () =>
+      onlyHeld
+        ? (products.data ?? []).filter((stock) => heldIds.has(stock.id))
+        : (products.data ?? []),
+    [products.data, onlyHeld, heldIds],
+  );
 
   const { refetch: refetchProducts } = products;
   const { refetch: refetchNews } = news;
@@ -159,16 +172,26 @@ export default function InvestScreen() {
           <SectionTitle
             icon={CLIPBOARD}
             title="주식 리스트"
-            action={{
-              label: '보유한 주식 보기',
-              onPress: () => router.push('/invest/holdings'),
-            }}
+            right={
+              <Checkbox
+                shape="circle"
+                checked={onlyHeld}
+                onChange={(next) => {
+                  // 사기/팔기가 섞이지 않도록 모드를 바꿀 때 고르던 것은 버린다
+                  setSelectedIds([]);
+                  setOnlyHeld(next);
+                }}
+                label="보유한 것만"
+              />
+            }
           />
           {/* 문장을 한 덩어리로 붙이면 안 읽힌다 — 줄을 나누고 조작 안내는 굵게 강조 */}
           <View style={{ gap: theme.space.xs }}>
             <Text style={muted}>현재 가격과 어제보다 오른 만큼(내린 만큼)을 함께 보여줘요.</Text>
             <Text style={[...muted, { fontFamily: fontFamily.bold }]}>
-              카드를 꾹 누르면 여러 개를 골라 한 번에 살 수 있어요.
+              {onlyHeld
+                ? '카드를 꾹 누르면 여러 개를 골라 한 번에 팔 수 있어요.'
+                : '카드를 꾹 누르면 여러 개를 골라 한 번에 살 수 있어요.'}
             </Text>
           </View>
           {products.isPending ? (
@@ -181,23 +204,31 @@ export default function InvestScreen() {
             />
           ) : (
             <View style={{ gap: theme.space.md }}>
-              {products.data.map((stock) => (
-                <StockCard
-                  key={stock.id}
-                  stock={stock}
-                  selectionMode={selectionMode && !heldIds.has(stock.id)}
-                  selected={selectedIds.includes(stock.id)}
-                  onLongPress={() => toggleSelect(stock)}
-                  onPress={() =>
-                    selectionMode
-                      ? toggleSelect(stock)
-                      : router.push({
-                          pathname: '/invest/[stockId]',
-                          params: { stockId: String(stock.id) },
-                        })
-                  }
-                />
-              ))}
+              {visibleStocks.length === 0 ? (
+                <Text style={muted}>아직 산 주식이 없어요. 마음에 드는 회사를 골라 보세요!</Text>
+              ) : (
+                visibleStocks.map((stock) => {
+                  const held = heldIds.has(stock.id);
+                  return (
+                    <StockCard
+                      key={stock.id}
+                      stock={stock}
+                      held={held}
+                      selectionMode={selectionMode && (onlyHeld || !held)}
+                      selected={selectedIds.includes(stock.id)}
+                      onLongPress={() => toggleSelect(stock)}
+                      onPress={() =>
+                        selectionMode
+                          ? toggleSelect(stock)
+                          : router.push({
+                              pathname: '/invest/[stockId]',
+                              params: { stockId: String(stock.id) },
+                            })
+                      }
+                    />
+                  );
+                })
+              )}
             </View>
           )}
         </View>
@@ -205,7 +236,7 @@ export default function InvestScreen() {
 
       {selectionMode ? (
         <TradeSelectionBar
-          mode="buy"
+          mode={onlyHeld ? 'sell' : 'buy'}
           items={(products.data ?? [])
             .filter((stock) => selectedIds.includes(stock.id))
             .map((stock) => ({ id: stock.id, name: stock.name, price: stock.currentPrice }))}

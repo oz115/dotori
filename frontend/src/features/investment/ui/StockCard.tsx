@@ -16,6 +16,8 @@ type Props = {
   /** 선택 모드면 오른쪽에 체크 표시가 나온다 (탭 동작은 부모가 onPress 로 바꿔 끼운다) */
   selectionMode?: boolean;
   selected?: boolean;
+  /** 이미 가지고 있는 종목. 예적금 가입 카드와 같은 초록 테두리로 표시한다 */
+  held?: boolean;
 };
 
 /**
@@ -23,7 +25,7 @@ type Props = {
  * 업종은 상세 화면에서만 보여준다 (목록에선 이름 가독성이 우선이라는 팀 결정).
  * 카드를 꾹 누르면 선택 모드가 되어 여러 종목을 한 번에 살 수 있다.
  */
-export function StockCard({ stock, onPress, onLongPress, selectionMode, selected }: Props) {
+export function StockCard({ stock, onPress, onLongPress, selectionMode, selected, held }: Props) {
   const theme = useTheme();
 
   const color = changeColor(stock.change, theme.color);
@@ -41,7 +43,9 @@ export function StockCard({ stock, onPress, onLongPress, selectionMode, selected
         {
           backgroundColor: theme.color.background.surface,
           borderRadius: theme.radius.xl,
-          borderColor: selected ? theme.color.brand.solid : theme.color.border.card,
+          // 고른 것 > 가진 것 순으로 테두리를 정한다 — 고르는 중에는 그게 더 급한 정보다
+          borderColor: selected || held ? theme.color.brand.solid : theme.color.border.card,
+          borderWidth: selected || held ? 2 : 1,
           padding: theme.space.lg,
           gap: theme.space.md,
           opacity: pressed ? 0.85 : 1,
@@ -90,7 +94,6 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
   },
   icon: {
     width: 44,
