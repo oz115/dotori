@@ -27,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -281,6 +282,38 @@ class NotificationServiceImplTest {
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
 		then(notificationRepository).should(never()).delete(any(Notification.class));
+	}
+
+	@Test
+	@DisplayName("모두 삭제는 리포지토리가 반환한 건수를 그대로 deletedCount에 담는다")
+	void deleteAllNotifications_returnsDeletedCount() {
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(7);
+
+		NotificationDeleteAllResponse response = notificationService.deleteAllNotifications(USER_ID);
+
+		assertThat(response.deletedCount()).isEqualTo(7);
+	}
+
+	@Test
+	@DisplayName("지울 알림이 없어도 deletedCount 0으로 성공한다")
+	void deleteAllNotifications_empty_returnsZero() {
+		// 빈 알림함에서 "모두 삭제"를 눌러도 에러가 뜨면 안 된다 — 멱등이어야 한다.
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(0);
+
+		NotificationDeleteAllResponse response = notificationService.deleteAllNotifications(USER_ID);
+
+		assertThat(response.deletedCount()).isEqualTo(0);
+	}
+
+	@Test
+	@DisplayName("모두 삭제는 본인 id 로만 지운다 — 남의 알림까지 지우면 안 된다")
+	void deleteAllNotifications_scopedToOwner() {
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(2);
+
+		notificationService.deleteAllNotifications(USER_ID);
+
+		then(notificationRepository).should().deleteAllByUserId(USER_ID);
+		then(notificationRepository).should(never()).deleteAll();
 	}
 
 	@Test
