@@ -208,8 +208,6 @@ function PurchaseRow({ item, onPress }: { item: PurchaseHistoryItem; onPress: ()
           {item.totalPrice.toLocaleString('ko-KR')}
         </Text>
       </View>
-
-      <Ionicons name="chevron-forward" size={18} color={theme.color.text.muted} />
     </Pressable>
   );
 }

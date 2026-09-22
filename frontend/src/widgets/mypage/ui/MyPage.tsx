@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
   Image,
@@ -72,7 +71,6 @@ export function MyPage({ menu, character }: MyPageProps) {
               <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
                 {item.label}
               </Text>
-              <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
             </Pressable>
           ))}
           <PushNotificationToggle />
@@ -114,6 +112,7 @@ const styles = StyleSheet.create({
   profile: { alignItems: 'center', gap: 12 },
   face: { width: 120, height: 120 },
   divider: { height: 12 },
+  // 화살표를 뺐지만 줄 구조는 그대로 둔다 - 오른쪽에 무언가(토글 등)가 붙는 줄이 섞여 있다
   menuRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   spacer: { flex: 1, minHeight: 40 },
   footer: { alignItems: 'center' },

@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
-  ChildChoreDetailModal,
   ChoreListRow,
-  mockTodayChores,
   todayDate,
   useChoreRefresh,
   useTodayChores,
   type TodayChore,
 } from '@/features/chore';
 import { useTheme } from '@/shared/theme';
-import { MockBadge } from '@/shared/ui';
 
 type TodayChoresProps = {
   familyId: number | undefined;
@@ -33,13 +31,15 @@ const PREVIEW_COUNT = 3;
  * 완료한 미션은 뺀다. 미션 탭이 감추는 것을 홈에서만 보여 주면 두 화면의 개수가 어긋나고,
  * 여기 행에는 "완료" 표시가 없어 안 한 것처럼 보인다.
  *
- * 아직 등록된 미션이 없으면(또는 조회에 실패하면) 예시 데이터로 자리를 채운다 —
- * 화면 배치를 확인하려는 것이라 "예시" 표시를 함께 달아 실제 데이터와 구분한다.
+ * 오늘 등록된 걸 다 끝낸 경우와 애초에 등록된 게 없는 경우를 가른다 — 둘 다 목록은 비지만 한쪽은 칭찬할
+ * 일이고 한쪽은 기다릴 일이다.
+ *
+ * 아직 등록된 미션이 없으면 예시로 채우지 않고 "없어요"라고 알린다. 가입 직후처럼 아무것도 없는
+ * 상태에서 가짜 미션이 보이면 실제로 등록된 것으로 오해하기 쉽다.
  */
 export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps) {
   const theme = useTheme();
   const { items, isPending, isError } = useTodayChores(familyId, childId);
-  const [openChoreId, setOpenChoreId] = useState<number | null>(null);
   const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
 
   // 홈으로 돌아올 때마다 미션 캐시를 턴다. 보상은 등록 직후가 아니라 AI 가 산정한 뒤에
@@ -48,13 +48,19 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   // (당겨서 새로고침은 홈에 없어 반환값은 쓰지 않는다)
   useChoreRefresh(familyId, childIds);
 
-  const usingMock = !isPending && items.length === 0;
-  const source = usingMock ? mockTodayChores : items;
+  const todayChores = useMemo(() => registeredToday(items), [items]);
+  const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
+  // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
+  const allDone = rows.length === 0 && todayChores.length > 0;
 
-  const rows = useMemo(() => registeredToday(source), [source]);
-
-  // 모달이 열린 사이에 목록이 갱신돼도(요청 보냄·취소함) 상태가 따라가야 한다.
-  const openChore = source.find((chore) => chore.choreId === openChoreId);
+  // 상세는 미션 탭 안의 화면이다 (부모와 같은 구조). from=home 을 넘겨 그 화면의 뒤로가기가
+  // 미션 목록이 아니라 홈으로 돌아오게 한다 - 여기서 들어갔으니 여기로 나와야 한다.
+  const openDetail = (choreId: number) =>
+    router.push({
+      // 그룹까지 적는다 - 짧게 쓰면 부모 화면의 같은 경로로 잡힌다 (ChildChoreList 참고)
+      pathname: '/(child)/(tabs)/task/[choreId]',
+      params: { choreId: String(choreId), from: 'home' },
+    });
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -63,7 +69,6 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
           <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
             오늘 등록된 미션
           </Text>
-          {usingMock ? <MockBadge /> : null}
         </View>
         <Pressable onPress={onMorePress} hitSlop={8} accessibilityRole="button">
           <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>전체보기 ›</Text>
@@ -78,12 +83,17 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
         <>
           {isError ? (
             <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
-              미션을 불러오지 못해 예시를 보여주고 있어요.
+              미션을 불러오지 못했어요. 잠시 후 다시 시도해주세요.
             </Text>
           ) : null}
           {rows.length === 0 ? (
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-              오늘 등록된 미션이 없어요.
+            <Text
+              style={[
+                theme.typography.bodySm,
+                { color: allDone ? theme.color.brand.subtleText : theme.color.text.muted },
+              ]}
+            >
+              {allDone ? '오늘 등록된 미션을 모두 완료했어요!' : '오늘 등록된 미션이 없어요.'}
             </Text>
           ) : (
             <View style={{ gap: theme.space.sm }}>
@@ -94,34 +104,27 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
                   repeatType={chore.repeatType}
                   rewardPoints={chore.rewardPoints}
                   status={chore.status}
-                  // 예시 데이터는 서버에 없는 id 라 상세를 열 수 없다.
-                  onPress={usingMock ? undefined : () => setOpenChoreId(chore.choreId)}
+                  onPress={() => openDetail(chore.choreId)}
                 />
               ))}
             </View>
           )}
         </>
       )}
-
-      {/* 홈에서 바로 상세를 연다. 미션 탭으로 보내면 아이가 돌아올 길을 스스로 찾아야 하는데,
-          이 모달은 닫으면 그대로 홈이라 "눌렀다가 닫으면 제자리"가 성립한다. */}
-      <ChildChoreDetailModal
-        key={openChoreId}
-        familyId={familyId}
-        childId={childId}
-        choreId={openChoreId}
-        status={openChore?.status}
-        onClose={() => setOpenChoreId(null)}
-      />
     </View>
   );
 }
 
-/** 오늘 등록된 것 중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+/** 오늘 등록된 것 전부. 끝낸 것까지 남겨야 "없다"와 "다 했다"를 가를 수 있다 */
 function registeredToday(chores: TodayChore[]): TodayChore[] {
   const today = todayDate();
+  return chores.filter((chore) => chore.createdAt.slice(0, 10) === today);
+}
+
+/** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+function unfinishedPreview(chores: TodayChore[]): TodayChore[] {
   return [...chores]
-    .filter((chore) => chore.status !== 'DONE' && chore.createdAt.slice(0, 10) === today)
+    .filter((chore) => chore.status !== 'DONE')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, PREVIEW_COUNT);
 }

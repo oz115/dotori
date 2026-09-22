@@ -34,6 +34,7 @@ public class SavingsMapper {
 			product.getInstallmentCount(),
 			product.getEducationGoal(),
 			product.getPreSignupMessage(),
+			product.getProductType().getMinAmount(),
 			maxAmount);
 	}
 

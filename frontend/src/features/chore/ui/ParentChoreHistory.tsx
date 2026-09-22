@@ -1,14 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
-import { summarizeWeek } from '@/features/chore/lib/choreHistory';
+import { matchCompletionPhotos, summarizeWeek } from '@/features/chore/lib/choreHistory';
+import { useChildrenApprovedRequests } from '@/features/chore/model/useApprovedRequests';
 import {
   useChildrenCompletions,
   type ParentCompletion,
 } from '@/features/chore/model/useChildrenCompletions';
 import type { ChoreChild } from '@/features/chore/model/useChildrenChores';
 import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
+import {
+  CompletionHistoryModal,
+  type CompletionHistoryDetail,
+} from '@/features/chore/ui/CompletionHistoryModal';
 import { RewardChip } from '@/features/chore/ui/RewardChip';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
@@ -25,8 +31,8 @@ type ParentChoreHistoryProps = {
  * 배너 수치는 "이번 주"이고 필터를 따라간다 - 민준을 고르면 민준 것만 센다. 필터를
  * 걸어 놓고 배너만 가족 전체를 보여 주면 두 숫자가 어긋나 보인다.
  *
- * 행에서 상세로 넘어가지 않는다. 이 응답은 포인트 원장에서 와서 완료 요청 ID 도
- * 사진도 없다 (아이 완료 이력과 같은 이유).
+ * 행을 누르면 아이가 그때 보낸 사진과 쓴 내용을 다시 본다. 이 응답(포인트 원장)에는
+ * 사진이 없어서 승인된 완료 요청을 따로 받아 짝지어 붙인다 (아이 완료 이력과 같다).
  */
 export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryProps) {
   const theme = useTheme();
@@ -34,6 +40,8 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
   const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [childId, setChildId] = useState<string | null>(null);
   const { items, isPending, isError } = useChildrenCompletions(familyId, childList);
+  const { items: approved } = useChildrenApprovedRequests(familyId, childList);
+  const [detail, setDetail] = useState<CompletionHistoryDetail | null>(null);
 
   const filters = useMemo(
     () => childList.map((child) => ({ key: String(child.childId), label: child.name })),
@@ -50,6 +58,9 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
   // (받침에 따라 조사가 갈려 '지호이가' 같은 말이 나온다).
   const week = useMemo(() => summarizeWeek(visible, new Date()), [visible]);
 
+  // 아이가 섞인 목록이라 짝짓기도 아이 단위로 한다 (matchCompletionPhotos 가 childId 를 본다)
+  const rows = useMemo(() => matchCompletionPhotos(visible, approved), [visible, approved]);
+
   return (
     <Screen
       header={
@@ -63,7 +74,7 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
       padded={false}
     >
       <FlatList
-        data={visible}
+        data={rows}
         keyExtractor={(item, index) => `${item.choreId}-${item.processedAt}-${index}`}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -85,7 +96,20 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
             ) : null}
           </View>
         }
-        renderItem={({ item }) => <CompletionRow completion={item} />}
+        renderItem={({ item }) => (
+          <CompletionRow
+            completion={item}
+            onPress={() =>
+              setDetail({
+                choreTitle: item.choreTitle,
+                childName: item.childName,
+                processedAt: item.processedAt,
+                rewardPoints: item.rewardPoints,
+                photo: item.photo,
+              })
+            }
+          />
+        )}
         ListEmptyComponent={
           <View style={[styles.empty, { gap: theme.space.lg }]}>
             {!isPending && !isError ? (
@@ -109,39 +133,54 @@ export function ParentChoreHistory({ familyId, childList }: ParentChoreHistoryPr
           </View>
         }
       />
+
+      <CompletionHistoryModal detail={detail} onClose={() => setDetail(null)} />
     </Screen>
   );
 }
 
-function CompletionRow({ completion }: { completion: ParentCompletion }) {
+function CompletionRow({
+  completion,
+  onPress,
+}: {
+  completion: ParentCompletion;
+  onPress: () => void;
+}) {
   const theme = useTheme();
 
   return (
-    <ContentCard
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.space.md,
-        paddingHorizontal: theme.space.lg,
-        gap: theme.space.md,
-      }}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${completion.childName}의 ${completion.choreTitle} 자세히 보기`}
     >
-      <View style={styles.body}>
-        <View style={[styles.titleRow, { gap: theme.space.xs }]}>
-          <Text
-            numberOfLines={1}
-            style={[theme.typography.titleMd, styles.grow, { color: theme.color.text.strong }]}
-          >
-            {completion.choreTitle}
+      <ContentCard
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: theme.space.md,
+          paddingHorizontal: theme.space.lg,
+          gap: theme.space.md,
+        }}
+      >
+        <View style={styles.body}>
+          <View style={[styles.titleRow, { gap: theme.space.xs }]}>
+            <Text
+              numberOfLines={1}
+              style={[theme.typography.titleMd, styles.grow, { color: theme.color.text.strong }]}
+            >
+              {completion.choreTitle}
+            </Text>
+            <ChildBadge name={completion.childName} />
+          </View>
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+            {formatProcessedAt(completion.processedAt)}
           </Text>
-          <ChildBadge name={completion.childName} />
         </View>
-        <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-          {formatProcessedAt(completion.processedAt)}
-        </Text>
-      </View>
-      <RewardChip rewardPoints={completion.rewardPoints} compact />
-    </ContentCard>
+        <RewardChip rewardPoints={completion.rewardPoints} compact />
+        <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
+      </ContentCard>
+    </Pressable>
   );
 }
 

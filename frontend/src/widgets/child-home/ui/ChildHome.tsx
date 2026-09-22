@@ -58,6 +58,17 @@ export function ChildHome() {
           onCashoutHistory={() => router.push('/(child)/wallet/transactions')}
           account={account.data}
           assets={assets}
+          // 예적금·투자·계좌는 그룹 접두사를 적어야 아이 화면으로 간다 (부모 그룹에도 같은 경로가 있다)
+          onOpenSavings={() => router.push('/(child)/(tabs)/save')}
+          onOpenInvestment={() => router.push('/(child)/(tabs)/invest')}
+          onOpenAccount={() =>
+            router.push(account.data ? '/(child)/account-manage' : '/setup/account/link')
+          }
+          // 자산 카드로 슬라이드하면 연동 계좌·예적금·투자를 다시 불러온다 — 환전 승인 반영 지연 방지
+          onViewAssets={() => {
+            void account.refetch();
+            assets.refetch();
+          }}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores

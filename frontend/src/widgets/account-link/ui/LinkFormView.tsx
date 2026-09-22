@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -60,6 +61,20 @@ export function LinkFormView({
   // 이 화면이 언마운트되지 않아 이 effect 가 다시 돌지 않는다.
   useEffect(() => reset(), [reset]);
 
+  // 1원 송금 요청이 성공해 인증 화면으로 넘어갔다가 뒤로 돌아오면, 이 화면은 스택에 남아 있어서
+  // 방금 입력한 은행·계좌번호가 그대로 보인다. 인증 화면에서 돌아온 경우에만 비운다 —
+  // 은행 선택에서 돌아온 경우는 지우면 안 된다(고른 은행과 적어 둔 계좌번호를 유지).
+  const advancedToVerify = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!advancedToVerify.current) return;
+      advancedToVerify.current = false;
+      setAccountNo('');
+      setError('');
+      reset();
+    }, [reset]),
+  );
+
   const bank = findBank(bankKey);
   const currentAccountNo = myAccount.data?.accountNo.replace(/[^0-9]/g, '');
   const currentBankCode = myAccount.data?.bankCode;
@@ -70,8 +85,7 @@ export function LinkFormView({
     accountNo.trim().length > 0 &&
     accountNo.trim() === currentAccountNo;
 
-  const canSubmit =
-    !!bank && accountNo.trim().length >= 10 && !request.isPending && !isSameAccount;
+  const canSubmit = !!bank && accountNo.trim().length >= 10 && !request.isPending && !isSameAccount;
 
   const submit = () => {
     if (!bank || !canSubmit) return;
@@ -80,7 +94,10 @@ export function LinkFormView({
     request.mutate(
       { bankCode: bank.code, bankName: bank.name, accountNo: accountNo.trim() },
       {
-        onSuccess: onRequested,
+        onSuccess: (res) => {
+          advancedToVerify.current = true;
+          onRequested(res);
+        },
         onError: (e) => setError(accountAuthRequestErrorMessage(e)),
       },
     );
@@ -89,9 +106,7 @@ export function LinkFormView({
   return (
     <Screen scroll keyboardAvoiding header={<Header title={headerTitle} onBack={onBack} />}>
       <View style={{ marginTop: theme.space['2xl'], gap: theme.space.xs }}>
-        <Text style={[theme.typography.h1, { color: theme.color.text.strong }]}>
-          {title}
-        </Text>
+        <Text style={[theme.typography.h1, { color: theme.color.text.strong }]}>{title}</Text>
         <Text style={[theme.typography.body, { color: theme.color.text.sub }]}>{subtitle}</Text>
       </View>
 

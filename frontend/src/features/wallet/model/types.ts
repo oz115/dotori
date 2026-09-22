@@ -26,6 +26,17 @@ export type PointTransaction = {
   createdAt: string;
 };
 
+/**
+ * POST .../wallet/grant 요청 — 부모가 자녀에게 주는 도토리(포인트). 실제 송금 없이 발행된다.
+ * 응답은 충전과 같은 PointTransaction (transactionType 이 GRANT).
+ */
+export type GrantBody = {
+  /** 줄 포인트 (1 이상) */
+  amount: number;
+  /** 거래내역에 그대로 보이는 사유 (255자 이하). 생략하면 서버가 "부모 지급"으로 채운다 */
+  description?: string;
+};
+
 /** 포인트가 움직인 사유 (point_transactions.transaction_type 라벨) */
 export type PointTransactionReason =
   | 'CHARGE'

@@ -10,6 +10,12 @@
    풀에서 하나를 랜덤으로 골라, 그 가족의 자녀 전원에게 **같은 문제**를 한 행씩 넣는다.
    (가족 단위로 하나를 뽑되 `quizzes.child_id` 가 NOT NULL 이라 자녀 수만큼 행이 생긴다.)
 
+트리거는 둘이다.
+
+- `generate_daily_quizzes()` — 자정 크론. 그 시점의 전체 자녀를 훑는다.
+- `assign_family_quiz(family_id)` — 크론이 돈 뒤에 자녀가 합류했을 때 그 가족만. 크론만
+  있던 시절에는 낮에 들어온 아이가 다음 날 자정까지 퀴즈를 못 받았다.
+
 `quizzes` 에는 유니크 제약이 없어서 재실행 시 중복 삽입을 막는 책임이 이 모듈에 있다
 (child_id + quiz_date 존재 여부 확인 후 INSERT). 가족 단위로 실패를 격리한다 — 한 가족의
 LLM/DB 오류가 나머지 가족의 생성을 막지 않는다.
@@ -208,22 +214,29 @@ def generate_quiz_batch(words: list[Word], tier_by_word_id: dict[int, str]) -> l
     return results
 
 
-def generate_daily_pool(session: Session) -> dict[str, list[GeneratedQuizItem]]:
-    """티어마다 단어를 뽑고, 전체를 LLM 호출 한 번으로 문제화한다."""
-    words_by_tier = {tier: pick_words_for_tier(session, tier) for tier in TIER_TO_DIFFICULTY}
+def generate_daily_pool(
+    session: Session, tiers: tuple[str, ...] | None = None
+) -> dict[str, list[GeneratedQuizItem]]:
+    """티어마다 단어를 뽑고, 전체를 LLM 호출 한 번으로 문제화한다.
+
+    `tiers` 를 주면 그 티어만 만든다 — 가족 하나를 뒤늦게 배정할 때는 그 가족 티어
+    3개면 충분하고, 나머지 6개는 쓰지도 않을 문제에 토큰을 쓰는 셈이다.
+    """
+    target = tiers if tiers is not None else tuple(TIER_TO_DIFFICULTY)
+    words_by_tier = {tier: pick_words_for_tier(session, tier) for tier in target}
     tier_by_word_id = {word.word_id: tier for tier, words in words_by_tier.items() for word in words}
     all_words = [word for words in words_by_tier.values() for word in words]
 
     items = generate_quiz_batch(all_words, tier_by_word_id)
 
-    pool: dict[str, list[GeneratedQuizItem]] = {tier: [] for tier in TIER_TO_DIFFICULTY}
+    pool: dict[str, list[GeneratedQuizItem]] = {tier: [] for tier in target}
     for item in items:
         pool[item.tier].append(item)
     return pool
 
 
-def iter_children_with_tier(session: Session) -> list[tuple[int, int, str]]:
-    """(family_id, child_id, financial_knowledge_level) 목록.
+def iter_children_with_tier(session: Session, family_id: int | None = None) -> list[tuple[int, int, str]]:
+    """(family_id, child_id, financial_knowledge_level) 목록. `family_id` 를 주면 그 가족만.
 
     `users` 에는 `family_id` 가 없어 `family_members` 를 거쳐야 한다
     (`docs/db-boundary.md` 읽기 권한 참고).
@@ -239,6 +252,8 @@ def iter_children_with_tier(session: Session) -> list[tuple[int, int, str]]:
         .join(Family, Family.family_id == FamilyMember.family_id)
         .where(cast(User.role, String) == "CHILD", User.deleted_at.is_(None), FamilyMember.deleted_at.is_(None))
     )
+    if family_id is not None:
+        stmt = stmt.where(FamilyMember.family_id == family_id)
     return list(session.execute(stmt).all())
 
 
@@ -266,17 +281,24 @@ class DailyGenerationResult:
     failed_families: int
 
 
-def assign_and_insert(session: Session, pool: dict[str, list[GeneratedQuizItem]], today: date) -> AssignResult:
+def assign_and_insert(
+    session: Session,
+    pool: dict[str, list[GeneratedQuizItem]],
+    today: date,
+    only_family_id: int | None = None,
+) -> AssignResult:
     """가족마다 자기 티어 풀에서 1개를 뽑아 그 가족의 자녀 전원에게 넣는다.
 
     가족 단위로 커밋/롤백한다 — 한 가족에서 예외가 나도 이미 처리한 다른 가족의 결과는
     남는다.
+
+    `only_family_id` 를 주면 그 가족만 처리한다 (뒤늦게 합류한 자녀 배정용).
     """
     result = AssignResult()
 
     family_children: dict[int, list[int]] = defaultdict(list)
     family_tier: dict[int, str] = {}
-    for family_id, child_id, tier in iter_children_with_tier(session):
+    for family_id, child_id, tier in iter_children_with_tier(session, only_family_id):
         family_children[family_id].append(child_id)
         family_tier[family_id] = tier
 
@@ -314,6 +336,83 @@ def assign_and_insert(session: Session, pool: dict[str, list[GeneratedQuizItem]]
             logger.exception("가족 %s 퀴즈 삽입 실패, 다음 가족으로 넘어갑니다", family_id)
 
     return result
+
+
+@dataclass
+class FamilyAssignResult:
+    """`assign_family_quiz` 결과 요약. 엔드포인트 응답에 그대로 쓴다."""
+
+    family_id: int
+    tier: str | None
+    pool_size: int
+    inserted: int
+    skipped: int
+    failed_families: int
+    reused_sibling_quiz: bool
+
+
+def _family_quiz_today(session: Session, family_id: int, today: date) -> Quiz | None:
+    """이 가족이 오늘 이미 받은 퀴즈 한 건. 형제가 있으면 같은 문제를 쓴다."""
+    stmt = select(Quiz).where(Quiz.family_id == family_id, Quiz.quiz_date == today).limit(1)
+    return session.scalars(stmt).first()
+
+
+def assign_family_quiz(family_id: int) -> FamilyAssignResult:
+    """가족 하나에 오늘자 퀴즈를 배정한다.
+
+    일일 크론이 돈 뒤에 생긴 가족·자녀를 위한 진입점이다. 크론은 그 시점에 DB 에 있던
+    자녀만 훑고 끝나므로, 낮에 합류한 아이는 다음 날 자정까지 퀴즈가 없었다.
+
+    형제가 이미 오늘 퀴즈를 받았으면 **그 문제를 그대로 복사한다** — 한 가족은 같은 문제를
+    푼다는 것이 원래 배정 규칙(`assign_and_insert`)이고, LLM 을 다시 부를 이유도 없다.
+    아무도 못 받았으면 그 가족 티어 하나만 새로 만든다 (단어 3개, LLM 1회).
+
+    `(child_id, quiz_date)` 존재 여부로 건너뛰므로 여러 번 불려도 안전하다.
+    """
+    today = datetime.now(KST).date()
+    session = SessionLocal()
+    try:
+        rows = iter_children_with_tier(session, family_id)
+        if not rows:
+            logger.info("가족 %s: 배정할 자녀가 없어 건너뜁니다", family_id)
+            return FamilyAssignResult(family_id, None, 0, 0, 0, 0, False)
+
+        tier = rows[0][2]
+        existing = _family_quiz_today(session, family_id, today)
+        if existing is not None:
+            pool = {
+                tier: [
+                    GeneratedQuizItem(
+                        word_id=existing.word_id,
+                        tier=tier,
+                        question=existing.question,
+                        correct_answer=existing.correct_answer,
+                        explanation=existing.explanation,
+                    )
+                ]
+            }
+            reused = True
+        else:
+            pool = generate_daily_pool(session, (tier,))
+            reused = False
+
+        pool_size = sum(len(items) for items in pool.values())
+        assign_result = assign_and_insert(session, pool, today, only_family_id=family_id)
+        logger.info(
+            "가족 %s 퀴즈 배정 완료 — 티어 %s, 풀 %d개, 삽입 %d건, 건너뜀 %d건, 형제 문제 재사용 %s",
+            family_id, tier, pool_size, assign_result.inserted, assign_result.skipped, reused,
+        )
+        return FamilyAssignResult(
+            family_id=family_id,
+            tier=tier,
+            pool_size=pool_size,
+            inserted=assign_result.inserted,
+            skipped=assign_result.skipped,
+            failed_families=assign_result.failed_families,
+            reused_sibling_quiz=reused,
+        )
+    finally:
+        session.close()
 
 
 def generate_daily_quizzes() -> DailyGenerationResult:

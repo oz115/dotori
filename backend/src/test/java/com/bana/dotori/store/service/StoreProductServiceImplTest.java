@@ -36,6 +36,7 @@ import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.entity.StoreProductCategory;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
+import com.bana.dotori.store.event.StoreProductReevaluationRequestedEvent;
 import com.bana.dotori.store.mapper.StoreProductMapper;
 import com.bana.dotori.store.repository.StoreProductRepository;
 import com.bana.dotori.user.entity.User;
@@ -336,26 +337,28 @@ class StoreProductServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("일부 필드만 보내면 그 필드만 바뀌고 나머지는 유지된다")
+	@DisplayName("설명과 무관한 필드(수량)만 보내면 그 필드만 바뀌고 나머지·재산정은 없다")
 	void updateProduct_partial() {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
 		givenActiveMember();
 		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
 		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
-		StoreProductUpdateRequest request = new StoreProductUpdateRequest("자전거(중고)", null, null, null, null);
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest(null, null, null, null, 3);
 
 		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
 
-		assertThat(response.name()).isEqualTo("자전거(중고)");
+		assertThat(response.name()).isEqualTo("자전거");
 		assertThat(response.description()).isEqualTo("설명");
 		assertThat(response.category()).isEqualTo(StoreProductCategory.TOY);
 		assertThat(response.price()).isEqualTo(900000);
-		assertThat(response.quantity()).isEqualTo(1);
+		assertThat(response.quantity()).isEqualTo(3);
+		// 수량 변경은 재산정 대상이 아니다
+		then(eventPublisher).should(never()).publishEvent(any());
 	}
 
 	@Test
-	@DisplayName("name/description/category가 바뀌어도 기존 value/price는 그대로 유지된다")
-	void updateProduct_doesNotResetValueOrPrice() {
+	@DisplayName("name/description/category가 바뀌면 value/price/reason을 비우고 재산정 이벤트를 발행한다")
+	void updateProduct_reevaluatesWhenDescriptiveChanged() {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
 		givenActiveMember();
 		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
@@ -367,12 +370,20 @@ class StoreProductServiceImplTest {
 
 		assertThat(response.name()).isEqualTo("전동 자전거");
 		assertThat(response.category()).isEqualTo(StoreProductCategory.OUTING);
-		assertThat(response.value()).isEqualByComparingTo("90.00");
-		assertThat(response.price()).isEqualTo(900000);
+		// 재산정 전제: 이전 가치/가격은 비워져 "산정 중" 상태가 된다
+		assertThat(response.value()).isNull();
+		assertThat(response.price()).isNull();
+
+		var captor = org.mockito.ArgumentCaptor.forClass(StoreProductReevaluationRequestedEvent.class);
+		then(eventPublisher).should().publishEvent(captor.capture());
+		StoreProductReevaluationRequestedEvent event = captor.getValue();
+		assertThat(event.storeProductId()).isEqualTo(5);
+		assertThat(event.name()).isEqualTo("전동 자전거");
+		assertThat(event.category()).isEqualTo(StoreProductCategory.OUTING);
 	}
 
 	@Test
-	@DisplayName("부모가 price를 직접 수정하면 반영된다")
+	@DisplayName("부모가 price를 직접 수정하면 반영되고 재산정은 하지 않는다")
 	void updateProduct_priceOverride() {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
 		givenActiveMember();
@@ -383,6 +394,25 @@ class StoreProductServiceImplTest {
 		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
 
 		assertThat(response.price()).isEqualTo(5000);
+		then(eventPublisher).should(never()).publishEvent(any());
+	}
+
+	@Test
+	@DisplayName("정보가 바뀌어도 price를 함께 지정하면 그 값이 우선하고 재산정하지 않는다")
+	void updateProduct_manualPriceSkipsReevaluation() {
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user(UserRole.PARENT)));
+		givenActiveMember();
+		StoreProduct product = productWithId(5, "자전거", StoreProductCategory.TOY, new BigDecimal("90.00"), 900000, 1);
+		given(storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(5, FAMILY_ID)).willReturn(Optional.of(product));
+		StoreProductUpdateRequest request = new StoreProductUpdateRequest("전동 자전거", null, null, 7000, null);
+
+		StoreProductDetailResponse response = storeProductService.updateProduct(USER_ID, FAMILY_ID, 5, request);
+
+		assertThat(response.name()).isEqualTo("전동 자전거");
+		assertThat(response.price()).isEqualTo(7000);
+		// 수동 가격이 우선 — 가치는 유지되고 재산정 이벤트도 없다
+		assertThat(response.value()).isEqualByComparingTo("90.00");
+		then(eventPublisher).should(never()).publishEvent(any());
 	}
 
 	@Test

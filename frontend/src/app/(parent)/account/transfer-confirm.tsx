@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -25,8 +25,9 @@ export default function TransferConfirmScreen() {
   const bankKey = useTransferStore((s) => s.bankKey);
   const toAccountNo = useTransferStore((s) => s.toAccountNo);
   const amount = useTransferStore((s) => s.amount);
-  const memo = useTransferStore((s) => s.memo);
-  const patch = useTransferStore((s) => s.patch);
+  // 메모는 이 화면 로컬 상태로 둔다 — 뒤로 갔다 다시 들어오면(화면 remount) 빈 칸에서 시작하도록.
+  // 전역 스토어에 두면 이전 입력이 남아, 새 이체인데도 지난 메모가 그대로 보인다.
+  const [memo, setMemo] = useState('');
   const transfer = useTransfer();
 
   const bank = findBank(bankKey);
@@ -89,7 +90,7 @@ export default function TransferConfirmScreen() {
           label="메모 (선택)"
           placeholder={DEFAULT_MEMO_PLACEHOLDER}
           value={memo}
-          onChangeText={(v) => patch({ memo: v })}
+          onChangeText={setMemo}
           maxLength={50}
         />
       </View>

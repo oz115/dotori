@@ -5,6 +5,7 @@ import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
 import {
   changePasswordErrorMessage,
+  clearSessionAfterPasswordChange,
   updateProfileErrorMessage,
   useAuthStore,
   useChangePassword,
@@ -17,8 +18,9 @@ import { Button, Header, Input, Screen } from '@/shared/ui';
 /**
  * 마이페이지 - 내 정보 수정. 이름과 비밀번호를 한 화면에서 바꾼다.
  * 비밀번호 칸 세 개를 비워두면 이름만 바뀐다 — 비밀번호 변경은 선택이다.
- * 비밀번호를 바꾸면 서버가 기존 세션(현재 세션 포함)을 전부 폐기하므로,
- * 성공 후 안내만 하면 root 가드가 로그인 화면으로 돌려보낸다.
+ *
+ * 비밀번호를 바꾸면 서버가 기존 세션(현재 세션 포함)을 전부 폐기한다. 안내를 먼저 보여 주고
+ * 확인을 누르면 로컬 세션을 정리해, root 가드가 로그인 화면으로 돌려보낸다.
  */
 export function EditProfileView() {
   const theme = useTheme();
@@ -90,8 +92,16 @@ export function EditProfileView() {
         { currentPassword, newPassword },
         {
           onSuccess: () => {
-            // 세션이 이미 정리돼 root 가드가 로그인 화면으로 전환한다.
-            Alert.alert('완료', '비밀번호가 변경됐어요. 새 비밀번호로 다시 로그인해주세요.');
+            // 안내를 먼저 보여 주고, 확인을 누른 뒤에 세션을 정리한다. 먼저 정리해 버리면
+            // root 가드가 그 자리에서 로그인 화면으로 트리를 갈아치워 이 안내가 뜨자마자
+            // 사라졌다 (QA - 안내가 없다는 지적).
+            //
+            // 확인을 기다리는 동안 로컬 토큰은 이미 서버에서 폐기된 값이다. 알럿이 모달이라
+            // 그 사이 다른 화면을 만질 수는 없지만, 뒤에서 도는 조회가 401 을 받으면 인터셉터가
+            // 세션을 지운다 - 그때도 결국 로그인 화면이라 결과는 같다.
+            Alert.alert('비밀번호를 바꿨어요', '새 비밀번호로 다시 로그인해주세요.', [
+              { text: '확인', onPress: () => void clearSessionAfterPasswordChange() },
+            ]);
           },
           onError: (e) => setPasswordError(changePasswordErrorMessage(e)),
         },
@@ -117,11 +127,7 @@ export function EditProfileView() {
       header={<Header title="내 정보 수정" onBack={() => router.back()} />}
     >
       <View style={[styles.mascotRow, { paddingTop: theme.space.lg }]}>
-        <Image
-          source={mascotSource}
-          style={styles.mascot}
-          resizeMode="contain"
-        />
+        <Image source={mascotSource} style={styles.mascot} resizeMode="contain" />
       </View>
 
       <View style={{ marginTop: theme.space['2xl'], gap: theme.space['2xl'] }}>

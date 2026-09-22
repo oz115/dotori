@@ -20,7 +20,7 @@ import {
 export function useChildAssets(
   familyId: number | undefined,
   childId: number | undefined,
-): { savings: AssetRowText; investment: AssetRowText } {
+): { savings: AssetRowText; investment: AssetRowText; refetch: () => void } {
   const savings = useSavingsSummary(familyId, childId);
   const holdings = useInvestmentHoldings(childId, { enabled: childId != null });
 
@@ -35,5 +35,10 @@ export function useChildAssets(
       isError: holdings.isError,
       data: holdings.data != null ? summarizeHoldings(holdings.data) : undefined,
     }),
+    // 자산 카드로 슬라이드할 때 최신값으로 새로고침하려고 노출한다 (환전 승인 반영 지연 방지).
+    refetch: () => {
+      void savings.refetch();
+      void holdings.refetch();
+    },
   };
 }

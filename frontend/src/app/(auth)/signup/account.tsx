@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
+  LOGIN_ID_MAX,
   SignupStepLayout,
   useCheckLoginId,
   useSignupStore,
   validateAccountStep,
+  validateLoginId,
 } from '@/features/auth';
 import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
@@ -30,14 +32,20 @@ export default function SignupAccountScreen() {
 
   const onChangeLoginId = (v: string) => {
     setLoginId(v);
-    if (errors.loginId) setErrors((e) => ({ ...e, loginId: undefined }));
+    // 값이 바뀌면 이전에 통과한 중복확인은 그 값에 대한 것이라 더는 유효하지 않다.
+    // (같은 아이디로 되돌려 써도 다시 확인받는다 — 그새 다른 사람이 쓸 수 있다)
+    setAvailableId('');
+    // 길이 초과는 입력하는 즉시 알려준다 (서버 상한 50자). 그 외 에러는 다시 검사할 때까지 지운다.
+    const tooLong = v.trim().length > LOGIN_ID_MAX;
+    setErrors((e) => ({ ...e, loginId: tooLong ? validateLoginId(v) : undefined }));
   };
 
   const checkDuplicate = () => {
     const value = loginId.trim();
     if (check.isPending) return;
-    if (value.length < 4) {
-      setErrors((e) => ({ ...e, loginId: '아이디는 4자 이상 입력해주세요.' }));
+    const lengthError = validateLoginId(value);
+    if (lengthError) {
+      setErrors((e) => ({ ...e, loginId: lengthError }));
       return;
     }
     check.mutate(value, {

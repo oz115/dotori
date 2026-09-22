@@ -32,6 +32,7 @@ public enum ErrorCode {
 	PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치하지 않습니다"),
 	HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "잔여 자산이 있어 탈퇴할 수 없습니다"),
 	FAMILY_HAS_CHILDREN(HttpStatus.CONFLICT, "가족에 남은 자녀가 있어 탈퇴할 수 없습니다"),
+	CHILD_HAS_ACTIVE_ASSETS(HttpStatus.CONFLICT, "자녀에게 남은 자산이 있어 진행할 수 없습니다"),
 	INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 Refresh Token입니다"),
 
 	// 이메일 인증 (AUTH-07)
@@ -118,6 +119,7 @@ public enum ErrorCode {
 	SAVINGS_PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 상품을 찾을 수 없습니다"),
 	SAVINGS_PRODUCT_INACTIVE(HttpStatus.BAD_REQUEST, "가입할 수 없는 상품입니다"),
 	SAVINGS_AMOUNT_EXCEEDS_LIMIT(HttpStatus.BAD_REQUEST, "가입 가능한 최대 금액을 초과했습니다"),
+	SAVINGS_AMOUNT_BELOW_MINIMUM(HttpStatus.BAD_REQUEST, "가입 가능한 최소 금액보다 적습니다"),
 	SAVINGS_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "예적금 가입 내역을 찾을 수 없습니다"),
 	SAVINGS_SUBSCRIPTION_NOT_ACTIVE(HttpStatus.CONFLICT, "진행 중인 예적금이 아닙니다"),
 	SAVINGS_CONTRIBUTION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "추가 납입할 수 없는 상품입니다"),

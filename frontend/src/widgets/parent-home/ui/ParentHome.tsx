@@ -2,14 +2,13 @@ import { router } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useMyAccount } from '@/features/account';
+import { AccountCard, useMyAccount } from '@/features/account';
 import { useUnreadNotificationCount } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
-import { AppTopBar, usePullToRefresh } from '@/shared/ui';
+import { AppTopBar, PagedCards, usePullToRefresh } from '@/shared/ui';
 
 import { useParentFamily } from '@/widgets/parent-home/model/useParentFamily';
 
-import { AccountCard } from './AccountCard';
 import { ApprovalsCard } from './ApprovalsCard';
 import { ChildActivityBoard } from './ChildActivityBoard';
 import { ChildAssetsSection } from './ChildAssetsSection';
@@ -62,20 +61,28 @@ export function ParentHome() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <ChildBalanceCard
-          familyId={familyId}
-          childId={childId}
-          childName={childName}
-          familyPending={familyPending}
-          onCashout={openCashouts}
-        />
-
-        <AccountCard
-          account={account.data}
-          isPending={account.isPending}
-          onLinkAccount={() => router.push('/account/link')}
-          onTransfer={() => router.push('/account/transfer')}
-          onHistory={() => router.push('/account/transactions')}
+        {/* 옆으로 넘기면 부모 본인 계좌가 나온다 — 자녀 홈 지갑과 같은 슬라이드 */}
+        <PagedCards
+          pages={[
+            <ChildBalanceCard
+              key="child"
+              familyId={familyId}
+              childId={childId}
+              childName={childName}
+              familyPending={familyPending}
+              onGrant={() => router.push('/(parent)/wallet/grant')}
+              onReviewCashouts={openCashouts}
+            />,
+            <AccountCard
+              key="account"
+              fill
+              account={account.data}
+              isPending={account.isPending}
+              onLinkAccount={() => router.push('/account/link')}
+              onTransfer={() => router.push('/account/transfer')}
+              onHistory={() => router.push('/account/transactions')}
+            />,
+          ]}
         />
 
         <ApprovalsCard

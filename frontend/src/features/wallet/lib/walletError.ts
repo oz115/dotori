@@ -19,6 +19,27 @@ export function chargeErrorMessage(error: unknown): string {
   }
 }
 
+/**
+ * 도토리 지급 실패 → 사용자 문구 (부모).
+ * 지급은 돈을 새로 만드는 일이라 "됐는지 모르겠다"를 실패로 단정하지 않는다 — 네트워크가 끊기면
+ * 아이 잔액을 확인하라고 안내하고, 같은 금액으로 다시 누르면 멱등키 덕에 두 번 지급되지 않는다.
+ */
+export function grantErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return '지급 결과를 확인할 수 없어요. 아이의 도토리를 확인한 뒤 다시 시도해주세요.';
+  }
+  switch (apiErrorCode(error)) {
+    case 'NOT_FAMILY_CHILD':
+      return '우리 가족의 아이에게만 줄 수 있어요.';
+    case 'FORBIDDEN':
+      return '도토리는 부모만 줄 수 있어요.';
+    case 'INVALID_REQUEST':
+      return '금액을 다시 확인해주세요.';
+    default:
+      return '도토리를 주지 못했어요. 잠시 후 다시 시도해주세요.';
+  }
+}
+
 /** 환전 요청 실패 → 사용자 문구. */
 export function cashoutErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {

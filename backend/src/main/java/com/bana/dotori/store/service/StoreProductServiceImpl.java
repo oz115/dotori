@@ -15,6 +15,7 @@ import com.bana.dotori.store.dto.StoreProductUpdateRequest;
 import com.bana.dotori.store.dto.StorePurchaseResponse;
 import com.bana.dotori.store.entity.StoreProduct;
 import com.bana.dotori.store.event.StoreProductCreatedEvent;
+import com.bana.dotori.store.event.StoreProductReevaluationRequestedEvent;
 import com.bana.dotori.store.mapper.StoreProductMapper;
 import com.bana.dotori.store.repository.StoreProductRepository;
 import com.bana.dotori.user.entity.User;
@@ -95,10 +96,32 @@ public class StoreProductServiceImpl implements StoreProductService {
 
 		StoreProduct product = storeProductRepository.findByIdAndFamilyIdAndDeletedAtIsNull(productId, familyId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+		// 이름·설명·카테고리가 실제로 바뀌면 이전 AI 가격이 더는 맞지 않으니 재산정한다.
+		// 단, 부모가 이번 요청에서 가격을 직접 지정했으면 그 값을 존중해 재산정하지 않는다.
+		boolean descriptiveChanged = isDescriptiveChange(product, request);
+		boolean manualPrice = request.price() != null;
+
 		product.update(request.name(), request.description(), request.category(), request.price(),
 			request.quantity());
 
+		if (descriptiveChanged && !manualPrice) {
+			// value/price/reason 을 비워 "산정 중"으로 되돌린 뒤, 커밋 후 큐로 재산정을 요청한다.
+			product.resetValuation();
+			eventPublisher.publishEvent(new StoreProductReevaluationRequestedEvent(product.getId(), familyId,
+				product.getName(), product.getDescription(), product.getCategory()));
+		}
+
 		return storeProductMapper.toDetailResponse(product);
+	}
+
+	/** 재산정이 필요한 변경(이름·설명·카테고리)이 실제로 있었는지. 값이 온 필드만, 기존 값과 비교한다. */
+	private boolean isDescriptiveChange(StoreProduct product, StoreProductUpdateRequest request) {
+		boolean nameChanged = request.name() != null && !request.name().equals(product.getName());
+		boolean descriptionChanged =
+			request.description() != null && !request.description().equals(product.getDescription());
+		boolean categoryChanged = request.category() != null && request.category() != product.getCategory();
+		return nameChanged || descriptionChanged || categoryChanged;
 	}
 
 	@Override

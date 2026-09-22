@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useAuthStore } from '@/features/auth';
 import { useFamilyId } from '@/features/family';
 import { cashoutErrorMessage, useCashoutRequest, useWalletBalance } from '@/features/wallet';
 import { formatPoint, formatWonNumber, pointToWon } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, NumericKeypad, Screen } from '@/shared/ui';
+import { AmountPresetRow, Button, Header, NumericKeypad, Screen } from '@/shared/ui';
 
 const PRESETS_POINT = [100, 1_000, 10_000];
 const MAX_DIGITS = 9;
@@ -96,31 +96,16 @@ export default function CashoutScreen() {
           </Text>
         </View>
 
-        <View style={[styles.presetRow, { gap: theme.space.sm }]}>
-          {PRESETS_POINT.map((points) => (
-            <Pressable
-              key={points}
-              onPress={() => addPreset(points)}
-              style={[
-                styles.presetChip,
-                { borderColor: theme.color.border.default, borderRadius: theme.radius.sm },
-              ]}
-            >
-              <Text style={[theme.typography.label, { color: theme.color.text.default }]}>
-                +{formatPoint(points)}
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={useFullBalance}
-            style={[
-              styles.presetChip,
-              { borderColor: theme.color.border.default, borderRadius: theme.radius.sm },
-            ]}
-          >
-            <Text style={[theme.typography.label, { color: theme.color.text.default }]}>전액</Text>
-          </Pressable>
-        </View>
+        <AmountPresetRow
+          presets={[
+            ...PRESETS_POINT.map((points) => ({
+              key: String(points),
+              label: `+${formatPoint(points)}`,
+              onPress: () => addPreset(points),
+            })),
+            { key: 'full', label: '전액', onPress: useFullBalance },
+          ]}
+        />
 
         <NumericKeypad onDigit={appendDigit} onBackspace={backspace} />
 
@@ -140,7 +125,5 @@ const styles = StyleSheet.create({
   amountBlock: { alignItems: 'center', gap: 8, paddingTop: 48 },
   // 잔액 표시와 아래 조작 영역(프리셋·키패드)을 눈으로 갈라 놓는 여백
   balancePill: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 6, marginBottom: 12 },
-  presetRow: { flexDirection: 'row', justifyContent: 'center' },
-  presetChip: { borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8 },
   spacer: { flex: 1, minHeight: 24 },
 });

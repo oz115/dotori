@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import {
   useChildrenPendingRequests,
@@ -142,10 +143,17 @@ function RequestRow({
         }}
       >
         {request.photoUrl ? (
+          /* 사진 URL 은 presigned 라 목록을 새로 받을 때마다 서명이 바뀐다. URL 을 캐시
+             키로 쓰면 같은 사진을 매번 다시 받아 썸네일이 늦게 뜬다 (QA) - 요청 id 로
+             키를 고정해 두 번째부터는 캐시에서 바로 그린다. */
           <Image
-            source={{ uri: request.photoUrl }}
+            source={{
+              uri: request.photoUrl,
+              cacheKey: `chore-request-${request.choreCompletionRequestId}`,
+            }}
             style={[styles.thumb, { borderRadius: theme.radius.sm }]}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={120}
           />
         ) : null}
 

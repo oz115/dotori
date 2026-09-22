@@ -1,4 +1,9 @@
-import { cashoutErrorMessage, chargeErrorMessage, reviewCashoutErrorMessage } from './walletError';
+import {
+  cashoutErrorMessage,
+  chargeErrorMessage,
+  grantErrorMessage,
+  reviewCashoutErrorMessage,
+} from './walletError';
 
 function apiError(code: string) {
   return { response: { data: { code } } };
@@ -42,5 +47,23 @@ describe('reviewCashoutErrorMessage', () => {
     // 네트워크가 끊기면 송금이 됐는지 알 수 없다 - 실패라고 단정하면 안 된다
     expect(reviewCashoutErrorMessage({})).toContain('확인할 수 없어요');
     expect(reviewCashoutErrorMessage(apiError('SOMETHING_ELSE'))).toContain('처리에 실패');
+  });
+});
+
+describe('grantErrorMessage', () => {
+  it('가족의 아이가 아니면 그 이유를 알려준다', () => {
+    expect(grantErrorMessage(apiError('NOT_FAMILY_CHILD'))).toContain('우리 가족의 아이');
+  });
+
+  it('부모가 아니면 부모만 줄 수 있다고 알려준다', () => {
+    expect(grantErrorMessage(apiError('FORBIDDEN'))).toContain('부모만');
+  });
+
+  it('네트워크 오류는 실패로 단정하지 않고 확인을 안내한다', () => {
+    expect(grantErrorMessage({})).toContain('확인');
+  });
+
+  it('알 수 없는 오류는 일반 문구로 안내한다', () => {
+    expect(grantErrorMessage(apiError('SOMETHING_ELSE'))).toContain('주지 못했어요');
   });
 });

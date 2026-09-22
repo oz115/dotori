@@ -29,6 +29,9 @@ public interface SavingsSubscriptionRepository extends JpaRepository<SavingsSubs
 
 	Optional<SavingsSubscription> findByIdAndFamilyIdAndChildId(Integer id, Integer familyId, Integer childId);
 
+	/** 그 자녀에게 주어진 상태의 가입 건이 하나라도 있는지. 가족과 무관하게 본다. */
+	boolean existsByChildIdAndStatusIn(Integer childId, Collection<SavingsSubscriptionStatus> statuses);
+
 	/**
 	 * 가입 멱등키로 이미 만들어진 가입을 찾는다. 재시도로 같은 키가 다시 들어왔을 때
 	 * 새 가입을 만드는 대신 이걸 그대로 돌려준다.
