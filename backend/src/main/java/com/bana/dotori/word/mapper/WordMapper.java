@@ -27,8 +27,8 @@ public class WordMapper {
 	}
 
 	public WordDetailResponse toDetailResponse(Word word) {
-		return new WordDetailResponse(word.getId(), word.getWord(), word.getDescription(), word.getDifficultyLevel(),
-			word.getCategory());
+		return new WordDetailResponse(word.getId(), word.getWord(), word.getDescription(),
+			word.getEasyDescription(), word.getDifficultyLevel(), word.getCategory());
 	}
 
 	public WordSearchResponse toSearchResponse(List<Word> words) {

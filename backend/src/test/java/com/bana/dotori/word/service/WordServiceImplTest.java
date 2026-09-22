@@ -43,9 +43,15 @@ class WordServiceImplTest {
 	private WordServiceImpl wordService;
 
 	private Word word(Integer id, String text, String description, int difficultyLevel, WordCategory category) {
+		return word(id, text, description, null, difficultyLevel, category);
+	}
+
+	private Word word(Integer id, String text, String description, String easyDescription, int difficultyLevel,
+			WordCategory category) {
 		Word word = Word.builder()
 			.word(text)
 			.description(description)
+			.easyDescription(easyDescription)
 			.difficultyLevel(difficultyLevel)
 			.category(category)
 			.build();
@@ -102,16 +108,31 @@ class WordServiceImplTest {
 	@Test
 	@DisplayName("단어 상세를 명세 형식(definition 필드)으로 내려준다")
 	void getWord_success() {
-		BDDMockito.given(wordRepository.findById(1))
-			.willReturn(Optional.of(word(1, "복리", "이자에 다시 이자가 붙는 계산 방식이에요.", 3, WordCategory.BANKING)));
+		BDDMockito.given(wordRepository.findById(1)).willReturn(Optional.of(word(1, "복리",
+			"이자에 다시 이자가 붙는 계산 방식이에요.", "이자에 또 이자가 붙어서 돈이 점점 빨리 불어나는 거예요.",
+			3, WordCategory.BANKING)));
 
 		WordDetailResponse response = wordService.getWord(1);
 
 		assertThat(response.wordId()).isEqualTo(1);
 		assertThat(response.word()).isEqualTo("복리");
 		assertThat(response.definition()).isEqualTo("이자에 다시 이자가 붙는 계산 방식이에요.");
+		assertThat(response.easyDefinition()).isEqualTo("이자에 또 이자가 붙어서 돈이 점점 빨리 불어나는 거예요.");
 		assertThat(response.difficultyLevel()).isEqualTo(3);
 		assertThat(response.category()).isEqualTo(WordCategory.BANKING);
+	}
+
+	@Test
+	@DisplayName("쉬운 설명이 아직 없는 단어도 상세 조회가 된다")
+	void getWord_withoutEasyDescription() {
+		// 용어사전에 없던 단어는 easy_description 이 NULL 이다 — 상세가 깨지면 안 된다.
+		BDDMockito.given(wordRepository.findById(1))
+			.willReturn(Optional.of(word(1, "복리", "이자에 다시 이자가 붙는 계산 방식이에요.", 3, WordCategory.BANKING)));
+
+		WordDetailResponse response = wordService.getWord(1);
+
+		assertThat(response.definition()).isEqualTo("이자에 다시 이자가 붙는 계산 방식이에요.");
+		assertThat(response.easyDefinition()).isNull();
 	}
 
 	@Test

@@ -14,9 +14,14 @@ export type WordSummary = {
   category: WordCategory | null;
 };
 
-/** GET .../words/{wordId} 상세. 목록 필드 + 뜻(definition). */
+/** GET .../words/{wordId} 상세. 목록 필드 + 뜻(definition) + 쉬운 설명. */
 export type WordDetailInfo = WordSummary & {
   definition: string;
+  /**
+   * 아이 눈높이로 풀어 쓴 설명. 용어사전을 나중에 받아 채운 컬럼이라 아직 없는 단어가
+   * 있고, 그 경우 필드가 빠지는 게 아니라 null 로 온다.
+   */
+  easyDefinition: string | null;
 };
 
 /**
