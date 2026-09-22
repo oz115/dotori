@@ -128,7 +128,8 @@ export function ChildChoreDetail({ familyId, childId, choreId, onBack }: ChildCh
   const canSubmit = !deleted && (status === 'TODO' || status === 'REJECTED');
 
   return (
-    <Screen header={<Header title="미션 상세" onBack={onBack} />} keyboardAvoiding>
+    // 사진 미리보기·설명 입력까지 들어가면 한 화면을 쉽게 넘어 끝의 버튼에 손이 닿지 않았다.
+    <Screen header={<Header title="미션 상세" onBack={onBack} />} scroll keyboardAvoiding>
       {isPending ? (
         <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
           미션을 불러오는 중이에요.

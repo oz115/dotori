@@ -31,6 +31,9 @@ const PREVIEW_COUNT = 3;
  * 완료한 미션은 뺀다. 미션 탭이 감추는 것을 홈에서만 보여 주면 두 화면의 개수가 어긋나고,
  * 여기 행에는 "완료" 표시가 없어 안 한 것처럼 보인다.
  *
+ * 오늘 등록된 걸 다 끝낸 경우와 애초에 등록된 게 없는 경우를 가른다 — 둘 다 목록은 비지만 한쪽은 칭찬할
+ * 일이고 한쪽은 기다릴 일이다.
+ *
  * 아직 등록된 미션이 없으면 예시로 채우지 않고 "없어요"라고 알린다. 가입 직후처럼 아무것도 없는
  * 상태에서 가짜 미션이 보이면 실제로 등록된 것으로 오해하기 쉽다.
  */
@@ -45,7 +48,10 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   // (당겨서 새로고침은 홈에 없어 반환값은 쓰지 않는다)
   useChoreRefresh(familyId, childIds);
 
-  const rows = useMemo(() => registeredToday(items), [items]);
+  const todayChores = useMemo(() => registeredToday(items), [items]);
+  const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
+  // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
+  const allDone = rows.length === 0 && todayChores.length > 0;
 
   // 상세는 미션 탭 안의 화면이다 (부모와 같은 구조). from=home 을 넘겨 그 화면의 뒤로가기가
   // 미션 목록이 아니라 홈으로 돌아오게 한다 - 여기서 들어갔으니 여기로 나와야 한다.
@@ -81,8 +87,13 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
             </Text>
           ) : null}
           {rows.length === 0 ? (
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-              오늘 등록된 미션이 없어요.
+            <Text
+              style={[
+                theme.typography.bodySm,
+                { color: allDone ? theme.color.brand.subtleText : theme.color.text.muted },
+              ]}
+            >
+              {allDone ? '오늘 등록된 미션을 모두 완료했어요!' : '오늘 등록된 미션이 없어요.'}
             </Text>
           ) : (
             <View style={{ gap: theme.space.sm }}>
@@ -104,11 +115,16 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   );
 }
 
-/** 오늘 등록된 것 중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+/** 오늘 등록된 것 전부. 끝낸 것까지 남겨야 "없다"와 "다 했다"를 가를 수 있다 */
 function registeredToday(chores: TodayChore[]): TodayChore[] {
   const today = todayDate();
+  return chores.filter((chore) => chore.createdAt.slice(0, 10) === today);
+}
+
+/** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+function unfinishedPreview(chores: TodayChore[]): TodayChore[] {
   return [...chores]
-    .filter((chore) => chore.status !== 'DONE' && chore.createdAt.slice(0, 10) === today)
+    .filter((chore) => chore.status !== 'DONE')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, PREVIEW_COUNT);
 }
