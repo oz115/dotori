@@ -51,6 +51,8 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 	private static final LocalDate EARLIEST_DATE = LocalDate.of(2000, 1, 1);
 	// 종목 수. 노션 「회사 리스트」가 10개로 고정했다 — 시작가(용돈÷종목 수) 계산에 쓴다
 	private static final int STOCK_COUNT = 10;
+	// 차트 기본 조회 폭 — 항상 최근 일주일 롤링 윈도우 (AI 온보딩 백필 일수와 맞춘다)
+	private static final int PRICE_HISTORY_WINDOW_DAYS = 7;
 
 	private final InvestmentProductRepository investmentProductRepository;
 	private final InvestmentPriceHistoryRepository investmentPriceHistoryRepository;
@@ -154,8 +156,10 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 
 	/**
 	 * 상세 화면 차트용 가격 이력 (INV-T-06). 가격이 가족별이라 조회한 사용자의 가족 기준이고,
-	 * 기간 기본값은 최근 30일 [30일 전, 오늘]이다. 변동 없는 날짜는 직전 가격으로
-	 * 채우고 최초 기록 전에는 시작가를 쓴다. 가족·상품 생성 전과 미래는 제외한다.
+	 * 기간 기본값은 최근 일주일 [7일 전, 오늘] 롤링 윈도우다 — 현실 주식 앱처럼 가입
+	 * 시점과 무관하게 항상 지난 일주일이 보이고, 날이 지나면 왼쪽 끝이 하나씩 밀려난다
+	 * (온보딩 백필이 지난 일주일치를 만들어 준다). 변동 없는 날짜는 직전 가격으로 채우고
+	 * 최초 기록 전에는 시작가를 쓴다. 상품 생성 전과 미래는 제외한다.
 	 */
 	@Override
 	@Transactional(readOnly = true)
@@ -168,17 +172,15 @@ public class InvestmentProductServiceImpl implements InvestmentProductService {
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
 		LocalDate end = endDate != null ? endDate : LocalDate.now(KST);
-		LocalDate start = startDate != null ? startDate : end.minusDays(30);
+		LocalDate start = startDate != null ? startDate : end.minusDays(PRICE_HISTORY_WINDOW_DAYS);
 		if (start.isAfter(end)) {
 			throw new BusinessException(ErrorCode.INVALID_DATE_RANGE);
 		}
 
-		// 아직 존재하지 않은 날짜와 미래 가격은 만들지 않는다.
-		LocalDate familyCreated = familyRepository.findByIdAndDeletedAtIsNull(familyId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND))
-			.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
+		// 상품 생성 전과 미래 가격은 만들지 않는다. 가입일·첫 기록일로는 자르지 않는다 —
+		// 기록이 없는 과거 날짜는 아래 채우기 로직이 시작가로 채워, 새 가족도 항상
+		// 일주일 폭의 차트를 본다.
 		LocalDate productCreated = product.getCreatedAt().atZoneSameInstant(KST).toLocalDate();
-		start = start.isBefore(familyCreated) ? familyCreated : start;
 		start = start.isBefore(productCreated) ? productCreated : start;
 		LocalDate today = LocalDate.now(KST);
 		end = end.isAfter(today) ? today : end;
