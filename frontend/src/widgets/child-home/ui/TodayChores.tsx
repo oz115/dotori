@@ -36,6 +36,10 @@ const PREVIEW_COUNT = 3;
  *
  * 아직 등록된 미션이 없으면 예시로 채우지 않고 "없어요"라고 알린다. 가입 직후처럼 아무것도 없는
  * 상태에서 가짜 미션이 보이면 실제로 등록된 것으로 오해하기 쉽다.
+ *
+ * "오늘 등록된"은 생성일(createdAt)이 아니라 활성 기간(startDate~endDate)에 오늘이 들어있는지로
+ * 가른다. 반복 미션은 크론이 매일 자정 기간을 오늘로 밀어 주는데, createdAt 은 최초 등록일에
+ * 고정돼 있어서 그 기준으로 걸렀으면 등록 다음 날부터 반복 미션이 영원히 이 자리에서 사라진다.
  */
 export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps) {
   const theme = useTheme();
@@ -48,7 +52,7 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   // (당겨서 새로고침은 홈에 없어 반환값은 쓰지 않는다)
   useChoreRefresh(familyId, childIds);
 
-  const todayChores = useMemo(() => registeredToday(items), [items]);
+  const todayChores = useMemo(() => activeToday(items), [items]);
   const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
   // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
   const allDone = rows.length === 0 && todayChores.length > 0;
@@ -115,10 +119,13 @@ export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps
   );
 }
 
-/** 오늘 등록된 것 전부. 끝낸 것까지 남겨야 "없다"와 "다 했다"를 가를 수 있다 */
-function registeredToday(chores: TodayChore[]): TodayChore[] {
+/**
+ * 오늘이 활성 기간(startDate~endDate)에 들어있는 것 전부. 끝낸 것까지 남겨야
+ * "없다"와 "다 했다"를 가를 수 있다.
+ */
+function activeToday(chores: TodayChore[]): TodayChore[] {
   const today = todayDate();
-  return chores.filter((chore) => chore.createdAt.slice(0, 10) === today);
+  return chores.filter((chore) => chore.startDate <= today && today <= chore.endDate);
 }
 
 /** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */

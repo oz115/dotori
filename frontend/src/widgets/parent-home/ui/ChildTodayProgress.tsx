@@ -34,6 +34,10 @@ const PREVIEW_COUNT = 3;
  *
  * 오늘 등록된 걸 아이가 다 끝낸 경우와 애초에 등록된 게 없는 경우를 가른다 — 둘 다 목록은 비지만
  * 부모가 알아야 할 소식은 정반대다.
+ *
+ * "오늘 등록된"은 생성일(createdAt)이 아니라 활성 기간(startDate~endDate)에 오늘이 들어있는지로
+ * 가른다. 반복 미션은 크론이 매일 자정 기간을 오늘로 밀어 주는데, createdAt 은 최초 등록일에
+ * 고정돼 있어서 그 기준으로 걸렀으면 등록 다음 날부터 반복 미션이 영원히 이 자리에서 사라진다.
  */
 export function ChildTodayProgress({
   familyId,
@@ -54,7 +58,7 @@ export function ChildTodayProgress({
   // 아이가 없으면 useTodayChores 가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다
   const loading = familyPending || (childId != null && isPending);
-  const todayChores = useMemo(() => registeredToday(items), [items]);
+  const todayChores = useMemo(() => activeToday(items), [items]);
   const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
   // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
   const allDone = rows.length === 0 && todayChores.length > 0;
@@ -112,10 +116,13 @@ export function ChildTodayProgress({
   );
 }
 
-/** 오늘 등록된 것 전부. 끝낸 것까지 남겨야 "없다"와 "다 했다"를 가를 수 있다 */
-function registeredToday(chores: TodayChore[]): TodayChore[] {
+/**
+ * 오늘이 활성 기간(startDate~endDate)에 들어있는 것 전부. 끝낸 것까지 남겨야
+ * "없다"와 "다 했다"를 가를 수 있다.
+ */
+function activeToday(chores: TodayChore[]): TodayChore[] {
   const today = todayDate();
-  return chores.filter((chore) => chore.createdAt.slice(0, 10) === today);
+  return chores.filter((chore) => chore.startDate <= today && today <= chore.endDate);
 }
 
 /** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
