@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDateShort, monthsAgo, toDateParam } from '@/shared/lib/dateRange';
 import { useTheme } from '@/shared/theme';
@@ -73,6 +74,7 @@ type Props = {
  */
 export function PeriodFilterControl({ value, onChange, minPickableDate }: Props) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -119,6 +121,9 @@ export function PeriodFilterControl({ value, onChange, minPickableDate }: Props)
                 borderTopLeftRadius: theme.radius.xl,
                 borderTopRightRadius: theme.radius.xl,
                 padding: theme.space.xl,
+                // 시트는 화면 맨 아래에 붙으므로 시스템 내비게이션 영역을 직접 피해야 한다.
+                // 삼성 3버튼 내비게이션에서 "확인" 버튼이 하단 버튼들과 겹쳐 눌리지 않았다 (QA).
+                paddingBottom: theme.space.xl + insets.bottom,
                 gap: theme.space.lg,
               },
             ]}

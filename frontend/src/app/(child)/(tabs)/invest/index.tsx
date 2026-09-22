@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, BackHandler, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import {
   InvestmentSummaryCards,
@@ -54,6 +54,17 @@ export default function InvestScreen() {
       prev.includes(stock.id) ? prev.filter((id) => id !== stock.id) : [...prev, stock.id],
     );
   };
+  // 하단 "취소" 버튼만으로는 빠져나갈 길이 하나뿐이다. 안드로이드에서는 뒤로가기로 무언가를
+  // 그만두는 것이 기본 동작이라, 선택 모드일 때는 뒤로가기가 화면을 떠나는 대신 선택을 지운다 (QA).
+  useEffect(() => {
+    if (!selectionMode) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSelectedIds([]);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [selectionMode]);
+
   const { refetch: refetchProducts } = products;
   const { refetch: refetchNews } = news;
   const { refetch: refetchHoldings } = holdings;
@@ -112,10 +123,14 @@ export default function InvestScreen() {
           <InvestmentSummaryCards summary={summarizeInvestment(holdings.data)} />
         )}
 
-        <View style={{ gap: theme.space.lg }}>
-          <SectionTitle icon={MEGAPHONE} title="오늘의 뉴스" />
-          {/* 뉴스마다 반복하던 안내를 섹션에서 한 번만 말한다 */}
-          <Text style={muted}>어떤 회사에 영향을 줄지 생각해 보세요!</Text>
+        <View style={{ gap: theme.space.xl }}>
+          {/* 제목과 안내문은 한 덩어리로 읽히게 붙이고(8), 뉴스 카드와는 넉넉히 띄운다(20).
+              전에는 셋이 모두 16 이라 제목·안내문·카드가 서로 어디에 딸린 것인지 안 보였다 (QA) */}
+          <View style={{ gap: theme.space.sm }}>
+            <SectionTitle icon={MEGAPHONE} title="오늘의 뉴스" />
+            {/* 뉴스마다 반복하던 안내를 섹션에서 한 번만 말한다 */}
+            <Text style={muted}>어떤 회사에 영향을 줄지 생각해 보세요!</Text>
+          </View>
           {news.isPending ? (
             <Text style={muted}>오늘의 뉴스를 불러오는 중이에요.</Text>
           ) : news.isError ? (

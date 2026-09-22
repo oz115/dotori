@@ -20,7 +20,8 @@ it('매도 대금 대신 원금을 뺀 확정 이익과 손해를 합산한다',
       transactions={[sale, { ...sale, id: 2, totalAmount: 800, realizedProfit: -200 }]}
     />,
   );
-  expect(screen.getByText('손해 100 도토리')).toBeTruthy();
+  // 부호와 색으로만 말한다 — 제목이 이미 "판매 수익" 이라 단어를 또 붙이면 같은 말이 두 번이다
+  expect(screen.getByText('-100 도토리')).toBeTruthy();
 });
 
 it('원가가 빠진 거래가 있으면 불완전한 합계를 확정값처럼 보여주지 않는다', async () => {
@@ -28,5 +29,5 @@ it('원가가 빠진 거래가 있으면 불완전한 합계를 확정값처럼 
     <RealizedProfitCard transactions={[sale, { ...sale, id: 2, realizedProfit: null }]} />,
   );
   expect(screen.getByText('판매 수익을 계산할 정보가 부족해요.')).toBeTruthy();
-  expect(screen.queryByText('수익 100 도토리')).toBeNull();
+  expect(screen.queryByText('+100 도토리')).toBeNull();
 });
