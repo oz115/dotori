@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { grantErrorMessage } from '@/features/wallet/lib/walletError';
 import { useGrantPoints } from '@/features/wallet/model/useGrantPoints';
 import { formatPoint } from '@/shared/lib/money';
 import { newIdempotencyKey } from '@/shared/lib/idempotencyKey';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, NumericKeypad, Screen } from '@/shared/ui';
+import { AmountPresetRow, Button, Header, NumericKeypad, Screen } from '@/shared/ui';
 
 /** 한 번에 줄 수 있는 도토리 상한. 서버에는 상한이 없어서 잘못 눌러 큰 금액이 나가는 걸 화면에서 막는다 */
 const MAX_POINTS = 100_000;
@@ -105,23 +105,13 @@ export function GrantPointsScreen({
       <View style={styles.spacer} />
 
       <View style={{ gap: theme.space.md }}>
-        <View style={[styles.presetRow, { gap: theme.space.sm }]}>
-          {PRESETS.map((points) => (
-            <Pressable
-              key={points}
-              onPress={() => addPreset(points)}
-              accessibilityRole="button"
-              style={[
-                styles.presetChip,
-                { borderColor: theme.color.border.default, borderRadius: theme.radius.sm },
-              ]}
-            >
-              <Text style={[theme.typography.label, { color: theme.color.text.default }]}>
-                +{points.toLocaleString('ko-KR')}P
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <AmountPresetRow
+          presets={PRESETS.map((points) => ({
+            key: String(points),
+            label: `+${points.toLocaleString('ko-KR')}P`,
+            onPress: () => addPreset(points),
+          }))}
+        />
 
         <NumericKeypad onDigit={appendDigit} onBackspace={backspace} />
 
@@ -139,7 +129,5 @@ export function GrantPointsScreen({
 
 const styles = StyleSheet.create({
   amountBlock: { alignItems: 'center', gap: 8, paddingTop: 48 },
-  presetRow: { flexDirection: 'row', justifyContent: 'center' },
-  presetChip: { borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8 },
   spacer: { flex: 1, minHeight: 24 },
 });

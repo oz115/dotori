@@ -32,7 +32,8 @@ const PREVIEW_COUNT = 3;
  * 행은 두 홈과 미션 탭이 모두 ChoreListRow 를 쓴다. 부모와 아이가 같은 미션을 이야기할 때
  * 서로 다른 모양을 보고 있으면 말이 어긋난다.
  *
- * 등록된 미션이 없거나 아직 아이를 연결하지 않았으면 예시로 자리를 채운다.
+ * 오늘 등록된 걸 아이가 다 끝낸 경우와 애초에 등록된 게 없는 경우를 가른다 — 둘 다 목록은 비지만
+ * 부모가 알아야 할 소식은 정반대다.
  */
 export function ChildTodayProgress({
   familyId,
@@ -53,7 +54,10 @@ export function ChildTodayProgress({
   // 아이가 없으면 useTodayChores 가 아예 돌지 않아 isPending 이 계속 true 라,
   // "아이 없음"과 "불러오는 중"을 따로 봐야 한다
   const loading = familyPending || (childId != null && isPending);
-  const rows = useMemo(() => registeredToday(items), [items]);
+  const todayChores = useMemo(() => registeredToday(items), [items]);
+  const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
+  // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
+  const allDone = rows.length === 0 && todayChores.length > 0;
 
   return (
     <View style={{ gap: theme.space.md }}>
@@ -80,8 +84,13 @@ export function ChildTodayProgress({
             </Text>
           ) : null}
           {rows.length === 0 ? (
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
-              오늘 등록된 미션이 없어요.
+            <Text
+              style={[
+                theme.typography.bodySm,
+                { color: allDone ? theme.color.brand.subtleText : theme.color.text.muted },
+              ]}
+            >
+              {allDone ? '오늘 등록된 미션을 모두 완료했어요!' : '오늘 등록된 미션이 없어요.'}
             </Text>
           ) : (
             <View style={{ gap: theme.space.sm }}>
@@ -103,11 +112,16 @@ export function ChildTodayProgress({
   );
 }
 
-/** 오늘 등록된 것 중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+/** 오늘 등록된 것 전부. 끝낸 것까지 남겨야 "없다"와 "다 했다"를 가를 수 있다 */
 function registeredToday(chores: TodayChore[]): TodayChore[] {
   const today = todayDate();
+  return chores.filter((chore) => chore.createdAt.slice(0, 10) === today);
+}
+
+/** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+function unfinishedPreview(chores: TodayChore[]): TodayChore[] {
   return [...chores]
-    .filter((chore) => chore.status !== 'DONE' && chore.createdAt.slice(0, 10) === today)
+    .filter((chore) => chore.status !== 'DONE')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, PREVIEW_COUNT);
 }
