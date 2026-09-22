@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { ScrollView, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel } from '@/features/chore/lib/choreLabels';
 import {
@@ -102,47 +102,51 @@ export function ParentChoreList({
       padded={false}
       style={{ paddingTop: theme.space.sm }}
     >
-      <FlatList
-        data={visible}
-        keyExtractor={(item) => String(item.choreId)}
+      {/* 칩이 스크롤해도 상단에 붙어 있어야 해서 ScrollView + stickyHeaderIndices 다.
+          FlatList 는 헤더 전체(배너+요청 카드+칩)를 한 덩어리로만 붙일 수 있다.
+          한 가족의 미션은 많아야 수십 개라 가상화를 포기해도 괜찮다 (상점 목록과 같은 이유). */}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={[
-          styles.content,
-          { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
-        ]}
-        ListHeaderComponent={
-          <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <ChoreHeroBanner
-              title="우리 가족 미션"
-              caption={'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
-              mascot={require('@/assets/images/chore/owl-cheer.png')}
-            />
-            {requests.items.length > 0 ? (
-              <PendingRequestsCard
-                requests={requests.items}
-                onRequestPress={onRequestPress}
-                onSeeAll={onSeeAllRequests}
-              />
-            ) : null}
-            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-          </View>
-        }
-        renderItem={({ item }) => (
-          <ChoreListRow
-            title={item.title}
-            repeatType={item.repeatType}
-            rewardPoints={item.rewardPoints}
-            childName={item.childName}
-            endDate={item.endDate}
-            // 부모 목록은 대기·거절을 행마다 보여 주지 않는다 (위의 "완료 요청" 카드가 맡는다).
-            // 끝난 것만 배지와 흐린 카드로 구분한다.
-            status={item.done ? 'DONE' : undefined}
-            dimmed={item.done}
-            onPress={onChorePress ? () => onChorePress(item) : undefined}
+        // 1 = 필터 칩. 위쪽(0)은 그대로 밀려 올라가고 칩만 상단에 붙는다.
+        stickyHeaderIndices={[1]}
+        // 좌우 여백은 각 자식이 갖는다 — contentContainer 에 주면 붙어 있는 칩 줄의 배경이
+        // 화면 끝까지 닿지 않아, 그 여백 틈으로 지나가는 카드가 보인다.
+        contentContainerStyle={styles.content}
+      >
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            marginBottom: theme.space.lg,
+            gap: theme.space.lg,
+          }}
+        >
+          <ChoreHeroBanner
+            title="우리 가족 미션"
+            caption={'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
+            mascot={require('@/assets/images/chore/owl-cheer.png')}
           />
-        )}
-        ListEmptyComponent={
+          {requests.items.length > 0 ? (
+            <PendingRequestsCard
+              requests={requests.items}
+              onRequestPress={onRequestPress}
+              onSeeAll={onSeeAllRequests}
+            />
+          ) : null}
+        </View>
+
+        {/* 붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다 */}
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingBottom: theme.space.lg,
+            backgroundColor: theme.color.background.canvas,
+          }}
+        >
+          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+        </View>
+
+        {visible.length === 0 ? (
           <EmptyState
             message={
               isPending
@@ -157,8 +161,26 @@ export function ParentChoreList({
                       : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
           />
-        }
-      />
+        ) : (
+          <View style={{ paddingHorizontal: theme.layout.screenX, gap: theme.space.md }}>
+            {visible.map((item) => (
+              <ChoreListRow
+                key={item.choreId}
+                title={item.title}
+                repeatType={item.repeatType}
+                rewardPoints={item.rewardPoints}
+                childName={item.childName}
+                endDate={item.endDate}
+                // 부모 목록은 대기·거절을 행마다 보여 주지 않는다 (위의 "완료 요청" 카드가 맡는다).
+                // 끝난 것만 배지와 흐린 카드로 구분한다.
+                status={item.done ? 'DONE' : undefined}
+                dimmed={item.done}
+                onPress={onChorePress ? () => onChorePress(item) : undefined}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {onRegisterPress ? (
         <Pressable
