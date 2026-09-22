@@ -15,7 +15,6 @@ import { useTheme } from '@/shared/theme';
 
 const CHART_HEIGHT = 180;
 const EDGE_INSET = 6;
-const Y_LABEL_WIDTH = 48;
 
 type Props = {
   history: PricePoint[];
@@ -31,6 +30,9 @@ type Props = {
 export function PriceLineChart({ history }: Props) {
   const theme = useTheme();
   const [chartWidth, setChartWidth] = useState(0);
+  // y축 라벨 칸의 실제 폭. 고정 폭으로 잡으면 가격 자릿수가 적을 때 왼쪽에 빈 공간이 남아
+  // 차트 왼쪽 여백만 넓어 보인다 — 가장 긴 눈금 글씨에 맞춰 잰다.
+  const [yAxisWidth, setYAxisWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   if (history.length === 0) {
@@ -98,7 +100,10 @@ export function PriceLineChart({ history }: Props) {
       </View>
 
       <View style={styles.chartRow}>
-        <View style={styles.yLabels}>
+        <View
+          style={styles.yLabels}
+          onLayout={(event) => setYAxisWidth(Math.round(event.nativeEvent.layout.width))}
+        >
           {[...ticks].reverse().map((tick) => (
             <Text
               key={tick}
@@ -185,7 +190,7 @@ export function PriceLineChart({ history }: Props) {
         </View>
       </View>
 
-      <View style={styles.xLabels}>
+      <View style={[styles.xLabels, { marginLeft: yAxisWidth + AXIS_GAP }]}>
         {history
           .map((point, index) => ({ ...point, index }))
           // 오늘(마지막)을 기준으로 같은 간격씩 거슬러 라벨을 찍는다 — 앞에서부터 찍고
@@ -219,13 +224,15 @@ export function PriceLineChart({ history }: Props) {
   );
 }
 
+const AXIS_GAP = 8;
+
 const styles = StyleSheet.create({
   chartRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: AXIS_GAP,
   },
+  // 폭을 고정하지 않는다 — 가장 긴 눈금 글씨만큼만 차지해 왼쪽 여백이 남지 않는다
   yLabels: {
-    width: Y_LABEL_WIDTH,
     height: CHART_HEIGHT,
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -249,8 +256,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   xLabel: { position: 'absolute', textAlign: 'center' },
+  // 왼쪽 여백(y축 라벨 폭 + 간격)은 실측값이라 렌더에서 marginLeft 로 넣는다
   xLabels: {
     height: 20,
-    marginLeft: Y_LABEL_WIDTH + 8,
   },
 });
