@@ -18,7 +18,9 @@ export function tabScreenOptions(theme: Theme, bottomInset: number) {
     tabBarShowLabel: true,
     tabBarActiveTintColor: theme.color.brand.black,
     tabBarInactiveTintColor: theme.color.text.muted,
-    tabBarLabelStyle: { fontFamily: fontFamily.regular, fontSize: 11 },
+    // 11 은 토큰보다 작은 탭바 전용 크기라 여기서 기기 글꼴 배율을 상쇄한다
+    // (shared/theme/fontScale.ts) — 커지면 라벨이 두 줄이 되어 탭바 높이가 깨진다.
+    tabBarLabelStyle: { fontFamily: fontFamily.regular, fontSize: 11 * theme.textScale },
     tabBarStyle: {
       backgroundColor: theme.color.background.surface,
       borderTopLeftRadius: theme.radius['2xl'],

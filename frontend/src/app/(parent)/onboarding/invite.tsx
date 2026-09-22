@@ -103,7 +103,12 @@ export default function OnboardingInviteScreen() {
               · · · · · ·
             </Text>
           ) : (
-            <Text style={[styles.code, { color: theme.color.text.strong }]}>
+            <Text
+              style={[
+                styles.code,
+                { color: theme.color.text.strong, fontSize: 34 * theme.textScale },
+              ]}
+            >
               {code.split('').join(' ')}
             </Text>
           )}
@@ -165,7 +170,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   code: {
-    fontSize: 34,
+    // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
     fontWeight: '700',
     letterSpacing: 4,
   },

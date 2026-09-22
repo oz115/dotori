@@ -40,7 +40,9 @@ export function NewsList({
               {item.title}
             </Text>
           </View>
-          <Text style={styles.illustration}>{item.emoji}</Text>
+          <Text style={[styles.illustration, { fontSize: 44 * theme.textScale }]}>
+            {item.emoji}
+          </Text>
         </Pressable>
       ))}
     </View>
@@ -57,7 +59,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start',
   },
-  illustration: {
-    fontSize: 44,
-  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  illustration: {},
 });

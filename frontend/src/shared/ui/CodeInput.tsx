@@ -73,7 +73,14 @@ export function CodeInput({
               },
             ]}
           >
-            <Text style={[styles.char, { color: theme.color.text.strong }]}>{ch}</Text>
+            <Text
+              style={[
+                styles.char,
+                { color: theme.color.text.strong, fontSize: 24 * theme.textScale },
+              ]}
+            >
+              {ch}
+            </Text>
           </View>
         );
       })}
@@ -105,7 +112,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  char: { fontFamily: fontFamily.bold, fontSize: 24 },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  char: { fontFamily: fontFamily.bold },
   hiddenInput: {
     position: 'absolute',
     top: 0,

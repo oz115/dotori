@@ -118,7 +118,9 @@ export function NewsCarousel({ items, onPressItem, onTouchingChange }: Props) {
                 </Text>
               </View>
               {/* Figma 일러스트 자리 표시자 — 에셋 export 후 expo-image 로 교체 */}
-              <Text style={styles.illustration}>{item.emoji}</Text>
+              <Text style={[styles.illustration, { fontSize: 64 * theme.textScale }]}>
+                {item.emoji}
+              </Text>
             </View>
             <Text
               style={[theme.typography.caption, styles.date, { color: theme.color.text.muted }]}
@@ -159,8 +161,8 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
   },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
   illustration: {
-    fontSize: 64,
     marginLeft: 8,
   },
   date: {

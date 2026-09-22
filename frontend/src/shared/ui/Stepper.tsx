@@ -18,6 +18,8 @@ function useStepStyles() {
     label: {
       color: filled ? theme.color.text.onBrand : theme.color.text.muted,
       fontFamily: fontFamily.bold,
+      // 크기는 여기서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+      fontSize: 15 * theme.textScale,
     },
     connector: {
       backgroundColor: filled ? theme.color.brand.solid : theme.color.border.default,
@@ -110,7 +112,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  number: {
-    fontSize: 15,
-  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  number: {},
 });

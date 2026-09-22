@@ -30,6 +30,8 @@ type Props = {
  */
 export function PriceLineChart({ history }: Props) {
   const theme = useTheme();
+  // 축 눈금은 토큰으로 못 옮긴 크기라(caption 16 은 44px 축 폭에 안 들어간다) 배율을 직접 상쇄한다
+  const axisLabelSize = { fontSize: 12 * theme.textScale, lineHeight: 16 * theme.textScale };
   const [chartWidth, setChartWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -86,12 +88,12 @@ export function PriceLineChart({ history }: Props) {
               { backgroundColor: theme.color.text.strong, borderRadius: theme.radius.full },
             ]}
           >
-            <Text style={[styles.axisLabel, { color: theme.color.text.onBrand }]}>
+            <Text style={[styles.axisLabel, axisLabelSize, { color: theme.color.text.onBrand }]}>
               {history[selected].label} · {formatNumber(prices[selected])} 도토리
             </Text>
           </View>
         ) : (
-          <Text style={[styles.axisLabel, { color: theme.color.text.muted }]}>
+          <Text style={[styles.axisLabel, axisLabelSize, { color: theme.color.text.muted }]}>
             그래프를 누르면 그날의 가격을 볼 수 있어요.
           </Text>
         )}
@@ -103,7 +105,7 @@ export function PriceLineChart({ history }: Props) {
             <Text
               key={tick}
               numberOfLines={1}
-              style={[styles.axisLabel, { color: theme.color.text.muted }]}
+              style={[styles.axisLabel, axisLabelSize, { color: theme.color.text.muted }]}
             >
               {formatNumber(tick)}
             </Text>
@@ -198,6 +200,7 @@ export function PriceLineChart({ history }: Props) {
               key={point.index}
               style={[
                 styles.axisLabel,
+                axisLabelSize,
                 styles.xLabel,
                 { color: theme.color.text.muted },
                 point.index === history.length - 1
@@ -231,10 +234,8 @@ const styles = StyleSheet.create({
   },
   // 축·배지 전용 작은 글씨. caption(16px)은 44px 축 폭에 안 들어가 줄바꿈·클리핑됐다 —
   // 차트 눈금은 본문보다 작아야 그래프가 주인공이 된다.
-  axisLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  axisLabel: {},
   plot: {
     flex: 1,
   },
