@@ -15,7 +15,9 @@ import { useTheme } from '@/shared/theme';
 
 const CHART_HEIGHT = 180;
 const EDGE_INSET = 6;
-const Y_LABEL_WIDTH = 48;
+// x축 날짜 라벨 최대 개수. 일주일 윈도우(8점)가 전부 찍히는 크기다 —
+// 그보다 긴 이력은 오늘부터 같은 간격으로 솎아낸다.
+const MAX_X_LABELS = 8;
 
 type Props = {
   history: PricePoint[];
@@ -33,6 +35,9 @@ export function PriceLineChart({ history }: Props) {
   // 축 눈금은 토큰으로 못 옮긴 크기라(caption 16 은 44px 축 폭에 안 들어간다) 배율을 직접 상쇄한다
   const axisLabelSize = { fontSize: 12 * theme.textScale, lineHeight: 16 * theme.textScale };
   const [chartWidth, setChartWidth] = useState(0);
+  // y축 라벨 칸의 실제 폭. 고정 폭으로 잡으면 가격 자릿수가 적을 때 왼쪽에 빈 공간이 남아
+  // 차트 왼쪽 여백만 넓어 보인다 — 가장 긴 눈금 글씨에 맞춰 잰다.
+  const [yAxisWidth, setYAxisWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   if (history.length === 0) {
@@ -100,7 +105,10 @@ export function PriceLineChart({ history }: Props) {
       </View>
 
       <View style={styles.chartRow}>
-        <View style={styles.yLabels}>
+        <View
+          style={styles.yLabels}
+          onLayout={(event) => setYAxisWidth(Math.round(event.nativeEvent.layout.width))}
+        >
           {[...ticks].reverse().map((tick) => (
             <Text
               key={tick}
@@ -187,14 +195,19 @@ export function PriceLineChart({ history }: Props) {
         </View>
       </View>
 
+      {/* 라벨 줄은 전체 폭을 쓰고 좌표에 y축 폭을 더해 맞춘다 — 왼쪽 끝 라벨을 컨테이너
+          밖(-x)으로 밀지 않아야 안드로이드에서 잘리지 않는다 */}
       <View style={styles.xLabels}>
         {history
           .map((point, index) => ({ ...point, index }))
           // 오늘(마지막)을 기준으로 같은 간격씩 거슬러 라벨을 찍는다 — 앞에서부터 찍고
-          // 마지막을 억지로 끼우면 끝의 두 라벨만 날짜 간격이 달라져 이상해 보인다
+          // 마지막을 억지로 끼우면 끝의 두 라벨만 날짜 간격이 달라져 이상해 보인다.
+          // 일주일(8점) 차트는 간격이 1이 되어 모든 날짜가 찍힌다.
           .filter(
             (_, index) =>
-              (history.length - 1 - index) % Math.max(1, Math.ceil((history.length - 1) / 4)) === 0,
+              (history.length - 1 - index) %
+                Math.max(1, Math.ceil((history.length - 1) / (MAX_X_LABELS - 1))) ===
+              0,
           )
           .map((point) => (
             <Text
@@ -204,14 +217,12 @@ export function PriceLineChart({ history }: Props) {
                 axisLabelSize,
                 styles.xLabel,
                 { color: theme.color.text.muted },
+                // 마지막(오늘)은 오른쪽 끝에 붙이고, 나머지는 각자 점 아래에 오도록
+                // 점 x좌표에서 라벨 절반 폭만큼 왼쪽으로 당긴다 — 첫 라벨만 왼쪽 끝에
+                // 붙이면 둘째 라벨과 몰려 보인다
                 point.index === history.length - 1
                   ? { right: 0 }
-                  : point.index === 0
-                    ? { left: 0 }
-                    : {
-                        left: points[point.index]?.x ?? 0,
-                        transform: [{ translateX: -16 }],
-                      },
+                  : { left: yAxisWidth + AXIS_GAP + (points[point.index]?.x ?? 0) - 16 },
               ]}
             >
               {point.label}
@@ -222,13 +233,15 @@ export function PriceLineChart({ history }: Props) {
   );
 }
 
+const AXIS_GAP = 8;
+
 const styles = StyleSheet.create({
   chartRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: AXIS_GAP,
   },
+  // 폭을 고정하지 않는다 — 가장 긴 눈금 글씨만큼만 차지해 왼쪽 여백이 남지 않는다
   yLabels: {
-    width: Y_LABEL_WIDTH,
     height: CHART_HEIGHT,
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -250,8 +263,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   xLabel: { position: 'absolute', textAlign: 'center' },
+  // 왼쪽 여백(y축 라벨 폭 + 간격)은 실측값이라 렌더에서 marginLeft 로 넣는다
   xLabels: {
     height: 20,
-    marginLeft: Y_LABEL_WIDTH + 8,
   },
 });
