@@ -1,10 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text } from 'react-native';
 
 import { usePendingApprovals } from '@/features/chore';
 import { useCashoutRequests } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
-import { Callout } from '@/shared/ui';
 
 type ApprovalsCardProps = {
   familyId: number | undefined;
@@ -20,6 +18,9 @@ type ApprovalsCardProps = {
  * 부모 홈의 승인 대기 배너. 아이가 올린 집안일 완료 인증과 환전 요청은 부모가 승인해야
  * 다음으로 넘어가므로, 홈에서 바로 눈에 띄게 알려준다. 여러 건이 밀려 있어도 한 줄로
  * 가장 급한 것 하나만 보여주고(환전 → 집안일 순), 나머지는 눌러서 들어간 목록에서 본다.
+ *
+ * 모양은 아이 홈의 안내 배너(UpdateBanner)와 완전히 같다 — 알약 형태, 가운데 정렬, 박스 없는
+ * 얼굴 아이콘, 화살표 없음. 다만 이 배너는 눌러서 목록으로 들어가야 하므로 클릭 동작만 살아 있다.
  *
  * 홈은 요약만 맡고 실제 처리(사진 확인·승인·거절)는 들어간 목록 화면이 한다.
  *
@@ -50,37 +51,35 @@ export function ApprovalsCard({
   const showCashout = cashoutCount > 0;
   const title = showCashout
     ? '자녀가 포인트 → 돈 환전을 요청했어요!'
-    : '아이가 집안일 완료를 올렸어요. 확인해주세요!';
+    : '아이가 미션을 완료했어요. 확인해주세요!';
   const onPress = showCashout ? onOpenCashouts : onOpenChores;
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button">
-      <Callout
-        icon={
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: theme.radius.md,
-              backgroundColor: theme.color.brand.subtle,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Image
-              source={require('@/assets/images/invest/squirrel.png')}
-              style={styles.squirrel}
-              resizeMode="contain"
-            />
-          </View>
-        }
-        title={title}
-        action={<Ionicons name="chevron-forward" size={18} color={theme.color.text.muted} />}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={[
+        styles.row,
+        {
+          backgroundColor: theme.color.brand.subtle,
+          borderRadius: theme.radius.full,
+          paddingVertical: theme.space.sm,
+          paddingHorizontal: theme.space.lg,
+          gap: theme.space.sm,
+        },
+      ]}
+    >
+      <Image
+        source={require('@/assets/images/faces/face-basic.png')}
+        style={styles.face}
+        resizeMode="contain"
       />
+      <Text style={[theme.typography.label, { color: theme.color.brand.subtleText }]}>{title}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  squirrel: { width: 28, height: 28 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  face: { width: 28, height: 28 },
 });
