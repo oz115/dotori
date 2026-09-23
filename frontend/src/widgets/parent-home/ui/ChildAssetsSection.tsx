@@ -128,7 +128,6 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
             style={[
               styles.cardFootBlock,
               {
-                borderTopColor: theme.color.border.default,
                 backgroundColor: theme.color.background.surfaceSunken,
                 borderRadius: theme.radius.md,
               },
@@ -184,7 +183,7 @@ function SavingsCardBody({ isPending, isError, accounts }: SavingsCardBodyProps)
           <Text
             style={[
               theme.typography.caption,
-              // 아이콘 폭 + 간격만큼 들여써서 위 계좌 이름들과 왼쪽을 맞춘다
+              // 아이콘 폭 + 간격만큼 들여써서 위 이름들과 왼쪽을 맞춘다
               { color: theme.color.text.muted, marginLeft: ASSET_ICON_SIZE + theme.space.sm },
             ]}
           >
@@ -319,7 +318,6 @@ function InvestmentCard({ childId, familyPending, onPress }: InvestmentCardProps
             style={[
               styles.cardFootBlock,
               {
-                borderTopColor: theme.color.border.default,
                 backgroundColor: theme.color.background.surfaceSunken,
                 borderRadius: theme.radius.md,
               },
@@ -372,7 +370,7 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
           <Text
             style={[
               theme.typography.caption,
-              // 아이콘 폭 + 간격만큼 들여써서 위 종목 이름들과 왼쪽을 맞춘다
+              // 아이콘 폭 + 간격만큼 들여써서 위 이름들과 왼쪽을 맞춘다
               { color: theme.color.text.muted, marginLeft: ASSET_ICON_SIZE + theme.space.sm },
             ]}
           >
@@ -435,12 +433,12 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, minHeight: 240, justifyContent: 'space-between' },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center' },
   iconImage: { width: 40, height: 40 },
-  // 위 목록이 길어 space-between 여백이 눌려도, 테두리 선이 항상 손익 줄을 갈라 놓는다.
-  // 선 아래는 연회색 배경 패널로 한 번 더 감싸 "여기부터는 금액 요약"이라고 구획을 짓는다.
+  // 위 목록이 길어 space-between 여백이 눌려도, 연회색 배경 패널이 항상 손익 줄을 갈라 놓는다
+  // ("여기부터는 금액 요약"이라는 구획). 구분선(border) 은 목록과 배경 패널 사이 여백이
+  // 반영되지 않는다는 피드백이 반복돼 빼고, 배경색만으로 경계를 준다.
   // alignItems 는 기본(stretch) — 이름표·금액 줄이 카드 폭을 꽉 채워야 좌우로 벌어진다.
   cardFootBlock: {
     marginTop: 12,
-    borderTopWidth: 1,
     paddingTop: 12,
     paddingBottom: 10,
     paddingHorizontal: 10,
