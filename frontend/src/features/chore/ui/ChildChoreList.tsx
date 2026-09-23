@@ -173,7 +173,9 @@ export function ChildChoreList({
             paddingHorizontal: theme.layout.screenX,
             paddingBottom: theme.space.lg,
             backgroundColor: theme.color.background.canvas,
-            gap: theme.space.md,
+            // 칩↔체크박스 사이도 배너↔칩·체크박스↔목록과 같은 간격(lg)으로 — 한 칸만
+            // 좁으면 붙어 보인다
+            gap: theme.space.lg,
           }}
         >
           <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
