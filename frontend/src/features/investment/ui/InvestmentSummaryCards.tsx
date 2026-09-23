@@ -46,7 +46,14 @@ export function InvestmentSummaryCards({ summary, mascot = FOX }: Props) {
     >
       <View style={styles.headRow}>
         <View style={[styles.headTexts, { gap: theme.space.xs }]}>
-          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+          {/* "내 주식 N개"는 짧은 한 줄이라 마스코트 높이만큼 옆이 비어 보인다 — 크게 띄운다.
+              빈 상태 문구는 길고 아래 안내 줄도 있어 원래 크기를 유지한다 */}
+          <Text
+            style={[
+              empty ? theme.typography.titleMd : theme.typography.h2,
+              { color: theme.color.text.strong },
+            ]}
+          >
             {empty ? '아직 산 주식이 없어요' : `내 주식 ${summary.count}개`}
           </Text>
           {empty ? <Text style={sub}>뉴스를 읽고 오를 회사를 찾아보세요!</Text> : null}
