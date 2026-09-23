@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   categoryBadgeColors,
   categoryImage,
   nearestSavingGoals,
+  useGoalMemoryStore,
   useStoreProducts,
 } from '@/features/store';
 import { formatPoint } from '@/shared/lib/money';
@@ -13,6 +15,8 @@ import { ContentCard, ProgressBar } from '@/shared/ui';
 
 type SavingGoalsProps = {
   familyId: number | undefined;
+  /** 목표 기억(한 번 떠 있던 상품)을 아이별로 갈라 저장하는 키 */
+  childId: number | undefined;
   balance: number | undefined;
   /**
    * 카드 탭 시 상품 상세로 이동한다. (child)/(parent) 둘 다 `/store/[productId]` 모양의
@@ -25,18 +29,43 @@ type SavingGoalsProps = {
 const CARD_WIDTH = 180;
 
 /**
- * "조금만 더 모으면!" 섹션. 상점 상품을 목표가에 가까운 순으로 보여준다.
- * 잔액이 목표가에 닿은 상품은 사라지는 대신 "이제 살 수 있어요!"로 남는다.
- * 가격이 정해진 상품이 하나도 없으면 섹션 자체를 숨긴다.
+ * "조금만 더 모으면!" 섹션. 지금 잔액으로 못 사는 상품이 목표로 뜨고, 한 번 목표로
+ * 떠 있던 상품은 잔액이 목표가에 닿아도 사라지지 않고 "이제 살 수 있어요!"로 남는다
+ * (goalMemoryStore). 처음부터 살 수 있던 상품은 띄우지 않는다.
+ * 보여줄 상품이 하나도 없으면 섹션 자체를 숨긴다.
  */
-export function SavingGoals({ familyId, balance, onPressGoal }: SavingGoalsProps) {
+export function SavingGoals({ familyId, childId, balance, onPressGoal }: SavingGoalsProps) {
   const theme = useTheme();
   const products = useStoreProducts(familyId);
+  const { seenByChild, hydrated, hydrate, markSeen } = useGoalMemoryStore();
 
-  if (products.isPending) return null;
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
-  const currentBalance = balance ?? 0;
-  const goals = nearestSavingGoals(products.data ?? [], currentBalance);
+  // 지금 잔액으로 못 사는 상품을 "목표로 떠 있던 상품"으로 기억해 둔다 —
+  // 나중에 잔액이 목표가를 넘어도 달성 카드로 남기기 위해서다.
+  useEffect(() => {
+    if (childId == null || balance == null || !hydrated || products.data == null) {
+      return;
+    }
+    const expensiveIds = products.data
+      .filter((p) => p.price != null && p.price > balance)
+      .map((p) => p.storeProductId);
+    if (expensiveIds.length > 0) {
+      markSeen(childId, expensiveIds);
+    }
+  }, [childId, balance, hydrated, products.data, markSeen]);
+
+  const seenGoalIds = useMemo(
+    () => new Set(childId != null ? (seenByChild[String(childId)] ?? []) : []),
+    [seenByChild, childId],
+  );
+
+  // 잔액·기억이 준비되기 전에 그리면 목표/달성 판정이 틀린 채 한 번 깜빡인다
+  if (products.isPending || balance == null || childId == null || !hydrated) return null;
+
+  const goals = nearestSavingGoals(products.data ?? [], balance, seenGoalIds);
   if (goals.length === 0) return null;
 
   return (
@@ -111,7 +140,7 @@ export function SavingGoals({ familyId, balance, onPressGoal }: SavingGoalsProps
                   <ProgressBar value={goal.progress} />
                   <View style={styles.rangeRow}>
                     <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-                      {formatPoint(currentBalance)}
+                      {formatPoint(balance)}
                     </Text>
                     <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
                       {formatPoint(goal.product.price)}
