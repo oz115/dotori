@@ -1,3 +1,4 @@
+import { isSoldOut } from '@/features/store/lib/productStatus';
 import type { StoreProductSummary } from '@/features/store/model/types';
 
 export type SavingGoal = {
@@ -18,7 +19,8 @@ export type SavingGoal = {
  * 차는 순간 조용히 사라지면 아이가 달성한 걸 모르고 지나가므로, **한 번이라도 목표로
  * 떠 있던 상품(seenGoalIds)** 은 살 수 있게 된 뒤에도 "이제 살 수 있어요!"로 남긴다.
  * 처음부터 살 수 있던 상품은 목표였던 적이 없으니 띄우지 않고, 가격이 아직 산정 중
- * (price === null)인 상품도 뺀다 (얼마나 모아야 하는지 보여줄 수 없다).
+ * (price === null)이거나 품절(quantity <= 0)된 상품도 뺀다 — 품절은 살 수 없는데
+ * "이제 살 수 있어요"로 남아 있으면 거짓말이 된다.
  */
 export function nearestSavingGoals(
   products: StoreProductSummary[],
@@ -28,6 +30,7 @@ export function nearestSavingGoals(
 ): SavingGoal[] {
   return products
     .filter((p): p is StoreProductSummary & { price: number } => p.price != null)
+    .filter((p) => !isSoldOut(p.quantity))
     .filter((p) => p.price > balance || seenGoalIds.has(p.storeProductId))
     .map((product) => ({
       product,

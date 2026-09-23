@@ -53,7 +53,9 @@ export default function ChildStoreProductDetailScreen() {
       balance={balance.data?.balance}
       onBack={onBack}
       onPurchased={() => balance.refetch()}
-      onNavigateToList={() => router.replace('/(child)/(tabs)/store')}
+      // replace 는 상세를 "새" 목록 화면으로 갈아끼워 스택에 목록이 두 겹 쌓인다
+      // (뒤로가기가 목록→목록이 됨). navigate 는 아래 깔린 기존 목록으로 되돌아간다.
+      onNavigateToList={() => router.navigate('/(child)/(tabs)/store')}
     />
   );
 }

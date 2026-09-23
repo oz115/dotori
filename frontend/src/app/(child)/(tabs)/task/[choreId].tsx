@@ -26,9 +26,10 @@ export default function ChildChoreDetailScreen() {
       choreId={Number(choreId) || undefined}
       // 홈에서 곧장 들어왔어도 뒤로가기는 미션 목록으로 — 홈으로 되돌리면 다른 미션을
       // 이어 보려던 아이가 매번 탭을 다시 눌러야 한다 (QA). 홈은 하단 탭으로 돌아간다.
+      // replace 가 아니라 navigate 로 아래 깔린 기존 목록에 되돌아간다 (목록 두 겹 방지).
       onBack={
         from === 'home'
-          ? () => router.replace('/task')
+          ? () => router.navigate('/task')
           : () => (router.canGoBack() ? router.back() : router.replace('/task'))
       }
     />

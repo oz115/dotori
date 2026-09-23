@@ -183,8 +183,14 @@ function StoreProductDetailBody({
     });
   };
   const closePurchase = () => {
+    const purchased = purchaseResult != null;
     setPurchaseOpen(false);
     setPurchaseResult(null);
+    // 구매를 마친 확인이면 상세에 머무르지 않고 상점 목록으로 — 방금 산 물건의
+    // 상세(구매하기 버튼이 잠긴 화면)를 계속 보여줄 이유가 없다 (QA)
+    if (purchased) {
+      onNavigateToList();
+    }
   };
 
   // 오늘 이미 샀다는 것은 도토리가 모자란 것보다 확실한 차단이라 먼저 보여 준다.
