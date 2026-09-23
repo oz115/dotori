@@ -60,7 +60,7 @@ export function InvestmentSummaryCards({ summary, mascot = FOX }: Props) {
           <Text style={sub}>
             {empty
               ? '뉴스를 읽고 오를 회사를 찾아보세요!'
-              : '⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.'}
+              : '⏰ 가격은 하루에 한 번,\n자정 직후에 바뀌어요.'}
           </Text>
         </View>
         <Image source={mascot} style={styles.mascot} resizeMode="contain" />
