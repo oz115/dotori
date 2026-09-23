@@ -90,6 +90,7 @@ export function ChildHome() {
         />
         <SavingGoals
           familyId={familyId}
+          childId={childId}
           balance={balance.data?.balance}
           onPressGoal={(productId) =>
             router.push({
