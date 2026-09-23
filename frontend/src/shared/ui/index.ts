@@ -31,6 +31,7 @@ export { SelectableCard } from './SelectableCard';
 export { StepCard } from './StepCard';
 export { ProgressIndicator, Steps } from './Stepper';
 export { tabScreenOptions, tabIcon } from './tabBarOptions';
+export { Toggle } from './Toggle';
 export { TabScene, useTabOverlap } from './TabScene';
 export { usePullToRefresh } from './usePullToRefresh';
 export { WalletButton, WalletCard } from './WalletCard';
