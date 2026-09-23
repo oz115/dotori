@@ -106,11 +106,17 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
     <Pressable style={styles.card} onPress={onPress} accessibilityRole="button">
       <ContentCard style={[styles.cardBody, { padding: theme.space.lg }]}>
         <View style={{ gap: theme.space.md }}>
-          <View style={[styles.cardHeadRow, { gap: theme.space.xs }]}>
+          <View style={[styles.cardHeadRow, { gap: theme.space.sm }]}>
             <SectionIcon source={require('@/assets/images/invest/deposit.png')} />
-            <Text style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}>
-              저축
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>저축</Text>
+              {/* 건수는 제목 바로 아래 부제로 — 목록 첫 줄에 섞여 있으면 "몇 개"가 제목과 따로 논다 */}
+              {hasAccounts ? (
+                <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+                  {accounts.length}계좌 납입 중
+                </Text>
+              ) : null}
+            </View>
           </View>
 
           <SavingsCardBody isPending={isPending} isError={isError} accounts={accounts} />
@@ -118,18 +124,24 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
 
         {/* 총 납입액은 계좌가 있을 때만 — 0원을 크게 띄워 봐야 읽을 게 없다 (투자 카드와 같은 규칙) */}
         {hasAccounts && summary.data != null ? (
-          <View style={styles.cardFootBlock}>
+          <View
+            style={[
+              styles.cardFootBlock,
+              {
+                borderTopColor: theme.color.border.default,
+                backgroundColor: theme.color.background.surfaceSunken,
+                borderRadius: theme.radius.md,
+              },
+            ]}
+          >
             {/* 색과 표기를 투자 카드의 합계와 맞춘다 — 두 카드가 나란히 서 있어서 한쪽만
                 부호나 색이 다르면 같은 자리의 숫자가 다른 종류의 값처럼 보인다.
                 포매터도 signedPoints 하나로 모아 두 카드가 같은 모양을 내게 한다 */}
-            <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
-              {signedPoints(summary.data.totalCurrentAmount)}
-            </Text>
+            {/* 숫자만 나열하면 두 줄이 뭘 뜻하는지 알 수 없어 앞에 이름표를 붙인다 */}
+            <AmountRow label="납입 원금" value={summary.data.totalCurrentAmount} />
             {/* 이자는 쌓였을 때만. 보통예금 이자는 매주 지갑으로 바로 나가 여기 안 잡힌다 */}
             {summary.data.totalAccruedInterest > 0 ? (
-              <Text style={[theme.typography.label, { color: theme.color.status.success.text }]}>
-                {signedPoints(summary.data.totalAccruedInterest)}
-              </Text>
+              <AmountRow label="누적 이자" value={summary.data.totalAccruedInterest} />
             ) : null}
           </View>
         ) : null}
@@ -161,11 +173,8 @@ function SavingsCardBody({ isPending, isError, accounts }: SavingsCardBodyProps)
   const preview = previewSavingsAccounts(accounts);
 
   return (
+    // 건수 줄은 카드 헤더(제목 아래 부제)로 옮겼다 — 여기는 계좌 미리보기만 그린다
     <View style={{ gap: theme.space.md }}>
-      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-        {accounts.length}계좌 납입 중
-      </Text>
-
       {/* 아이콘이 28px 이라 줄 사이는 xs 로 좁혀 둔다 — 계좌들이 한 덩어리로 읽힌다 */}
       <View style={{ gap: theme.space.xs }}>
         {preview.items.map((item) => (
@@ -240,6 +249,28 @@ function CardNotice({ text }: { text: string }) {
   return <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{text}</Text>;
 }
 
+type AmountRowProps = {
+  /** 숫자 앞에 붙는 이름표. "+2,300P"만 보면 무슨 금액인지 알 수 없어 항상 함께 둔다 */
+  label: string;
+  value: number;
+  /** 기본은 초록(모아진 금액). 투자 손익처럼 마이너스가 있으면 호출부가 색을 넘긴다 */
+  color?: string;
+};
+
+/** 자산 카드 아래쪽의 금액 한 줄 — "이름표 + 부호 있는 금액". 오른쪽 정렬로 쌓인다. */
+function AmountRow({ label, value, color }: AmountRowProps) {
+  const theme = useTheme();
+  const tone = color ?? theme.color.status.success.text;
+
+  return (
+    <View style={styles.amountRow}>
+      {/* 이름표는 회색 — 값(금액)만 색이 있어야 "얼마인지"가 먼저 눈에 들어온다 */}
+      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{label}</Text>
+      <Text style={[theme.typography.label, { color: tone }]}>{signedPoints(value)}</Text>
+    </View>
+  );
+}
+
 type InvestmentCardProps = {
   childId: number | undefined;
   familyPending: boolean;
@@ -262,11 +293,17 @@ function InvestmentCard({ childId, familyPending, onPress }: InvestmentCardProps
     <Pressable style={styles.card} onPress={onPress} accessibilityRole="button">
       <ContentCard style={[styles.cardBody, { padding: theme.space.lg }]}>
         <View style={{ gap: theme.space.md }}>
-          <View style={[styles.cardHeadRow, { gap: theme.space.xs }]}>
+          <View style={[styles.cardHeadRow, { gap: theme.space.sm }]}>
             <SectionIcon source={require('@/assets/images/invest/candles.png')} />
-            <Text style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}>
-              투자
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>투자</Text>
+              {/* 건수는 제목 바로 아래 부제로 — 목록 첫 줄에 섞여 있으면 "몇 개"가 제목과 따로 논다 */}
+              {hasHoldings ? (
+                <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+                  {holdings.data?.length}개 보유 중
+                </Text>
+              ) : null}
+            </View>
           </View>
 
           <InvestmentCardBody
@@ -278,20 +315,24 @@ function InvestmentCard({ childId, familyPending, onPress }: InvestmentCardProps
 
         {/* 수익은 종목이 있을 때만 — 0원 손익을 크게 띄워 봐야 읽을 게 없다 */}
         {hasHoldings ? (
-          <Text
+          <View
             style={[
-              theme.typography.label,
+              styles.cardFootBlock,
               {
-                color:
-                  totalEarned >= 0
-                    ? theme.color.status.success.text
-                    : theme.color.status.danger.text,
-                alignSelf: 'flex-end',
+                borderTopColor: theme.color.border.default,
+                backgroundColor: theme.color.background.surfaceSunken,
+                borderRadius: theme.radius.md,
               },
             ]}
           >
-            {signedPoints(totalEarned)}
-          </Text>
+            <AmountRow
+              label="평가 손익"
+              value={totalEarned}
+              color={
+                totalEarned >= 0 ? theme.color.status.success.text : theme.color.status.danger.text
+              }
+            />
+          </View>
         ) : null}
       </ContentCard>
     </Pressable>
@@ -320,11 +361,8 @@ function InvestmentCardBody({ isPending, isError, holdings }: InvestmentCardBody
   const preview = previewHoldings(holdings);
 
   return (
+    // 건수 줄은 카드 헤더(제목 아래 부제)로 옮겼다 — 여기는 종목 미리보기만 그린다
     <View style={{ gap: theme.space.md }}>
-      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
-        {holdings.length}개 보유 중
-      </Text>
-
       {/* 아이콘이 28px 이라 줄 사이는 xs 로 좁혀 둔다 — 종목들이 한 덩어리로 읽힌다 */}
       <View style={{ gap: theme.space.xs }}>
         {preview.items.map((item) => (
@@ -397,7 +435,20 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, minHeight: 240, justifyContent: 'space-between' },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center' },
   iconImage: { width: 40, height: 40 },
-  cardFootBlock: { alignItems: 'flex-end' },
+  // 위 목록이 길어 space-between 여백이 눌려도, 테두리 선이 항상 손익 줄을 갈라 놓는다.
+  // 선 아래는 연회색 배경 패널로 한 번 더 감싸 "여기부터는 금액 요약"이라고 구획을 짓는다.
+  // alignItems 는 기본(stretch) — 이름표·금액 줄이 카드 폭을 꽉 채워야 좌우로 벌어진다.
+  cardFootBlock: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 10,
+    paddingHorizontal: 10,
+    gap: 2,
+  },
+  // 이름표는 왼쪽, 금액은 오른쪽 — 한 줄 안에서 서로 떨어져 있어야 나란히 있는 "묶음"이 아니라
+  // "이름표 : 값" 한 쌍으로 읽힌다
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   assetRow: { flexDirection: 'row', alignItems: 'center' },
   assetIcon: {
     width: ASSET_ICON_SIZE,
