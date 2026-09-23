@@ -173,10 +173,10 @@ export function ChildChoreList({
             paddingHorizontal: theme.layout.screenX,
             paddingBottom: theme.space.lg,
             backgroundColor: theme.color.background.canvas,
-            // 칩과 체크박스가 붙어 보인다는 피드백이 lg(16)에서도 반복돼 한 단계 더 벌린다.
-            // 칩 줄은 배경이 있는 알약이라 글자 높이보다 커 보여서, 글자뿐인 체크박스 줄과는
-            // 수치보다 좁게 느껴진다
-            gap: theme.space['2xl'],
+            // 칩과 체크박스가 붙어 보인다는 피드백이 lg(16)·2xl(24)에서도 반복돼 3xl까지
+            // 벌렸다. 칩 줄은 배경이 있는 알약이라 글자 높이보다 커 보여서, 글자뿐인
+            // 체크박스 줄과는 수치보다 좁게 느껴진다
+            gap: theme.space['3xl'],
           }}
         >
           <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
