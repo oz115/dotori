@@ -36,13 +36,16 @@ export const theme = {
   shadow,
   typography,
   layout,
+  // 보정 없는 기준값. 화면은 useTheme() 이 기기 배율로 계산해 준 값을 쓴다.
+  // as number 로 넓혀 둔다 — as const 안에서 리터럴 1 로 굳으면 계산된 값을 담을 수 없다.
+  textScale: 1 as number,
 } as const;
 
 /**
  * 타이포그래피는 기기 글꼴 배율에 따라 값이 달라지므로 리터럴이 아니라 TextStyle 로 넓힌다.
  * textScale 도 마찬가지 — 토큰 정의는 고정값이지만 useTheme 이 돌려주는 것은 계산된 값이다.
  */
-export type Theme = Omit<typeof theme, 'typography'> & {
+export type Theme = Omit<typeof theme, 'typography' | 'textScale'> & {
   typography: Record<TypographyToken, TextStyle>;
   /** 직접 적은 글자 크기를 보정할 때 곱하는 값 (fontScale.ts 참고). 확대가 없으면 1 */
   textScale: number;
