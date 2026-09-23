@@ -14,16 +14,15 @@ import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
 export const unstable_settings = { initialRouteName: 'index' };
 
 /**
- * 이미 보고 있는 탭의 버튼을 다시 누르면 그 탭의 첫 화면(목록)으로 돌아간다.
- * 다른 탭에 다녀올 때는 popToTopOnBlur 가 스택을 정리해 주지만, 홈에서 상세로 곧장
- * 들어와 그 탭이 포커스된 채 상세가 떠 있는 경우엔 탭 버튼이 아무 일도 안 해서
- * 목록으로 돌아갈 방법이 없었다 (QA).
+ * 탭 버튼을 누르면 언제나 그 탭의 첫 화면(목록)으로 간다. 기본 동작은 탭이 마지막으로
+ * 보던 화면(상세)을 복원하는데, 홈에서 상세로 곧장 들어온 스택은 popToTopOnBlur 로도
+ * 정리되지 않아 "홈 → 미션 상세 → 홈 → 미션 탭"이 다시 상세를 보여줬다 (QA).
+ * 기본 전환을 막고 목록 경로로 직접 이동한다 — 이미 목록이면 그대로다.
  */
-const popToTopOnTabPress = ({ navigation }: { navigation: { isFocused: () => boolean } }) => ({
-  tabPress: () => {
-    if (navigation.isFocused() && router.canDismiss()) {
-      router.dismissAll();
-    }
+const goToTabRoot = (path: '/task' | '/store' | '/save' | '/invest') => ({
+  tabPress: (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    router.navigate(path);
   },
 });
 
@@ -59,23 +58,23 @@ export default function ChildTabsLayout() {
       <Tabs.Screen
         name="task"
         options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }}
-        listeners={popToTopOnTabPress}
+        listeners={goToTabRoot('/task')}
       />
       <Tabs.Screen
         name="store"
         options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }}
-        listeners={popToTopOnTabPress}
+        listeners={goToTabRoot('/store')}
       />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />
       <Tabs.Screen
         name="save"
         options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }}
-        listeners={popToTopOnTabPress}
+        listeners={goToTabRoot('/save')}
       />
       <Tabs.Screen
         name="invest"
         options={{ tabBarLabel: '투자', tabBarIcon: tabIcon('invest') }}
-        listeners={popToTopOnTabPress}
+        listeners={goToTabRoot('/invest')}
       />
     </Tabs>
   );
