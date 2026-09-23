@@ -101,7 +101,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
           <View style={styles.chips}>
             <FilterChips options={SAVINGS_GROUP_FILTERS} selected={group} onSelect={setGroup} />
           </View>
-          <Checkbox checked={onlyMine} onChange={setOnlyMine} label="보유한 것만" />
+          <Checkbox checked={onlyMine} onChange={setOnlyMine} label="보유한 상품 보기" />
         </View>
 
         {isPending ? (
