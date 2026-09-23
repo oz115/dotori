@@ -25,8 +25,9 @@ type SavingGoalsProps = {
 const CARD_WIDTH = 180;
 
 /**
- * "조금만 더 모으면!" 섹션. 상점 상품 중 잔액으로 아직 못 사는 것들을
- * 목표가에 가까운 순으로 보여준다. 해당하는 상품이 없으면 섹션 자체를 숨긴다.
+ * "조금만 더 모으면!" 섹션. 상점 상품을 목표가에 가까운 순으로 보여준다.
+ * 잔액이 목표가에 닿은 상품은 사라지는 대신 "이제 살 수 있어요!"로 남는다.
+ * 가격이 정해진 상품이 하나도 없으면 섹션 자체를 숨긴다.
  */
 export function SavingGoals({ familyId, balance, onPressGoal }: SavingGoalsProps) {
   const theme = useTheme();
@@ -93,9 +94,19 @@ export function SavingGoals({ familyId, balance, onPressGoal }: SavingGoalsProps
                     </Text>
                     <Ionicons name="chevron-forward" size={16} color={theme.color.text.muted} />
                   </View>
-                  <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-                    {formatPoint(goal.remaining)} 남았어요
-                  </Text>
+                  {/* 목표를 채웠으면 남은 금액 대신 달성을 알린다 — 카드가 사라지면
+                      아이가 해낸 걸 모르고 지나간다 */}
+                  {goal.achievable ? (
+                    <Text
+                      style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}
+                    >
+                      🎉 이제 살 수 있어요!
+                    </Text>
+                  ) : (
+                    <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+                      {formatPoint(goal.remaining)} 남았어요
+                    </Text>
+                  )}
 
                   <ProgressBar value={goal.progress} />
                   <View style={styles.rangeRow}>

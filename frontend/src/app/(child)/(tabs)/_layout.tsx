@@ -1,4 +1,4 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, router } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,20 @@ import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
  * 진입 탭이 된다. 앱을 켜면 홈이 나와야 하므로 시작 탭을 따로 지정한다.
  */
 export const unstable_settings = { initialRouteName: 'index' };
+
+/**
+ * 이미 보고 있는 탭의 버튼을 다시 누르면 그 탭의 첫 화면(목록)으로 돌아간다.
+ * 다른 탭에 다녀올 때는 popToTopOnBlur 가 스택을 정리해 주지만, 홈에서 상세로 곧장
+ * 들어와 그 탭이 포커스된 채 상세가 떠 있는 경우엔 탭 버튼이 아무 일도 안 해서
+ * 목록으로 돌아갈 방법이 없었다 (QA).
+ */
+const popToTopOnTabPress = ({ navigation }: { navigation: { isFocused: () => boolean } }) => ({
+  tabPress: () => {
+    if (navigation.isFocused() && router.canDismiss()) {
+      router.dismissAll();
+    }
+  },
+});
 
 /**
  * 자녀 탭 레이아웃. 가족 연결·계좌 연동이 끝난 자녀만 탭 화면들을 볼 수 있어서
@@ -42,11 +56,27 @@ export default function ChildTabsLayout() {
       screenOptions={tabScreenOptions(theme, insets.bottom)}
       screenLayout={({ children }) => <TabScene>{children}</TabScene>}
     >
-      <Tabs.Screen name="task" options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }} />
-      <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />
+      <Tabs.Screen
+        name="task"
+        options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }}
+        listeners={popToTopOnTabPress}
+      />
+      <Tabs.Screen
+        name="store"
+        options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }}
+        listeners={popToTopOnTabPress}
+      />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />
-      <Tabs.Screen name="save" options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }} />
-      <Tabs.Screen name="invest" options={{ tabBarLabel: '투자', tabBarIcon: tabIcon('invest') }} />
+      <Tabs.Screen
+        name="save"
+        options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }}
+        listeners={popToTopOnTabPress}
+      />
+      <Tabs.Screen
+        name="invest"
+        options={{ tabBarLabel: '투자', tabBarIcon: tabIcon('invest') }}
+        listeners={popToTopOnTabPress}
+      />
     </Tabs>
   );
 }
