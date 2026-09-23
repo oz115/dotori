@@ -164,22 +164,21 @@ export function ChildChoreList({
           />
         </View>
 
-        {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (저축 화면과 같다).
-            칩은 상점(CategoryFilterBar)과 같은 자리·같은 크기이고, 다섯 칸이라 좁은
-            기기에서는 가로로 밀어서 "매월" 을 본다. 붙어 있는 동안 카드가 뒤로 지나가므로
-            배경을 불투명하게 깔아 준다. */}
+        {/* 주기 칩은 다섯 칸이라 체크박스와 한 줄에 두면 좁은 기기에서 "매월"이 잘렸다 —
+            칩 줄을 위에, 체크박스를 그 아래 줄에 둔다. 칩은 상점(CategoryFilterBar)과
+            같은 자리·같은 크기다. 붙어 있는 동안 카드가 뒤로 지나가므로 배경을
+            불투명하게 깔아 준다. */}
         <View
           style={{
             paddingHorizontal: theme.layout.screenX,
             paddingBottom: theme.space.lg,
             backgroundColor: theme.color.background.canvas,
+            gap: theme.space.md,
           }}
         >
-          <View style={[styles.filterRow, { gap: theme.space.sm }]}>
-            <View style={styles.chips}>
-              <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-            </View>
-            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
+          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+          <View style={styles.onlyActiveRow}>
+            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료된 미션 보기" />
           </View>
         </View>
 
@@ -241,9 +240,8 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexDirection: 'row', alignItems: 'center' },
-  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
-  chips: { flex: 1 },
+  // 체크박스는 칩 아래 줄의 오른쪽 끝 — 목록을 거르는 옵션이라 목록 바로 위에 붙인다
+  onlyActiveRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
