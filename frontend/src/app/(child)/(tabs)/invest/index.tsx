@@ -181,7 +181,7 @@ export default function InvestScreen() {
                   setSelectedIds([]);
                   setOnlyHeld(next);
                 }}
-                label="보유한 것만"
+                label="보유한 주식 보기"
               />
             }
           />
