@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { wordApi } from '@/features/word/api/wordApi';
 import { categoryLabel } from '@/features/word/lib/categoryLabel';
@@ -57,6 +58,7 @@ export function WordDetail({
   onBack: goBack,
 }: WordDetailProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [currentWordId, setCurrentWordId] = useState(initialWordId);
   const { data: word, isPending, isError } = useWord(currentWordId);
@@ -170,8 +172,9 @@ export function WordDetail({
       {/* 글자 없이 화살표만 둔다. 이동 방향은 화살표로 이미 분명하고, 이 화면의 주인공은
           단어와 뜻이라 버튼이 가로폭을 다 먹을 이유가 없다. 라벨은 스크린리더에만 준다.
           단어마다 뜻·쉬운 설명 길이가 제각각인데 버튼이 그때그때 다른 높이에 있으면 연달아
-          넘겨볼 때 손가락이 따라다녀야 한다. 화면 높이의 65% 지점에 못 박아 같은 자리에 둔다. */}
-      <View style={styles.navRow}>
+          넘겨볼 때 손가락이 따라다녀야 한다. 화면 맨 아래(제스처 바 위)에 못 박아
+          엄지가 자연스럽게 닿는 자리에 늘 같은 높이로 둔다. */}
+      <View style={[styles.navRow, { bottom: insets.bottom + theme.space['2xl'] }]}>
         <NeighborButton direction="prev" disabled={!hasNeighbor} onPress={() => goToNeighbor(-1)} />
         <NeighborButton direction="next" disabled={!hasNeighbor} onPress={() => goToNeighbor(1)} />
       </View>
@@ -222,9 +225,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   badgeRow: { flexDirection: 'row' },
   badge: { paddingHorizontal: 10, paddingVertical: 4 },
+  // 세로 위치(bottom)는 기기 제스처 바 높이에 따라 달라 렌더에서 넣는다
   navRow: {
     position: 'absolute',
-    top: '65%',
     left: 0,
     right: 0,
     flexDirection: 'row',

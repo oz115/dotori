@@ -46,15 +46,29 @@ export function InvestmentSummaryCards({ summary, mascot = FOX }: Props) {
     >
       <View style={styles.headRow}>
         <View style={[styles.headTexts, { gap: theme.space.xs }]}>
-          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+          {/* "내 주식 N개"는 짧은 한 줄이라 마스코트 높이만큼 옆이 비어 보인다 — 크게 띄우고,
+              그 아래 남는 자리는 맨 아래 따로 있던 가격 갱신 안내를 올려서 채운다.
+              빈 상태 문구는 길어서 원래 크기를 유지한다 */}
+          <Text
+            style={[
+              empty ? theme.typography.titleMd : theme.typography.h1,
+              { color: theme.color.text.strong },
+            ]}
+          >
             {empty ? '아직 산 주식이 없어요' : `내 주식 ${summary.count}개`}
           </Text>
-          {empty ? <Text style={sub}>뉴스를 읽고 오를 회사를 찾아보세요!</Text> : null}
+          <Text style={sub}>
+            {empty
+              ? '뉴스를 읽고 오를 회사를 찾아보세요!'
+              : '⏰ 가격은 하루에 한 번,\n자정 직후에 바뀌어요.'}
+          </Text>
         </View>
         <Image source={mascot} style={styles.mascot} resizeMode="contain" />
       </View>
 
-      {empty ? null : (
+      {empty ? (
+        <Text style={sub}>⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.</Text>
+      ) : (
         <View style={[styles.boxRow, { gap: theme.space.sm }]}>
           <SummaryBox label="산 값" value={formatAcorns(summary.investedPoints)} />
           <SummaryBox label="지금 가치" value={formatAcorns(stockValue)} />
@@ -65,8 +79,6 @@ export function InvestmentSummaryCards({ summary, mascot = FOX }: Props) {
           />
         </View>
       )}
-
-      <Text style={sub}>⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.</Text>
     </View>
   );
 }

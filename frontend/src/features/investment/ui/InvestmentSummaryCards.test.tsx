@@ -42,6 +42,7 @@ it('변동이 없으면 수익 0으로 두고, 가격이 하루 한 번 바뀐�
     <InvestmentSummaryCards summary={{ count: 1, investedPoints: 10000, earnedPoints: 0 }} />,
   );
   expect(screen.getByText('0 도토리')).toBeTruthy();
+  // 실제 문구는 두 줄(줄바꿈)이지만, 매처가 공백을 정규화하므로 한 줄로 비교한다
   expect(screen.getByText('⏰ 가격은 하루에 한 번, 자정 직후에 바뀌어요.')).toBeTruthy();
 });
 
