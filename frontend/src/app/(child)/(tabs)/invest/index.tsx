@@ -16,7 +16,7 @@ import {
   type StockSummary,
 } from '@/features/investment';
 import { fontFamily, useTheme } from '@/shared/theme';
-import { Checkbox, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Header, HeaderChipButton, Screen, Toggle } from '@/shared/ui';
 
 // Figma 아이콘 시트에서 추출한 섹션 아이콘
 const MEGAPHONE = require('@/assets/images/invest/megaphone.png');
@@ -173,7 +173,7 @@ export default function InvestScreen() {
             icon={CLIPBOARD}
             title="주식 리스트"
             right={
-              <Checkbox
+              <Toggle
                 checked={onlyHeld}
                 onChange={(next) => {
                   // 사기/팔기가 섞이지 않도록 모드를 바꿀 때 고르던 것은 버린다

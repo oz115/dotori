@@ -154,7 +154,8 @@ describe('ParentChoreList - 끝낸 반복 미션', () => {
     await withQuery(<ParentChoreList familyId={FAMILY_ID} childList={CHILDREN} />);
     await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
 
-    fireEvent.press(screen.getByLabelText('미완료만'));
+    // Checkbox(Pressable)에서 Toggle(RN Switch)로 바뀌어 press 대신 valueChange 를 쏜다
+    fireEvent(screen.getByLabelText('미완료만'), 'valueChange', true);
 
     await waitFor(() => expect(screen.queryByText('이불 개기')).toBeNull(), WAIT);
     expect(screen.getByText('방 정리하기')).toBeTruthy();

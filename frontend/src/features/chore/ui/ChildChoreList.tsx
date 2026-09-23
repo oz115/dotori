@@ -9,7 +9,7 @@ import { ChoreHeroBanner } from '@/features/chore/ui/ChoreHeroBanner';
 import { ChoreListRow } from '@/features/chore/ui/ChoreListRow';
 import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
-import { Checkbox, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { FilterChips, Header, HeaderChipButton, Screen, Toggle } from '@/shared/ui';
 
 type ChildChoreListProps = {
   familyId: number | undefined;
@@ -165,23 +165,21 @@ export function ChildChoreList({
         </View>
 
         {/* 주기 칩은 다섯 칸이라 체크박스와 한 줄에 두면 좁은 기기에서 "매월"이 잘렸다 —
-            칩 줄을 위에, 체크박스를 그 아래 줄에 둔다. 칩은 상점(CategoryFilterBar)과
-            같은 자리·같은 크기다. 붙어 있는 동안 카드가 뒤로 지나가므로 배경을
-            불투명하게 깔아 준다. */}
+            칩 줄을 위에, 체크박스를 그 아래 줄에 둔다. 옵션이 5개로 고정돼 있어 fill 로
+            스크롤 없이 화면 폭을 나눠 갖게 한다 — 오른쪽에 빈 자리가 남지 않는다.
+            붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다.
+            두 줄 사이 여백은 이 View의 gap이 아니라 onlyActiveRow의 marginTop이 낸다
+            (styles 참고) — gap만으로는 화면에 반영되지 않는다는 피드백이 반복됐다. */}
         <View
           style={{
             paddingHorizontal: theme.layout.screenX,
             paddingBottom: theme.space.lg,
             backgroundColor: theme.color.background.canvas,
-            // 칩과 체크박스가 붙어 보인다는 피드백이 lg(16)·2xl(24)에서도 반복돼 3xl까지
-            // 벌렸다. 칩 줄은 배경이 있는 알약이라 글자 높이보다 커 보여서, 글자뿐인
-            // 체크박스 줄과는 수치보다 좁게 느껴진다
-            gap: theme.space['3xl'],
           }}
         >
-          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
+          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} fill />
           <View style={styles.onlyActiveRow}>
-            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료된 미션 보기" />
+            <Toggle checked={onlyActive} onChange={setOnlyActive} label="미완료된 미션 보기" />
           </View>
         </View>
 
@@ -244,7 +242,9 @@ function EmptyState({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   // 체크박스는 칩 아래 줄의 오른쪽 끝 — 목록을 거르는 옵션이라 목록 바로 위에 붙인다
-  onlyActiveRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  // marginTop 을 직접 준다 — 부모 View 의 gap 만으로는 여백이 화면에 반영되지 않는다는
+  // 피드백이 반복돼, 부모 gap 과 별개로 이 줄 자체에 여백을 박아 확실히 떨어지게 한다
+  onlyActiveRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },

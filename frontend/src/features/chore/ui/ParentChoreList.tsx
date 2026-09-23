@@ -19,12 +19,12 @@ import { useChoreRefresh } from '@/features/chore/model/useChoreRefresh';
 import { useTheme } from '@/shared/theme';
 import {
   ChildBadge,
-  Checkbox,
   ContentCard,
   FilterChips,
   Header,
   HeaderChipButton,
   Screen,
+  Toggle,
 } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
@@ -138,8 +138,12 @@ export function ParentChoreList({
           ) : null}
         </View>
 
-        {/* 칩과 체크박스는 한 줄이다 - 둘 다 이 목록을 걸러내는 장치다 (아이 화면과 같다).
-            붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다. */}
+        {/* 주기 칩은 다섯 칸이라 체크박스와 한 줄에 두면 "매월"이 밀려 잘렸다 (아이 화면과
+            같은 문제였다) — 칩 줄을 위에, 체크박스를 그 아래 줄에 둔다. 옵션이 5개로
+            고정돼 있어 fill 로 스크롤 없이 화면 폭을 나눠 갖게 한다.
+            붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다.
+            두 줄 사이 여백은 이 View의 gap이 아니라 onlyActiveRow의 marginTop이 낸다
+            (styles 참고) — gap만으로는 화면에 반영되지 않는다는 피드백이 반복됐다. */}
         <View
           style={{
             paddingHorizontal: theme.layout.screenX,
@@ -147,11 +151,9 @@ export function ParentChoreList({
             backgroundColor: theme.color.background.canvas,
           }}
         >
-          <View style={[styles.filterRow, { gap: theme.space.sm }]}>
-            <View style={styles.chips}>
-              <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-            </View>
-            <Checkbox checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
+          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} fill />
+          <View style={styles.onlyActiveRow}>
+            <Toggle checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
           </View>
         </View>
 
@@ -305,9 +307,10 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexDirection: 'row', alignItems: 'center' },
-  // 칩이 남은 폭을 다 쓴다. 가로 스크롤이라 폭을 주지 않으면 체크박스를 밀어낸다
-  chips: { flex: 1 },
+  // 체크박스(Toggle) 줄은 칩 아래에서 오른쪽으로 붙는다 (아이 화면과 같다)
+  // marginTop 을 직접 준다 — 부모 View 의 gap 만으로는 여백이 화면에 반영되지 않는다는
+  // 피드백이 반복돼, 부모 gap 과 별개로 이 줄 자체에 여백을 박아 확실히 떨어지게 한다
+  onlyActiveRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },
