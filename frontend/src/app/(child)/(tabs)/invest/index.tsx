@@ -174,7 +174,6 @@ export default function InvestScreen() {
             title="주식 리스트"
             right={
               <Checkbox
-                shape="circle"
                 checked={onlyHeld}
                 onChange={(next) => {
                   // 사기/팔기가 섞이지 않도록 모드를 바꿀 때 고르던 것은 버린다
