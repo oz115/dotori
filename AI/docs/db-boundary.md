@@ -1,0 +1,183 @@
+# AI 서버의 DB 접근 범위
+
+**이 서버는 테이블을 하나도 소유하지 않는다.** 팀원들이 이미 만들어 둔 테이블을 활용하는 것이
+이 서버의 역할이다. 스키마 주인은 백엔드(Spring)이고 `ddl-auto: none` 이다 —
+스키마 원본은 `backend/docker/initdb/01-schema.sql` 이고 Hibernate 는 손대지 않는다.
+
+필요한 컬럼이 없으면 직접 추가하지 않는다. 담당자가 **엔티티와 위 SQL 파일을 함께** 고쳐야
+하고, 공유 EC2 DB 에는 자동 반영되지 않아 인프라 담당자와 맞춰야 한다.
+아래 "협의가 필요한 항목" 절차를 따른다.
+
+기준 시점: 2026-09-08, EC2 `dotori_town` (public 스키마 테이블 28개, 전부 0행)
+
+## 접근 범위
+
+| 테이블 | AI 서버의 권한 | 무엇을 하는가 |
+| --- | --- | --- |
+| `store_products` | 읽기 + `value`, `price`, `reason` 쓰기 | 물품 가치를 평가해 채운다 |
+| `chores` | 읽기 + `value`, `reward_points`, `reason` 쓰기 | 할 일 보상 포인트 책정 |
+| `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
+| `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료. `easy_description`(아이 눈높이 설명, 2026-09-22 추가)은 단어장 화면용이라 퀴즈는 아직 안 쓴다 |
+| `investment_products` | **읽기만** | 회사 10개 고정. 가격 생성의 시작가는 이 테이블이 아니라 `families.weekly_allowance ÷ 10`(주간 용돈으로 10개 종목을 전부 살 수 있는 가격, 2026-09-21 확정)이다 — `current_price` 는 온보딩 전 가족을 위한 폴백으로만 남는다. `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
+| `investment_news` | INSERT | 매일 뉴스 3건 생성 |
+| `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
+| `investment_price_history` | INSERT | 가족별 주가 변동 이력. `family_id` 컬럼 요청 중 (협의 2번) |
+| `families`, `users` | **읽기만** | 온보딩 A(`weekly_reward_limit`)·B(`weekly_allowance`) 값, `financial_knowledge_level`, 아이 정보 조회 |
+| `family_members` | **읽기만** | 가족-자녀 연결 조회. `users` 에 `family_id` 컬럼이 없어 퀴즈 배정 시 자녀가 속한 가족을 찾는 데 필요 (2026-09-11 추가) |
+| 그 밖의 모든 테이블 | 접근 안 함 | 포인트 지갑, 예적금, 계좌 연동 등은 백엔드 담당 |
+
+`store_products.value`(NUMERIC)는 가중치, `price`(INTEGER)는 포인트다.
+둘 다 nullable 이라 AI 가 채우기 전에는 NULL 이다.
+
+## 협의가 필요한 항목
+
+절차는 다음과 같다.
+
+1. 어느 도메인 담당자의 테이블인지 확인한다
+2. 컬럼 이름·타입·의미를 정리해서 담당자에게 요청한다
+3. 합의되면 담당자가 백엔드 엔티티에 선언하고, DB 에 반영된 뒤에 AI 서버가 그 컬럼을 쓴다
+4. 합의 결과를 이 문서에 기록한다
+
+### 1. 온보딩 A·B 값을 저장할 컬럼 (해결됨, 2026-09-10)
+
+`families` 에 반영됐다. 요청 시 이름(`weekly_max_earning`)과 실제 컬럼명(`weekly_reward_limit`)이
+다르니 코드에서 실제 이름을 쓴다. 덤으로 요청하지 않았던 `financial_knowledge_level`
+(아이 금융 이해도, `VARCHAR(20)`, CHECK 로 값 제한 — 퀴즈 난이도·보상 산정에 참고)도 추가됐다.
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `weekly_reward_limit` | INTEGER | A — 예적금·투자·퀴즈로 주당 벌 수 있는 최대 포인트 (할 일 제외) |
+| `weekly_allowance` | INTEGER | B — 주간 기본 용돈(포인트 환산) |
+| `financial_knowledge_level` | VARCHAR(20) | 아이의 금융 이해도 (`BEGINNER` 등). AI 가 보상·퀴즈 난이도 참고 |
+
+담당: 온보딩 · 가족 도메인 / 상태: **DB 반영 완료** — 세 컬럼 모두 `NOT NULL DEFAULT` 라
+백엔드 `Family` 엔티티가 아직 이 필드들을 매핑하지 않아도 INSERT 는 깨지지 않는다.
+단, 엔티티 매핑 전까지는 온보딩 화면에서 실제로 이 값을 받아 저장하는지 백엔드와 확인 필요.
+
+이제 `D = (A + B) / 7` 계산에 요청 파라미터가 아니라 DB 값을 바로 쓸 수 있다.
+
+### 2. 투자 시세: 가족별 이력 컬럼 + 뉴스의 상승/하락 방향
+
+두 가지가 같이 걸려 있어서 한 번에 요청한다.
+
+**(a) 가격 이력이 가족별이 아니다.** 주가 변동폭 = `families.weekly_reward_limit`(A) 의
+40%/7 인데(`app.domains.investment.services` 참고), A 는 가족마다 다르다(협의 1번 참고).
+그런데 `investment_price_history` 는 `investment_product_id` 하나로만 묶인 전역 값이라
+"어느 가족 기준으로 움직였는지"를 저장할 수 없다.
+
+뉴스(`investment_news`, `investment_news_products`)와 회사 카탈로그(`investment_products`)는
+그대로 전역으로 둔다 — 뉴스 내용과 회사 정체성(노션 「회사 리스트」가 고정한 10개)은 모든
+가족이 동일하게 봐야 자연스럽다. **같은 뉴스로 인한 가격 변동폭만 가족마다 다르게** 적용한다.
+`investment_products.current_price` 는 "가족별 이력이 아직 없을 때 쓰는 시작가(seed)" 로
+의미를 좁힌다. 실제 "이 가족에게 이 회사가 지금 얼마인가"는 `investment_price_history` 에서
+`family_id + investment_product_id` 로 가장 최근 행을 찾아서 구한다.
+
+요청안 (`investment_price_history`):
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `family_id` | INTEGER (FK) | 이 가격 변동이 적용되는 가족 |
+
+**(b) 뉴스의 상승/하락 방향을 담을 곳이 없다.**
+`investment_news` 는 `title`, `content`, `published_at` 뿐이고
+`investment_news_products` 는 `investment_news_product_id`, `investment_news_id`,
+`investment_product_id` 3개뿐이다. **뉴스가 호재인지 악재인지 저장할 컬럼이 없다.**
+
+설계상 방향은 부가 정보가 아니라 핵심이다. 노션 「투자 (Investment)」는 하루 뉴스 3건을
+**상승 2건 + 하락 1건**으로 정해 두었고, 그 구성이 곧 주간 수익 한도를 만든다.
+
+요청안 (`investment_news`):
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `impact` | ENUM/VARCHAR | `POSITIVE` / `NEGATIVE` |
+
+`investment_news_products` 가 아니라 `investment_news` 에 두기를 요청한다.
+노션이 **`1 경제요인 : 1 회사`** 로 정해서 뉴스 하나가 가리키는 회사도 하나이기 때문이다.
+조인 테이블에 두면 "뉴스 A 는 회사 X 에 호재, 회사 Y 에 악재" 같은 상태를 표현할 수 있게
+되는데, 그건 지금 설계에 없는 경우다.
+
+설계 v3 의 `evidence_grade`(근거 등급 A/B)는 **더 이상 필요하지 않다.** 한 뉴스가 회사마다
+다른 영향을 주는 구조가 사라졌기 때문이다. 이전 요청안에서 철회한다.
+
+담당: 투자 도메인 / 상태: **요청 전** (`family_id`·`impact` 두 컬럼을 한 번에 요청 —
+2026-09-10 재작성)
+
+### 3. AI 가 책정한 근거(reason)를 담을 곳이 없다 (해결됨)
+
+부모에게 "왜 이 가격/보상인지"를 보여줘야 하는데 `store_products`/`chores` 에는 이걸 담을
+컬럼이 없었다. `store_products.reason`, `chores.reason`(둘 다 TEXT, NULL 허용)이 추가됐다.
+
+LLM 응답에서 파싱하던 `reason` 은 원래도 있었고(`evaluate_product`/`evaluate_chore`) 로그에만
+남기고 버렸는데, 이제 `save_valuation`/`save_reward` 가 `value`·`price`(또는
+`reward_points`)와 같은 UPDATE 문으로 함께 쓴다. `ai_suggested_price` 같은 산정 당시
+원래 제안값 스냅샷은 이번 범위에 없다 — 필요해지면 별도 협의.
+
+담당: 상점·할 일 도메인 / 상태: **DB 반영 + AI 서버 저장 로직 완료**
+
+### 4. 회사 10개 시드 + 뉴스 프롬프트용 속성 (요청안 정리 완료, 2026-09-10)
+
+노션 「회사 리스트」가 회사 10개(시원아이스/푸른들농업/두근여행/신나는월드/하늘항공/번개택배/
+튼튼건설/고소한빵/씽씽자동차/파워배터리)와 각각의 대표 경제 요인/영향 방향을
+확정했다. `name`/`description`은 기존 컬럼에 매핑하고, `category`는 전부 `STOCK`으로 둔다
+(ENUM 은 확장성을 위해 남겨둔 것, 지금은 나눌 대상이 없다).
+
+경제 요인/회사에 유리하거나 불리한 변화/뉴스 소재는 조회 대상이 아니라 매일 뉴스 3건을
+만드는 LLM 프롬프트의 참고자료라 컬럼을 나누지 않고 자유 텍스트 하나로 묶었다. 회사명이나
+사업 결과가 뉴스에 직접 노출되지 않도록 완성된 예시 문장은 넣지 않는다.
+
+| 컬럼 | 타입 | 의미 |
+| --- | --- | --- |
+| `news_context` | TEXT | 대표 경제 요인 + 유리/불리한 변화 + 뉴스 소재 (자유 텍스트) |
+
+`01-schema.sql`은 Notion DDL 문서의 동기화본이라 여기서 직접 고치지 않는다 — 위 컬럼
+요청을 Notion에 반영하는 건 투자 도메인 담당자 몫이다. 시드 데이터(회사 10개 INSERT 문)는
+참고용으로 `AI/../02-seed-investment-products.sql`에 따로 정리해 뒀다.
+
+시작가는 확정됐다 (2026-09-21): **가족별 시작가 = `families.weekly_allowance`(주간 용돈,
+포인트) ÷ 종목 수(10).** 아이가 일주일 용돈으로 10개 종목을 전부 살 수 있다. AI 가격
+생성과 백엔드 조회·체결가가 같은 규칙을 쓴다. `current_price`(시드 10000)는 온보딩 전
+(용돈 없음·0) 가족의 폴백으로만 남는다.
+
+변동폭은 퍼센트 기반으로 바꿨다 (2026-09-22): 뉴스가 가리킨 회사는 **현재가의 10~20%**,
+나머지 활성 회사는 **1~3% 잔물결(방향 무작위)** 로 매일 전 종목이 움직인다. 이전 규칙
+(배정액 40%÷7, 절대값)은 가족별 시작가 차이로 등락률이 ±25%~±90%로 벌어졌고 뉴스에
+안 걸린 7개 회사는 매일 "변동 없음"이었다. 이 변경으로 "주간 최대 이익 ≤ 투자 배정액"
+보장은 사라진다 — 노션 「투자」 설계 문서에 반영 필요.
+
+담당: 투자 도메인 / 상태: **반영 완료** (`family_id`·`impact`·`news_context` DB 반영,
+시작가 규칙은 백엔드·AI 코드에 구현).
+
+## 테이블을 만들지 않고 해결하는 것들
+
+| 필요 | 해결 방법 |
+| --- | --- |
+| LLM 호출 기록 (프롬프트·응답·토큰·지연) | 애플리케이션 로그로 남긴다. 컨테이너 표준출력 -> Docker/Jenkins 로그에서 조회 |
+| 중복 책정 방지 (메시지큐가 같은 메시지를 두 번 전달) | 대상 행의 상태로 판단한다. `store_products.value IS NOT NULL` 이면 이미 책정된 것으로 보고 건너뛴다 |
+| 가격 책정 이력 | 위 협의 3번이 합의될 때까지는 로그로만 남긴다 |
+
+로그에 아이 이름처럼 개인정보를 필요 이상으로 남기지 않는다.
+
+## 네이티브 ENUM 처리
+
+팀 DB 는 네이티브 ENUM 을 쓴다. psycopg 로 확인한 결과:
+
+- 파라미터에 문자열을 그대로 넘겨도 **캐스트 없이 동작한다** (비교·INSERT 모두 확인)
+- 잘못된 라벨은 DB 가 거부한다: `invalid input value for enum ... "NOPE"`.
+  즉 오타는 런타임에 바로 드러난다
+
+| 타입 | 값 |
+| --- | --- |
+| `store_products_category` | `GAME`, `SNACK`, `TOY`, `OUTING`, `PRIVILEGE`, `ETC` |
+| `words_category` | `INCOME`, `CONSUMPTION`, `SAVINGS`, `INVESTMENT`, `BANKING`, `ECONOMY`, `OTHER` |
+| `investment_products_category` | `STOCK`, `BOND`, `ETF`, `FUND`, `OTHER` |
+| `chores_repeat_type` | `DAY`, `WEEK`, `MONTH` |
+| `users_role` | `PARENT`, `CHILD` |
+
+## 팀에 공유할 사항
+
+[`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) 에는 `users.role` 과
+`point_transactions.transaction_type` 을 VARCHAR 로 매핑했다고 적혀 있는데,
+**실제 EC2 DB 의 두 컬럼은 네이티브 ENUM 이다.** 이 DB 가 Hibernate 가 아니라
+ERD 에서 생성한 스크립트로 만들어졌기 때문으로 보인다. 백엔드 쪽 확인이 필요하다
+(AI 서버 동작에는 영향 없음).

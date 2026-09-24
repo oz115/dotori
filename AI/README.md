@@ -1,0 +1,153 @@
+# 도토리 AI 서버
+
+가격 책정, 퀴즈 생성, 투자 회사/뉴스 생성을 담당하는 **내부 서비스**다.
+백엔드(Spring Boot)와 같은 PostgreSQL 을 쓰고, 별도 프로세스로 뜬다.
+
+- 언어/프레임워크: Python 3.11, FastAPI
+- 설계 문서: 노션 「AI 기능 정리」와 그 하위 페이지 (유일한 원본)
+  - 루트 `AI-docs/`는 노션에 옮겨지기 전 개인 메모다. 폐기된 수치가 섞여 있어 근거로 쓰지 않는다
+
+## 경계
+
+```
+React Native ──> Spring Boot ──(HTTP, 내부망)──> AI 서버 ──> PostgreSQL
+                     │                                          ▲
+                     └──────────────────────────────────────────┘
+                        스키마 주인은 Spring (ddl-auto: none, 원본은 01-schema.sql)
+```
+
+- **프론트는 이 서버를 직접 부르지 않는다.** 사용자 인증(JWT)은 Spring 이 처리하고,
+  Spring 이 이 서버를 부를 때 `X-Internal-Token` 헤더로 내부 호출임을 증명한다.
+- **이 서버는 테이블을 하나도 소유하지 않는다.** 스키마 주인은 Spring 이고,
+  팀이 이미 만들어 둔 테이블을 합의된 범위에서만 읽고 쓴다.
+  필요한 컬럼이 없으면 직접 추가하지 않고 도메인 담당자와 협의한다.
+  테이블별 접근 범위는 [`docs/db-boundary.md`](docs/db-boundary.md) 참고.
+
+## 로컬 실행
+
+### 최초 1회
+
+```powershell
+# PowerShell / 경로: c:\Users\SSAFY\dev\S15P21A505\AI
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env    # 값을 채운다 (GMS_KEY·POSTGRES_PASSWORD 등)
+```
+
+`Activate.ps1` 이 실행 정책 때문에 막히면 한 번만:
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### 매번
+
+```powershell
+# PowerShell 창 A — EC2 DB 로 가는 터널 (열어 둔다)
+ssh -N A505
+```
+
+```powershell
+# PowerShell 창 B / 경로: c:\Users\SSAFY\dev\S15P21A505\AI
+.\.venv\Scripts\Activate.ps1
+fastapi dev app/main.py
+```
+
+- API 문서: http://127.0.0.1:8000/docs
+- 터널 없이도 서버는 뜬다. `GET /health` 는 통과하고 `GET /health/db` 만 503 이 된다.
+
+## 엔드포인트
+
+| 메서드 | 경로 | 인증 | 설명 |
+| --- | --- | --- | --- |
+| GET | `/health` | 없음 | 서버 생존 확인. DB 를 건드리지 않는다. 컨테이너 헬스체크용 |
+| GET | `/health/db` | 없음 | DB 까지 왕복. 실패 시 503 |
+| GET | `/docs` | 없음 | 자동 생성된 API 문서 (Swagger UI) |
+| POST | `/internal/quiz/generate` | `X-Internal-Token` | 오늘자 퀴즈 9개 생성 + 전체 가족 배정. 백엔드 `QuizDailyScheduler` 가 매일 00:10(KST)에 부른다 |
+| POST | `/internal/quiz/assign` | `X-Internal-Token` | 가족 하나에만 오늘자 퀴즈 배정. 크론이 돈 뒤에 합류한 자녀용 — 백엔드가 자녀 합류 이벤트에서 부른다. 형제가 이미 받았으면 그 문제를 복사한다(LLM 호출 없음) |
+
+새 업무 엔드포인트를 추가할 때는 `dependencies=[Depends(require_internal_token)]` 를 붙인다.
+
+## 배치 스크립트
+
+FastAPI 서버 없이 DB 세션만 붙여 도는 스크립트다. 평소에는 백엔드 `QuizDailyScheduler` 가
+매일 00:10(KST)에 `/internal/quiz/generate` 를 호출하고, 이 스크립트는 로컬 확인용이나
+크론이 실패했을 때의 수동 복구용이다. 둘 다 결국
+`app.domains.quiz.services.generate_daily_quizzes()` 하나를 부른다.
+
+```powershell
+# ssh -N A505 터널이 열려 있어야 한다
+.\.venv\Scripts\Activate.ps1
+python -m scripts.generate_daily_quizzes
+```
+
+| 스크립트 | 설명 |
+| --- | --- |
+| `scripts/generate_daily_quizzes.py` | 상/중/하 티어별 문제를 LLM 으로 만들고, 가족의 `financial_knowledge_level` 에 맞춰 그 가족 자녀 전원에게 오늘자 `quizzes` 행을 넣는다. 재실행해도 이미 있는 `(child_id, quiz_date)` 는 건너뛴다 |
+
+## 환경변수
+
+값의 우선순위는 **루트 `../.env` → `AI/.env` → 실제 환경변수** 순으로 뒤가 이긴다.
+AI 서버는 나중에 독립 프로세스로 뜨므로 필요한 값을 `AI/.env` 에 자체적으로 둔다 —
+Spring 과 같은 DB·브로커라도 여기에 적는다. (모노레포로 함께 돌릴 땐 루트 `../.env` 를 먼저
+읽으므로 둘 다 동작한다.)
+
+| 이름 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `POSTGRES_HOST` | | `localhost` | Spring 과 같은 Postgres. 로컬은 `ssh -N A505` 터널 |
+| `POSTGRES_PORT` | | `5432` | |
+| `POSTGRES_DB` | | `dotori_town` | |
+| `POSTGRES_USER` | ✅ | `dotori` | |
+| `POSTGRES_PASSWORD` | ✅ | | |
+| `RABBITMQ_HOST` | | `localhost` | Spring 과 같은 브로커. 로컬은 docker-compose 의 rabbitmq |
+| `RABBITMQ_PORT` | | `5672` | |
+| `RABBITMQ_USERNAME` | ✅ | (빈 값) | Spring 과 공유하는 브로커 계정. 로컬 docker-compose 는 `guest` |
+| `RABBITMQ_PASSWORD` | ✅ | (빈 값) | 빈 값이면 AMQP 403 이 난다 — `.env` 를 채우라는 신호 |
+| `AI_PORT` | | `8000` | 서버 포트 |
+| `INTERNAL_TOKEN` | 배포 시 ✅ | (빈 값) | Spring 과 공유하는 내부 호출 토큰. **빈 값이면 토큰 검증을 건너뛴다** |
+| `GMS_KEY` | ✅ | (빈 값) | SSAFY GMS 발급 키. **AI 서버만 GMS 를 호출한다**(Spring 은 안 씀). LLM 호출에 필요 |
+| `GMS_BASE` | | `https://gms.ssafy.io/gmsapi` | GMS 게이트웨이 주소 |
+| `OPENAI_MODEL` | | `gpt-4o-mini` | GMS 가 중계하는 모델 이름 |
+| `QUIZ_OPENAI_MODEL` | | `gpt-5.4-mini` | 금융 퀴즈 생성 전용 모델 이름 |
+| `LOG_LEVEL` | | `INFO` | `app.*` 로거 레벨 |
+| `STORE_PRICING_CONSUMER_ENABLED` | | `true` | `false` 면 큐를 구독하지 않는다 |
+
+## 인프라 담당자 확인 사항
+
+배포에 필요한 정보를 아래에 모았다. 컨테이너 하나가 추가되는 형태다.
+
+**컨테이너 스펙**
+
+| 항목 | 값 |
+| --- | --- |
+| 빌드 컨텍스트 | `AI/` (Dockerfile 은 [`AI/Dockerfile`](Dockerfile)) |
+| 노출 포트 | `8000` |
+| 헬스체크 | `GET /health` (200 기대). Dockerfile 에 `HEALTHCHECK` 내장 |
+| 실행 유저 | non-root (`dotori`, uid 1000) |
+| 베이스 이미지 | `python:3.11-slim` |
+| 상태 | **stateless** — 볼륨 불필요. 상태는 전부 PostgreSQL 에 있다 |
+
+**확인/결정이 필요한 것**
+
+- [ ] **8000 포트를 외부에 열지 말 것.** Spring 만 내부에서 호출한다.
+      Nginx 에도 이 서버로 가는 경로를 만들지 않는다.
+- [ ] `INTERNAL_TOKEN` 을 Jenkins Credentials 에 등록하고 **Spring 과 AI 서버에 같은 값**을 주입.
+      생성: `openssl rand -hex 32`
+- [ ] `GMS_KEY` 를 Jenkins Credentials 에 등록하고 AI 서버 컨테이너에 주입. AI 서버만 쓴다
+      (Spring 은 GMS 를 호출하지 않는다). 없으면 LLM 호출이 401 로 실패한다.
+- [ ] DB 계정: AI 서버용 role 을 따로 줄지, `dotori` 공용으로 쓸지 결정.
+      따로 준다면 [`docs/db-boundary.md`](docs/db-boundary.md) 의 범위
+      (대부분 `SELECT`, 일부 테이블에 `INSERT`/`UPDATE`)면 충분하다.
+- [ ] Jenkins job 추가 (백엔드 파이프라인과 같은 방식이면 그대로 복제하면 된다).
+- [ ] 컨테이너에서 DB 로 붙는 호스트 값 확인. 로컬은 `ssh -N A505` 터널로 `localhost` 지만
+      EC2 안에서는 다른 값일 수 있다.
+- [ ] Python 의존성은 `requirements.txt` 로 고정되어 있다. 별도 빌드 도구 불필요.
+
+pgvector 는 **쓰지 않기로 했다.** DB 이미지 교체나 확장(`CREATE EXTENSION vector`) 설치는 필요 없다.
+
+## 주의사항
+
+- **테이블을 만들지 않는다.** `CREATE TABLE` 도, `Base.metadata.create_all()` 도 쓰지 않는다.
+- **Alembic 을 쓰지 않는다.** `--autogenerate` 가 자기가 모르는 테이블(`users` 등)에 대해
+  `drop_table` 을 만들어 낸다. 공유 DB 에서는 사고로 직결된다.
+- 남의 테이블에 컬럼을 직접 추가하지 않는다. 컬럼은 백엔드 엔티티에 선언되어야 생긴다.
+- EC2 DB 는 팀이 공유한다. 커넥션 풀을 키우지 않는다 (현재 `pool_size=5`).

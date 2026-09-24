@@ -1,0 +1,65 @@
+[
+  {
+    "title": "신발 정리하기",
+    "description": null,
+    "difficulty": "EASY",
+    "value": "0.05",
+    "reason": "현관 신발을 가지런히 두는 아주 가벼운 일이라 주 기본 용돈의 5% 정도로 잡았습니다."
+  },
+  {
+    "title": "설거지하기",
+    "description": null,
+    "difficulty": "EASY",
+    "value": "0.1",
+    "reason": "매일 할 수 있는 가벼운 집안일이라 주 기본 용돈의 10% 정도로 잡았습니다."
+  },
+  {
+    "title": "빨래 개기",
+    "description": null,
+    "difficulty": "EASY",
+    "value": "0.1",
+    "reason": "설거지와 비슷하게 손이 많이 가지 않는 집안일이라 주 기본 용돈의 10%로 잡았습니다."
+  },
+  {
+    "title": "청소기 돌리기",
+    "description": "집 전체",
+    "difficulty": "EASY",
+    "value": "0.15",
+    "reason": "집 전체를 돌아다녀야 해 집안일 중에서는 몸을 조금 더 쓰므로 주 기본 용돈의 15%로 잡았습니다."
+  },
+  {
+    "title": "구몬 10장 풀기",
+    "description": null,
+    "difficulty": "NORMAL",
+    "value": "0.3",
+    "reason": "집중해서 풀어야 하는 학습이라 주 기본 용돈의 30% 정도로 잡았습니다."
+  },
+  {
+    "title": "동생 1시간 돌보기",
+    "description": null,
+    "difficulty": "NORMAL",
+    "value": "0.35",
+    "reason": "시간과 책임이 함께 드는 일이라 주 기본 용돈의 35%로 잡았습니다."
+  },
+  {
+    "title": "방 대청소하기",
+    "description": "책상 정리까지",
+    "difficulty": "NORMAL",
+    "value": "0.4",
+    "reason": "정리와 청소를 오래 해야 하는 일이라 보통 할 일 중에서는 높은 40%로 잡았습니다."
+  },
+  {
+    "title": "한 달 개근하기",
+    "description": null,
+    "difficulty": "HARD",
+    "value": "0.5",
+    "reason": "한 달에 걸쳐 꾸준함이 필요한 성취라 주 기본 용돈의 50%로 크게 잡았습니다."
+  },
+  {
+    "title": "반에서 1등 하기",
+    "description": null,
+    "difficulty": "HARD",
+    "value": "0.8",
+    "reason": "한 학기에 걸친 특별한 성취라 주 기본 용돈의 80%로 크게 잡았습니다."
+  }
+]

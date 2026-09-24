@@ -1,0 +1,804 @@
+package com.bana.dotori.family.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.bana.dotori.family.dto.ConnectedChild;
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
+import com.bana.dotori.family.dto.FamilyCreateRequest;
+import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
+import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
+import com.bana.dotori.family.entity.Family;
+import com.bana.dotori.family.entity.FamilyCode;
+import com.bana.dotori.family.entity.FamilyMember;
+import com.bana.dotori.family.entity.FinancialKnowledgeLevel;
+import com.bana.dotori.family.mapper.FamilyMapper;
+import com.bana.dotori.family.repository.FamilyCodeRepository;
+import com.bana.dotori.family.repository.FamilyMemberRepository;
+import com.bana.dotori.family.repository.FamilyRepository;
+import com.bana.dotori.global.error.BusinessException;
+import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.user.entity.User;
+import com.bana.dotori.user.entity.UserRole;
+import com.bana.dotori.user.repository.UserRepository;
+import com.bana.dotori.user.service.RemainingAssetPolicy;
+
+@ExtendWith(MockitoExtension.class)
+class FamilyServiceImplTest {
+
+	@Mock
+	private FamilyRepository familyRepository;
+
+	@Mock
+	private FamilyMemberRepository familyMemberRepository;
+
+	@Mock
+	private FamilyCodeRepository familyCodeRepository;
+
+	@Mock
+	private UserRepository userRepository;
+
+	@Spy
+	private FamilyMapper familyMapper;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private RemainingAssetPolicy remainingAssetPolicy;
+
+	@InjectMocks
+	private FamilyServiceImpl familyService;
+
+	private User parent() {
+		return User.builder()
+			.loginId("parent01")
+			.password("encoded-password")
+			.name("김도토")
+			.email("parent@example.com")
+			.role(UserRole.PARENT)
+			.build();
+	}
+
+	private User child() {
+		return User.builder()
+			.loginId("child01")
+			.password("encoded-password")
+			.name("김도랑")
+			.email("child@example.com")
+			.role(UserRole.CHILD)
+			.build();
+	}
+
+	private FamilyCreateRequest createRequest() {
+		return new FamilyCreateRequest("도토리네 가족", 10000, 5000, FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("가족 생성 성공 시 생성된 가족 정보를 반환하고 생성자를 구성원으로 등록한다")
+	void create_success() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		FamilyCreateResponse response = familyService.create(1, createRequest());
+
+		assertThat(response.name()).isEqualTo("도토리네 가족");
+		assertThat(response.createdBy()).isEqualTo(1);
+		verify(familyMemberRepository).save(any(FamilyMember.class));
+	}
+
+	@Test
+	@DisplayName("가족 생성 시 온보딩 금액은 원에서 포인트(10원=1점)로 환산되어 저장된다")
+	void create_savesOnboardingSettings() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+		given(familyRepository.save(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.create(1, createRequest());
+
+		verify(familyRepository).save(argThat(family -> family.getWeeklyAllowance() == 1000
+			&& family.getWeeklyRewardLimit() == 500
+			&& family.getFinancialKnowledgeLevel() == FinancialKnowledgeLevel.BEGINNER));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 1000원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void create_rejectsNonThousandWonUnitAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10500, 5000,
+			FinancialKnowledgeLevel.BEGINNER);
+
+		assertThatThrownBy(() -> familyService.create(1, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).save(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("온보딩 금액이 1000원 미만(0원·음수 포함)이면 INVALID_REQUEST 예외가 발생한다")
+	void create_rejectsBelowMinimumAmount() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(false);
+
+		// DTO 가 금액을 검증하지 않으므로 0원·음수도 여기(toPoints)가 최종 방어선이다
+		for (int invalidWon : new int[] {500, 0, -1000}) {
+			FamilyCreateRequest request = new FamilyCreateRequest("도토리네 가족", 10000, invalidWon,
+				FinancialKnowledgeLevel.BEGINNER);
+
+			assertThatThrownBy(() -> familyService.create(1, request))
+				.isInstanceOf(BusinessException.class)
+				.extracting(e -> ((BusinessException)e).getErrorCode())
+				.isEqualTo(ErrorCode.INVALID_REQUEST);
+		}
+
+		verify(familyRepository, never()).save(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
+	void create_notParent() {
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.create(2, createRequest()))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("이미 가족에 소속되어 있으면 ALREADY_IN_FAMILY 예외가 발생한다")
+	void create_alreadyInFamily() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+		given(familyMemberRepository.existsActiveMembership(1)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.create(1, createRequest()))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있으면 hasFamily=true와 familyId를 함께 반환한다")
+	void getStatus_hasFamily() {
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.of(3));
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isTrue();
+		// 초대 코드 만료 후 재발급으로 이어 가려면 화면이 familyId 를 알아야 한다
+		assertThat(response.familyId()).isEqualTo(3);
+	}
+
+	@Test
+	@DisplayName("가족에 소속되어 있지 않으면 hasFamily=false, familyId=null을 반환한다")
+	void getStatus_noFamily() {
+		given(familyMemberRepository.findActiveFamilyId(1)).willReturn(Optional.empty());
+
+		FamilyStatusResponse response = familyService.getStatus(1);
+
+		assertThat(response.hasFamily()).isFalse();
+		assertThat(response.familyId()).isNull();
+	}
+
+	private Family onboardedFamily() {
+		// 저장 단위는 포인트다 (1000pt = 10,000원, 500pt = 5,000원)
+		return Family.builder()
+			.name("도토리네 가족")
+			.createdBy(1)
+			.weeklyAllowance(1000)
+			.weeklyRewardLimit(500)
+			.financialKnowledgeLevel(FinancialKnowledgeLevel.BEGINNER)
+			.build();
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정 시 보낸 필드만 바뀌고 금액은 포인트로 환산 저장된다")
+	void updateFamily_success() {
+		Family family = onboardedFamily();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyRepository.saveAndFlush(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		FamilyUpdateResponse response = familyService.updateFamily(1, 1,
+			new FamilyUpdateRequest("새 가족 이름", 20000, null, FinancialKnowledgeLevel.ADVANCED));
+
+		assertThat(family.getName()).isEqualTo("새 가족 이름");
+		assertThat(family.getWeeklyAllowance()).isEqualTo(2000);
+		assertThat(family.getWeeklyRewardLimit()).isEqualTo(500);
+		assertThat(family.getFinancialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.ADVANCED);
+		// 응답 금액은 요청과 같은 원 단위로 되돌아온다
+		assertThat(response.weeklyAllowance()).isEqualTo(20000);
+		assertThat(response.weeklyRewardLimit()).isEqualTo(5000);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 모든 필드가 null 이면 아무것도 바뀌지 않는다")
+	void updateFamily_allNullKeepsValues() {
+		Family family = onboardedFamily();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyRepository.saveAndFlush(any(Family.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.updateFamily(1, 1, new FamilyUpdateRequest(null, null, null, null));
+
+		assertThat(family.getName()).isEqualTo("도토리네 가족");
+		assertThat(family.getWeeklyAllowance()).isEqualTo(1000);
+		assertThat(family.getWeeklyRewardLimit()).isEqualTo(500);
+		assertThat(family.getFinancialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 금액이 1000원 단위가 아니면 INVALID_REQUEST 예외가 발생하고 저장되지 않는다")
+	void updateFamily_rejectsNonThousandWonUnitAmount() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.updateFamily(1, 1,
+			new FamilyUpdateRequest(null, 10500, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_REQUEST);
+
+		verify(familyRepository, never()).saveAndFlush(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 구성원이어도 생성자가 아니면 FORBIDDEN 예외가 발생한다")
+	void updateFamily_notCreator() {
+		// onboardedFamily 의 생성자는 1 — 같은 가족의 다른 부모(3)가 수정을 시도한다
+		given(userRepository.findById(3)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 3)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.updateFamily(3, 1,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+
+		verify(familyRepository, never()).saveAndFlush(any(Family.class));
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 부모 권한이 아니면 FORBIDDEN 예외가 발생한다")
+	void updateFamily_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.updateFamily(2, 1,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("가족 설정 수정: 그 가족의 구성원이 아니면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void updateFamily_notMember() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(9)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(9, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.updateFamily(1, 9,
+			new FamilyUpdateRequest("새 이름", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("가족 조회 성공 시 가족 정보·구성원 수·온보딩 설정(원 단위)을 반환한다")
+	void getFamily_success() {
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(onboardedFamily()));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
+
+		FamilyResponse response = familyService.getFamily(1, 1);
+
+		assertThat(response.name()).isEqualTo("도토리네 가족");
+		assertThat(response.createdBy()).isEqualTo(1);
+		assertThat(response.memberCount()).isEqualTo(3);
+		// 저장은 포인트(1000pt/500pt)지만 응답은 원으로 환산된다
+		assertThat(response.weeklyAllowance()).isEqualTo(10000);
+		assertThat(response.weeklyRewardLimit()).isEqualTo(5000);
+		assertThat(response.financialKnowledgeLevel()).isEqualTo(FinancialKnowledgeLevel.BEGINNER);
+	}
+
+	@Test
+	@DisplayName("온보딩 도입 전에 만들어진 가족은 설정값이 null 로 내려간다")
+	void getFamily_legacyFamilyWithoutOnboarding() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.countActiveMembers(1)).willReturn(3);
+
+		FamilyResponse response = familyService.getFamily(1, 1);
+
+		assertThat(response.weeklyAllowance()).isNull();
+		assertThat(response.weeklyRewardLimit()).isNull();
+		assertThat(response.financialKnowledgeLevel()).isNull();
+	}
+
+	@Test
+	@DisplayName("가족이 존재하지 않으면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getFamily_familyNotFound() {
+		given(familyRepository.findByIdAndDeletedAtIsNull(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.getFamily(1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getFamily_notMember() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 2)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.getFamily(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("구성원 조회 성공 시 구성원 목록을 반환한다")
+	void getMembers_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findAllWithUserByFamilyId(1))
+			.willReturn(List.of(parentMember, childMember));
+
+		FamilyMembersResponse response = familyService.getMembers(1, 1);
+
+		assertThat(response.members()).hasSize(2);
+		assertThat(response.members().get(0).name()).isEqualTo("김도토");
+		assertThat(response.members().get(0).role()).isEqualTo(UserRole.PARENT);
+		assertThat(response.members().get(1).name()).isEqualTo("김도랑");
+		assertThat(response.members().get(1).role()).isEqualTo(UserRole.CHILD);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 구성원을 조회하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void getMembers_notMember() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 2)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.getMembers(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("가족 생성자가 해체하면 가족과 모든 구성원을 소프트 삭제한다")
+	void deleteFamily_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1))
+			.willReturn(List.of(parentMember, childMember));
+
+		familyService.deleteFamily(1, 1);
+
+		assertThat(family.getDeletedAt()).isNotNull();
+		assertThat(parentMember.getDeletedAt()).isNotNull();
+		assertThat(childMember.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 가족 해체 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 아무것도 삭제하지 않는다")
+	void deleteFamily_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1))
+			.willReturn(List.of(parentMember, childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(family.getDeletedAt()).isNull();
+		assertThat(parentMember.getDeletedAt()).isNull();
+		assertThat(childMember.getDeletedAt()).isNull();
+	}
+
+	@Test
+	@DisplayName("가족 해체 시 자산은 자녀에 대해서만 확인한다 (부모 구성원은 묻지 않는다)")
+	void deleteFamily_checksOnlyChildren() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User parent = parent();
+		ReflectionTestUtils.setField(parent, "id", 1);
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(1)).willReturn(List.of(parentMember));
+
+		familyService.deleteFamily(1, 1);
+
+		verify(remainingAssetPolicy, never()).hasRemainingAsset(anyInt());
+		assertThat(family.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 가족 해체 시 FORBIDDEN 예외가 발생한다")
+	void deleteFamily_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.deleteFamily(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("가족 구성원인 부모라도 생성자가 아니면 해체할 수 없다")
+	void deleteFamily_notCreator() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 가족을 해체하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void deleteFamily_familyNotFound() {
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.deleteFamily(1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("자녀 제외 성공 시 자녀 구성원을 삭제한다")
+	void removeChild_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child()).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
+
+		familyService.removeChild(1, 1, 2);
+
+		assertThat(childMember.getDeletedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("자녀에게 남은 자산이 있으면 자녀 제외 시 CHILD_HAS_ACTIVE_ASSETS 예외가 발생하고 삭제하지 않는다")
+	void removeChild_childHasAssets() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		User child = child();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember childMember = FamilyMember.builder().family(family).user(child).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(childMember));
+		given(remainingAssetPolicy.hasRemainingAsset(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.CHILD_HAS_ACTIVE_ASSETS);
+		assertThat(childMember.getDeletedAt()).isNull();
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 자녀 제외 시 FORBIDDEN 예외가 발생한다")
+	void removeChild_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.removeChild(2, 1, 3))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("해당 자녀가 가족에 없으면 MEMBER_NOT_FOUND 예외가 발생한다")
+	void removeChild_memberNotFound() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 99))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("제외 대상이 자녀가 아니면 MEMBER_NOT_FOUND 예외가 발생한다")
+	void removeChild_targetNotChild() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyMember parentMember = FamilyMember.builder().family(family).user(parent()).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyMemberRepository.findWithUserByFamilyIdAndUserId(1, 2)).willReturn(Optional.of(parentMember));
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족에서 자녀 제외를 시도하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void removeChild_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNull(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.removeChild(1, 1, 2))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("토큰의 유저가 존재하지 않으면 UNAUTHORIZED 예외가 발생한다")
+	void create_userNotFound() {
+		given(userRepository.findByIdForUpdate(99)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.create(99, createRequest()))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("가족 연결 성공 시 구성원으로 등록하고 가족 정보를 반환한다")
+	void connect_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().plusMinutes(10))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+		given(familyMemberRepository.save(any(FamilyMember.class)))
+			.willAnswer(invocation -> invocation.getArgument(0));
+
+		FamilyConnectResponse response = familyService.connect(2, new FamilyConnectRequest("A3B7K9"));
+
+		assertThat(response.familyName()).isEqualTo("도토리네 가족");
+		verify(familyMemberRepository).save(any(FamilyMember.class));
+	}
+
+	@Test
+	@DisplayName("입력한 코드는 공백 제거·대문자 정규화 후 조회한다")
+	void connect_normalizesCode() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().plusMinutes(10))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+		given(familyMemberRepository.save(any(FamilyMember.class)))
+			.willAnswer(invocation -> invocation.getArgument(0));
+
+		familyService.connect(2, new FamilyConnectRequest(" a3b7k9 "));
+
+		verify(familyCodeRepository).findWithFamilyByCode("A3B7K9");
+	}
+
+	@Test
+	@DisplayName("자녀 계정이 아니면 가족 연결 시 FORBIDDEN 예외가 발생한다")
+	void connect_notChild() {
+		given(userRepository.findByIdForUpdate(1)).willReturn(Optional.of(parent()));
+
+		assertThatThrownBy(() -> familyService.connect(1, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("이미 가족에 소속된 자녀가 연결하면 ALREADY_IN_FAMILY 예외가 발생한다")
+	void connect_alreadyInFamily() {
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(true);
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.ALREADY_IN_FAMILY);
+	}
+
+	@Test
+	@DisplayName("존재하지 않는 코드로 연결하면 INVALID_FAMILY_CODE 예외가 발생한다")
+	void connect_codeNotFound() {
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("WRONG9")).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("WRONG9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_FAMILY_CODE);
+	}
+
+	@Test
+	@DisplayName("만료된 코드로 연결하면 INVALID_FAMILY_CODE 예외가 발생한다")
+	void connect_expiredCode() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		FamilyCode familyCode = FamilyCode.builder()
+			.family(family)
+			.code("A3B7K9")
+			.expiredAt(OffsetDateTime.now().minusMinutes(1))
+			.build();
+		given(userRepository.findByIdForUpdate(2)).willReturn(Optional.of(child()));
+		given(familyMemberRepository.existsActiveMembership(2)).willReturn(false);
+		given(familyCodeRepository.findWithFamilyByCode("A3B7K9")).willReturn(Optional.of(familyCode));
+
+		assertThatThrownBy(() -> familyService.connect(2, new FamilyConnectRequest("A3B7K9")))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.INVALID_FAMILY_CODE);
+	}
+
+	@Test
+	@DisplayName("초대 코드 생성 성공 시 기존 코드를 무효화하고 6자리 코드와 만료 시각을 반환한다")
+	void createInvitationCode_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+		given(familyCodeRepository.existsByCode(anyString())).willReturn(false);
+		given(familyCodeRepository.save(any(FamilyCode.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		InvitationCodeResponse response = familyService.createInvitationCode(1, 1);
+
+		assertThat(response.code()).hasSize(6).matches("[A-HJ-NP-Z2-9]+");
+		assertThat(response.expiresAt()).isAfter(OffsetDateTime.now());
+		verify(familyCodeRepository).deleteAllByFamilyId(1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 생성 시 FORBIDDEN 예외가 발생한다")
+	void createInvitationCode_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.createInvitationCode(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 초대 코드를 생성하려 하면 FAMILY_NOT_FOUND 예외가 발생한다")
+	void createInvitationCode_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.createInvitationCode(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("초대 코드 폐기 성공 시 그 가족의 발급된 코드를 모두 삭제한다")
+	void revokeInvitationCode_success() {
+		Family family = Family.builder().name("도토리네 가족").createdBy(1).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(true);
+
+		familyService.revokeInvitationCode(1, 1);
+
+		verify(familyCodeRepository).deleteAllByFamilyId(1);
+	}
+
+	@Test
+	@DisplayName("부모 권한이 아니면 초대 코드 폐기 시 FORBIDDEN 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notParent() {
+		given(userRepository.findById(2)).willReturn(Optional.of(child()));
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(2, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FORBIDDEN);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
+	}
+
+	@Test
+	@DisplayName("소속되지 않은 가족의 초대 코드를 폐기하려 하면 FAMILY_NOT_FOUND 예외가 발생하고 코드는 지워지지 않는다")
+	void revokeInvitationCode_notMember() {
+		Family family = Family.builder().name("남의 가족").createdBy(3).build();
+		given(userRepository.findById(1)).willReturn(Optional.of(parent()));
+		given(familyRepository.findByIdAndDeletedAtIsNullForUpdate(1)).willReturn(Optional.of(family));
+		given(familyMemberRepository.existsActiveMember(1, 1)).willReturn(false);
+
+		assertThatThrownBy(() -> familyService.revokeInvitationCode(1, 1))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getErrorCode())
+			.isEqualTo(ErrorCode.FAMILY_NOT_FOUND);
+		verify(familyCodeRepository, never()).deleteAllByFamilyId(anyInt());
+	}
+
+	@Test
+	@DisplayName("연결된 자녀 조회는 구성원을 자녀 요약으로 옮겨 담는다")
+	void findConnectedChildren_mapsToSummary() {
+		User child = User.builder()
+			.loginId("child1").password("encoded").name("김아이").email("child1@dotori.test")
+			.role(UserRole.CHILD).build();
+		ReflectionTestUtils.setField(child, "id", 2);
+		FamilyMember member = FamilyMember.builder().family(null).user(child).build();
+		OffsetDateTime joinedAt = OffsetDateTime.of(2026, 8, 28, 10, 0, 0, 0, ZoneOffset.ofHours(9));
+		ReflectionTestUtils.setField(member, "joinedAt", joinedAt);
+		given(familyMemberRepository.findConnectedChildren(1, UserRole.CHILD)).willReturn(List.of(member));
+
+		List<ConnectedChild> children = familyService.findConnectedChildren(1);
+
+		assertThat(children).containsExactly(new ConnectedChild(2, "김아이", joinedAt));
+	}
+}

@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { StatusBar } from 'expo-status-bar';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { useColorScheme } from 'react-native';
@@ -20,6 +21,12 @@ export function AppProviders({ children }: PropsWithChildren) {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            {/*
+              android:statusBarColor 가 투명이라(edge-to-edge) 아이콘 색을 안드로이드
+              기본값에 맡기면 밝은 배경 위에서 흰 아이콘이 안 보인다. 라이트/다크에 맞춰
+              직접 지정한다 — style="dark"는 어두운 아이콘(밝은 배경용)을 뜻한다.
+            */}
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
             {children}
           </ThemeProvider>
         </QueryClientProvider>

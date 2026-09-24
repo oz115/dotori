@@ -1,3 +1,111 @@
 spring:
   application:
     name: dotori
+  config:
+    # 루트 폴더의 .env에서 민감정보를 읽는다 (환경변수로 이미 주입된 값이 항상 우선)
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  datasource:
+    # stringtype=unspecified: 문자열 파라미터를 타입 미지정으로 보내 PostgreSQL 이 대상 컬럼에서
+    # 타입을 정하게 한다. users.role, point_transactions.transaction_type 처럼 네이티브 ENUM 인
+    # 컬럼에 @Enumerated(EnumType.STRING) 값을 넣으려면 필요하다. 없으면 드라이버가 varchar 로
+    # 선언해서 "column role is of type users_role but expression is of type character varying"
+    # 로 INSERT 가 실패한다.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dotori_town}?stringtype=unspecified
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  servlet:
+    multipart:
+      # 인증 사진 10MB (CHORE-13). 기본값 1MB 로는 명세를 못 받는다.
+      # ChorePhotoServiceImpl.MAX_PHOTO_SIZE_BYTES 와 같은 값이어야 한다 — 여기가 더 작으면
+      # 서비스의 용량 검증에 닿기 전에 스프링이 먼저 거절해 400 대신 500 이 나간다.
+      max-file-size: 10MB
+      # 파일 하나에 폼 필드가 붙으므로 요청 전체는 조금 더 크게 잡는다.
+      max-request-size: 12MB
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          # 미설정 시 무한 대기라, SMTP 장애가 요청 스레드를 계속 붙잡는다
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  jpa:
+    hibernate:
+
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          # TIMESTAMPTZ 를 KST 기준으로 읽고 쓴다.
+          # 서버 타임존이 달라도 거래 시각이 어긋나지 않게 하려는 것이다.
+          time_zone: Asia/Seoul
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-validity-seconds: 1800
+  refresh-token-validity-seconds: 1209600
+
+finance:
+  base-url: ${FINANCE_BASE_URL:https://finopenapi.ssafy.io/ssafy/api/v1}
+  api-key: ${FINANCE_API_KEY:}
+  institution-code: ${FINANCE_INSTITUTION_CODE:00100}
+  fintech-app-no: ${FINANCE_FINTECH_APP_NO:001}
+  auth-text: ${FINANCE_AUTH_TEXT:도토리}
+
+fcm:
+  # FCM 푸시 발송용 Firebase 서비스 계정 키 경로. backend/.gitignore 의
+  # *firebase-adminsdk*.json 패턴에 걸리므로 파일 자체는 커밋되지 않는다.
+  credentials-path: ${FCM_CREDENTIALS_PATH:}
+
+# AI 서버(FastAPI) 내부 호출 — 투자 뉴스 생성·가격 반영 트리거 (NEWS-02·03)
+# internal-token 은 AI 쪽 INTERNAL_TOKEN 과 같은 값 (비어 있으면 AI 도 검증 생략 — 로컬용)
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}
+  internal-token: ${INTERNAL_TOKEN:}
+
+# 배치 QA용 임시 수동 트리거 — 하루 안 기다리고 스케줄러를 바로 재현한다 (QaTriggerController).
+# enabled 가 false(기본값)면 컨트롤러 빈 자체가 안 생긴다. 운영 환경엔 QA_TRIGGER_ENABLED 를
+# 절대 넣지 않는다. token 은 ai.internal-token 과 같은 값(INTERNAL_TOKEN)을 공유한다.
+qa-trigger:
+  enabled: ${QA_TRIGGER_ENABLED:false}
+  token: ${INTERNAL_TOKEN:}
+
+# 인증 사진 저장 (CHORE-13)
+#
+# 버킷은 비공개다. 앱만 액세스 키로 접근하고, 아이·부모 화면은 서버가 발급한
+# presigned URL 로 본다. 앱에 액세스 키를 넣으면 그 키는 공개된 키가 되고,
+# 퍼블릭 버킷보다 나쁘다 (읽기뿐 아니라 쓰기·삭제까지 열린다).
+#
+# 버킷·리전은 팀 공용이라 기본값을 둔다. .env 에는 액세스 키 두 줄만 넣으면 된다.
+# 개발용 버킷을 따로 쓸 때만 환경변수로 덮어쓴다.
+storage:
+  # .env 는 스프링 설정으로 import 된다 (OS 환경변수가 아니다). 그래서 AWS SDK 의
+  # 기본 자격증명 탐색이 못 찾으므로 여기서 명시적으로 읽어 넘긴다.
+  # 비어 있으면 SDK 기본 탐색으로 넘어간다 - 나중에 EC2 IAM 역할로 바꿀 때를 위해서다.
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+  bucket: ${AWS_S3_BUCKET:s15p21a505dotori}
+  region: ${AWS_REGION:ap-northeast-2}
+  # presigned URL 유효 시간. 부모가 대기함을 열어 사진 보고 승인하는 데 걸리는
+  # 시간보다 넉넉하되, 링크가 새어 나가도 금방 죽을 만큼 짧게 잡는다.
+  presigned-url-ttl-seconds: 600

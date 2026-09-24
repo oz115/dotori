@@ -1,0 +1,164 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import {
+  categoryBadgeColors,
+  categoryImage,
+  nearestSavingGoals,
+  useGoalMemoryStore,
+  useStoreProducts,
+} from '@/features/store';
+import { formatPoint } from '@/shared/lib/money';
+import { useTheme } from '@/shared/theme';
+import { ContentCard, ProgressBar } from '@/shared/ui';
+
+type SavingGoalsProps = {
+  familyId: number | undefined;
+  /** 목표 기억(한 번 떠 있던 상품)을 아이별로 갈라 저장하는 키 */
+  childId: number | undefined;
+  balance: number | undefined;
+  /**
+   * 카드 탭 시 상품 상세로 이동한다. (child)/(parent) 둘 다 `/store/[productId]` 모양의
+   * 동적 라우트가 있어서, 그룹 접두사 없는 경로로 push하면 expo-router가 조용히 무시해버린다
+   * — 그래서 이 위젯이 직접 push하지 않고, 어느 그룹인지 아는 라우트가 콜백으로 넘긴다.
+   */
+  onPressGoal?: (productId: number) => void;
+};
+
+const CARD_WIDTH = 180;
+
+/**
+ * "조금만 더 모으면!" 섹션. 지금 잔액으로 못 사는 상품이 목표로 뜨고, 한 번 목표로
+ * 떠 있던 상품은 잔액이 목표가에 닿아도 사라지지 않고 "이제 살 수 있어요!"로 남는다
+ * (goalMemoryStore). 처음부터 살 수 있던 상품은 띄우지 않는다.
+ * 보여줄 상품이 하나도 없으면 섹션 자체를 숨긴다.
+ */
+export function SavingGoals({ familyId, childId, balance, onPressGoal }: SavingGoalsProps) {
+  const theme = useTheme();
+  const products = useStoreProducts(familyId);
+  const { seenByChild, hydrated, hydrate, markSeen } = useGoalMemoryStore();
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  // 지금 잔액으로 못 사는 상품을 "목표로 떠 있던 상품"으로 기억해 둔다 —
+  // 나중에 잔액이 목표가를 넘어도 달성 카드로 남기기 위해서다.
+  useEffect(() => {
+    if (childId == null || balance == null || !hydrated || products.data == null) {
+      return;
+    }
+    const expensiveIds = products.data
+      .filter((p) => p.price != null && p.price > balance)
+      .map((p) => p.storeProductId);
+    if (expensiveIds.length > 0) {
+      markSeen(childId, expensiveIds);
+    }
+  }, [childId, balance, hydrated, products.data, markSeen]);
+
+  const seenGoalIds = useMemo(
+    () => new Set(childId != null ? (seenByChild[String(childId)] ?? []) : []),
+    [seenByChild, childId],
+  );
+
+  // 잔액·기억이 준비되기 전에 그리면 목표/달성 판정이 틀린 채 한 번 깜빡인다
+  if (products.isPending || balance == null || childId == null || !hydrated) return null;
+
+  const goals = nearestSavingGoals(products.data ?? [], balance, seenGoalIds);
+  if (goals.length === 0) return null;
+
+  return (
+    <View style={{ gap: theme.space.md }}>
+      <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+        조금만 더 모으면!
+      </Text>
+      {/*
+        ScrollView 는 콘텐츠 높이에 딱 맞춰지는데 카드 그림자는 그 밖으로 번져서
+        아래가 잘린다 (Y+4, blur 20). 안쪽 패딩으로 번질 자리를 만들어 준다.
+      */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 4, paddingBottom: theme.space.lg }}
+        style={{ marginBottom: -theme.space.md }}
+      >
+        <View style={{ flexDirection: 'row', gap: theme.space.md }}>
+          {goals.map((goal) => {
+            const badge = categoryBadgeColors(theme, goal.product.category);
+            return (
+              <Pressable
+                key={goal.product.storeProductId}
+                accessibilityRole="button"
+                disabled={!onPressGoal}
+                onPress={() => onPressGoal?.(goal.product.storeProductId)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+              >
+                <ContentCard
+                  style={{
+                    width: CARD_WIDTH,
+                    padding: theme.space.md,
+                    gap: theme.space.sm,
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.imageBox,
+                      { backgroundColor: badge.bg, borderRadius: theme.radius.md },
+                    ]}
+                  >
+                    <Image
+                      source={categoryImage(goal.product.category)}
+                      style={styles.image}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  <View style={styles.titleRow}>
+                    <Text
+                      style={[theme.typography.label, { color: theme.color.text.strong, flex: 1 }]}
+                      numberOfLines={1}
+                    >
+                      {goal.product.name}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.color.text.muted} />
+                  </View>
+                  {/* 목표를 채웠으면 남은 금액 대신 달성을 알린다 — 카드가 사라지면
+                      아이가 해낸 걸 모르고 지나간다 */}
+                  {goal.achievable ? (
+                    <Text
+                      style={[theme.typography.bodySm, { color: theme.color.brand.subtleText }]}
+                    >
+                      🎉 이제 살 수 있어요!
+                    </Text>
+                  ) : (
+                    <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
+                      {formatPoint(goal.remaining)} 남았어요
+                    </Text>
+                  )}
+
+                  <ProgressBar value={goal.progress} />
+                  <View style={styles.rangeRow}>
+                    <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+                      {formatPoint(balance)}
+                    </Text>
+                    <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
+                      {formatPoint(goal.product.price)}
+                    </Text>
+                  </View>
+                </ContentCard>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  imageBox: { height: 72, alignItems: 'center', justifyContent: 'center' },
+  image: { height: '70%', aspectRatio: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  rangeRow: { flexDirection: 'row', justifyContent: 'space-between' },
+});

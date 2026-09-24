@@ -1,0 +1,56 @@
+package com.bana.dotori.family.service;
+
+import java.util.List;
+
+import com.bana.dotori.family.dto.ConnectedChild;
+import com.bana.dotori.family.dto.FamilyConnectRequest;
+import com.bana.dotori.family.dto.FamilyConnectResponse;
+import com.bana.dotori.family.dto.FamilyCreateRequest;
+import com.bana.dotori.family.dto.FamilyCreateResponse;
+import com.bana.dotori.family.dto.FamilyMembersResponse;
+import com.bana.dotori.family.dto.FamilyResponse;
+import com.bana.dotori.family.dto.FamilyStatusResponse;
+import com.bana.dotori.family.dto.FamilyUpdateRequest;
+import com.bana.dotori.family.dto.FamilyUpdateResponse;
+import com.bana.dotori.family.dto.InvitationCodeResponse;
+
+public interface FamilyService {
+
+	FamilyCreateResponse create(Integer userId, FamilyCreateRequest request);
+
+	/**
+	 * 현재 사용자가 이미 어느 가족에든 속해 있는지 확인한다. 온보딩 분기(가족 생성/연결 화면 vs
+	 * 홈)에 쓴다. 속해 있으면 familyId 도 함께 준다 — 초대 코드가 만료된 부모가 가족을
+	 * 다시 만드는 대신 그 id 로 코드 재발급으로 이어 가기 위해서다.
+	 */
+	FamilyStatusResponse getStatus(Integer userId);
+
+	/**
+	 * 가족 이름·온보딩 설정 부분 수정. 가족 생성자(부모)만 할 수 있고, 안 보낸 필드는 그대로 둔다.
+	 *
+	 * <p>금액은 원으로 받아 가족 생성과 같은 정책(최소 1000원·1000원 단위)으로 검증한 뒤
+	 * 포인트로 환산해 저장한다.
+	 */
+	FamilyUpdateResponse updateFamily(Integer userId, Integer familyId, FamilyUpdateRequest request);
+
+	FamilyResponse getFamily(Integer userId, Integer familyId);
+
+	FamilyMembersResponse getMembers(Integer userId, Integer familyId);
+
+	void deleteFamily(Integer userId, Integer familyId);
+
+	void removeChild(Integer userId, Integer familyId, Integer childId);
+
+	InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId);
+
+	void revokeInvitationCode(Integer userId, Integer familyId);
+
+	FamilyConnectResponse connect(Integer userId, FamilyConnectRequest request);
+
+	/**
+	 * 해당 부모와 같은 가족에 속한 자녀 목록을 합류 순으로 돌려준다.
+	 *
+	 * <p>마이페이지의 연결된 자녀 조회(MYPAGE-06)가 쓴다. 가족이 없으면 빈 목록이다.
+	 */
+	List<ConnectedChild> findConnectedChildren(Integer parentUserId);
+}

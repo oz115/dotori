@@ -1,79 +1,121 @@
-import { Pressable, StyleSheet, Text, type PressableProps, useColorScheme } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ReactNode } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
 
-type ButtonVariant = 'primary' | 'secondary';
+import { useTheme } from '@/shared/theme';
+
+type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'outline' | 'ghost';
+type ButtonSize = 'md' | 'sm';
+/** primary/outline 의 브랜드 그린 자리를 danger 빨강으로 바꾼다 (삭제 등 파괴적 액션용). */
+type ButtonTone = 'brand' | 'danger';
 
 type ButtonProps = PressableProps & {
   label: string;
   variant?: ButtonVariant;
+  size?: ButtonSize;
+  tone?: ButtonTone;
+  loading?: boolean;
+  /** 라벨 오른쪽 아이콘 (예: 회원가입 › 의 chevron) */
+  trailingIcon?: ReactNode;
 };
 
 /**
- * shared/ui 의 가장 기본적인 버튼 예시.
- * 모든 레이어(entities/features/widgets/pages)에서 공용으로 가져다 씁니다.
+ * CTA 버튼. 색·간격·모서리·타이포는 전부 shared/theme 토큰에서.
+ * gradient/primary 는 보통 풀폭, outline·size="sm" 은 인라인 액션용.
+ * ghost 는 흰 배경 + 중립 회색 테두리 + 회색 글자 — 초록을 안 쓰는 약한 보조 버튼(예: "이전").
  */
-export function Button({ label, variant = 'primary', style, ...pressableProps }: ButtonProps) {
-  const isDark = useColorScheme() === 'dark';
+export function Button({
+  label,
+  variant = 'primary',
+  size = 'md',
+  tone = 'brand',
+  loading = false,
+  trailingIcon,
+  disabled,
+  style,
+  ...pressableProps
+}: ButtonProps) {
+  const theme = useTheme();
+  const isDisabled = disabled || loading;
+  const sm = size === 'sm';
+  const danger = tone === 'danger';
+  const toneSolid = danger ? theme.color.status.danger.solid : theme.color.brand.solid;
+  const toneSubtle = danger ? theme.color.status.danger.subtle : theme.color.brand.subtle;
 
-  return (
-    <Pressable
-      {...pressableProps}
-      style={(state) => [
-        styles.container,
-        variant === 'primary' ? styles.primary : isDark ? styles.secondaryDark : styles.secondary,
-        state.pressed &&
-          (variant === 'primary'
-            ? styles.primaryPressed
-            : isDark
-              ? styles.secondaryPressedDark
-              : styles.secondaryPressed),
-        typeof style === 'function' ? style(state) : style,
-      ]}
-    >
+  const surface = (pressed: boolean) => {
+    if (variant === 'gradient') return 'transparent';
+    if (variant === 'primary') {
+      // danger 톤은 브랜드처럼 눌림 전용 진한 색이 따로 없어 solid 하나로 통일한다.
+      return pressed && !danger ? theme.color.brand.solidPressed : toneSolid;
+    }
+    if (variant === 'outline') {
+      return pressed ? toneSubtle : theme.color.background.surface;
+    }
+    if (variant === 'ghost') {
+      return pressed ? theme.color.background.surfaceSunken : theme.color.background.surface;
+    }
+    return pressed ? theme.color.background.surfaceSunken : theme.palette.neutral[100];
+  };
+
+  const contentColor =
+    variant === 'primary' || variant === 'gradient'
+      ? theme.color.text.onBrand
+      : variant === 'outline'
+        ? toneSolid
+        : theme.color.text.default; // secondary, ghost
+
+  const content = loading ? (
+    <ActivityIndicator color={contentColor} />
+  ) : (
+    <>
       <Text
-        style={[
-          styles.label,
-          variant === 'primary' || isDark ? styles.labelLight : styles.labelDark,
-        ]}
+        style={[sm ? theme.typography.label : theme.typography.button, { color: contentColor }]}
       >
         {label}
       </Text>
+      {trailingIcon}
+    </>
+  );
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      disabled={isDisabled}
+      {...pressableProps}
+      style={(state) => [
+        styles.container,
+        {
+          minHeight: sm ? 36 : 52,
+          borderRadius: sm ? theme.radius.sm : theme.radius.md,
+          paddingHorizontal: sm ? theme.space.md : theme.space.lg,
+          backgroundColor: surface(state.pressed),
+          borderWidth: variant === 'outline' ? 1.5 : variant === 'ghost' ? 1 : 0,
+          borderColor: variant === 'ghost' ? theme.color.border.default : toneSolid,
+          opacity: isDisabled ? 0.5 : state.pressed && variant === 'gradient' ? 0.92 : 1,
+        },
+        typeof style === 'function' ? style(state) : style,
+      ]}
+    >
+      {variant === 'gradient' ? (
+        <LinearGradient
+          colors={theme.palette.gradient.deep}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      {content}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  primary: {
-    backgroundColor: '#2563eb',
-  },
-  primaryPressed: {
-    backgroundColor: '#1d4ed8',
-  },
-  secondary: {
-    backgroundColor: '#e5e7eb',
-  },
-  secondaryPressed: {
-    backgroundColor: '#d1d5db',
-  },
-  secondaryDark: {
-    backgroundColor: '#374151',
-  },
-  secondaryPressedDark: {
-    backgroundColor: '#4b5563',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  labelLight: {
-    color: '#ffffff',
-  },
-  labelDark: {
-    color: '#111827',
+    justifyContent: 'center',
+    gap: 4,
+    overflow: 'hidden',
   },
 });

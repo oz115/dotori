@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "도토리",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,8 +11,11 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.bana.dotori",
+      "googleServicesFile": "./google-services.json",
+      "backgroundColor": "#FFFFFF",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FBF9F4",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,9 +31,18 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FDFDFD",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "완료한 할 일을 사진으로 찍어 올리기 위해 카메라를 사용해요.",
+          "photosPermission": "완료한 할 일 사진을 올리기 위해 사진에 접근해요."
         }
       ]
     ],

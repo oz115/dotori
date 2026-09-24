@@ -1,0 +1,18 @@
+# 직접 의존성만 적고 버전을 고정한다. (전이 의존성은 pip 이 해결)
+# 갱신: pip install -U <패키지> 후 여기 버전을 손으로 맞춘다.
+fastapi[standard]==0.141.1
+pydantic-settings==2.15.0
+sqlalchemy==2.0.52
+psycopg[binary]==3.3.5
+# SSAFY GMS(OpenAI 호환 게이트웨이) 호출용. base_url 은 app/llm/client.py 가 붙인다.
+# 1.55.0 을 쓰면 안 된다 ― httpx 0.28 이 없앤 proxies 인자를 내부에서 넘겨서
+# 클라이언트 생성 자체가 TypeError 로 실패한다 (fastapi[standard] 가 httpx 0.28 을 끌고 온다).
+openai==3.11.0
+# 테스트. LLM 은 unittest.mock 으로 대체하고, DB 는 in-memory SQLite 를 쓴다 —
+# 실제 Postgres/GMS 는 테스트에서 안 건드린다.
+pytest==9.1.1
+
+# RabbitMQ 컨슈머. Spring 이 상품 등록 직후 store.product.exchange 로 발행하고
+# AI 서버가 그걸 받아 value/price 를 채운다 (app/messaging).
+# 동기(BlockingConnection) 방식을 쓴다 — 핸들러를 def 로 쓰는 이 서버 스타일과 맞는다.
+pika==1.4.4

@@ -1,0 +1,142 @@
+import { router } from 'expo-router';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import {
+  ChoreListRow,
+  todayDate,
+  useChoreRefresh,
+  useTodayChores,
+  type TodayChore,
+} from '@/features/chore';
+import { useTheme } from '@/shared/theme';
+
+type TodayChoresProps = {
+  familyId: number | undefined;
+  childId: number | undefined;
+  /** 제목 옆 "전체보기"와 각 항목 탭 — 미션 탭으로 보낸다 */
+  onMorePress: () => void;
+};
+
+/** 미리보기라 앞의 몇 개만 보여 준다. 나머지는 미션 탭에 있다 */
+const PREVIEW_COUNT = 3;
+
+/**
+ * 홈의 "오늘 등록된 미션" 섹션. 미션 탭의 목록을 앞부분만 미리 보여 주는 자리다.
+ *
+ * 행은 미션 탭과 같은 컴포넌트(ChoreListRow)를 쓴다 - 같은 미션이 화면마다 다르게
+ * 생겼으면 아이가 같은 것인지 알아보기 어렵다. 그래서 제목·반복 주기·도토리가 똑같이
+ * 나오고, 예전에 있던 아이콘 상자는 뺐다(목록에는 없던 장식이다).
+ *
+ * 완료한 미션은 뺀다. 미션 탭이 감추는 것을 홈에서만 보여 주면 두 화면의 개수가 어긋나고,
+ * 여기 행에는 "완료" 표시가 없어 안 한 것처럼 보인다.
+ *
+ * 오늘 등록된 걸 다 끝낸 경우와 애초에 등록된 게 없는 경우를 가른다 — 둘 다 목록은 비지만 한쪽은 칭찬할
+ * 일이고 한쪽은 기다릴 일이다.
+ *
+ * 아직 등록된 미션이 없으면 예시로 채우지 않고 "없어요"라고 알린다. 가입 직후처럼 아무것도 없는
+ * 상태에서 가짜 미션이 보이면 실제로 등록된 것으로 오해하기 쉽다.
+ *
+ * "오늘 등록된"은 생성일(createdAt)이 아니라 활성 기간(startDate~endDate)에 오늘이 들어있는지로
+ * 가른다. 반복 미션은 크론이 매일 자정 기간을 오늘로 밀어 주는데, createdAt 은 최초 등록일에
+ * 고정돼 있어서 그 기준으로 걸렀으면 등록 다음 날부터 반복 미션이 영원히 이 자리에서 사라진다.
+ */
+export function TodayChores({ familyId, childId, onMorePress }: TodayChoresProps) {
+  const theme = useTheme();
+  const { items, isPending, isError } = useTodayChores(familyId, childId);
+  const childIds = useMemo(() => (childId != null ? [childId] : []), [childId]);
+
+  // 홈으로 돌아올 때마다 미션 캐시를 턴다. 보상은 등록 직후가 아니라 AI 가 산정한 뒤에
+  // 채워지는데, 탭 화면은 전환해도 언마운트되지 않고 staleTime 이 60초라 다시 와도
+  // "산정 중"이 그대로 남아 있었다. 미션 탭은 이미 같은 훅을 쓴다.
+  // (당겨서 새로고침은 홈에 없어 반환값은 쓰지 않는다)
+  useChoreRefresh(familyId, childIds);
+
+  const todayChores = useMemo(() => activeToday(items), [items]);
+  const rows = useMemo(() => unfinishedPreview(todayChores), [todayChores]);
+  // 오늘 등록된 걸 다 끝내면 rows 가 비는데, 그때 "없어요"라고 하면 방금 해낸 일을 부정하는 말이 된다.
+  const allDone = rows.length === 0 && todayChores.length > 0;
+
+  // 상세는 미션 탭 안의 화면이다 (부모와 같은 구조). from=home 을 넘겨 그 화면의 뒤로가기가
+  // 미션 목록이 아니라 홈으로 돌아오게 한다 - 여기서 들어갔으니 여기로 나와야 한다.
+  const openDetail = (choreId: number) =>
+    router.push({
+      // 그룹까지 적는다 - 짧게 쓰면 부모 화면의 같은 경로로 잡힌다 (ChildChoreList 참고)
+      pathname: '/(child)/(tabs)/task/[choreId]',
+      params: { choreId: String(choreId), from: 'home' },
+    });
+
+  return (
+    <View style={{ gap: theme.space.md }}>
+      <View style={styles.headerRow}>
+        <View style={[styles.titleRow, { gap: theme.space.xs }]}>
+          <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
+            오늘 등록된 미션
+          </Text>
+        </View>
+        <Pressable onPress={onMorePress} hitSlop={8} accessibilityRole="button">
+          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>전체보기 ›</Text>
+        </Pressable>
+      </View>
+
+      {isPending ? (
+        <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>
+          불러오는 중...
+        </Text>
+      ) : (
+        <>
+          {isError ? (
+            <Text style={[theme.typography.caption, { color: theme.color.status.danger.text }]}>
+              미션을 불러오지 못했어요. 잠시 후 다시 시도해주세요.
+            </Text>
+          ) : null}
+          {rows.length === 0 ? (
+            <Text
+              style={[
+                theme.typography.bodySm,
+                { color: allDone ? theme.color.brand.subtleText : theme.color.text.muted },
+              ]}
+            >
+              {allDone ? '오늘 등록된 미션을 모두 완료했어요!' : '오늘 등록된 미션이 없어요.'}
+            </Text>
+          ) : (
+            <View style={{ gap: theme.space.sm }}>
+              {rows.map((chore) => (
+                <ChoreListRow
+                  key={chore.choreId}
+                  title={chore.title}
+                  repeatType={chore.repeatType}
+                  rewardPoints={chore.rewardPoints}
+                  status={chore.status}
+                  onPress={() => openDetail(chore.choreId)}
+                />
+              ))}
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+/**
+ * 오늘이 활성 기간(startDate~endDate)에 들어있는 것 전부. 끝낸 것까지 남겨야
+ * "없다"와 "다 했다"를 가를 수 있다.
+ */
+function activeToday(chores: TodayChore[]): TodayChore[] {
+  const today = todayDate();
+  return chores.filter((chore) => chore.startDate <= today && today <= chore.endDate);
+}
+
+/** 그중 아직 안 끝난 것을, 최근 등록 순으로 앞의 몇 개 */
+function unfinishedPreview(chores: TodayChore[]): TodayChore[] {
+  return [...chores]
+    .filter((chore) => chore.status !== 'DONE')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, PREVIEW_COUNT);
+}
+
+const styles = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
+});

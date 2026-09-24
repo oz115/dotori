@@ -1,0 +1,114 @@
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useMyAccount } from '@/features/account';
+import { useUnreadNotificationCount } from '@/features/notification';
+import { useWalletBalance } from '@/features/wallet';
+import { useTheme } from '@/shared/theme';
+import { AppTopBar, usePullToRefresh } from '@/shared/ui';
+
+import { useChildAssets } from '@/widgets/child-home/model/useChildAssets';
+import { useChildIdentity } from '@/widgets/child-home/model/useChildIdentity';
+
+import { ActivityBoard } from './ActivityBoard';
+import { BalanceCard } from './BalanceCard';
+import { SavingGoals } from './SavingGoals';
+import { TodayChores } from './TodayChores';
+import { UpdateBanner } from './UpdateBanner';
+
+/**
+ * 자녀 홈 화면 본체. wallet·chore·store feature 를 조합하는 화면 배치용 widget.
+ * 하단 탭바는 이 화면이 그리지 않는다 — `(child)/(tabs)/_layout.tsx` 의 `<Tabs>` 가 고정으로 갖고 있다.
+ */
+export function ChildHome() {
+  const theme = useTheme();
+  const refreshControl = usePullToRefresh();
+  const { familyId, childId } = useChildIdentity();
+  const balance = useWalletBalance(familyId, childId);
+  const account = useMyAccount();
+  const assets = useChildAssets(familyId, childId);
+  const unreadCount = useUnreadNotificationCount();
+
+  // 탭 화면은 전환해도 언마운트되지 않아서, 다른 탭에서 저축을 해지하거나 상품을 사도 이
+  // 화면은 그 변화를 모른다 (QA: 해지해서 받은 도토리가 홈에 바로 안 보인다). 홈으로
+  // 돌아올 때마다 잔액·자산을 다시 받아온다 — 상점 목록(StoreCatalog)과 같은 방식.
+  useFocusEffect(
+    useCallback(() => {
+      void balance.refetch();
+      assets.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch 는 매 렌더 새 함수라 넣으면 매번 재실행된다
+    }, []),
+  );
+
+  return (
+    <SafeAreaView
+      edges={['top']}
+      style={[styles.flex, { backgroundColor: theme.color.background.canvas }]}
+    >
+      <AppTopBar
+        onProfilePress={() => router.push('/mypage')}
+        onNotificationsPress={() => router.push('/(child)/notifications')}
+        unreadCount={unreadCount.data?.unreadCount}
+      />
+
+      <ScrollView
+        refreshControl={refreshControl}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <BalanceCard
+          balance={balance.data?.balance}
+          isPending={balance.isPending}
+          onCharge={() => router.push('/wallet/charge')}
+          onCashout={() => router.push('/wallet/cashout')}
+          // 포인트 입출금·환전을 한 화면에서 보는 거래 내역으로 간다
+          onCashoutHistory={() => router.push('/(child)/wallet/transactions')}
+          account={account.data}
+          assets={assets}
+          // 예적금·투자·계좌는 그룹 접두사를 적어야 아이 화면으로 간다 (부모 그룹에도 같은 경로가 있다)
+          onOpenSavings={() => router.push('/(child)/(tabs)/save')}
+          onOpenInvestment={() => router.push('/(child)/(tabs)/invest')}
+          onOpenAccount={() =>
+            router.push(account.data ? '/(child)/account-manage' : '/setup/account/link')
+          }
+          // 자산 카드로 슬라이드하면 연동 계좌·예적금·투자를 다시 불러온다 — 환전 승인 반영 지연 방지
+          onViewAssets={() => {
+            void account.refetch();
+            assets.refetch();
+          }}
+        />
+        <UpdateBanner familyId={familyId} childId={childId} />
+        <TodayChores
+          familyId={familyId}
+          childId={childId}
+          onMorePress={() => router.push('/task')}
+        />
+        <SavingGoals
+          familyId={familyId}
+          childId={childId}
+          balance={balance.data?.balance}
+          onPressGoal={(productId) =>
+            router.push({
+              pathname: '/(child)/(tabs)/store/[productId]',
+              // viaDeepLink: 홈(다른 탭)에서 store 탭 상세로 곧장 넘어왔다는 표시.
+              // 상세 화면이 이걸 보고 목록을 먼저 깔아준다.
+              params: { productId: String(productId), viaDeepLink: '1' },
+            })
+          }
+        />
+        <ActivityBoard />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  // 마지막 섹션(ActivityBoard)이 연회색 배경을 화면 아래 끝까지 깔아서 여기선 여백을 두지 않는다
+  content: { paddingTop: 4, paddingBottom: 0 },
+});
