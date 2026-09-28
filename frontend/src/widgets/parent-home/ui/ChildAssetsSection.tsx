@@ -124,15 +124,7 @@ function SavingsCard({ familyId, childId, familyPending, onPress }: SavingsCardP
 
         {/* 총 납입액은 계좌가 있을 때만 — 0원을 크게 띄워 봐야 읽을 게 없다 (투자 카드와 같은 규칙) */}
         {hasAccounts && summary.data != null ? (
-          <View
-            style={[
-              styles.cardFootBlock,
-              {
-                backgroundColor: theme.color.background.surfaceSunken,
-                borderRadius: theme.radius.md,
-              },
-            ]}
-          >
+          <View style={[styles.cardFootBlock, { borderTopColor: theme.color.border.card }]}>
             {/* 색과 표기를 투자 카드의 합계와 맞춘다 — 두 카드가 나란히 서 있어서 한쪽만
                 부호나 색이 다르면 같은 자리의 숫자가 다른 종류의 값처럼 보인다.
                 포매터도 signedPoints 하나로 모아 두 카드가 같은 모양을 내게 한다 */}
@@ -263,9 +255,10 @@ function AmountRow({ label, value, color }: AmountRowProps) {
 
   return (
     <View style={styles.amountRow}>
-      {/* 이름표는 회색 — 값(금액)만 색이 있어야 "얼마인지"가 먼저 눈에 들어온다 */}
-      <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>{label}</Text>
-      <Text style={[theme.typography.label, { color: tone }]}>{signedPoints(value)}</Text>
+      {/* 이름표는 회색 — 값(금액)만 색이 있어야 "얼마인지"가 먼저 눈에 들어온다.
+          caption/label(16px) 이 배경 박스 없이 보니 이름·계좌 목록보다 도드라져 bodySm(14px) 으로 낮췄다 */}
+      <Text style={[theme.typography.bodySm, { color: theme.color.text.muted }]}>{label}</Text>
+      <Text style={[theme.typography.bodySm, { color: tone }]}>{signedPoints(value)}</Text>
     </View>
   );
 }
@@ -314,15 +307,7 @@ function InvestmentCard({ childId, familyPending, onPress }: InvestmentCardProps
 
         {/* 수익은 종목이 있을 때만 — 0원 손익을 크게 띄워 봐야 읽을 게 없다 */}
         {hasHoldings ? (
-          <View
-            style={[
-              styles.cardFootBlock,
-              {
-                backgroundColor: theme.color.background.surfaceSunken,
-                borderRadius: theme.radius.md,
-              },
-            ]}
-          >
+          <View style={[styles.cardFootBlock, { borderTopColor: theme.color.border.card }]}>
             <AmountRow
               label="평가 손익"
               value={totalEarned}
@@ -433,16 +418,17 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, minHeight: 240, justifyContent: 'space-between' },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center' },
   iconImage: { width: 40, height: 40 },
-  // 위 목록이 길어 space-between 여백이 눌려도, 연회색 배경 패널이 항상 손익 줄을 갈라 놓는다
-  // ("여기부터는 금액 요약"이라는 구획). 구분선(border) 은 목록과 배경 패널 사이 여백이
-  // 반영되지 않는다는 피드백이 반복돼 빼고, 배경색만으로 경계를 준다.
+  // 배경 패널 대신 위쪽 구분선 하나로 "여기부터는 금액 요약"을 나눈다 — 배경색 있는 박스가
+  // 카드 안에 또 있어 답답하다는 피드백을 받아 뺐지만, 구분 없이 여백만 두니 목록과
+  // 못 갈라져 다시 넣었다. marginTop 이 구분선을 목록에서 떼어 놓고, paddingTop 이
+  // 구분선을 이름표·금액 줄에서 떼어 놓아 위아래 여백이 같다.
   // alignItems 는 기본(stretch) — 이름표·금액 줄이 카드 폭을 꽉 채워야 좌우로 벌어진다.
   cardFootBlock: {
     marginTop: 12,
     paddingTop: 12,
     paddingBottom: 10,
-    paddingHorizontal: 10,
     gap: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   // 이름표는 왼쪽, 금액은 오른쪽 — 한 줄 안에서 서로 떨어져 있어야 나란히 있는 "묶음"이 아니라
   // "이름표 : 값" 한 쌍으로 읽힌다
