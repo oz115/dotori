@@ -2,15 +2,14 @@
 
 > SSAFY 15기 핀테크 특화 프로젝트 | 가상 경제 생태계 기반 어린이 교육 앱 서비스
 
-> 부모가 만든 안전한 가정 내 경제 시스템에서 아이가 도토리 포인트를 벌고, 모으고, 쓰고, 투자하며 금융 개념을 경험하는 Android 서비스
 
 <p align="center">
-  <strong>설명으로 배우는 금융이 아니라, 우리 집 안에서 직접 경험하는 금융</strong>
+  <strong>용돈에서 시작되는 나만의 작은 경제, 도토리</strong>
 </p>
 
 
 <p align="center">
-  🖼️ 발표 자료 : <a href="">PDF</a> | 📹 시연 영상 : <a href="">MP4</a> | 📱 <a href="">APK 다운로드</a>
+  🖼️ 발표 자료 : <a href="https://drive.google.com/file/d/1JLz0FKAuvyTtFMBCuY77-vADp_EKBol5/view?usp=sharing">PDF</a> | 📹 영상 포트폴리오 : <a href="https://drive.google.com/file/d/1Mqpf7uP-xShJs5vi2MU_hXL8wKYIx1CX/view?usp=sharing">MP4</a> 
 </p>
 
 
@@ -38,6 +37,7 @@
 | --- | --- |
 | 프로젝트 | 가상 경제 생태계 기반 어린이 교육 앱 서비스 '도토리' |
 | 기간 | 26.08.18 ~ 26.09.28 |
+| 서비스 개요 | 부모가 만든 안전한 가정 내 경제 시스템에서 아이가 도토리 포인트를 벌고, 모으고, 쓰고, 투자하며 금융 개념을 경험하는 Android 서비스 |
 | 대상 플랫폼 | Android 우선 지원 |
 | 핵심 사용자 | 초등학교 4~6학년 자녀와 보호자 |
 | 팀 구성 | 총 6명 |
