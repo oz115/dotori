@@ -13,6 +13,8 @@ import { useTheme, type Theme } from '@/shared/theme';
 import { Button, Callout, ContentCard, Header, Input, Screen } from '@/shared/ui';
 
 const MAX_ATTEMPTS = 3;
+/** 서버 quiz_attempt.submitted_answer 컬럼이 255자라 그 이상은 저장되면서 500이 난다 — 입력 단계에서 막는다. */
+const MAX_ANSWER_LENGTH = 255;
 /** 퀴즈 화면 전용 배경색(연크림). 카드는 흰색으로 그 위에 뜬다 — 다른 화면의 기본 배경과는 다르다. */
 const QUIZ_BACKGROUND = '#FBFAF6';
 /** 정답 결과 화면 전용 배경색(연초록). 축하하는 화면이라 다른 퀴즈 화면보다 살짝 더 그린빛을 준다. */
@@ -182,7 +184,10 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
             </Text>
           </View>
 
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+          {/* 질문은 문장이 길어 h3(20px)면 줄이 자주 꺾여 읽기 어렵다 — 한 단계 작은 titleMd */}
+          <Text
+            style={[theme.typography.titleMd, styles.question, { color: theme.color.text.strong }]}
+          >
             Q. {quiz.question}
           </Text>
 
@@ -250,6 +255,7 @@ export function QuizScreen({ familyId, childId, onSubmitted }: QuizScreenProps) 
             placeholder="정답을 입력해보세요"
             value={answer}
             onChangeText={setAnswer}
+            maxLength={MAX_ANSWER_LENGTH}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
           />
@@ -301,7 +307,10 @@ function ResultAnswerCard({ theme, answer, explanation }: Omit<QuizResultProps, 
           <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
             {answer}의 뜻
           </Text>
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.default }]}>
+          {/* 해설은 아이가 실제로 읽는 본문이라 작은 글씨(bodySm) 대신 본문 크기 + 넉넉한 줄간격 */}
+          <Text
+            style={[theme.typography.body, styles.explanation, { color: theme.color.text.default }]}
+          >
             {explanation}
           </Text>
         </ContentCard>
@@ -378,7 +387,7 @@ function QuizResultSuccess({
           </View>
         ) : null}
 
-        <Button label="포인트 받기" onPress={onClose} style={styles.fullWidth} />
+        <Button label="확인" onPress={onClose} style={styles.fullWidth} />
       </View>
     </Screen>
   );
@@ -443,7 +452,11 @@ const styles = StyleSheet.create({
   alignStart: { alignSelf: 'flex-start' },
   dangerBanner: { gap: 4 },
   hintBox: { gap: 6 },
-  hintText: { letterSpacing: 2 },
+  // 질문·해설은 긴 문장이 오는 자리라 줄간격을 넉넉히 — 붙은 줄은 아이가 읽다 놓친다
+  question: { lineHeight: 28 },
+  explanation: { lineHeight: 28 },
+  // 초성은 글자 사이가 벌어져야 "ㅇㅈ" 같은 조합이 한 글자처럼 안 보인다
+  hintText: { letterSpacing: 6 },
   dangerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dangerSubtext: { marginLeft: 22 },
   resultBody: { alignItems: 'center' },

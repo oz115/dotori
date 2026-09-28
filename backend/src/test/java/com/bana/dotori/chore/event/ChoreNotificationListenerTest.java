@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 import java.util.Optional;
 
@@ -52,11 +53,28 @@ class ChoreNotificationListenerTest {
 		@Test
 		@DisplayName("담당 아이에게 CHORE 알림을 보낸다")
 		void 아이에게_간다() {
-			listener.onChoreCreated(new ChoreCreatedEvent(CHORE_ID, 10, CHILD_ID, TITLE, null,
-				ChoreDifficulty.NORMAL, ChoreRepeatType.ONCE));
+			listener.onChoreCreated(created(TITLE));
 
 			then(pushNotificationService).should()
-				.notify(eq(CHILD_ID), eq(NotificationType.CHORE), any(), eq(TITLE), eq(CHORE_ID));
+				.notify(eq(CHILD_ID), eq(NotificationType.CHORE), eq("새로운 미션이 생겼어요"),
+					eq(TITLE + "라는 제목의 미션을 하러 가볼까요?"), eq(CHORE_ID));
+		}
+
+		@Test
+		@DisplayName("긴 제목은 줄여서 담는다 — 뒤에 붙는 안내 문구가 밀려나지 않게")
+		void 긴_제목은_줄인다() {
+			// 제목은 100자까지 허용된다. 그대로 넣으면 알림함 두 줄이 제목만으로 차고
+			// "하러 가볼까요?" 가 화면 밖으로 밀려난다 (QA).
+			listener.onChoreCreated(created("가".repeat(40)));
+
+			then(pushNotificationService).should()
+				.notify(eq(CHILD_ID), eq(NotificationType.CHORE), any(),
+					eq("가".repeat(15) + "...라는 제목의 미션을 하러 가볼까요?"), eq(CHORE_ID));
+		}
+
+		private ChoreCreatedEvent created(String title) {
+			return new ChoreCreatedEvent(CHORE_ID, 10, CHILD_ID, title, null,
+				ChoreDifficulty.NORMAL, ChoreRepeatType.ONCE);
 		}
 	}
 
@@ -115,7 +133,20 @@ class ChoreNotificationListenerTest {
 			listener.onApproved(new ChoreCompletionApprovedEvent(CHORE_ID, CHILD_ID, TITLE, 500));
 
 			then(pushNotificationService).should()
-				.notify(eq(CHILD_ID), eq(NotificationType.CHORE), any(), contains("500"), eq(CHORE_ID));
+				.notify(eq(CHILD_ID), eq(NotificationType.CHORE), eq("완료 승인이 되었어요."),
+					eq(TITLE + "라는 미션을 완료했어요. 500 도토리를 얻었어요."), eq(CHORE_ID));
+		}
+
+		@Test
+		@DisplayName("주기가 지나 자동 거절된 것은 푸시 없이 알림함에만 남긴다")
+		void 자동_거절은_푸시_없이() {
+			// 크론이 자정에 도는 처리다. 푸시까지 보내면 자는 아이 폰이 새벽에 울린다.
+			listener.onExpired(new ChoreCompletionExpiredEvent(CHORE_ID, CHILD_ID, TITLE));
+
+			then(pushNotificationService).should()
+				.record(eq(CHILD_ID), eq(NotificationType.CHORE), eq("미션 기간이 지났어요"),
+					eq(TITLE + "라는 미션을 다시 할 수 있어요."), eq(CHORE_ID));
+			then(pushNotificationService).should(never()).notify(any(), any(), any(), any(), any());
 		}
 
 		@Test

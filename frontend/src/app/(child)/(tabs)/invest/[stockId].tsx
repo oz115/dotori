@@ -10,7 +10,7 @@ import {
   useStockDetail,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /**
  * 투자 상품 상세. 상세 응답 + 가격 이력(차트) + 보유 여부를 useStockDetail 이 묶어 주고,
@@ -18,6 +18,7 @@ import { Button, Header, Screen } from '@/shared/ui';
  */
 export default function InvestDetailScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const queryClient = useQueryClient();
   const { stockId } = useLocalSearchParams<{ stockId: string }>();
   const {
@@ -45,6 +46,7 @@ export default function InvestDetailScreen() {
     >
       {detail ? (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

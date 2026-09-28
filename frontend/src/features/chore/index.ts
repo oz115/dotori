@@ -1,7 +1,7 @@
 export { choreApi } from './api/choreApi';
 export { choreKeys } from './model/choreKeys';
 export { useTodayChores } from './model/useTodayChores';
-export { mockTodayChores, mockPendingApprovals } from './model/mock';
+export { mockPendingApprovals } from './model/mock';
 export { usePendingApprovals } from './model/usePendingApprovals';
 export { usePendingCompletionRequest } from './model/usePendingCompletionRequest';
 export { useChildrenChores, type ChoreChild, type ParentChore } from './model/useChildrenChores';
@@ -30,7 +30,8 @@ export { ParentChoreForm } from './ui/ParentChoreForm';
 export { ChoreFormFields } from './ui/ChoreFormFields';
 export { ParentChoreList } from './ui/ParentChoreList';
 export { ChildChoreHistory } from './ui/ChildChoreHistory';
-export { ChildChoreDetailModal } from './ui/ChildChoreDetailModal';
+export { ChildChoreDetail } from './ui/ChildChoreDetail';
+export { ChoreStatusBadge } from './ui/ChoreStatusBadge';
 export { ChildChoreList } from './ui/ChildChoreList';
 export { ChoreHeroBanner } from './ui/ChoreHeroBanner';
 export { ChoreListRow } from './ui/ChoreListRow';

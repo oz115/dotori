@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,7 +7,7 @@ import { useMyAccount } from '@/features/account';
 import { useUnreadNotificationCount } from '@/features/notification';
 import { useWalletBalance } from '@/features/wallet';
 import { useTheme } from '@/shared/theme';
-import { AppTopBar } from '@/shared/ui';
+import { AppTopBar, usePullToRefresh } from '@/shared/ui';
 
 import { useChildAssets } from '@/widgets/child-home/model/useChildAssets';
 import { useChildIdentity } from '@/widgets/child-home/model/useChildIdentity';
@@ -23,11 +24,23 @@ import { UpdateBanner } from './UpdateBanner';
  */
 export function ChildHome() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { familyId, childId } = useChildIdentity();
   const balance = useWalletBalance(familyId, childId);
   const account = useMyAccount();
   const assets = useChildAssets(familyId, childId);
   const unreadCount = useUnreadNotificationCount();
+
+  // 탭 화면은 전환해도 언마운트되지 않아서, 다른 탭에서 저축을 해지하거나 상품을 사도 이
+  // 화면은 그 변화를 모른다 (QA: 해지해서 받은 도토리가 홈에 바로 안 보인다). 홈으로
+  // 돌아올 때마다 잔액·자산을 다시 받아온다 — 상점 목록(StoreCatalog)과 같은 방식.
+  useFocusEffect(
+    useCallback(() => {
+      void balance.refetch();
+      assets.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch 는 매 렌더 새 함수라 넣으면 매번 재실행된다
+    }, []),
+  );
 
   return (
     <SafeAreaView
@@ -41,6 +54,7 @@ export function ChildHome() {
       />
 
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
@@ -52,10 +66,21 @@ export function ChildHome() {
           isPending={balance.isPending}
           onCharge={() => router.push('/wallet/charge')}
           onCashout={() => router.push('/wallet/cashout')}
-          // '/wallet/cashouts' 는 부모 그룹에도 있는 경로라 그룹까지 적어야 아이 화면으로 간다
-          onCashoutHistory={() => router.push('/(child)/wallet/cashouts')}
+          // 포인트 입출금·환전을 한 화면에서 보는 거래 내역으로 간다
+          onCashoutHistory={() => router.push('/(child)/wallet/transactions')}
           account={account.data}
           assets={assets}
+          // 예적금·투자·계좌는 그룹 접두사를 적어야 아이 화면으로 간다 (부모 그룹에도 같은 경로가 있다)
+          onOpenSavings={() => router.push('/(child)/(tabs)/save')}
+          onOpenInvestment={() => router.push('/(child)/(tabs)/invest')}
+          onOpenAccount={() =>
+            router.push(account.data ? '/(child)/account-manage' : '/setup/account/link')
+          }
+          // 자산 카드로 슬라이드하면 연동 계좌·예적금·투자를 다시 불러온다 — 환전 승인 반영 지연 방지
+          onViewAssets={() => {
+            void account.refetch();
+            assets.refetch();
+          }}
         />
         <UpdateBanner familyId={familyId} childId={childId} />
         <TodayChores
@@ -65,6 +90,7 @@ export function ChildHome() {
         />
         <SavingGoals
           familyId={familyId}
+          childId={childId}
           balance={balance.data?.balance}
           onPressGoal={(productId) =>
             router.push({

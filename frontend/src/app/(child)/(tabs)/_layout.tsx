@@ -1,4 +1,4 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, router } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,19 @@ import { TabScene, tabIcon, tabScreenOptions } from '@/shared/ui';
  * 진입 탭이 된다. 앱을 켜면 홈이 나와야 하므로 시작 탭을 따로 지정한다.
  */
 export const unstable_settings = { initialRouteName: 'index' };
+
+/**
+ * 탭 버튼을 누르면 언제나 그 탭의 첫 화면(목록)으로 간다. 기본 동작은 탭이 마지막으로
+ * 보던 화면(상세)을 복원하는데, 홈에서 상세로 곧장 들어온 스택은 popToTopOnBlur 로도
+ * 정리되지 않아 "홈 → 미션 상세 → 홈 → 미션 탭"이 다시 상세를 보여줬다 (QA).
+ * 기본 전환을 막고 목록 경로로 직접 이동한다 — 이미 목록이면 그대로다.
+ */
+const goToTabRoot = (path: '/task' | '/store' | '/save' | '/invest') => ({
+  tabPress: (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    router.navigate(path);
+  },
+});
 
 /**
  * 자녀 탭 레이아웃. 가족 연결·계좌 연동이 끝난 자녀만 탭 화면들을 볼 수 있어서
@@ -42,11 +55,27 @@ export default function ChildTabsLayout() {
       screenOptions={tabScreenOptions(theme, insets.bottom)}
       screenLayout={({ children }) => <TabScene>{children}</TabScene>}
     >
-      <Tabs.Screen name="task" options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }} />
-      <Tabs.Screen name="store" options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }} />
+      <Tabs.Screen
+        name="task"
+        options={{ tabBarLabel: '미션', tabBarIcon: tabIcon('task') }}
+        listeners={goToTabRoot('/task')}
+      />
+      <Tabs.Screen
+        name="store"
+        options={{ tabBarLabel: '상점', tabBarIcon: tabIcon('store') }}
+        listeners={goToTabRoot('/store')}
+      />
       <Tabs.Screen name="index" options={{ tabBarLabel: '홈', tabBarIcon: tabIcon('home') }} />
-      <Tabs.Screen name="save" options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }} />
-      <Tabs.Screen name="invest" options={{ tabBarLabel: '투자', tabBarIcon: tabIcon('invest') }} />
+      <Tabs.Screen
+        name="save"
+        options={{ tabBarLabel: '저축', tabBarIcon: tabIcon('save') }}
+        listeners={goToTabRoot('/save')}
+      />
+      <Tabs.Screen
+        name="invest"
+        options={{ tabBarLabel: '투자', tabBarIcon: tabIcon('invest') }}
+        listeners={goToTabRoot('/invest')}
+      />
     </Tabs>
   );
 }

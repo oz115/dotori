@@ -22,6 +22,9 @@ export function usePurchaseStoreProduct(
       if (productId != null) {
         queryClient.invalidateQueries({ queryKey: storeKeys.product(familyId, productId) });
       }
+      // 구매 내역도 턴다 — 상세 화면이 "오늘 이미 샀는지"(하루 1회 제한)를 이 내역으로
+      // 판정하므로, 안 털면 방금 산 상품의 버튼이 그대로 "구매하기" 로 남는다.
+      queryClient.invalidateQueries({ queryKey: storeKeys.purchasesOf(familyId) });
     },
   });
 }

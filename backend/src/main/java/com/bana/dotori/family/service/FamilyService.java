@@ -43,6 +43,8 @@ public interface FamilyService {
 
 	InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId);
 
+	void revokeInvitationCode(Integer userId, Integer familyId);
+
 	FamilyConnectResponse connect(Integer userId, FamilyConnectRequest request);
 
 	/**

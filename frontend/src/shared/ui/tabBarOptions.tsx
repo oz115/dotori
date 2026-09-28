@@ -13,10 +13,14 @@ import { navIcons, type NavIconName } from '@/shared/ui/icons';
 export function tabScreenOptions(theme: Theme, bottomInset: number) {
   return {
     headerShown: false,
+    // 탭 안에서 여러 페이지를 타고 들어갔다가 다른 탭에 다녀오면 그 탭의 메인 화면부터 보이게 한다.
+    popToTopOnBlur: true,
     tabBarShowLabel: true,
     tabBarActiveTintColor: theme.color.brand.black,
     tabBarInactiveTintColor: theme.color.text.muted,
-    tabBarLabelStyle: { fontFamily: fontFamily.regular, fontSize: 11 },
+    // 11 은 토큰보다 작은 탭바 전용 크기라 여기서 기기 글꼴 배율을 상쇄한다
+    // (shared/theme/fontScale.ts) — 커지면 라벨이 두 줄이 되어 탭바 높이가 깨진다.
+    tabBarLabelStyle: { fontFamily: fontFamily.regular, fontSize: 11 * theme.textScale },
     tabBarStyle: {
       backgroundColor: theme.color.background.surface,
       borderTopLeftRadius: theme.radius['2xl'],

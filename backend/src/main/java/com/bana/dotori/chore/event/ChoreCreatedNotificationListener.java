@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.bana.dotori.global.util.NotificationText;
 import com.bana.dotori.notification.entity.NotificationType;
 import com.bana.dotori.notification.service.PushNotificationService;
 
@@ -26,9 +27,17 @@ public class ChoreCreatedNotificationListener {
 
 	private final PushNotificationService pushNotificationService;
 
+	/**
+	 * 아이가 읽는 알림이라 화면과 같은 말("미션")을 쓴다 — 코드·API 는 chore 로 두고 문구만 맞춘다.
+	 *
+	 * <p>본문은 제목만 덜렁 넣지 않고 무엇을 하면 되는지까지 적는다. 예전에는 본문이 제목
+	 * 그대로여서 제목이 두 번 보이고, 읽고 나서 할 일이 무엇인지도 알 수 없었다 (QA).
+	 */
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onChoreCreated(ChoreCreatedEvent event) {
 		pushNotificationService.notify(event.childId(), NotificationType.CHORE,
-			"새 할 일이 생겼어요", event.title(), event.choreId());
+			"새로운 미션이 생겼어요",
+			NotificationText.shortName(event.title()) + "라는 제목의 미션을 하러 가볼까요?",
+			event.choreId());
 	}
 }

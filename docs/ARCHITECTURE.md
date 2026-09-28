@@ -53,10 +53,48 @@
 - 환율(10원=1포인트)의 원본은 `PointExchangePolicy` 하나다. 원↔포인트 환산(`toPoints`/`toWon`)을
   손으로 `* 10`, `/ 10` 하지 않는다 — 포인트 충전(지갑)과 가족 온보딩이 함께 쓴다.
 
+#### 자녀 잔여 자산 규칙 — 탈퇴·가족 해체·자녀 제외 (S15P21A505-292)
+
+자녀가 가족 소속을 잃으면 지갑·환전·예적금·투자에 닿을 길(가족 소속, 환전 승인하는 부모)이 끊긴다.
+자산이 남은 채로 그렇게 되면 자녀는 자산을 처분하지도 탈퇴하지도 못하는 교착에 빠지므로,
+**자산이 남은 자녀는 가족에서 빠질 수 없고 탈퇴할 수도 없다.** 세 경로가 같은 규칙을 쓴다.
+
+| 경로 | 막는 조건 | 에러 |
+| --- | --- | --- |
+| 자녀 회원 탈퇴 | 그 자녀에게 잔여 자산이 있음 | `HAS_ACTIVE_ASSETS` (409) |
+| 가족 해체 (`DELETE /families/{id}`) | 가족의 자녀 중 한 명이라도 잔여 자산이 있음 | `CHILD_HAS_ACTIVE_ASSETS` (409) |
+| 자녀 제외 (`DELETE /families/{id}/children/{childId}`) | 그 자녀에게 잔여 자산이 있음 | `CHILD_HAS_ACTIVE_ASSETS` (409) |
+| 부모 회원 탈퇴 | 가족에 자녀가 남아 있음 (기존 규칙) | `FAMILY_HAS_CHILDREN` (409) |
+
+"잔여 자산"은 아래 넷 중 하나라도 해당하면 남은 것으로 본다. 도메인마다 `RemainingAssetReader`
+구현체가 하나씩 있고, `RemainingAssetPolicy` 가 이를 모아 묻는다.
+새 자산 도메인이 생기면 구현체만 추가하면 세 경로에 모두 반영된다.
+
+- 포인트 잔액 > 0 (`wallet/PointRemainingAssetReader`)
+- 처리되지 않은 환전 요청 — `PENDING`·`PROGRESS` (`wallet/PendingCashoutRemainingAssetReader`).
+  요청 시점에 포인트를 이미 차감하므로 잔액이 0 이어도 그 포인트는 아직 자녀 몫이다.
+  가족이 해체되면 승인할 부모가 없어져 영구 보류되므로 정산(승인·거절·취소)이 끝나야 한다.
+- 진행 중(`ACTIVE`)이거나 수령 대기(`MATURED`)인 예적금 (`savings/SavingsRemainingAssetReader`)
+- 매도하지 않은 투자 보유 종목 (`investment/InvestmentRemainingAssetReader`)
+
+자녀가 환전 요청을 하지 않으면 부모는 가족을 지우지 못하고 기다린다 (팀 결정 — 부모가 자녀
+자산을 강제로 회수하는 기능은 두지 않는다). 부모가 가족을 지우려다 막히면 앱이 무엇을 정리해야
+하는지 안내한다. 검사와 해체 사이에 자녀가 다시 자산을 만드는 경합은 막지 않는다 (가족 행 잠금만 있고
+자녀 지갑은 잠그지 않는다).
+
 ### 스키마 관리 방식
 
-현재 `ddl-auto: update` 로 Hibernate 가 엔티티에서 스키마를 만든다.
-따라서 제약조건도 SQL 스크립트가 아니라 **엔티티에 선언해야** 생성된다.
+현재 `ddl-auto: none` 이고 스키마 원본은 `backend/docker/initdb/01-schema.sql` 이다.
+Hibernate 는 스키마를 만들지도 고치지도 않으므로, 컬럼·제약을 더할 때는 이 파일을 고친다.
+
+`initdb` 스크립트는 **데이터 볼륨이 비어 있을 때만 한 번** 돈다. 그래서 이미 만들어진 DB
+(내 로컬, 공유 QA DB, 배포 환경)에는 자동으로 반영되지 않는다 — 로컬은 `docker compose
+down -v` 로 볼륨을 지우고 다시 띄우거나, 아래처럼 `ALTER TABLE` 을 손으로 한 번 실행한다.
+`backend/docker/migration/` 에 날짜별 SQL 을 남겨 두면 남들도 같은 것을 돌릴 수 있다.
+
+> 아래 "주의할 점" 두 항목과 `src/test/resources/schema.sql` 언급은 `ddl-auto: update` 를
+> 쓰던 시절의 서술이라 지금과 맞지 않는다 (그 파일은 이제 없다). 남은 서술은 담당자가
+> 정리할 때까지 그대로 둔다.
 
 주의할 점이 두 가지 있다.
 
@@ -204,6 +242,15 @@ CREATE INDEX IF NOT EXISTS ix_point_transactions_wallet_created_at
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_allowance          INTEGER     NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weekly_reward_limit       INTEGER     NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS financial_knowledge_level VARCHAR(20) NULL;
+```
+
+단어장의 쉬운 설명(2026-09-22)도 같다. 컬럼 추가와 단어 100개의 값 채우기를
+`backend/docker/migration/2026-09-22-words-easy-description.sql` 한 파일에 담아 뒀다 —
+여러 번 돌려도 안전하고, 파일 끝의 주석 처리된 SELECT 로 아직 못 채운 단어를 확인한다.
+
+```sql
+ALTER TABLE "words" ADD COLUMN IF NOT EXISTS "easy_description" VARCHAR(255) NULL;
+-- 이어서 UPDATE words SET easy_description = ... WHERE word = ... 100줄
 ```
 
 이미 서로 다른 지갑에 같은 멱등키가 들어가 있으면 두 번째 문장이 실패한다.

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { StoreMascotCharacter } from '@/features/store/lib/mascotImage';
 import { useStoreProducts } from '@/features/store/model/useStoreProducts';
@@ -10,7 +10,7 @@ import { CategoryFilterBar, type CategoryFilterKey } from '@/features/store/ui/C
 import { StoreBanner } from '@/features/store/ui/StoreBanner';
 import { StoreProductCard } from '@/features/store/ui/StoreProductCard';
 import { useTheme } from '@/shared/theme';
-import { Header, HeaderChipButton, Screen } from '@/shared/ui';
+import { Header, HeaderChipButton, Screen, usePullToRefresh } from '@/shared/ui';
 
 type StoreCatalogProps = {
   familyId: number | undefined;
@@ -32,7 +32,14 @@ type StoreCatalogProps = {
   onHistoryPress: () => void;
 };
 
-/** 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터·상세 이동은 라우트가 결정한다. */
+/**
+ * 상점 목록 화면 (SHOP-01). 부모·자녀 공용이고, 등록 버튼 유무·배너 캐릭터·상세 이동은 라우트가 결정한다.
+ *
+ * <p>FlatList 가 아니라 ScrollView + `stickyHeaderIndices` 다. 카테고리 칩이 스크롤해도
+ * 상단에 붙어 있어야 하는데(QA: 상품이 많아지면 필터를 쓰려고 맨 위까지 올라가야 한다),
+ * FlatList 는 헤더 전체(배너+칩)를 한 덩어리로만 붙일 수 있어 배너까지 따라 붙는다.
+ * 가족 상점의 상품 수는 많아도 수십 개라 가상화를 포기해도 괜찮다.
+ */
 export function StoreCatalog({
   familyId,
   character,
@@ -41,6 +48,7 @@ export function StoreCatalog({
   onHistoryPress,
 }: StoreCatalogProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [category, setCategory] = useState<CategoryFilterKey>('ALL');
   const { data, isPending, isError, refetch } = useStoreProducts(familyId);
 
@@ -67,27 +75,31 @@ export function StoreCatalog({
       padded={false}
       style={{ paddingTop: theme.space.sm }}
     >
-      <FlatList
-        data={products}
-        keyExtractor={(item) => String(item.storeProductId)}
-        numColumns={2}
-        renderItem={({ item }) => (
-          <View style={styles.cell}>
-            <StoreProductCard product={item} onPress={() => onPressProduct(item.storeProductId)} />
-          </View>
-        )}
-        columnWrapperStyle={{ gap: theme.space.md }}
-        contentContainerStyle={[
-          styles.content,
-          { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
-        ]}
-        ListHeaderComponent={
-          <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <StoreBanner character={character} />
-            <CategoryFilterBar selected={category} onSelect={setCategory} />
-          </View>
-        }
-        ListEmptyComponent={
+      <ScrollView
+        refreshControl={refreshControl}
+        showsVerticalScrollIndicator={false}
+        // 1 = 카테고리 바. 배너(0)는 그대로 밀려 올라가고 칩만 상단에 붙는다.
+        stickyHeaderIndices={[1]}
+        // 좌우 여백은 각 자식이 갖는다 — contentContainer 에 주면 붙어 있는 카테고리 바의
+        // 배경이 화면 끝까지 닿지 않아, 그 여백 틈으로 지나가는 카드가 보인다.
+        contentContainerStyle={styles.content}
+      >
+        <View style={{ paddingHorizontal: theme.layout.screenX, marginBottom: theme.space.lg }}>
+          <StoreBanner character={character} />
+        </View>
+
+        {/* 붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다 */}
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingBottom: theme.space.lg,
+            backgroundColor: theme.color.background.canvas,
+          }}
+        >
+          <CategoryFilterBar selected={category} onSelect={setCategory} />
+        </View>
+
+        {products.length === 0 ? (
           <View style={styles.emptyState}>
             <Text
               style={[theme.typography.body, styles.emptyText, { color: theme.color.text.sub }]}
@@ -101,9 +113,26 @@ export function StoreCatalog({
                     : '아직 상품이 없어요.\n부모님이 곧 채워주실 거예요!'}
             </Text>
           </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+        ) : (
+          <View
+            style={[
+              styles.grid,
+              { paddingHorizontal: theme.layout.screenX, rowGap: theme.space.md },
+            ]}
+          >
+            {products.map((item) => (
+              // 폭을 48%로 고정한다. flex:1 로 두면 마지막 줄에 카드가 하나만 남았을 때
+              // 행 전체로 늘어나(이미지·글자까지 통째로 커짐) 다른 줄과 달라 보인다.
+              <View key={item.storeProductId} style={styles.cell}>
+                <StoreProductCard
+                  product={item}
+                  onPress={() => onPressProduct(item.storeProductId)}
+                />
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {onRegisterPress ? (
         <Pressable
@@ -134,10 +163,11 @@ function filterByCategory(
 }
 
 const styles = StyleSheet.create({
+  // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
+  // 간격을 이미 줬으니, 여기서 또 주면 배너가 미션·저축·투자보다 내려가 시작 위치가 어긋난다.
   content: { paddingBottom: 40, flexGrow: 1 },
-  // maxWidth 없이 flex:1 만 쓰면, 상품이 홀수 개일 때 마지막 줄의 카드 하나가
-  // 짝을 못 만나 행 전체 너비로 늘어난다(이미지·글자까지 통째로 커짐). 50%로 캡을 건다.
-  cell: { flex: 1, maxWidth: '50%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  cell: { width: '48%' },
   // 할 일 화면(ParentChoreList/ChildChoreList)의 빈 상태와 같은 위치에 오도록
   // paddingBottom 만 준다 (paddingTop 을 쓰면 두 탭의 빈 문구 높이가 달라 보인다).
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },

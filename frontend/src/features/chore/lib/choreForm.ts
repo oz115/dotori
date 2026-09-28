@@ -14,6 +14,39 @@ export const TITLE_MAX = 100;
 /** 서버는 255 까지 받지만 시안이 100 이라 좁게 쓴다 (좁히는 쪽은 안전하다) */
 export const DESCRIPTION_MAX = 100;
 
+/**
+ * 미션 하나에 걸 수 있는 도토리 상한.
+ *
+ * 서버에는 상한이 없다 (@Min(1) 과 INT 컬럼뿐). 그래서 자릿수를 잘못 눌러 아홉 자리를
+ * 넣으면 INT 범위를 넘겨 400 이 떨어지고, 화면에는 "입력한 내용을 다시 확인해주세요" 만
+ * 나왔다 - 무엇이 문제인지 알 수 없는 문구다 (QA).
+ *
+ * <p>여기서 미리 끊고 한도를 말해 준다. 100,000 도토리는 100만 원(KRW_PER_POINT=10)이라
+ * 집안일 하나의 보상으로는 현실적인 값을 막지 않으면서, 실수로 누른 자릿수는 걸러낸다.
+ * 서버 규칙이 아니라 화면이 정한 한도라 바꾸기 쉽다.
+ */
+export const REWARD_MAX = 100_000;
+
+/**
+ * 보상 금액 입력 검증. 문제가 없으면 undefined.
+ *
+ * 빈 값은 "안 바꿈" 이라 통과시킨다 (수정 폼은 PATCH 라 빈 칸이 곧 생략이다).
+ */
+export function validateReward(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  if (!/^\d+$/.test(trimmed) || !Number.isInteger(parsed) || parsed < 1) {
+    return '1 이상의 숫자를 입력해주세요.';
+  }
+  if (parsed > REWARD_MAX) {
+    return `도토리는 ${REWARD_MAX.toLocaleString('ko-KR')}개까지 넣을 수 있어요.`;
+  }
+  return undefined;
+}
+
 export type ChoreFormInput = {
   /** 경로가 아이를 지목하므로 반드시 골라야 한다 */
   childId: number | null;

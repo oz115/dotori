@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
   Image,
@@ -13,7 +12,7 @@ import {
 import { signOut, useAuthStore, useProfile, WithdrawButton } from '@/features/auth';
 import { PushNotificationToggle } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 export type MyPageMenuItem = {
   label: string;
@@ -33,6 +32,7 @@ type MyPageProps = {
  */
 export function MyPage({ menu, character }: MyPageProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   // 세션의 이름은 로그인 직후에만 있어서(자동 로그인은 JWT 에 이름이 없다) 서버 값을 우선한다
   const profile = useProfile();
   const sessionName = useAuthStore((s) => s.user?.name);
@@ -45,7 +45,11 @@ export function MyPage({ menu, character }: MyPageProps) {
       header={<Header title="마이페이지" onBack={() => router.back()} />}
       style={styles.screen}
     >
-      <ScrollView contentContainerStyle={styles.grow} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        refreshControl={refreshControl}
+        contentContainerStyle={styles.grow}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.profile, { paddingVertical: theme.space['3xl'] }]}>
           <Image source={character} style={styles.face} resizeMode="contain" />
           <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
@@ -67,7 +71,6 @@ export function MyPage({ menu, character }: MyPageProps) {
               <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
                 {item.label}
               </Text>
-              <Ionicons name="chevron-forward" size={20} color={theme.color.text.muted} />
             </Pressable>
           ))}
           <PushNotificationToggle />
@@ -109,6 +112,7 @@ const styles = StyleSheet.create({
   profile: { alignItems: 'center', gap: 12 },
   face: { width: 120, height: 120 },
   divider: { height: 12 },
+  // 화살표를 뺐지만 줄 구조는 그대로 둔다 - 오른쪽에 무언가(토글 등)가 붙는 줄이 섞여 있다
   menuRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   spacer: { flex: 1, minHeight: 40 },
   footer: { alignItems: 'center' },

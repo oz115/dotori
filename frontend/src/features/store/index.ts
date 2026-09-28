@@ -8,6 +8,7 @@ export { useDeleteStoreProduct } from './model/useDeleteStoreProduct';
 export { usePurchaseStoreProduct } from './model/usePurchaseStoreProduct';
 export { usePurchaseHistory } from './model/usePurchaseHistory';
 export { nearestSavingGoals, type SavingGoal } from './lib/savingGoals';
+export { useGoalMemoryStore } from './model/goalMemoryStore';
 export { categoryIcon } from './lib/categoryIcon';
 export { categoryImage } from './lib/categoryImage';
 export { categoryBadgeColors } from './lib/categoryTheme';

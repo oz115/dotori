@@ -9,6 +9,7 @@ import {
   StepFooter,
   useCreateInvitation,
   useFamilyId,
+  useRevokeInvitation,
 } from '@/features/family';
 import { useCountdown } from '@/shared/lib/useCountdown';
 import { useTheme } from '@/shared/theme';
@@ -21,6 +22,7 @@ export default function OnboardingInviteScreen() {
   const [error, setError] = useState('');
 
   const invitation = useCreateInvitation();
+  const revoke = useRevokeInvitation();
   const ttl = useCountdown();
   const issuedFor = useRef<number | null>(null);
 
@@ -56,6 +58,17 @@ export default function OnboardingInviteScreen() {
   const code = invitation.data?.code ?? '';
   const expired = !!invitation.data && !ttl.running;
 
+  // "나중에 초대하기": 아이에게 보내지 않은 코드가 남아 있지 않도록 발급했던 코드를 만료시키고 나간다.
+  // 폐기에 실패해도 나가는 걸 막지 않는다 — 코드는 10분 뒤 어차피 만료된다.
+  const inviteLater = () => {
+    if (revoke.isPending) return;
+    if (familyId == null || !invitation.data) {
+      router.replace('/');
+      return;
+    }
+    revoke.mutate(familyId, { onSettled: () => router.replace('/') });
+  };
+
   const share = () => {
     if (!code) return;
     void Share.share({
@@ -90,7 +103,12 @@ export default function OnboardingInviteScreen() {
               · · · · · ·
             </Text>
           ) : (
-            <Text style={[styles.code, { color: theme.color.text.strong }]}>
+            <Text
+              style={[
+                styles.code,
+                { color: theme.color.text.strong, fontSize: 34 * theme.textScale },
+              ]}
+            >
               {code.split('').join(' ')}
             </Text>
           )}
@@ -131,7 +149,7 @@ export default function OnboardingInviteScreen() {
             {error}
           </Text>
         ) : (
-          <Pressable onPress={() => router.replace('/')} hitSlop={6}>
+          <Pressable onPress={inviteLater} disabled={revoke.isPending} hitSlop={6}>
             <Text
               style={[theme.typography.bodySm, styles.later, { color: theme.color.text.muted }]}
             >
@@ -152,7 +170,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   code: {
-    fontSize: 34,
+    // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
     fontWeight: '700',
     letterSpacing: 4,
   },

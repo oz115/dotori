@@ -9,7 +9,12 @@ type LoginInput = LoginBody & { rememberId: boolean };
 /** 로그인 + 아이디 저장/삭제. mutation 밖에서도 테스트할 수 있게 분리. */
 export async function performLogin({ loginId, password, rememberId }: LoginInput): Promise<void> {
   await signIn({ loginId, password });
-  await (rememberId ? savedLoginId.set(loginId) : savedLoginId.clear());
+  // 로그인은 이미 끝났다. 기기 저장소 오류로 "아이디 저장"만 실패해도 로그인 실패로 보이면 안 된다.
+  try {
+    await (rememberId ? savedLoginId.set(loginId) : savedLoginId.clear());
+  } catch {
+    // 저장 실패는 무시 — 다음 로그인 때 아이디를 다시 입력하면 된다
+  }
 }
 
 /**

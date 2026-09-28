@@ -3,11 +3,12 @@ import { ScrollView } from 'react-native';
 
 import { NewsReview } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /** 지난 뉴스 해설. 아이가 보는 것과 같은 내용이라 부모도 함께 이야기할 수 있다. */
 export default function ParentInvestmentNewsReviewScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   return (
     <Screen
       header={
@@ -23,6 +24,7 @@ export default function ParentInvestmentNewsReviewScreen() {
       padded={false}
     >
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={{ padding: theme.layout.screenX, paddingBottom: theme.space['4xl'] }}
       >
         <NewsReview />

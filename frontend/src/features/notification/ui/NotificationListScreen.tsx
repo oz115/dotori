@@ -1,8 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { useDeleteAllNotifications } from '@/features/notification/model/useDeleteAllNotifications';
 import { useDeleteNotification } from '@/features/notification/model/useDeleteNotification';
 import { useMarkAllAsRead } from '@/features/notification/model/useMarkAllAsRead';
 import { useMarkAsRead } from '@/features/notification/model/useMarkAsRead';
@@ -10,7 +19,7 @@ import { useNotifications } from '@/features/notification/model/useNotifications
 import type { NotificationItem } from '@/features/notification/model/types';
 import { NotificationRow } from '@/features/notification/ui/NotificationRow';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type NotificationListScreenProps = {
   /**
@@ -24,11 +33,13 @@ type NotificationListScreenProps = {
 /** 알림함 (NOTI-01/03/04/11). 부모·자녀 공용. */
 export function NotificationListScreen({ onPressNotification }: NotificationListScreenProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
+  const deleteAll = useDeleteAllNotifications();
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.notifications) ?? [], [data]);
   // unreadCount 는 필터와 무관하게 항상 전체 미읽 개수라, 어느 페이지에서 읽어도 같다.
@@ -41,9 +52,25 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
     onPressNotification(item);
   };
 
+  const confirmDeleteAll = () => {
+    if (deleteAll.isPending) return;
+    Alert.alert('알림을 모두 지울까요?', '지운 알림은 다시 볼 수 없어요.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '모두 삭제',
+        style: 'destructive',
+        onPress: () =>
+          deleteAll.mutate(undefined, {
+            onError: () => Alert.alert('지우지 못했어요', '잠시 후 다시 시도해주세요.'),
+          }),
+      },
+    ]);
+  };
+
   return (
     <Screen header={<Header title="알림" onBack={() => router.back()} />} padded={false}>
       <FlatList
+        refreshControl={refreshControl}
         data={items}
         keyExtractor={(item) => String(item.notificationId)}
         renderItem={({ item }) => (
@@ -66,22 +93,45 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
         ListHeaderComponent={
           <View style={{ gap: theme.space.xs, marginBottom: theme.space.lg }}>
             <View style={styles.titleRow}>
-              <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
+              <Text style={[theme.typography.h3, styles.title, { color: theme.color.text.strong }]}>
                 읽지 않은 알림 {unreadCount}개
               </Text>
-              {unreadCount > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => markAllAsRead.mutate()}
-                  hitSlop={8}
-                  style={styles.markAllButton}
-                >
-                  <Ionicons name="checkmark" size={16} color={theme.color.brand.solid} />
-                  <Text style={[theme.typography.label, { color: theme.color.brand.solid }]}>
-                    모두 읽음
-                  </Text>
-                </Pressable>
-              ) : null}
+              <View style={[styles.actionRow, { gap: theme.space.md }]}>
+                {unreadCount > 0 ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => markAllAsRead.mutate()}
+                    hitSlop={8}
+                    style={styles.textButton}
+                  >
+                    <Ionicons name="checkmark" size={16} color={theme.color.brand.solid} />
+                    <Text style={[theme.typography.label, { color: theme.color.brand.solid }]}>
+                      모두 읽음
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {/* 하나씩 지우는 것 말고는 알림함을 비울 방법이 없었다 (QA). 되돌릴 수 없어
+                    지울 것이 있을 때만 보여 주고, 누르면 한 번 더 확인받는다 */}
+                {items.length > 0 ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={confirmDeleteAll}
+                    hitSlop={8}
+                    style={styles.textButton}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={16}
+                      color={theme.color.status.danger.solid}
+                    />
+                    <Text
+                      style={[theme.typography.label, { color: theme.color.status.danger.solid }]}
+                    >
+                      모두 삭제
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
             <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
               도토리와 함께하는 특별한 소식을 확인해 보세요!
@@ -117,8 +167,15 @@ export function NotificationListScreen({ onPressNotification }: NotificationList
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 40, flexGrow: 1, paddingTop: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  markAllButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  title: { flexShrink: 1 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  textButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   footer: { alignItems: 'center' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
 });

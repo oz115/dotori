@@ -17,8 +17,8 @@
 | `store_products` | 읽기 + `value`, `price`, `reason` 쓰기 | 물품 가치를 평가해 채운다 |
 | `chores` | 읽기 + `value`, `reward_points`, `reason` 쓰기 | 할 일 보상 포인트 책정 |
 | `quizzes` | INSERT | 생성한 퀴즈를 아이·날짜별로 넣는다 |
-| `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료 |
-| `investment_products` | 읽기 + `current_price` 쓰기 | 회사 10개 고정. `current_price` 는 가족별 이력이 없을 때 쓰는 시작가로 좁힐 예정 (협의 2번). `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
+| `words` | 읽기 (초기 적재 시 INSERT) | 경제용어 사전. 퀴즈 생성의 재료. `easy_description`(아이 눈높이 설명, 2026-09-22 추가)은 단어장 화면용이라 퀴즈는 아직 안 쓴다 |
+| `investment_products` | **읽기만** | 회사 10개 고정. 가격 생성의 시작가는 이 테이블이 아니라 `families.weekly_allowance ÷ 10`(주간 용돈으로 10개 종목을 전부 살 수 있는 가격, 2026-09-21 확정)이다 — `current_price` 는 온보딩 전 가족을 위한 폴백으로만 남는다. `news_context` 는 매일 뉴스 생성 프롬프트의 경제 요인/사건 조건 참고자료 (협의 4번) |
 | `investment_news` | INSERT | 매일 뉴스 3건 생성 |
 | `investment_news_products` | INSERT | 뉴스와 회사의 N:N 연결 |
 | `investment_price_history` | INSERT | 가족별 주가 변동 이력. `family_id` 컬럼 요청 중 (협의 2번) |
@@ -133,10 +133,20 @@ LLM 응답에서 파싱하던 `reason` 은 원래도 있었고(`evaluate_product
 `01-schema.sql`은 Notion DDL 문서의 동기화본이라 여기서 직접 고치지 않는다 — 위 컬럼
 요청을 Notion에 반영하는 건 투자 도메인 담당자 몫이다. 시드 데이터(회사 10개 INSERT 문)는
 참고용으로 `AI/../02-seed-investment-products.sql`에 따로 정리해 뒀다.
-`current_price`는 전부 10000 자리표시자다 — 실제 시작가는 아직 확정되지 않았다.
 
-담당: 투자 도메인 / 상태: **요청안만 정리, Notion·`01-schema.sql` 반영은 투자 도메인 담당자가
-진행.** 반영 후 `current_price` 시작가를 확정해야 한다.
+시작가는 확정됐다 (2026-09-21): **가족별 시작가 = `families.weekly_allowance`(주간 용돈,
+포인트) ÷ 종목 수(10).** 아이가 일주일 용돈으로 10개 종목을 전부 살 수 있다. AI 가격
+생성과 백엔드 조회·체결가가 같은 규칙을 쓴다. `current_price`(시드 10000)는 온보딩 전
+(용돈 없음·0) 가족의 폴백으로만 남는다.
+
+변동폭은 퍼센트 기반으로 바꿨다 (2026-09-22): 뉴스가 가리킨 회사는 **현재가의 10~20%**,
+나머지 활성 회사는 **1~3% 잔물결(방향 무작위)** 로 매일 전 종목이 움직인다. 이전 규칙
+(배정액 40%÷7, 절대값)은 가족별 시작가 차이로 등락률이 ±25%~±90%로 벌어졌고 뉴스에
+안 걸린 7개 회사는 매일 "변동 없음"이었다. 이 변경으로 "주간 최대 이익 ≤ 투자 배정액"
+보장은 사라진다 — 노션 「투자」 설계 문서에 반영 필요.
+
+담당: 투자 도메인 / 상태: **반영 완료** (`family_id`·`impact`·`news_context` DB 반영,
+시작가 규칙은 백엔드·AI 코드에 구현).
 
 ## 테이블을 만들지 않고 해결하는 것들
 

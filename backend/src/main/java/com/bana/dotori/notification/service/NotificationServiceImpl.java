@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -34,7 +35,11 @@ public class NotificationServiceImpl implements NotificationService {
 	@Transactional(readOnly = true)
 	public NotificationListResponse getNotifications(Integer userId, NotificationType type, Boolean isRead,
 			int page, int size) {
-		Sort sort = Sort.by(Sort.Direction.DESC, "createdAt", "id");
+		// 안 읽은 것이 먼저, 그 안에서 최신순. 최신순만으로 세우면 어제 안 읽은 알림이
+		// 오늘 읽은 알림 밑으로 내려가, 처리할 것을 찾으려면 목록을 훑어야 한다.
+		// 페이지 단위로 내려주므로 이 정렬은 서버가 해야 한다 - 클라이언트가 받아온 페이지
+		// 안에서만 다시 세우면 다음 페이지의 미읽은 영영 위로 오지 못한다.
+		Sort sort = Sort.by(Sort.Order.asc("read"), Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 		Page<Notification> result = notificationRepository.findAll(spec(userId, type, isRead),
 			PageRequest.of(page, size, sort));
 
@@ -71,6 +76,12 @@ public class NotificationServiceImpl implements NotificationService {
 	@Transactional
 	public void deleteNotification(Integer userId, Integer notificationId) {
 		notificationRepository.delete(findOwnedOrThrow(userId, notificationId));
+	}
+
+	@Override
+	@Transactional
+	public NotificationDeleteAllResponse deleteAllNotifications(Integer userId) {
+		return new NotificationDeleteAllResponse(notificationRepository.deleteAllByUserId(userId));
 	}
 
 	@Override

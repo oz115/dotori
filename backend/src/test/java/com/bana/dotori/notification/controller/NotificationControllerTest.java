@@ -32,6 +32,7 @@ import com.bana.dotori.global.security.JwtAccessDeniedHandler;
 import com.bana.dotori.global.security.JwtAuthenticationEntryPoint;
 import com.bana.dotori.global.security.JwtAuthenticationFilter;
 import com.bana.dotori.global.security.JwtTokenProvider;
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -300,6 +301,27 @@ class NotificationControllerTest {
 	@DisplayName("인증 토큰 없이 삭제를 호출하면 401을 반환한다")
 	void deleteNotification_unauthenticated() throws Exception {
 		mockMvc.perform(delete(NOTIFICATIONS_URL + "/1"))
+			.andExpect(status().isUnauthorized());
+
+		then(notificationService).shouldHaveNoInteractions();
+	}
+
+	@Test
+	@DisplayName("모두 삭제 성공 시 200과 deletedCount를 반환한다")
+	void deleteAllNotifications_success() throws Exception {
+		givenAuthenticated(1);
+		given(notificationService.deleteAllNotifications(1)).willReturn(new NotificationDeleteAllResponse(7));
+
+		mockMvc.perform(delete(NOTIFICATIONS_URL)
+				.header(HttpHeaders.AUTHORIZATION, BEARER))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.deletedCount").value(7));
+	}
+
+	@Test
+	@DisplayName("인증 토큰 없이 모두 삭제를 호출하면 401을 반환한다")
+	void deleteAllNotifications_unauthenticated() throws Exception {
+		mockMvc.perform(delete(NOTIFICATIONS_URL))
 			.andExpect(status().isUnauthorized());
 
 		then(notificationService).shouldHaveNoInteractions();

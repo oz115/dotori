@@ -7,7 +7,14 @@ import type { SavingsGroup } from '@/features/savings/model/types';
 import { SavingsIntroBanner } from '@/features/savings/ui/SavingsIntroBanner';
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { useTheme } from '@/shared/theme';
-import { Button, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import {
+  Button,
+  FilterChips,
+  Header,
+  HeaderChipButton,
+  Screen,
+  usePullToRefresh,
+} from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -40,6 +47,7 @@ export function ParentSavingsHome({
   onPressChildrenStatus,
 }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [group, setGroup] = useState<SavingsGroup | null>(null);
 
   const products = useSavingsProducts(familyId, childId);
@@ -78,6 +86,7 @@ export function ParentSavingsHome({
       style={{ paddingTop: theme.space.sm }}
     >
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,

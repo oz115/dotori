@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { changeColor } from '@/features/investment/lib/change';
-import { formatAcorns, profitLabel } from '@/features/investment/lib/format';
+import { formatAcorns, signedAcorns } from '@/features/investment/lib/format';
 import type { InvestmentTransactionItem } from '@/features/investment/model/types';
 import { useTheme } from '@/shared/theme';
 
@@ -10,16 +10,20 @@ type Props = {
 };
 
 /**
- * 거래 내역의 한 줄 카드 — 종목 아이콘·이름·거래 날짜와, 샀는지/팔았는지 배지,
- * 도토리가 나갔는지(-)/들어왔는지(+)를 보여준다.
+ * 거래 내역의 한 줄 카드. 매수는 산 금액(-N 도토리)을, 매도는 차익을 같은 부호 숫자
+ * (+N/-N 도토리)로 보여준다 — 산 것과 판 것이 같은 모양이어야 목록이 한눈에 읽힌다.
+ * 살 때/팔 때 가격을 늘어놓지 않는 건 정보가 많아 못 읽는다는 피드백 때문이다.
  */
 export function TransactionCard({ item }: Props) {
   const theme = useTheme();
 
   const bought = item.type === 'BUY';
-  const amountColor = bought ? theme.color.text.strong : theme.color.investment.rise;
   const badgeBg = bought ? theme.color.brand.subtle : theme.color.status.info.subtle;
   const badgeText = bought ? theme.color.brand.subtleText : theme.color.investment.rise;
+  const outcomeColor =
+    item.realizedProfit == null
+      ? theme.color.text.strong
+      : changeColor(item.realizedProfit, theme.color);
 
   return (
     <View
@@ -52,40 +56,25 @@ export function TransactionCard({ item }: Props) {
         <Text style={[theme.typography.caption, { color: theme.color.text.muted }]}>
           {item.date}
         </Text>
-        {!bought && item.buyAmount != null ? (
-          <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-            구매 {formatAcorns(item.buyAmount)} → 판매 {formatAcorns(item.totalAmount)}
-          </Text>
-        ) : null}
-        {!bought ? (
-          <Text
-            style={[
-              theme.typography.bodySm,
-              {
-                color:
-                  item.realizedProfit == null
-                    ? theme.color.text.sub
-                    : changeColor(item.realizedProfit, theme.color),
-              },
-            ]}
-          >
-            {item.realizedProfit == null
-              ? '판매 수익을 계산할 정보가 부족해요.'
-              : profitLabel(item.realizedProfit)}
-          </Text>
-        ) : null}
       </View>
 
       <View style={[styles.amountBlock, { gap: theme.space.xs }]}>
         <View style={[styles.badge, { backgroundColor: badgeBg, borderRadius: theme.radius.full }]}>
           <Text style={[theme.typography.caption, { color: badgeText }]}>
-            {bought ? '산 금액' : '판 금액'}
+            {bought ? '샀어요' : '팔았어요'}
           </Text>
         </View>
-        <Text style={[theme.typography.label, { color: amountColor }]}>
-          {bought ? '-' : '+'}
-          {formatAcorns(item.totalAmount)}
-        </Text>
+        {bought ? (
+          <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
+            -{formatAcorns(item.totalAmount)}
+          </Text>
+        ) : (
+          <Text style={[theme.typography.label, { color: outcomeColor }]}>
+            {item.realizedProfit == null
+              ? `+${formatAcorns(item.totalAmount)}`
+              : signedAcorns(item.realizedProfit)}
+          </Text>
+        )}
       </View>
     </View>
   );

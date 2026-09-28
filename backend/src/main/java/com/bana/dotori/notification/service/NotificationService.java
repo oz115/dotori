@@ -1,5 +1,6 @@
 package com.bana.dotori.notification.service;
 
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -40,6 +41,13 @@ public interface NotificationService {
 	 * notifications 테이블엔 deleted_at 이 없어 hard delete 한다.
 	 */
 	void deleteNotification(Integer userId, Integer notificationId);
+
+	/**
+	 * 본인의 알림을 전부 삭제한다 (알림함 "모두 삭제"). markAllAsRead 와 같이 대상 id 를
+	 * 지정하지 않으므로 소유권 검증이 없다 — 남의 알림은 애초에 조건에 걸리지 않는다.
+	 * 지울 것이 없어도 0 건으로 성공한다(멱등).
+	 */
+	NotificationDeleteAllResponse deleteAllNotifications(Integer userId);
 
 	/**
 	 * 벨 아이콘 배지용으로 본인의 안 읽은 알림 개수만 가볍게 조회한다 (NOTI-11).

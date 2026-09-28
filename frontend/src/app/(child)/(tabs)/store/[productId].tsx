@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { useAuthStore } from '@/features/auth';
 import { useFamilyId, useFamilyMembers } from '@/features/family';
+import { useBackToNotifications } from '@/features/notification';
 import { StoreProductDetailScreen, useStoreProduct } from '@/features/store';
 import { useWalletBalance } from '@/features/wallet';
 
@@ -16,6 +17,8 @@ export default function ChildStoreProductDetailScreen() {
     viaDeepLink?: string;
   }>();
   const numericProductId = Number(productId);
+  // 알림함에서 왔으면 뒤로가기가 알림함으로 가야 한다 — 기본 동작은 이 탭의 상점 목록으로 간다
+  const { onBack } = useBackToNotifications('/(child)/notifications');
 
   // store 탭 밖(알림/홈)에서 곧장 이 화면으로 push되면, 이 탭의 내부 스택에 상세 하나만
   // 쌓여서 뒤로가기·탭 전환이 깨진다. 목록 화면에 "이 상품을 다시 열어달라"는 파라미터를
@@ -44,11 +47,15 @@ export default function ChildStoreProductDetailScreen() {
     <StoreProductDetailScreen
       familyId={familyId ?? undefined}
       productId={numericProductId}
+      childId={childId}
       role={role}
       registrantName={registrantName}
       balance={balance.data?.balance}
+      onBack={onBack}
       onPurchased={() => balance.refetch()}
-      onNavigateToList={() => router.replace('/(child)/(tabs)/store')}
+      // replace 는 상세를 "새" 목록 화면으로 갈아끼워 스택에 목록이 두 겹 쌓인다
+      // (뒤로가기가 목록→목록이 됨). navigate 는 아래 깔린 기존 목록으로 되돌아간다.
+      onNavigateToList={() => router.navigate('/(child)/(tabs)/store')}
     />
   );
 }

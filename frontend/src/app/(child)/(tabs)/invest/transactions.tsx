@@ -1,21 +1,40 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useSignupDate } from '@/features/auth';
 import {
   RealizedProfitCard,
   InvestmentQueryError,
   TransactionCard,
   useInvestmentTransactions,
 } from '@/features/investment';
+import { isoWithinRange } from '@/shared/lib/dateRange';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import {
+  Header,
+  PeriodFilterControl,
+  Screen,
+  defaultPeriodFilter,
+  periodDateRange,
+  usePullToRefresh,
+} from '@/shared/ui';
 
 /**
  * 투자 거래 내역. 매수/매도한 기록을 최신순으로 보여준다 (INV-T-05).
+ * 기간 조회는 실계좌 거래내역과 같은 달력 방식(PeriodFilterControl)이고,
+ * 전체를 한 번에 받아 클라이언트에서 거른다 — 아이 한 명의 거래는 많지 않다.
  */
 export default function InvestTransactionsScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const transactions = useInvestmentTransactions();
+  const [period, setPeriod] = useState(defaultPeriodFilter());
+  const signupDate = useSignupDate();
+
+  const range = periodDateRange(period);
+  const items = transactions.data ?? [];
+  const visible = range ? items.filter((item) => isoWithinRange(item.createdAt, range)) : items;
 
   return (
     <Screen
@@ -42,14 +61,9 @@ export default function InvestTransactionsScreen() {
             />
           ) : null}
         </View>
-      ) : transactions.data.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
-            아직 사고판 기록이 없어요.
-          </Text>
-        </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
@@ -58,10 +72,24 @@ export default function InvestTransactionsScreen() {
             gap: theme.space.md,
           }}
         >
-          <RealizedProfitCard transactions={transactions.data} />
-          {transactions.data.map((item) => (
-            <TransactionCard key={item.id} item={item} />
-          ))}
+          <PeriodFilterControl value={period} onChange={setPeriod} minPickableDate={signupDate} />
+
+          {visible.length === 0 ? (
+            <View style={[styles.center, { paddingTop: theme.space['4xl'] }]}>
+              <Text style={[theme.typography.body, { color: theme.color.text.muted }]}>
+                {items.length === 0
+                  ? '아직 사고판 기록이 없어요.'
+                  : '이 기간엔 사고판 기록이 없어요.'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <RealizedProfitCard transactions={visible} />
+              {visible.map((item) => (
+                <TransactionCard key={item.id} item={item} />
+              ))}
+            </>
+          )}
         </ScrollView>
       )}
     </Screen>

@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
+  LOGIN_ID_BLANK_ERROR,
+  LOGIN_ID_MAX,
   SignupStepLayout,
   useCheckLoginId,
   useSignupStore,
   validateAccountStep,
+  validateLoginId,
 } from '@/features/auth';
 import { apiErrorCode, isNetworkError } from '@/shared/api';
 import { useTheme } from '@/shared/theme';
@@ -30,16 +33,26 @@ export default function SignupAccountScreen() {
 
   const onChangeLoginId = (v: string) => {
     setLoginId(v);
-    if (errors.loginId) setErrors((e) => ({ ...e, loginId: undefined }));
+    // 값이 바뀌면 이전에 통과한 중복확인은 그 값에 대한 것이라 더는 유효하지 않다.
+    // (같은 아이디로 되돌려 써도 다시 확인받는다 — 그새 다른 사람이 쓸 수 있다)
+    setAvailableId('');
+    // 공백과 길이 초과는 입력하는 즉시 알려준다 — 둘 다 더 입력해도 해결되지 않는 상태다.
+    // "너무 짧음" 은 아직 치는 중일 수 있으니 중복확인/다음에서만 띄운다.
+    const error = validateLoginId(v);
+    const immediate = error === LOGIN_ID_BLANK_ERROR || v.trim().length > LOGIN_ID_MAX;
+    setErrors((e) => ({ ...e, loginId: immediate ? error : undefined }));
   };
 
   const checkDuplicate = () => {
-    const value = loginId.trim();
     if (check.isPending) return;
-    if (value.length < 4) {
-      setErrors((e) => ({ ...e, loginId: '아이디는 4자 이상 입력해주세요.' }));
+    // 검증은 입력값 그대로 한다. 잘라낸 값으로 검사하면 " abc" 가 공백 검사를 빠져나가서,
+    // 입력칸에는 공백과 빨간 문구가 보이는데 "사용 가능한 아이디예요" 가 같이 떴다.
+    const invalid = validateLoginId(loginId);
+    if (invalid) {
+      setErrors((e) => ({ ...e, loginId: invalid }));
       return;
     }
+    const value = loginId.trim();
     check.mutate(value, {
       onSuccess: () => {
         setAvailableId(value);

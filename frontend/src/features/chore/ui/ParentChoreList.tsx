@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { ScrollView, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import { REPEAT_TYPES, repeatLabel } from '@/features/chore/lib/choreLabels';
 import {
@@ -24,6 +24,7 @@ import {
   Header,
   HeaderChipButton,
   Screen,
+  Toggle,
 } from '@/shared/ui';
 
 /** 대기함 카드에 미리 보여 줄 건수. 나머지는 "전체보기"로 넘어간다 */
@@ -65,18 +66,31 @@ export function ParentChoreList({
   const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
   const { refreshing, onRefresh } = useChoreRefresh(familyId, childIds);
   const [repeatType, setRepeatType] = useState<ChoreRepeatType | null>(null);
+  const [onlyActive, setOnlyActive] = useState(false);
 
   const { items, isPending, isError } = useChildrenChores(familyId, childList);
   const requests = useChildrenPendingRequests(familyId, childList);
 
-  // 지급까지 끝난 미션은 목록에서 뺀다. 아이 화면과 같은 기준이다 - 한쪽에만 남으면
-  // 부모와 아이가 서로 다른 목록을 보게 된다. 지난 건은 완료 이력에서 본다.
-  const active = useMemo(() => items.filter((chore) => !chore.done), [items]);
-
-  const visible = useMemo(
-    () => (repeatType == null ? active : active.filter((chore) => chore.repeatType === repeatType)),
-    [active, repeatType],
+  /**
+   * 목록에 남길 미션. 아이 화면(ChildChoreList)과 같은 규칙이다 - 한쪽에만 남으면 부모와
+   * 아이가 서로 다른 목록을 보게 된다.
+   *
+   * 끝낸 반복 미션(매일·매주·매월)은 흐리게 남긴다. 부모는 자기가 무엇을 걸어 뒀는지
+   * 기억하지 못하는데, 끝나자마자 사라지면 그 미션이 있었다는 사실 자체가 안 보인다 (QA).
+   * 한번짜리는 다시 할 일이 아니라 뺀다.
+   */
+  const listed = useMemo(
+    () => items.filter((chore) => !chore.done || chore.repeatType !== 'ONCE'),
+    [items],
   );
+
+  const visible = useMemo(() => {
+    const byRepeat =
+      repeatType == null ? listed : listed.filter((chore) => chore.repeatType === repeatType);
+    const filtered = onlyActive ? byRepeat.filter((chore) => !chore.done) : byRepeat;
+    // 아직 안 끝난 것이 위로. 섞여 있으면 무엇이 남았는지 훑어야 한다.
+    return [...filtered].sort((a, b) => Number(a.done) - Number(b.done));
+  }, [listed, repeatType, onlyActive]);
 
   // 아이 화면(ChildChoreList)과 같은 pill 이고, 값은 상점의 "구매 내역"(StoreCatalog)을 따른다.
   const historyButton = onHistoryPress ? (
@@ -91,43 +105,59 @@ export function ParentChoreList({
       padded={false}
       style={{ paddingTop: theme.space.sm }}
     >
-      <FlatList
-        data={visible}
-        keyExtractor={(item) => String(item.choreId)}
+      {/* 칩이 스크롤해도 상단에 붙어 있어야 해서 ScrollView + stickyHeaderIndices 다.
+          FlatList 는 헤더 전체(배너+요청 카드+칩)를 한 덩어리로만 붙일 수 있다.
+          한 가족의 미션은 많아야 수십 개라 가상화를 포기해도 괜찮다 (상점 목록과 같은 이유). */}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={[
-          styles.content,
-          { paddingHorizontal: theme.layout.screenX, gap: theme.space.md },
-        ]}
-        ListHeaderComponent={
-          <View style={{ gap: theme.space.lg, marginBottom: theme.space.lg }}>
-            <ChoreHeroBanner
-              title="우리 가족 미션"
-              caption={'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
-              mascot={require('@/assets/images/chore/owl-cheer.png')}
-            />
-            {requests.items.length > 0 ? (
-              <PendingRequestsCard
-                requests={requests.items}
-                onRequestPress={onRequestPress}
-                onSeeAll={onSeeAllRequests}
-              />
-            ) : null}
-            <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} />
-          </View>
-        }
-        renderItem={({ item }) => (
-          <ChoreListRow
-            title={item.title}
-            repeatType={item.repeatType}
-            rewardPoints={item.rewardPoints}
-            childName={item.childName}
-            endDate={item.endDate}
-            onPress={onChorePress ? () => onChorePress(item) : undefined}
+        // 1 = 필터 칩. 위쪽(0)은 그대로 밀려 올라가고 칩만 상단에 붙는다.
+        stickyHeaderIndices={[1]}
+        // 좌우 여백은 각 자식이 갖는다 — contentContainer 에 주면 붙어 있는 칩 줄의 배경이
+        // 화면 끝까지 닿지 않아, 그 여백 틈으로 지나가는 카드가 보인다.
+        contentContainerStyle={styles.content}
+      >
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            marginBottom: theme.space.lg,
+            gap: theme.space.lg,
+          }}
+        >
+          <ChoreHeroBanner
+            title="우리 가족 미션"
+            caption={'아이가 해낼 미션을 만들고 도토리로\n칭찬해주세요!'}
+            mascot={require('@/assets/images/chore/owl-cheer.png')}
           />
-        )}
-        ListEmptyComponent={
+          {requests.items.length > 0 ? (
+            <PendingRequestsCard
+              requests={requests.items}
+              onRequestPress={onRequestPress}
+              onSeeAll={onSeeAllRequests}
+            />
+          ) : null}
+        </View>
+
+        {/* 주기 칩은 다섯 칸이라 체크박스와 한 줄에 두면 "매월"이 밀려 잘렸다 (아이 화면과
+            같은 문제였다) — 칩 줄을 위에, 체크박스를 그 아래 줄에 둔다. 옵션이 5개로
+            고정돼 있어 fill 로 스크롤 없이 화면 폭을 나눠 갖게 한다.
+            붙어 있는 동안 카드가 뒤로 지나가므로 배경을 불투명하게 깔아 준다.
+            두 줄 사이 여백은 이 View의 gap이 아니라 onlyActiveRow의 marginTop이 낸다
+            (styles 참고) — gap만으로는 화면에 반영되지 않는다는 피드백이 반복됐다. */}
+        <View
+          style={{
+            paddingHorizontal: theme.layout.screenX,
+            paddingBottom: theme.space.lg,
+            backgroundColor: theme.color.background.canvas,
+          }}
+        >
+          <FilterChips options={FILTERS} selected={repeatType} onSelect={setRepeatType} fill />
+          <View style={styles.onlyActiveRow}>
+            <Toggle checked={onlyActive} onChange={setOnlyActive} label="미완료만" />
+          </View>
+        </View>
+
+        {visible.length === 0 ? (
           <EmptyState
             message={
               isPending
@@ -142,8 +172,26 @@ export function ParentChoreList({
                       : '아직 등록한 미션이 없어요.\n오른쪽 아래 + 버튼으로 만들어보세요.'
             }
           />
-        }
-      />
+        ) : (
+          <View style={{ paddingHorizontal: theme.layout.screenX, gap: theme.space.md }}>
+            {visible.map((item) => (
+              <ChoreListRow
+                key={item.choreId}
+                title={item.title}
+                repeatType={item.repeatType}
+                rewardPoints={item.rewardPoints}
+                childName={item.childName}
+                endDate={item.endDate}
+                // 부모 목록은 대기·거절을 행마다 보여 주지 않는다 (위의 "완료 요청" 카드가 맡는다).
+                // 끝난 것만 배지와 흐린 카드로 구분한다.
+                status={item.done ? 'DONE' : undefined}
+                dimmed={item.done}
+                onPress={onChorePress ? () => onChorePress(item) : undefined}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {onRegisterPress ? (
         <Pressable
@@ -259,6 +307,10 @@ function EmptyState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
+  // 체크박스(Toggle) 줄은 칩 아래에서 오른쪽으로 붙는다 (아이 화면과 같다)
+  // marginTop 을 직접 준다 — 부모 View 의 gap 만으로는 여백이 화면에 반영되지 않는다는
+  // 피드백이 반복돼, 부모 gap 과 별개로 이 줄 자체에 여백을 박아 확실히 떨어지게 한다
+  onlyActiveRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
   // 위쪽 여백을 주지 않는다. Screen에 style={{ paddingTop: theme.space.sm }}로 헤더-배너
   // 간격을 이미 줬으니, 여기서 또 주면 중복으로 벌어진다 (상점·저축·투자와 같은 값).
   content: { paddingBottom: 16, flexGrow: 1 },

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { reviewCompletionErrorMessage } from '@/features/chore/lib/choreError';
 import { useApproveCompletion } from '@/features/chore/model/useApproveCompletion';
@@ -82,10 +83,15 @@ export function CompletionRequestModal({
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={{ gap: theme.space.md }}>
               {request?.photoUrl ? (
+                /* 목록 썸네일과 같은 캐시 키다 - 목록에서 이미 받아 둔 사진을 그대로 쓴다 */
                 <Image
-                  source={{ uri: request.photoUrl }}
+                  source={{
+                    uri: request.photoUrl,
+                    cacheKey: `chore-request-${request.choreCompletionRequestId}`,
+                  }}
                   style={[styles.photo, { borderRadius: theme.radius.md }]}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  transition={120}
                 />
               ) : null}
 

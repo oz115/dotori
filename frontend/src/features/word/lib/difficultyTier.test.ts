@@ -1,4 +1,11 @@
-import { difficultyLabel, difficultyTier } from '@/features/word/lib/difficultyTier';
+import {
+  difficultyBadgeColors,
+  difficultyLabel,
+  difficultyTier,
+  difficultyTierColors,
+  TIER_ORDER,
+} from '@/features/word/lib/difficultyTier';
+import { theme } from '@/shared/theme';
 
 describe('difficultyTier', () => {
   it('1은 초급이다', () => {
@@ -25,5 +32,19 @@ describe('difficultyLabel', () => {
     expect(difficultyLabel(1)).toBe('초급');
     expect(difficultyLabel(3)).toBe('중급');
     expect(difficultyLabel(4)).toBe('고급');
+  });
+});
+
+describe('difficultyTierColors', () => {
+  it('세 구간이 서로 다른 색을 쓴다 — 같아지면 배지·칩·목록 아이콘의 신호가 사라진다', () => {
+    const backgrounds = TIER_ORDER.map((tier) => difficultyTierColors(theme, tier).bg);
+
+    expect(new Set(backgrounds).size).toBe(TIER_ORDER.length);
+  });
+
+  it('배지 색은 구간 색과 같다 — level(1~4)을 구간으로 접어 같은 곳에서 고른다', () => {
+    expect(difficultyBadgeColors(theme, 2)).toMatchObject(
+      difficultyTierColors(theme, 'INTERMEDIATE'),
+    );
   });
 });

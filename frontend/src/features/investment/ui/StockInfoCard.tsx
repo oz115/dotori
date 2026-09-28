@@ -56,7 +56,7 @@ export function StockInfoCard({ detail }: Props) {
                 },
               ]}
             >
-              <Text style={styles.rowEmoji}>{row.emoji}</Text>
+              <Text style={[styles.rowEmoji, { fontSize: 18 * theme.textScale }]}>{row.emoji}</Text>
             </View>
             <Text style={[theme.typography.label, styles.rowKey, { color: theme.color.text.sub }]}>
               {row.key}
@@ -89,9 +89,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowEmoji: {
-    fontSize: 18,
-  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  rowEmoji: {},
   rowKey: {
     width: 40,
   },

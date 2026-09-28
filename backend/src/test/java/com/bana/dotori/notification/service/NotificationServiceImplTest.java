@@ -21,11 +21,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.bana.dotori.global.error.BusinessException;
 import com.bana.dotori.global.error.ErrorCode;
+import com.bana.dotori.notification.dto.NotificationDeleteAllResponse;
 import com.bana.dotori.notification.dto.NotificationItem;
 import com.bana.dotori.notification.dto.NotificationListResponse;
 import com.bana.dotori.notification.dto.NotificationReadAllResponse;
@@ -109,6 +111,23 @@ class NotificationServiceImplTest {
 		then(notificationRepository).should().findAll(any(Specification.class), pageableCaptor.capture());
 		assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(2);
 		assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(10);
+	}
+
+	@Test
+	@DisplayName("안 읽은 알림이 먼저, 그 안에서 최신순으로 정렬한다")
+	void getNotifications_sortsUnreadFirst() {
+		// 최신순만으로 세우면 어제 안 읽은 알림이 오늘 읽은 알림 밑으로 내려간다.
+		// 페이지 단위로 내려주므로 클라이언트가 다시 세울 수도 없다.
+		given(notificationRepository.findAll(any(Specification.class), any(Pageable.class)))
+			.willReturn(new PageImpl<>(List.of()));
+		given(notificationRepository.count(any(Specification.class))).willReturn(0L);
+
+		notificationService.getNotifications(USER_ID, null, null, 0, 10);
+
+		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+		then(notificationRepository).should().findAll(any(Specification.class), pageableCaptor.capture());
+		assertThat(pageableCaptor.getValue().getSort()).isEqualTo(
+			Sort.by(Sort.Order.asc("read"), Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
 	}
 
 	@Test
@@ -263,6 +282,38 @@ class NotificationServiceImplTest {
 			.extracting(e -> ((BusinessException)e).getErrorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
 		then(notificationRepository).should(never()).delete(any(Notification.class));
+	}
+
+	@Test
+	@DisplayName("모두 삭제는 리포지토리가 반환한 건수를 그대로 deletedCount에 담는다")
+	void deleteAllNotifications_returnsDeletedCount() {
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(7);
+
+		NotificationDeleteAllResponse response = notificationService.deleteAllNotifications(USER_ID);
+
+		assertThat(response.deletedCount()).isEqualTo(7);
+	}
+
+	@Test
+	@DisplayName("지울 알림이 없어도 deletedCount 0으로 성공한다")
+	void deleteAllNotifications_empty_returnsZero() {
+		// 빈 알림함에서 "모두 삭제"를 눌러도 에러가 뜨면 안 된다 — 멱등이어야 한다.
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(0);
+
+		NotificationDeleteAllResponse response = notificationService.deleteAllNotifications(USER_ID);
+
+		assertThat(response.deletedCount()).isEqualTo(0);
+	}
+
+	@Test
+	@DisplayName("모두 삭제는 본인 id 로만 지운다 — 남의 알림까지 지우면 안 된다")
+	void deleteAllNotifications_scopedToOwner() {
+		given(notificationRepository.deleteAllByUserId(USER_ID)).willReturn(2);
+
+		notificationService.deleteAllNotifications(USER_ID);
+
+		then(notificationRepository).should().deleteAllByUserId(USER_ID);
+		then(notificationRepository).should(never()).deleteAll();
 	}
 
 	@Test

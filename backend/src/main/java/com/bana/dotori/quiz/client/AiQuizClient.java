@@ -3,6 +3,8 @@ package com.bana.dotori.quiz.client;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -25,5 +27,23 @@ public class AiQuizClient {
 			.uri("/internal/quiz/generate")
 			.retrieve()
 			.body(AiQuizGenerateResponse.class);
+	}
+
+	/**
+	 * 가족 하나에만 오늘자 퀴즈를 배정한다. 자정 크론이 돌 뒤에 자녀가 합류했을 때 쓴다.
+	 *
+	 * <p>형제가 이미 오늘 문제를 받았으면 AI 가 그 문제를 그대로 복사한다 — 한 가족은 같은 문제를
+	 * 푸는 것이 배정 규칙이고, 그 경우 LLM 호출도 나가지 않는다. 재호출은 안전하다(멱등).
+	 */
+	public AiQuizAssignResponse assignFamily(Integer familyId) {
+		return aiRestClient.post()
+			.uri("/internal/quiz/assign")
+			.body(new AiQuizAssignRequest(familyId))
+			.retrieve()
+			.body(AiQuizAssignResponse.class);
+	}
+
+	/** AI 서버가 받는 본문. snake_case 라 필드명을 그대로 맞춘다. */
+	private record AiQuizAssignRequest(@JsonProperty("family_id") Integer familyId) {
 	}
 }

@@ -28,11 +28,9 @@ export function NewsArticle({ newsId }: { newsId: number }) {
       <Text style={[theme.typography.h2, { color: theme.color.text.strong }]}>
         {news.data.title}
       </Text>
+      {/* "어떤 회사에 영향을 줄까요?" 안내는 투자 메인의 오늘의 뉴스 섹션에서 한 번만 말한다 */}
       <Text style={[theme.typography.body, { color: theme.color.text.default, lineHeight: 30 }]}>
         {news.data.content}
-      </Text>
-      <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-        이 소식은 어떤 회사에 영향을 줄까요?
       </Text>
     </View>
   );

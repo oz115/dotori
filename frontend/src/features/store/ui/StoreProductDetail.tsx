@@ -8,20 +8,31 @@ import { categoryBadgeColors } from '@/features/store/lib/categoryTheme';
 import { categoryImage } from '@/features/store/lib/categoryImage';
 import { categoryLabel } from '@/features/store/lib/categoryLabel';
 import { categoryTagline } from '@/features/store/lib/categoryTagline';
-import { isPriceReady, isSoldOut } from '@/features/store/lib/productStatus';
+import {
+  isPriceReady,
+  isSoldOut,
+  purchasedToday,
+  todayPurchaseRange,
+} from '@/features/store/lib/productStatus';
 import { purchaseErrorMessage } from '@/features/store/lib/purchaseError';
 import type { StorePurchaseResult } from '@/features/store/model/types';
+import { usePurchaseHistory } from '@/features/store/model/usePurchaseHistory';
 import { useDeleteStoreProduct } from '@/features/store/model/useDeleteStoreProduct';
 import { usePurchaseStoreProduct } from '@/features/store/model/usePurchaseStoreProduct';
 import { useStoreProduct } from '@/features/store/model/useStoreProduct';
 import { DeleteProductModal } from '@/features/store/ui/DeleteProductModal';
 import { PurchaseConfirmModal } from '@/features/store/ui/PurchaseConfirmModal';
 import { useTheme } from '@/shared/theme';
-import { Button, Header, Screen } from '@/shared/ui';
+import { Button, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type StoreProductDetailProps = {
   familyId: number | undefined;
   productId: number | undefined;
+  /**
+   * 로그인한 아이의 id. 오늘 이미 샀는지(하루 1회 제한) 판정하는 구매 내역 조회에만 쓴다.
+   * 부모 화면에선 넘어오지 않는다 — 부모는 살 수 없다.
+   */
+  childId?: number;
   /** 로그인한 사용자 역할. 하단 액션(구매하기 vs 수정/삭제) 분기에만 쓴다 — auth 슬라이스를
    * 이 feature 가 직접 import 하지 않도록 호출하는 라우트가 넘겨준다. */
   role: 'PARENT' | 'CHILD' | undefined;
@@ -37,6 +48,11 @@ type StoreProductDetailProps = {
    * expo-router가 어느 쪽인지 못 정한다 — 그래서 라우트가 정확한 경로를 만들어 넘긴다.
    */
   onNavigateToList: () => void;
+  /**
+   * 뒤로가기를 이 화면의 기본 동작(스택 되돌리기) 대신 다른 곳으로 보낼 때 넘긴다.
+   * 알림함에서 들어온 경우가 그렇다 — 알림함으로 돌아가야 한다 (useBackToNotifications).
+   */
+  onBack?: () => void;
 };
 
 /**
@@ -45,11 +61,13 @@ type StoreProductDetailProps = {
 export function StoreProductDetailScreen({
   familyId,
   productId,
+  childId,
   role,
   registrantName,
   balance,
   onPurchased,
   onNavigateToList,
+  onBack,
 }: StoreProductDetailProps) {
   const theme = useTheme();
   const { data: product, isPending, isError } = useStoreProduct(familyId, productId);
@@ -58,8 +76,8 @@ export function StoreProductDetailScreen({
     <Screen
       header={
         <Header
-          title={product?.name ?? '상품 상세'}
-          onBack={() => (router.canGoBack() ? router.back() : onNavigateToList())}
+          title="상품 상세"
+          onBack={onBack ?? (() => (router.canGoBack() ? router.back() : onNavigateToList()))}
         />
       }
       padded={false}
@@ -80,6 +98,7 @@ export function StoreProductDetailScreen({
       ) : (
         <StoreProductDetailBody
           familyId={familyId}
+          childId={childId}
           product={product}
           registrantName={registrantName}
           role={role}
@@ -98,6 +117,7 @@ function Centered({ children }: { children: ReactNode }) {
 
 type BodyProps = {
   familyId: number | undefined;
+  childId?: number;
   product: NonNullable<ReturnType<typeof useStoreProduct>['data']>;
   registrantName: string | undefined;
   role: 'PARENT' | 'CHILD' | undefined;
@@ -108,6 +128,7 @@ type BodyProps = {
 
 function StoreProductDetailBody({
   familyId,
+  childId,
   product,
   registrantName,
   role,
@@ -116,6 +137,7 @@ function StoreProductDetailBody({
   onNavigateToList,
 }: BodyProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const badge = categoryBadgeColors(theme, product.category);
   const soldOut = isSoldOut(product.quantity);
   const priceReady = isPriceReady(product.price);
@@ -142,6 +164,11 @@ function StoreProductDetailBody({
   const purchaseProduct = usePurchaseStoreProduct(familyId, product.storeProductId);
   const insufficientBalance = balance != null && product.price != null && balance < product.price;
 
+  // 하루 1회 제한(SHOP-06)은 서버만 알고 상품 응답에는 없다 — 오늘 범위의 구매 내역으로
+  // 직접 판정해 버튼을 미리 막는다. 부모 화면에선 childId 가 없어 조회 자체를 하지 않는다.
+  const todayPurchases = usePurchaseHistory(familyId, childId, todayPurchaseRange());
+  const boughtToday = purchasedToday(todayPurchases.data, product.storeProductId);
+
   const openPurchase = () => {
     purchaseProduct.reset();
     setPurchaseResult(null);
@@ -156,22 +183,33 @@ function StoreProductDetailBody({
     });
   };
   const closePurchase = () => {
+    const purchased = purchaseResult != null;
     setPurchaseOpen(false);
     setPurchaseResult(null);
+    // 구매를 마친 확인이면 상세에 머무르지 않고 상점 목록으로 — 방금 산 물건의
+    // 상세(구매하기 버튼이 잠긴 화면)를 계속 보여줄 이유가 없다 (QA)
+    if (purchased) {
+      onNavigateToList();
+    }
   };
 
+  // 오늘 이미 샀다는 것은 도토리가 모자란 것보다 확실한 차단이라 먼저 보여 준다.
+  // 문구는 왜 못 사는지와 언제 다시 살 수 있는지를 같이 말한다 (QA).
   const purchaseLabel = soldOut
     ? '품절'
     : !priceReady
       ? 'AI가 가격 산정 중'
-      : insufficientBalance
-        ? '도토리 부족'
-        : '구매하기';
-  const purchaseDisabled = soldOut || !priceReady || insufficientBalance;
+      : boughtToday
+        ? '내일까지 기다려볼까요?'
+        : insufficientBalance
+          ? '도토리 부족'
+          : '구매하기';
+  const purchaseDisabled = soldOut || !priceReady || boughtToday || insufficientBalance;
 
   return (
     <>
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
@@ -189,11 +227,18 @@ function StoreProductDetailBody({
             },
           ]}
         >
+          {/* 맨 위 배너는 이 상품의 상세로 — 상품명을 제목으로, 카테고리 문구는 부제로 내린다 */}
           <View style={{ flex: 1, gap: theme.space.xs }}>
-            <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-              {categoryTagline(product.category)}
+            <Text
+              style={[theme.typography.titleMd, { color: theme.color.text.strong }]}
+              numberOfLines={2}
+            >
+              {product.name}
             </Text>
             <View style={[styles.taglineUnderline, { backgroundColor: theme.color.brand.solid }]} />
+            <Text style={[theme.typography.caption, { color: theme.color.text.sub }]}>
+              {categoryTagline(product.category)}
+            </Text>
           </View>
           <Image
             source={categoryImage(product.category)}
@@ -233,9 +278,6 @@ function StoreProductDetailBody({
               {categoryLabel(product.category)}
             </Text>
           </View>
-          <Text style={[theme.typography.h3, { color: theme.color.text.strong }]}>
-            {product.name}
-          </Text>
           <View style={styles.footerRow}>
             {priceReady ? (
               <View style={styles.priceRow}>
@@ -290,38 +332,6 @@ function StoreProductDetailBody({
             </View>
             <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
               {product.description}
-            </Text>
-          </View>
-        ) : null}
-
-        {role === 'PARENT' && product.reason ? (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.color.background.surface,
-                borderColor: theme.color.border.default,
-                borderRadius: theme.radius.lg,
-                padding: theme.space.lg,
-                gap: theme.space.sm,
-              },
-            ]}
-          >
-            <View style={styles.descHeader}>
-              <View
-                style={[
-                  styles.descIcon,
-                  { backgroundColor: theme.color.brand.subtle, borderRadius: theme.radius.full },
-                ]}
-              >
-                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
-              </View>
-              <Text style={[theme.typography.label, { color: theme.color.text.strong }]}>
-                AI 산정 이유
-              </Text>
-            </View>
-            <Text style={[theme.typography.body, { color: theme.color.text.default }]}>
-              {product.reason}
             </Text>
           </View>
         ) : null}

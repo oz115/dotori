@@ -27,6 +27,37 @@ describe('resolveNotificationRoute', () => {
     });
   });
 
+  describe('알림함에서 탭한 경우 (fromNotificationList)', () => {
+    // 푸시에서 곧장 열린 것과 알림함에서 들어온 것은 뒤로가기가 달라야 한다 — 알림함에서
+    // 왔으면 알림함으로 돌아가야 하는데, 예전에는 둘을 구분하지 않아 그 탭의 목록으로 갔다 (QA).
+    it('상점 상세에는 viaDeepLink 대신 from 을 싣는다', () => {
+      expect(resolveNotificationRoute({ type: 'PURCHASE', refId: '5' }, 'PARENT', true)).toEqual({
+        pathname: '/(parent)/(tabs)/store/[productId]',
+        params: { productId: '5', from: 'notification' },
+      });
+      expect(resolveNotificationRoute({ type: 'PURCHASE', refId: '5' }, 'CHILD', true)).toEqual({
+        pathname: '/(child)/(tabs)/store/[productId]',
+        params: { productId: '5', from: 'notification' },
+      });
+    });
+
+    it('완료 요청 목록에도 from 을 싣는다', () => {
+      expect(resolveNotificationRoute({ type: 'CHORE', refId: '3' }, 'PARENT', true)).toEqual({
+        pathname: '/(parent)/(tabs)/task/requests',
+        params: { from: 'notification' },
+      });
+    });
+
+    it('탭 바깥 화면은 그대로다 — 알림함 위에 쌓이므로 뒤로가기가 이미 알림함으로 간다', () => {
+      expect(resolveNotificationRoute({ type: 'CASHOUT', refId: '7' }, 'PARENT', true)).toBe(
+        '/(parent)/wallet/cashouts',
+      );
+      expect(resolveNotificationRoute({ type: 'INVITATION', refId: '1' }, 'PARENT', true)).toBe(
+        '/(parent)/family',
+      );
+    });
+  });
+
   it.each([
     ['CASHOUT', '7', '/(parent)/wallet/cashouts'],
     ['CHARGE', undefined, '/(parent)/account/transactions'],

@@ -58,10 +58,11 @@ public class QuizServiceImpl implements QuizService {
 	 */
 	private static final int QUIZ_REWARD_DIVISOR = 35;
 
-	private static final String REWARD_DESCRIPTION_PREFIX = "퀴즈 정답 보상: ";
-
-	/** point_transactions.description 컬럼 길이(VARCHAR 255). 넘으면 INSERT 가 실패해 지급 전체가 깨진다. */
-	private static final int REWARD_DESCRIPTION_MAX_LENGTH = 255;
+	/**
+	 * 보상 거래 설명. 문제 본문을 붙이지 않는다 — 거래내역 한 줄에 문제 전문이 들어가면
+	 * 목록이 읽기 힘들어진다는 피드백. 어떤 퀴즈였는지는 퀴즈 이력 화면이 보여줄 몫이다.
+	 */
+	private static final String REWARD_DESCRIPTION = "퀴즈 정답 보상";
 
 	private final QuizRepository quizRepository;
 	private final QuizAttemptRepository quizAttemptRepository;
@@ -155,7 +156,7 @@ public class QuizServiceImpl implements QuizService {
 			pointWalletService.createWalletIfAbsent(childId);
 			PointChangeResult result = pointWalletService.deposit(PointChangeCommand.of(
 				childId, earnedPoints, PointTransactionReason.QUIZ_REWARD,
-				rewardDescription(quiz), quiz.rewardIdempotencyKey()));
+				REWARD_DESCRIPTION, quiz.rewardIdempotencyKey()));
 			if (result.replayed()) {
 				// 퀴즈 행 락이 이미 동시 제출을 막아서 정상 흐름에서는 오지 않는다. 대비용 방어다.
 				throw new BusinessException(ErrorCode.ALREADY_SUBMITTED,
@@ -195,24 +196,6 @@ public class QuizServiceImpl implements QuizService {
 
 		List<QuizAttemptHistoryItem> attempts = quizAttemptRepository.findHistory(childId, startDate, endDate);
 		return new QuizHistoryResponse(attempts);
-	}
-
-	/**
-	 * 보상 거래 설명. 문제(quizzes.question)는 길이 제한이 없는 TEXT 인데 설명 컬럼은 255자라서,
-	 * 긴 문제를 그대로 붙이면 정답을 맞혀도 지급 INSERT 가 실패한다. 넘치면 말줄임표로 자른다.
-	 */
-	private String rewardDescription(Quiz quiz) {
-		String description = REWARD_DESCRIPTION_PREFIX + quiz.getQuestion();
-		if (description.length() <= REWARD_DESCRIPTION_MAX_LENGTH) {
-			return description;
-		}
-
-		int end = REWARD_DESCRIPTION_MAX_LENGTH - 1;
-		// 서로게이트 쌍(이모지 등)의 한가운데를 자르면 DB 인코딩 오류가 나므로 앞 절반만 남기지 않는다.
-		if (Character.isHighSurrogate(description.charAt(end - 1))) {
-			end--;
-		}
-		return description.substring(0, end) + "…";
 	}
 
 	/**

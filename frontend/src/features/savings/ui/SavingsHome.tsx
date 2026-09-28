@@ -9,7 +9,15 @@ import type { SavingsGroup } from '@/features/savings/model/types';
 import { SavingsIntroBanner } from '@/features/savings/ui/SavingsIntroBanner';
 import { SavingsProductCard } from '@/features/savings/ui/SavingsProductCard';
 import { useTheme } from '@/shared/theme';
-import { Button, Checkbox, FilterChips, Header, HeaderChipButton, Screen } from '@/shared/ui';
+import {
+  Button,
+  FilterChips,
+  Header,
+  HeaderChipButton,
+  Screen,
+  Toggle,
+  usePullToRefresh,
+} from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -31,6 +39,7 @@ type Props = {
  */
 export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const [group, setGroup] = useState<SavingsGroup | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
 
@@ -74,6 +83,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
       style={{ paddingTop: theme.space.sm }}
     >
       <ScrollView
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.layout.screenX,
@@ -91,7 +101,7 @@ export function SavingsHome({ familyId, childId, onPressCard, onPressHistory }: 
           <View style={styles.chips}>
             <FilterChips options={SAVINGS_GROUP_FILTERS} selected={group} onSelect={setGroup} />
           </View>
-          <Checkbox checked={onlyMine} onChange={setOnlyMine} label="보유한 것만" />
+          <Toggle checked={onlyMine} onChange={setOnlyMine} label="보유한 상품 보기" />
         </View>
 
         {isPending ? (

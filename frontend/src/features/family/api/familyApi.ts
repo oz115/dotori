@@ -42,8 +42,21 @@ export const familyApi = {
       .post<InvitationResponse>(`/api/v1/families/${familyId}/invitations`, undefined)
       .then((res) => res.data),
 
+  /** 발급된 초대 코드 폐기(만료) — 부모만, 성공 시 204. 발급된 코드가 없어도 204 */
+  revokeInvitation: (familyId: number) =>
+    httpClient.delete(`/api/v1/families/${familyId}/invitations`),
+
   /** 가족 삭제 — 생성자만, 성공 시 204 */
   remove: (familyId: number) => httpClient.delete(`/api/v1/families/${familyId}`),
+
+  /**
+   * 자녀를 가족에서 제외 — 부모만, 성공 시 204.
+   *
+   * 자녀에게 도토리·예적금·투자·환전 대기가 남아 있으면 409 CHILD_HAS_ACTIVE_ASSETS 로
+   * 막힌다 (가족 삭제와 같은 규칙 - 내보내고 나면 그 자산을 정리할 길이 끊긴다).
+   */
+  removeChild: (familyId: number, childId: number) =>
+    httpClient.delete(`/api/v1/families/${familyId}/children/${childId}`),
 
   /** 자녀가 초대 코드로 가족에 합류 — 자녀만, 잘못된/만료된 코드면 INVALID_FAMILY_CODE */
   connect: (code: string) =>

@@ -34,6 +34,10 @@ public class Word {
 	@Column(name = "description", length = 255, nullable = false)
 	private String description;
 
+	// 아이 눈높이로 풀어 쓴 설명. 용어사전을 나중에 받아 채운 컬럼이라 아직 비어 있는 단어가 있다.
+	@Column(name = "easy_description", length = 255)
+	private String easyDescription;
+
 	@Column(name = "difficulty_level", nullable = false)
 	private Integer difficultyLevel;
 
@@ -43,9 +47,11 @@ public class Word {
 	private WordCategory category;
 
 	@Builder
-	private Word(String word, String description, Integer difficultyLevel, WordCategory category) {
+	private Word(String word, String description, String easyDescription, Integer difficultyLevel,
+			WordCategory category) {
 		this.word = word;
 		this.description = description;
+		this.easyDescription = easyDescription;
 		this.difficultyLevel = difficultyLevel;
 		this.category = category;
 	}

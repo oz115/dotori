@@ -34,25 +34,15 @@ export function NewsList({
             },
           ]}
         >
+          {/* 카테고리 박스("경제 소식")는 뺐다 — 뉴스가 전부 같은 분류라 정보가 없다 */}
           <View style={[styles.texts, { gap: theme.space.sm }]}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: theme.color.brand.solid, borderRadius: theme.radius.full },
-              ]}
-            >
-              <Text style={[theme.typography.caption, { color: theme.color.text.onBrand }]}>
-                {item.tag}
-              </Text>
-            </View>
             <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
               {item.title}
             </Text>
-            <Text style={[theme.typography.bodySm, { color: theme.color.text.sub }]}>
-              {item.body}
-            </Text>
           </View>
-          <Text style={styles.illustration}>{item.emoji}</Text>
+          <Text style={[styles.illustration, { fontSize: 44 * theme.textScale }]}>
+            {item.emoji}
+          </Text>
         </Pressable>
       ))}
     </View>
@@ -69,11 +59,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-start',
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  illustration: {
-    fontSize: 44,
-  },
+  // 크기는 쓰는 쪽에서 기기 글꼴 배율을 상쇄해 넣는다 (shared/theme/fontScale.ts)
+  illustration: {},
 });

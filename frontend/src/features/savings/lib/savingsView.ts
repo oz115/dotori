@@ -12,6 +12,7 @@ import type {
 } from '@/features/savings/model/types';
 import { parseServerDate } from '@/shared/lib/datetime';
 import { formatPoint } from '@/shared/lib/money';
+import { theme } from '@/shared/theme';
 
 /**
  * 상품 + 내 가입 목록 → 저축 메인 카드 뷰모델.
@@ -32,10 +33,30 @@ export function savingsGroupLabel(group: SavingsGroup): string {
 /**
  * 저축 메인 상단 분류 칩 (상점·미션과 같은 FilterChips). '전체' 는 칩 쪽이 붙이므로
  * 여기 넣지 않는다. 아이 화면과 부모 화면이 같은 순서·같은 문구를 써야 해서 여기 둔다.
+ *
+ * 선택됐을 때 배경·글자색은 상품 카드의 분류 뱃지(SavingsProductCard.savingsBadge)와
+ * 그대로 맞춘다 — 예금=파랑, 적금=앰버, 옅은 배경 위 진한 글자. 칩과 카드가 서로 다른
+ * 색이면 같은 분류를 가리킨다는 게 안 읽히고, 진한 색을 채우면(solid) 앰버는 흰 글자와
+ * 대비가 약해 뱃지 쪽 톤(subtle 배경 + text)을 그대로 가져오는 편이 낫다.
  */
-export const SAVINGS_GROUP_FILTERS: { key: SavingsGroup; label: string }[] = [
-  { key: 'DEPOSIT', label: savingsGroupLabel('DEPOSIT') },
-  { key: 'INSTALLMENT', label: savingsGroupLabel('INSTALLMENT') },
+export const SAVINGS_GROUP_FILTERS: {
+  key: SavingsGroup;
+  label: string;
+  activeColor: string;
+  activeTextColor: string;
+}[] = [
+  {
+    key: 'DEPOSIT',
+    label: savingsGroupLabel('DEPOSIT'),
+    activeColor: theme.color.status.info.subtle,
+    activeTextColor: theme.color.status.info.text,
+  },
+  {
+    key: 'INSTALLMENT',
+    label: savingsGroupLabel('INSTALLMENT'),
+    activeColor: theme.color.status.warning.subtle,
+    activeTextColor: theme.color.status.warning.text,
+  },
 ];
 
 /**
@@ -52,20 +73,29 @@ export function daysUntil(iso: string, now: Date): number {
   return Math.max(0, Math.ceil((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
 }
 
-/** 기간형 상품의 경과 진행률 (0~1). 시각을 못 읽으면 0 — 진행 바가 NaN 으로 사라지지 않게 한다 */
-function periodProgress(startedAt: string, maturityAt: string, now: Date): number {
-  const startDate = parseServerDate(startedAt);
-  const endDate = parseServerDate(maturityAt);
-  if (startDate == null || endDate == null) {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * 가입 시각부터 지금까지 지난 '완전한 주' 수. 서버 규칙(ChronoUnit.WEEKS.between)과 같은 절삭.
+ * 1주가 지나야 1이 된다 — 눈금 하나가 차는 기준이자, 적금 "1주 1회 납입" 판정 기준이기도 하다.
+ * 시각을 못 읽으면 0 (진행 표시가 NaN 으로 깨지지 않게 한다).
+ */
+export function weeksSince(startedAt: string, now: Date): number {
+  const start = parseServerDate(startedAt);
+  if (start == null) {
     return 0;
   }
+  return Math.max(0, Math.floor((now.getTime() - start.getTime()) / WEEK_MS));
+}
 
-  const start = startDate.getTime();
-  const end = endDate.getTime();
-  if (end <= start) {
-    return 1;
+/** 가입~만기 사이의 총 주차 수 (거치식 예금 눈금 개수). 4주 상품이면 4. */
+function totalWeeksBetween(startedAt: string, maturityAt: string): number {
+  const start = parseServerDate(startedAt);
+  const end = parseServerDate(maturityAt);
+  if (start == null || end == null || end.getTime() <= start.getTime()) {
+    return 0;
   }
-  return Math.min(1, Math.max(0, (now.getTime() - start) / (end - start)));
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / WEEK_MS));
 }
 
 function maturityLine(subscription: SavingsSubscription, now: Date): SavingsCardLine {
@@ -78,12 +108,14 @@ function maturityLine(subscription: SavingsSubscription, now: Date): SavingsCard
   return { label: '만기까지', value: `${daysUntil(subscription.maturityAt, now)}일` };
 }
 
+type SavingsSegments = { total: number; filled: number };
+
 function subscribedLines(
   subscription: SavingsSubscription,
   now: Date,
-): { lines: SavingsCardLine[]; progress?: number } {
+): { lines: SavingsCardLine[]; segments?: SavingsSegments } {
   switch (subscription.contributionStyle) {
-    // 보통예금 — 수시입출금, 이자는 매주 지갑으로 바로 들어와 쌓이지 않는다
+    // 보통예금 — 수시입출금, 무기한이라 눈금(만기)이 없다
     case 'FREE':
       return {
         lines: [
@@ -91,20 +123,28 @@ function subscribedLines(
           { label: '이자', value: '매주 지급' },
         ],
       };
-    // 단리·복리예금 — 가입 때 맡긴 목돈이 만기까지 이자를 불린다
-    case 'LUMP_SUM':
+    // 단리·복리예금 — 가입 때 맡긴 목돈이 만기까지 이자를 불린다. 눈금은 주차(1주=1칸).
+    // 가입한 날이 1주차라 첫 칸은 바로 찬다 (경과 주수 + 1). 적금이 가입 시 1회차로
+    // 시작해 첫 칸이 차는 것과 같은 규칙이다.
+    case 'LUMP_SUM': {
+      const total =
+        subscription.maturityAt != null
+          ? totalWeeksBetween(subscription.startedAt, subscription.maturityAt)
+          : 0;
+      const filled =
+        subscription.status === 'MATURED'
+          ? total
+          : Math.min(total, weeksSince(subscription.startedAt, now) + 1);
       return {
         lines: [
           { label: '예치 금액', value: formatPoint(subscription.principal) },
           { label: '쌓인 이자', value: formatPoint(subscription.accruedInterest) },
           maturityLine(subscription, now),
         ],
-        progress:
-          subscription.maturityAt != null
-            ? periodProgress(subscription.startedAt, subscription.maturityAt, now)
-            : undefined,
+        segments: total > 0 ? { total, filled } : undefined,
       };
-    // 소액·중기·장기적금 — 매주 같은 금액을 약속한 회차만큼 납입
+    }
+    // 소액·중기·장기적금 — 매주 같은 금액을 약속한 회차만큼 납입. 눈금은 회차(=주차).
     case 'FIXED_INSTALLMENT': {
       const total = subscription.installmentCount ?? 0;
       return {
@@ -113,7 +153,10 @@ function subscribedLines(
           { label: '모은 돈', value: formatPoint(subscription.currentAmount) },
           { label: '납입', value: `${subscription.contributionCount}회 / ${total}회` },
         ],
-        progress: total > 0 ? Math.min(1, subscription.contributionCount / total) : undefined,
+        segments:
+          total > 0
+            ? { total, filled: Math.min(total, subscription.contributionCount) }
+            : undefined,
       };
     }
   }
@@ -266,19 +309,20 @@ export function buildSavingsCards(
       // 화면 이름은 앱이 갖는다 (savingsAssets 의 PRODUCT_NAMES 주석 참고)
       name: savingsProductName(product.productType),
       image: savingsProductImage(product.productType),
+      productType: product.productType,
       group: savingsGroupOf(product.productType),
     };
     if (subscription == null) {
       return { ...base, subscribed: false, matured: false, lines: productLines(product) };
     }
-    const { lines, progress } = subscribedLines(subscription, now);
+    const { lines, segments } = subscribedLines(subscription, now);
     return {
       ...base,
       subscriptionId: subscription.savingsSubscriptionId,
       subscribed: true,
       matured: subscription.status === 'MATURED',
       lines,
-      progress,
+      segments,
     };
   });
 }

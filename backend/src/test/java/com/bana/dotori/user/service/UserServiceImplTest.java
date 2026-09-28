@@ -61,7 +61,7 @@ class UserServiceImplTest {
 	private FamilyService familyService;
 
 	@Mock
-	private RemainingAssetReader remainingAssetReader;
+	private RemainingAssetPolicy remainingAssetPolicy;
 
 	@Mock
 	private EmailVerificationCodeManager emailVerificationCodeManager;
@@ -495,7 +495,7 @@ class UserServiceImplTest {
 		User stored = user(1);
 		given(userRepository.findById(1)).willReturn(Optional.of(stored));
 		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
-		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(false);
+		given(remainingAssetPolicy.hasRemainingAsset(1)).willReturn(false);
 
 		userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!"));
 
@@ -509,7 +509,7 @@ class UserServiceImplTest {
 		User stored = user(1);
 		given(userRepository.findById(1)).willReturn(Optional.of(stored));
 		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
-		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(true);
+		given(remainingAssetPolicy.hasRemainingAsset(1)).willReturn(true);
 
 		assertThatThrownBy(() -> userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!")))
 			.isInstanceOf(BusinessException.class)
@@ -533,7 +533,7 @@ class UserServiceImplTest {
 			.isEqualTo(ErrorCode.PASSWORD_MISMATCH);
 
 		assertThat(stored.getDeletedAt()).isNull();
-		verify(remainingAssetReader, never()).hasRemainingAsset(any());
+		verify(remainingAssetPolicy, never()).hasRemainingAsset(any());
 	}
 
 	@Test
@@ -585,7 +585,7 @@ class UserServiceImplTest {
 		ReflectionTestUtils.setField(child, "role", UserRole.CHILD);
 		given(userRepository.findById(1)).willReturn(Optional.of(child));
 		given(passwordEncoder.matches("P@ssw0rd!", "encoded-password")).willReturn(true);
-		given(remainingAssetReader.hasRemainingAsset(1)).willReturn(false);
+		given(remainingAssetPolicy.hasRemainingAsset(1)).willReturn(false);
 
 		userService.withdraw(1, 1, new UserWithdrawRequest("P@ssw0rd!"));
 

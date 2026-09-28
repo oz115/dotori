@@ -115,11 +115,28 @@ describe('TradeButtons', () => {
     pressAlertButton('팔래요');
 
     await waitFor(() => expect(jest.mocked(investmentApi.sell)).toHaveBeenCalledWith(1));
+    // 결과는 번/잃은 도토리 한 줄만 말한다 (설명이 길다는 피드백으로 줄였다)
     await waitFor(() =>
-      expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith(
-        '팔았어요!',
-        expect.stringContaining('살 때 10,000 도토리 → 팔 때 10,250 도토리\n수익 250 도토리'),
-      ),
+      expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith('팔았어요!', '250 도토리를 벌었어요!'),
+    );
+  });
+
+  it('산 값보다 싸게 팔면 잃은 도토리만 말한다', async () => {
+    jest.mocked(investmentApi.sell).mockResolvedValue({
+      ...order,
+      transactionType: 'SELL',
+      unitPrice: 9700,
+      totalAmount: 9700,
+      buyPrice: 10000,
+      realizedProfit: -300,
+    });
+    await renderWithQuery(<TradeButtons detail={{ ...detail, holding: true }} />);
+
+    fireEvent.press(screen.getByText('팔기'));
+    pressAlertButton('팔래요');
+
+    await waitFor(() =>
+      expect(jest.mocked(Alert.alert)).toHaveBeenCalledWith('팔았어요!', '300 도토리를 잃었어요.'),
     );
   });
 });

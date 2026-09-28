@@ -10,7 +10,7 @@ import { useChoreStatus } from '@/features/chore/model/useChoreStatus';
 import { useDeleteChore } from '@/features/chore/model/useDeleteChore';
 import { DeleteChoreModal } from '@/features/chore/ui/DeleteChoreModal';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { Button, ContentCard, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type ParentChoreDetailProps = {
   familyId: number | undefined;
@@ -56,6 +56,7 @@ export function ParentChoreDetail({
   onBack,
 }: ParentChoreDetailProps) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { data: chore, isPending, isError } = useChore(familyId, childId, choreId);
   const status = useChoreStatus(familyId, childId, chore);
   const [confirming, setConfirming] = useState(false);
@@ -90,6 +91,7 @@ export function ParentChoreDetail({
         <Centered message="미션을 찾을 수 없어요." />
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
@@ -139,30 +141,6 @@ export function ParentChoreDetail({
                 ]}
               >
                 {chore.description}
-              </Text>
-            </View>
-          ) : null}
-
-          {chore.reason ? (
-            <View style={{ gap: theme.space.sm }}>
-              <View style={[styles.titleRow, { gap: theme.space.sm }]}>
-                <Ionicons name="sparkles" size={16} color={theme.color.brand.solid} />
-                <Text style={[theme.typography.titleMd, { color: theme.color.text.strong }]}>
-                  AI 산정 이유
-                </Text>
-              </View>
-              <Text
-                style={[
-                  theme.typography.bodySm,
-                  {
-                    backgroundColor: theme.color.background.surfaceSunken,
-                    borderRadius: theme.radius.md,
-                    padding: theme.space.lg,
-                    color: theme.color.text.default,
-                  },
-                ]}
-              >
-                {chore.reason}
               </Text>
             </View>
           ) : null}

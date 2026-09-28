@@ -3,10 +3,11 @@ import { ScrollView } from 'react-native';
 
 import { NewsReview } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Header, Screen } from '@/shared/ui';
+import { Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 export default function InvestmentNewsReviewScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   return (
     <Screen
       header={
@@ -19,6 +20,7 @@ export default function InvestmentNewsReviewScreen() {
       padded={false}
     >
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={{ padding: theme.layout.screenX, paddingBottom: theme.space['4xl'] }}
       >
         <NewsReview />

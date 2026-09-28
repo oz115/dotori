@@ -32,6 +32,7 @@ export function StoreProductEditForm({ familyId, productId }: StoreProductEditFo
     <Screen
       header={<Header title="상품 수정" onBack={() => router.back()} />}
       scroll={!!product}
+      keyboardAvoiding
       edges={[]}
     >
       {isPending ? (

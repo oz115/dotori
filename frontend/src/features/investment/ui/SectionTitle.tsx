@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 
 import { useTheme } from '@/shared/theme';
@@ -9,12 +10,14 @@ type Props = {
   title: string;
   /** 우측 텍스트 액션 (예: "보유한 주식 보기") */
   action?: { label: string; onPress: () => void };
+  /** 우측에 넣을 임의의 요소 (예: "보유한 것만" 체크박스). action 과 같이 쓰지 않는다 */
+  right?: ReactNode;
 };
 
 /**
  * 투자 화면의 섹션 제목 줄 (아이콘 + 제목 + 우측 액션).
  */
-export function SectionTitle({ icon, title, action }: Props) {
+export function SectionTitle({ icon, title, action, right }: Props) {
   const theme = useTheme();
 
   return (
@@ -35,7 +38,9 @@ export function SectionTitle({ icon, title, action }: Props) {
           </Text>
           <Ionicons name="chevron-forward" size={16} color={theme.color.text.default} />
         </Pressable>
-      ) : null}
+      ) : (
+        right
+      )}
     </View>
   );
 }

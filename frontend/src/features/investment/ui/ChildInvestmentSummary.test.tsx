@@ -17,7 +17,7 @@ it('지금 가치와 산 값 대비 수익, 최근 7일 판매 수익을 함께 
   expect(screen.getByText('20,300 도토리')).toBeTruthy();
   expect(screen.getByText('산 값보다 300 도토리 올랐어요')).toBeTruthy();
   expect(screen.getByText('최근 7일 판매 수익')).toBeTruthy();
-  expect(screen.getByText('수익 500 도토리')).toBeTruthy();
+  expect(screen.getByText('+500 도토리')).toBeTruthy();
 });
 
 it('산 주식이 없으면 숫자 대신 안내를 보여준다', async () => {
@@ -46,7 +46,7 @@ it('원가를 모르는 판매가 섞이면 합계를 확정값처럼 보여주�
     />,
   );
   expect(screen.getByText('계산할 정보가 부족해요')).toBeTruthy();
-  expect(screen.queryByText('수익 500 도토리')).toBeNull();
+  expect(screen.queryByText('+500 도토리')).toBeNull();
 });
 
 it('거래 내역을 못 받았을 때는 판매 수익 자리에만 상태를 표시하고 보유 정보는 그대로 둔다', async () => {
@@ -78,5 +78,5 @@ it('변동이 없으면 산 값과 같다고 알려준다', async () => {
       sales={{ status: 'ready', count: 0, total: 0, incomplete: false }}
     />,
   );
-  expect(screen.getByText('산 값과 같아요')).toBeTruthy();
+  expect(screen.getByText('산 값 대비 0 도토리')).toBeTruthy();
 });

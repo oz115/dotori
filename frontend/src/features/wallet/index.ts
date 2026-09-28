@@ -2,6 +2,7 @@ export { walletApi } from './api/walletApi';
 export { walletKeys } from './model/walletKeys';
 export { useWalletBalance } from './model/useWalletBalance';
 export { useChargeWallet } from './model/useChargeWallet';
+export { useGrantPoints } from './model/useGrantPoints';
 export { useCashoutRequest } from './model/useCashoutRequest';
 export { useCashoutRequests } from './model/useCashoutRequests';
 export { useApproveCashout } from './model/useApproveCashout';
@@ -14,6 +15,7 @@ export {
 export { mockChildBalance } from './model/mock';
 export {
   chargeErrorMessage,
+  grantErrorMessage,
   cashoutErrorMessage,
   reviewCashoutErrorMessage,
 } from './lib/walletError';
@@ -24,8 +26,12 @@ export {
   splitCashoutRequests,
   type CashoutStatusTone,
 } from './lib/cashoutStatus';
+export { usePointTransactions } from './model/usePointTransactions';
+export { pointTransactionReasonLabel } from './lib/pointTransactionLabels';
+export { GrantPointsScreen } from './ui/GrantPointsScreen';
 export { ParentCashoutRequestList } from './ui/ParentCashoutRequestList';
 export { ChildCashoutRequestList } from './ui/ChildCashoutRequestList';
+export { ChildWalletHistory } from './ui/ChildWalletHistory';
 export { CashoutRequestRow } from './ui/CashoutRequestRow';
 export { CashoutStatusBadge } from './ui/CashoutStatusBadge';
 export { CashoutStatusIcon } from './ui/CashoutStatusIcon';
@@ -33,7 +39,10 @@ export { CashoutRequestModal } from './ui/CashoutRequestModal';
 export type {
   PointBalance,
   ChargeBody,
+  GrantBody,
   PointTransaction,
+  PointTransactionItem,
+  PointTransactionReason,
   CashoutBody,
   CashoutStatus,
   CashoutRequest,

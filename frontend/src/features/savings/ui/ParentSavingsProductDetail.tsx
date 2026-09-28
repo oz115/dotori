@@ -12,7 +12,7 @@ import type { SavingsProductResponse } from '@/features/savings/model/types';
 import { SavingsProductHero } from '@/features/savings/ui/SavingsProductHero';
 import { formatPoint } from '@/shared/lib/money';
 import { useTheme } from '@/shared/theme';
-import { Button, ChildBadge, Header, Screen } from '@/shared/ui';
+import { Button, ChildBadge, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 type Props = {
   familyId: number | undefined;
@@ -39,6 +39,7 @@ export function ParentSavingsProductDetail({
   onBack,
 }: Props) {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const product = useSavingsProduct(familyId, childId, productId);
   const children = useChildrenSavingsSubscriptions(familyId, childList);
 
@@ -74,6 +75,7 @@ export function ParentSavingsProductDetail({
         </View>
       ) : (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,

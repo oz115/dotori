@@ -24,6 +24,7 @@ import com.bana.dotori.family.entity.Family;
 import com.bana.dotori.family.entity.FamilyCode;
 import com.bana.dotori.family.entity.FamilyMember;
 import com.bana.dotori.family.event.FamilyChildConnectedEvent;
+import com.bana.dotori.family.event.FamilyOnboardedEvent;
 import com.bana.dotori.family.mapper.FamilyMapper;
 import com.bana.dotori.family.repository.FamilyCodeRepository;
 import com.bana.dotori.family.repository.FamilyMemberRepository;
@@ -35,6 +36,7 @@ import com.bana.dotori.global.util.RandomCodeGenerator;
 import com.bana.dotori.user.entity.User;
 import com.bana.dotori.user.entity.UserRole;
 import com.bana.dotori.user.repository.UserRepository;
+import com.bana.dotori.user.service.RemainingAssetPolicy;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +56,7 @@ public class FamilyServiceImpl implements FamilyService {
 	private final UserRepository userRepository;
 	private final FamilyMapper familyMapper;
 	private final ApplicationEventPublisher eventPublisher;
+	private final RemainingAssetPolicy remainingAssetPolicy;
 
 	@Override
 	@Transactional
@@ -76,6 +79,8 @@ public class FamilyServiceImpl implements FamilyService {
 			.family(family)
 			.user(user)
 			.build());
+		// 커밋 후 투자 도메인이 받아 가격 이력을 백필한다 — 가입 당일에도 차트가 보이게
+		eventPublisher.publishEvent(new FamilyOnboardedEvent(family.getId()));
 
 		return familyMapper.toCreateResponse(family);
 	}
@@ -158,8 +163,14 @@ public class FamilyServiceImpl implements FamilyService {
 		if (!family.getCreatedBy().equals(userId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
-		familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId)
-			.forEach(FamilyMember::softDelete);
+		List<FamilyMember> members = familyMemberRepository.findAllByFamilyIdAndDeletedAtIsNull(familyId);
+		// 자녀에게 자산이 남은 채로 가족이 사라지면 자녀는 지갑·환전에 닿을 길(가족 소속·부모 승인)을 잃는다.
+		// 그러면 자산을 처분하지도 탈퇴하지도 못하므로, 자녀가 자산을 정리한 뒤에만 해체할 수 있다.
+		members.stream()
+			.map(FamilyMember::getUser)
+			.filter(member -> member.getRole() == UserRole.CHILD)
+			.forEach(this::requireNoRemainingAsset);
+		members.forEach(FamilyMember::softDelete);
 		family.softDelete();
 	}
 
@@ -177,22 +188,22 @@ public class FamilyServiceImpl implements FamilyService {
 		if (childMember.getUser().getRole() != UserRole.CHILD) {
 			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
 		}
+		// 가족 해체와 같은 이유 — 자산이 남은 자녀를 내보내면 그 자산을 처분할 길이 끊긴다
+		requireNoRemainingAsset(childMember.getUser());
 		childMember.softDelete();
+	}
+
+	private void requireNoRemainingAsset(User child) {
+		if (remainingAssetPolicy.hasRemainingAsset(child.getId())) {
+			throw new BusinessException(ErrorCode.CHILD_HAS_ACTIVE_ASSETS,
+				"자녀의 도토리·예적금·투자·환전 대기가 남아 있습니다. childId=" + child.getId());
+		}
 	}
 
 	@Override
 	@Transactional
 	public InvitationCodeResponse createInvitationCode(Integer userId, Integer familyId) {
-		User user = findUser(userId);
-		if (user.getRole() != UserRole.PARENT) {
-			throw new BusinessException(ErrorCode.FORBIDDEN);
-		}
-		// 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
-		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
-		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
-			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
-		}
+		Family family = lockFamilyOfParent(userId, familyId);
 
 		// 재발급 시 기존 코드는 무효화하고 가족당 유효 코드를 하나만 유지한다
 		familyCodeRepository.deleteAllByFamilyId(familyId);
@@ -202,6 +213,32 @@ public class FamilyServiceImpl implements FamilyService {
 			.expiredAt(OffsetDateTime.now().plus(CODE_TTL))
 			.build());
 		return familyMapper.toInvitationCodeResponse(familyCode);
+	}
+
+	@Override
+	@Transactional
+	public void revokeInvitationCode(Integer userId, Integer familyId) {
+		lockFamilyOfParent(userId, familyId);
+
+		// 발급된 코드가 없어도 성공으로 본다 — 목적("유효한 코드가 없는 상태")이 이미 달성돼 있다
+		familyCodeRepository.deleteAllByFamilyId(familyId);
+	}
+
+	/**
+	 * 부모 본인이 속한 가족 행을 잠가서 돌려준다 (초대 코드 발급·폐기 공용).
+	 * 가족 행을 잠가 동시 재발급(더블탭·부모 2명)을 직렬화한다 — 락 없이는 delete-insert가 겹쳐 유효 코드가 2개 남을 수 있다
+	 */
+	private Family lockFamilyOfParent(Integer userId, Integer familyId) {
+		User user = findUser(userId);
+		if (user.getRole() != UserRole.PARENT) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Family family = familyRepository.findByIdAndDeletedAtIsNullForUpdate(familyId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.FAMILY_NOT_FOUND));
+		if (!familyMemberRepository.existsActiveMember(familyId, userId)) {
+			throw new BusinessException(ErrorCode.FAMILY_NOT_FOUND);
+		}
+		return family;
 	}
 
 	@Override

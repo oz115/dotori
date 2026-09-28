@@ -14,18 +14,44 @@ function product(overrides: Partial<StoreProductSummary>): StoreProductSummary {
   };
 }
 
+const noSeen: ReadonlySet<number> = new Set();
+
 describe('nearestSavingGoals', () => {
-  it('excludes products already affordable or without a price yet', () => {
+  it('처음부터 살 수 있던 상품·가격 산정 중·품절 상품은 띄우지 않는다', () => {
     const products = [
-      product({ storeProductId: 1, price: 5000 }), // 이미 살 수 있음
+      product({ storeProductId: 1, price: 5000 }), // 목표였던 적이 없다
       product({ storeProductId: 2, price: null }), // 가격 산정 중
       product({ storeProductId: 3, price: 15000 }),
+      product({ storeProductId: 4, price: 15000, quantity: 0 }), // 품절
     ];
 
-    const goals = nearestSavingGoals(products, 8300);
+    const goals = nearestSavingGoals(products, 8300, noSeen);
 
     expect(goals).toHaveLength(1);
     expect(goals[0].product.storeProductId).toBe(3);
+  });
+
+  it('목표였던 상품도 품절되면 달성 카드에서 뺀다 — 살 수 없는데 살 수 있다고 하면 거짓말이다', () => {
+    const products = [product({ storeProductId: 1, price: 5000, quantity: 0 })];
+
+    const goals = nearestSavingGoals(products, 8300, new Set([1]));
+
+    expect(goals).toHaveLength(0);
+  });
+
+  it('한 번 목표로 떠 있던 상품은 살 수 있게 돼도 달성 상태로 맨 앞에 남는다', () => {
+    const products = [
+      product({ storeProductId: 1, price: 5000 }), // 예전에 목표였다가 잔액이 넘었다
+      product({ storeProductId: 3, price: 15000 }),
+    ];
+
+    const goals = nearestSavingGoals(products, 8300, new Set([1]));
+
+    expect(goals.map((g) => g.product.storeProductId)).toEqual([1, 3]);
+    expect(goals[0].achievable).toBe(true);
+    expect(goals[0].remaining).toBe(0);
+    expect(goals[0].progress).toBe(1);
+    expect(goals[1].achievable).toBe(false);
   });
 
   it('sorts by remaining amount ascending and computes progress', () => {
@@ -34,7 +60,7 @@ describe('nearestSavingGoals', () => {
       product({ storeProductId: 2, price: 15000 }),
     ];
 
-    const goals = nearestSavingGoals(products, 8300);
+    const goals = nearestSavingGoals(products, 8300, noSeen);
 
     expect(goals.map((g) => g.product.storeProductId)).toEqual([2, 1]);
     expect(goals[0].remaining).toBe(6700);
@@ -46,7 +72,7 @@ describe('nearestSavingGoals', () => {
       product({ storeProductId: i + 1, price: 9000 + i * 100 }),
     );
 
-    const goals = nearestSavingGoals(products, 8300, 2);
+    const goals = nearestSavingGoals(products, 8300, noSeen, 2);
 
     expect(goals).toHaveLength(2);
     expect(goals.every((g) => g.progress <= 1)).toBe(true);

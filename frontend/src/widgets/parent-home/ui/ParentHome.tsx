@@ -2,14 +2,13 @@ import { router } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useMyAccount } from '@/features/account';
+import { AccountCard, useMyAccount } from '@/features/account';
 import { useUnreadNotificationCount } from '@/features/notification';
 import { useTheme } from '@/shared/theme';
-import { AppTopBar } from '@/shared/ui';
+import { AppTopBar, PagedCards, usePullToRefresh } from '@/shared/ui';
 
 import { useParentFamily } from '@/widgets/parent-home/model/useParentFamily';
 
-import { AccountCard } from './AccountCard';
 import { ApprovalsCard } from './ApprovalsCard';
 import { ChildActivityBoard } from './ChildActivityBoard';
 import { ChildAssetsSection } from './ChildAssetsSection';
@@ -25,6 +24,7 @@ import { ChildTodayProgress } from './ChildTodayProgress';
  */
 export function ParentHome() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { familyId, childId, childName, isPending: familyPending } = useParentFamily();
   const account = useMyAccount();
   const unreadCount = useUnreadNotificationCount();
@@ -35,6 +35,8 @@ export function ParentHome() {
   const openCashouts = () => router.push('/(parent)/wallet/cashouts');
   const openSaveTab = () => router.push('/(parent)/(tabs)/save');
   const openInvestmentTab = () => router.push('/(parent)/(tabs)/investment');
+  // 리포트는 탭이 아니라 푸시 라우트다 — 부모 탭이 다섯 개로 차 있다
+  const openReport = () => router.push('/(parent)/report');
   // '/word' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 단어장으로 간다
   const openWords = () => router.push('/(parent)/word');
   // '/quiz' 도 아이 그룹에 같은 경로가 있어 그룹까지 적어야 부모용 퀴즈 화면으로 간다
@@ -52,26 +54,35 @@ export function ParentHome() {
       />
 
       <ScrollView
+        refreshControl={refreshControl}
         contentContainerStyle={[
           styles.content,
           { paddingHorizontal: theme.layout.screenX, gap: theme.space['2xl'] },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <ChildBalanceCard
-          familyId={familyId}
-          childId={childId}
-          childName={childName}
-          familyPending={familyPending}
-          onCashout={openCashouts}
-        />
-
-        <AccountCard
-          account={account.data}
-          isPending={account.isPending}
-          onLinkAccount={() => router.push('/account/link')}
-          onTransfer={() => router.push('/account/transfer')}
-          onHistory={() => router.push('/account/transactions')}
+        {/* 옆으로 넘기면 부모 본인 계좌가 나온다 — 자녀 홈 지갑과 같은 슬라이드 */}
+        <PagedCards
+          pages={[
+            <ChildBalanceCard
+              key="child"
+              familyId={familyId}
+              childId={childId}
+              childName={childName}
+              familyPending={familyPending}
+              onGrant={() => router.push('/(parent)/wallet/grant')}
+              onReviewCashouts={openCashouts}
+            />,
+            <AccountCard
+              key="account"
+              fill
+              account={account.data}
+              isPending={account.isPending}
+              onLinkAccount={() => router.push('/account/link')}
+              onTransfer={() => router.push('/account/transfer')}
+              onHistory={() => router.push('/account/transactions')}
+            />,
+          ]}
         />
 
         <ApprovalsCard
@@ -88,6 +99,7 @@ export function ParentHome() {
           familyPending={familyPending}
           onOpenSavings={openSaveTab}
           onOpenInvestment={openInvestmentTab}
+          onOpenReport={openReport}
         />
 
         <ChildTodayProgress

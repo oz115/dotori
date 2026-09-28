@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { choreApi } from '@/features/chore/api/choreApi';
@@ -31,14 +31,18 @@ const CHILD_ID = 7;
 const START = '2026-09-15';
 const CHILDREN = [{ childId: CHILD_ID, name: '민준' }];
 
-function chore(choreId: number, title: string): ChoreSummary {
+function chore(
+  choreId: number,
+  title: string,
+  repeatType: ChoreSummary['repeatType'] = 'ONCE',
+): ChoreSummary {
   return {
     choreId,
     childId: CHILD_ID,
     title,
     difficulty: 'NORMAL',
     rewardPoints: 500,
-    repeatType: 'ONCE',
+    repeatType,
     startDate: START,
     endDate: START,
     createdAt: `${START}T09:00:00+09:00`,
@@ -67,7 +71,7 @@ beforeEach(() => {
 });
 
 describe('ParentChoreList - 완료한 미션 처리', () => {
-  it('지급까지 끝난 미션은 목록에 보이지 않는다', async () => {
+  it('끝낸 한번 미션은 목록에서 빠진다', async () => {
     mocked.getChores.mockResolvedValue([chore(1, '수학 문제 20개 풀기'), chore(2, '방 정리하기')]);
     mocked.getCompletions.mockResolvedValue([paid(1, '수학 문제 20개 풀기')]);
 
@@ -127,5 +131,33 @@ describe('ParentChoreList - 완료한 미션 처리', () => {
 
     await waitFor(() => expect(screen.getByText('8번 미션')).toBeTruthy(), WAIT);
     expect(screen.queryByText('7번 미션')).toBeNull();
+  });
+});
+
+describe('ParentChoreList - 끝낸 반복 미션', () => {
+  it('목록에 남는다', async () => {
+    // 부모는 자기가 무엇을 걸어 뒀는지 기억하지 못한다. 끝나자마자 사라지면 그 미션이
+    // 있었다는 사실 자체가 안 보인다 (QA). 아이 화면과 같은 규칙이다.
+    mocked.getChores.mockResolvedValue([chore(1, '이불 개기', 'DAY')]);
+    mocked.getCompletions.mockResolvedValue([paid(1, '이불 개기')]);
+
+    await withQuery(<ParentChoreList familyId={FAMILY_ID} childList={CHILDREN} />);
+
+    await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
+  });
+
+  it('"미완료만" 을 켜면 빠진다', async () => {
+    // 아이 화면과 같은 장치다. 남겨 두는 것이 기본이되, 쌓이면 한 번 눌러 걷어낸다.
+    mocked.getChores.mockResolvedValue([chore(1, '이불 개기', 'DAY'), chore(2, '방 정리하기')]);
+    mocked.getCompletions.mockResolvedValue([paid(1, '이불 개기')]);
+
+    await withQuery(<ParentChoreList familyId={FAMILY_ID} childList={CHILDREN} />);
+    await waitFor(() => expect(screen.getByText('이불 개기')).toBeTruthy(), WAIT);
+
+    // Checkbox(Pressable)에서 Toggle(RN Switch)로 바뀌어 press 대신 valueChange 를 쏜다
+    fireEvent(screen.getByLabelText('미완료만'), 'valueChange', true);
+
+    await waitFor(() => expect(screen.queryByText('이불 개기')).toBeNull(), WAIT);
+    expect(screen.getByText('방 정리하기')).toBeTruthy();
   });
 });

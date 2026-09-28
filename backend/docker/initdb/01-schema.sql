@@ -578,6 +578,9 @@ CREATE TABLE "words" (
     "word_id"               SERIAL      NOT NULL,
     "word"                  VARCHAR(100) NOT NULL,
     "description"           VARCHAR(255) NOT NULL,
+    /* 아이 눈높이로 풀어 쓴 설명. 용어사전을 나중에 받아 채운 컬럼이라
+       아직 비어 있는 단어가 있을 수 있어 NULL 을 허용한다. */
+    "easy_description"      VARCHAR(255) NULL,
     "difficulty_level"      INTEGER     NOT NULL,
     "created_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at"            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,

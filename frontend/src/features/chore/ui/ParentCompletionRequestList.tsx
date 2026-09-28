@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View, RefreshControl } from 'react-native';
 
 import {
   useChildrenPendingRequests,
@@ -18,6 +19,11 @@ type ParentCompletionRequestListProps = {
   childList: ChoreChild[];
   /** 승인으로 도토리가 지급되면 알린다. 지갑은 다른 슬라이스라 라우트가 갱신한다 */
   onApproved?: (childId: number, rewardPoints: number) => void;
+  /**
+   * 뒤로가기를 기본 동작(스택 되돌리기) 대신 다른 곳으로 보낼 때 넘긴다. 알림함에서
+   * 들어온 경우가 그렇다 — 알림함으로 돌아가야 한다 (useBackToNotifications).
+   */
+  onBack?: () => void;
 };
 
 /**
@@ -32,6 +38,7 @@ export function ParentCompletionRequestList({
   familyId,
   childList,
   onApproved,
+  onBack,
 }: ParentCompletionRequestListProps) {
   const theme = useTheme();
   const childIds = useMemo(() => childList.map((child) => child.childId), [childList]);
@@ -57,7 +64,7 @@ export function ParentCompletionRequestList({
       header={
         <Header
           title="완료 요청"
-          onBack={() => (router.canGoBack() ? router.back() : router.replace('/task'))}
+          onBack={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/task')))}
         />
       }
       // 탭 화면이라 하단 안전영역은 탭바가 이미 확보해준다 — 여기서 또 넣으면 탭바 위에 빈 틈이 생긴다.
@@ -142,10 +149,17 @@ function RequestRow({
         }}
       >
         {request.photoUrl ? (
+          /* 사진 URL 은 presigned 라 목록을 새로 받을 때마다 서명이 바뀐다. URL 을 캐시
+             키로 쓰면 같은 사진을 매번 다시 받아 썸네일이 늦게 뜬다 (QA) - 요청 id 로
+             키를 고정해 두 번째부터는 캐시에서 바로 그린다. */
           <Image
-            source={{ uri: request.photoUrl }}
+            source={{
+              uri: request.photoUrl,
+              cacheKey: `chore-request-${request.choreCompletionRequestId}`,
+            }}
             style={[styles.thumb, { borderRadius: theme.radius.sm }]}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={120}
           />
         ) : null}
 

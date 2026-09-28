@@ -9,7 +9,7 @@ import {
   useStockDetail,
 } from '@/features/investment';
 import { useTheme } from '@/shared/theme';
-import { Button, ContentCard, Header, Screen } from '@/shared/ui';
+import { Button, ContentCard, Header, Screen, usePullToRefresh } from '@/shared/ui';
 
 /**
  * 부모용 투자 상품 상세. 아이가 보는 화면(차트·상품 정보)과 같은 내용을 읽기 전용으로 보여준다.
@@ -18,6 +18,7 @@ import { Button, ContentCard, Header, Screen } from '@/shared/ui';
  */
 export default function ParentInvestmentDetailScreen() {
   const theme = useTheme();
+  const refreshControl = usePullToRefresh();
   const { stockId, childId: childIdParam } = useLocalSearchParams<{
     stockId: string;
     childId?: string;
@@ -55,6 +56,7 @@ export default function ParentInvestmentDetailScreen() {
     >
       {detail ? (
         <ScrollView
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: theme.layout.screenX,
@@ -65,6 +67,8 @@ export default function ParentInvestmentDetailScreen() {
           }}
         >
           <StockOverviewCard
+            // 아이의 매수가라 부모에게 "내가 산 값" 은 틀린 말이다 (QA)
+            showMyPosition={false}
             detail={detail}
             historyPending={historyPending}
             historyFetching={historyFetching}

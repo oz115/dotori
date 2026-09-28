@@ -9,6 +9,8 @@ export default function ChildNotificationsScreen() {
         const route = resolveNotificationRoute(
           { type: item.type, refId: item.refId == null ? undefined : String(item.refId) },
           'CHILD',
+          // 알림함에서 탭한 것이라, 그 화면의 뒤로가기는 알림함으로 돌아와야 한다
+          true,
         );
         if (route) {
           // push는 (tabs)가 이미 스택에 있어도 새 인스턴스를 하나 더 쌓아서 탭 인스턴스가
